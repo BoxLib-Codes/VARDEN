@@ -3,7 +3,6 @@ module init_module
   use bl_types
   use bc_module
   use mg_bc_module
-  use cvmg_module
   use multifab_module
 
   implicit none
@@ -72,7 +71,7 @@ contains
            u(i,j,2) = -2.0_dp_t*velfact*spx*cpx*spy*spy
            s(i,j,1) = 1.0_dp_t
 !          r = sqrt((x-0.5)**2 + (y-0.5)**2)
-!          s(i,j,1) = cvmgt(1.2_dp_t,1.0_dp_t,r .lt. 0.15)
+!          s(i,j,1) = merge(1.2_dp_t,1.0_dp_t,r .lt. 0.15)
         enddo
       enddo
 
