@@ -156,6 +156,11 @@ subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp)
   call multifab_build(  phi, la,  1, 1)
   call multifab_build(alpha, la,  1, 1)
   call multifab_build( beta, la, dm, 1)
+
+  print *,' '
+  print *,'... begin diffusive solve  ... '
+
+  print *,'MAX OF S BEFORE ',norm_inf(snew,1,1,all=.true.)
  
   call setval(alpha,1.0_dp_t,all=.true.)
   call setval(beta,mu,all=.true.)
@@ -167,6 +172,11 @@ subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp)
   call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order)
 
   call multifab_plus_plus_c(snew,comp,phi,1,1)
+
+  print *,'MAX OF S AFTER ',norm_inf(snew,1,1,all=.true.)
+
+  print *,' '
+  print *,'...   end diffusive solve  ... '
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)
