@@ -11,10 +11,11 @@ module init_module
 
 contains
 
-   subroutine initdata (u,s,dx)
+   subroutine initdata (u,s,dx,prob_hi)
 
       type(multifab) , intent( in) :: u,s
       real(kind=dp_t), intent( in) :: dx(:)
+      real(kind=dp_t), intent( in) :: prob_hi(:)
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
@@ -31,15 +32,15 @@ contains
          hi =  upb(get_box(u, i))
          select case (dm)
             case (2)
-              call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx)
+              call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx, prob_hi)
             case (3)
-              call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx)
+              call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
          end select
       end do
 
    end subroutine initdata
 
-   subroutine initdata_2d (u,s,lo,hi,ng,dx)
+   subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
 
       implicit none
 
@@ -47,6 +48,7 @@ contains
       real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(in ) :: dx(2)
+      real (kind = dp_t), intent(in ) :: prob_hi(2)
 
 !     Local variables
       integer :: i, j, n
@@ -60,9 +62,9 @@ contains
       s = ZERO
 
       do j = lo(2), hi(2)
-        y = (float(j)+0.5) / float(hi(2)+1)
+        y = (float(j)+0.5) * dx(2) / prob_hi(2)
         do i = lo(1), hi(1)
-           x = (float(i)+0.5) / float(hi(1)+1)
+           x = (float(i)+0.5) * dx(1) / prob_hi(1)
            spx = sin(Pi*x)
            spy = sin(Pi*y)
            cpx = cos(Pi*x)
@@ -80,8 +82,8 @@ contains
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
 !          s(i,j,n) = 1.0_dp_t
-           y = (float(j)+0.5) / float(hi(2)+1)
-           x = (float(i)+0.5) / float(hi(1)+1)
+           y = (float(j)+0.5) * dx(2) / prob_hi(2)
+           x = (float(i)+0.5) * dx(1) / prob_hi(1)
            r = sqrt((x-0.5)**2 + (y-0.5)**2)
            s(i,j,n) = r
         end do
@@ -91,7 +93,7 @@ contains
 
    end subroutine initdata_2d
 
-   subroutine initdata_3d (u,s,lo,hi,ng,dx)
+   subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)
 
       implicit none
 
@@ -99,6 +101,7 @@ contains
       real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(in ) :: dx(3)
+      real (kind = dp_t), intent(in ) :: prob_hi(3)
     
 !     Local variables
       integer :: i, j, k, n
@@ -113,9 +116,9 @@ contains
 
       do k = lo(3), hi(3)
       do j = lo(2), hi(2)
-        y = (float(j)+0.5) / float(hi(2)+1)
+        y = (float(j)+0.5) * dx(2) / prob_hi(2)
         do i = lo(1)-ng, hi(1)+ng
-         x = (float(i)+0.5) / float(hi(1)+1)
+         x = (float(i)+0.5) * dx(1) / prob_hi(1)
          spx = sin(Pi*x)
          spy = sin(Pi*y)
          cpx = cos(Pi*x)
