@@ -26,8 +26,8 @@ contains
       real(kind=dp_t), intent(inout) ::   uadv(lo(1)-1:,lo(2)-1:,:)
       real(kind=dp_t), intent(in   ) :: utrans(lo(1)-2:,lo(2)-2:,:)
 
-      real(kind=dp_t),intent(in) :: dt,dx(2),visc_coef
-      integer        ,intent(in) :: irz,velpred,bc(2,2)
+      real(kind=dp_t),intent(in) :: dt,dx(:),visc_coef
+      integer        ,intent(in) :: irz,velpred,bc(:,:)
       logical        ,intent(in) :: is_vel
 
       real(kind=dp_t), allocatable::  slopex(:,:,:),slopey(:,:,:)
@@ -340,8 +340,8 @@ contains
       real(kind=dp_t),intent(inout) ::   uadv(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(in   ) :: utrans(lo(1)-2:,lo(2)-2:,lo(3)-2:,:)
 
-      real(kind=dp_t),intent(in) :: dt,dx(3),visc_coef
-      integer        ,intent(in) :: velpred,bc(3,2)
+      real(kind=dp_t),intent(in) :: dt,dx(:),visc_coef
+      integer        ,intent(in) :: velpred,bc(:,:)
       logical        ,intent(in) :: is_vel
 
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)
