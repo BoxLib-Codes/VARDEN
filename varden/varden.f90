@@ -296,7 +296,7 @@ subroutine varden()
 
      call multifab_build(scal_force(n), la_tower(n), nscal, 1)
      call multifab_build(     force(n), la_tower(n),    dm, 1)
-     call multifab_build(         p(n), la_tower(n),     1, 1, nodal)
+     call multifab_build(         p(n), la_tower(n),     1, 1, nodal(1:dm))
      call multifab_build(        gp(n), la_tower(n),    dm, 1)
      call multifab_build(   rhohalf(n), la_tower(n),     1, 1)
 
