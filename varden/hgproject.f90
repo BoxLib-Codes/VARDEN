@@ -1,6 +1,7 @@
 module hgproject_module
 
   use bl_types
+  use bc_module
   use multifab_module
   use boxarray_module
   use stencil_module
@@ -16,12 +17,14 @@ module hgproject_module
 
 contains 
 
-subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
+subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
 
   type(multifab), intent(inout) :: unew
   type(multifab), intent(inout) :: rhohalf
   type(multifab), intent(inout) :: gp
+  type(multifab), intent(inout) :: p
   integer       , intent(in   ) :: press_bc(:,:)
+  integer       , intent(in   ) ::  phys_bc(:,:)
   real(dp_t) :: dx(:),dt
 
 ! Local  
@@ -40,12 +43,20 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
   call multifab_build( phi, la, 1, 1, nodal)
   call multifab_build(gphi, la, dm, 0) 
 
-  call divu(unew,rhohalf,gp,rh,dx,dt,press_bc)
+  print *,' '
+  print *,'... begin hg_projection ... '
+
+  call divu(unew,rhohalf,gp,rh,dx,dt,phys_bc)
 
   call hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
 
   call mkgp(gphi,phi,dx)
   call mkunew(unew,gp,gphi,rhohalf,ng,dt)
+
+  p = phi
+
+  print *,'...   end hg_projection ... '
+  print *,' '
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)
@@ -53,14 +64,14 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
 
   contains
 
-    subroutine divu(unew,rhohalf,gp,rh,dx,dt,press_bc)
+    subroutine divu(unew,rhohalf,gp,rh,dx,dt,phys_bc)
 
       type(multifab) , intent(in   ) :: unew
       type(multifab) , intent(in   ) :: gp
       type(multifab) , intent(in   ) :: rhohalf
       type(multifab) , intent(inout) :: rh
       real(kind=dp_t), intent(in   ) :: dx(:),dt
-      integer        , intent(in   ) :: press_bc(:,:)
+      integer        , intent(in   ) :: phys_bc(:,:)
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
@@ -80,16 +91,16 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
          select case (dm)
             case (2)
               call divu_2d(ump(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), &
-                           rhp(:,:,1,1), dx, dt, press_bc, ng)
+                           rhp(:,:,1,1), dx, dt, phys_bc, ng)
             case (3)
               call divu_3d(ump(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), &
-                           rhp(:,:,:,1), dx, dt, press_bc, ng)
+                           rhp(:,:,:,1), dx, dt, phys_bc, ng)
          end select
       end do
 
     end subroutine divu
 
-    subroutine divu_2d(u,rhohalf,gp,rh,dx,dt,press_bc,ng)
+    subroutine divu_2d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
@@ -97,17 +108,17 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:)
       real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dx(:),dt
-      integer        , intent(in   ) :: press_bc(:,:)
+      integer        , intent(in   ) :: phys_bc(:,:)
 
       integer :: i,j,nx,ny
       real(kind=dp_t) :: sum,rhmax
       nx = size(rh,dim=1) - ng
       ny = size(rh,dim=2) - ng
 
-      if (press_bc(1,1) == BC_NEU) u(-1,:,:) = ZERO
-      if (press_bc(1,2) == BC_NEU) u(nx,:,:) = ZERO
-      if (press_bc(2,1) == BC_NEU) u(:,-1,:) = ZERO
-      if (press_bc(2,2) == BC_NEU) u(:,ny,:) = ZERO
+      if (phys_bc(1,1) == WALL) u(-1,:,:) = ZERO
+      if (phys_bc(1,2) == WALL) u(nx,:,:) = ZERO
+      if (phys_bc(2,1) == WALL) u(:,-1,:) = ZERO
+      if (phys_bc(2,2) == WALL) u(:,ny,:) = ZERO
 
       do j = -1,ny
       do i = -1,nx
@@ -125,10 +136,10 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       end do
       end do
 
-      if (press_bc(1,1) == BC_DIR) rh( 0,:) = ZERO
-      if (press_bc(1,2) == BC_DIR) rh(nx,:) = ZERO
-      if (press_bc(2,1) == BC_DIR) rh(:, 0) = ZERO
-      if (press_bc(2,2) == BC_DIR) rh(:,ny) = ZERO
+      if (phys_bc(1,1) == OUTLET) rh( 0,:) = ZERO
+      if (phys_bc(1,2) == OUTLET) rh(nx,:) = ZERO
+      if (phys_bc(2,1) == OUTLET) rh(:, 0) = ZERO
+      if (phys_bc(2,2) == OUTLET) rh(:,ny) = ZERO
 
       sum = ZERO
       rhmax = ZERO
@@ -139,20 +150,26 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       end do
       end do
       print *,'HGPROJ RHS MAX / SUM',rhmax,sum
-      do j = 0,ny
-      do i = 0,nx
-         rh(i,j) = rh(i,j) - sum / dble(nx+1) / dble(ny+1)
-      end do
-      end do
 
-      if (press_bc(1,1) == BC_NEU) rh( 0,:) = TWO*rh( 0,:)
-      if (press_bc(1,2) == BC_NEU) rh(nx,:) = TWO*rh(nx,:)
-      if (press_bc(2,1) == BC_NEU) rh(:, 0) = TWO*rh(:, 0)
-      if (press_bc(2,2) == BC_NEU) rh(:,ny) = TWO*rh(:,ny)
+      if ( (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) .and. &
+           (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) .and. &
+           (phys_bc(2,1) == WALL .or. phys_bc(2,1) == INLET) .and. &
+           (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) ) then
+         do j = 0,ny
+         do i = 0,nx
+            rh(i,j) = rh(i,j) - sum / dble(nx+1) / dble(ny+1)
+         end do
+         end do
+      end if
+
+      if (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) rh( 0,:) = TWO*rh( 0,:)
+      if (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) rh(nx,:) = TWO*rh(nx,:)
+      if (phys_bc(2,1) == WALL .or. phys_bc(2,1) == INLET) rh(:, 0) = TWO*rh(:, 0)
+      if (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) rh(:,ny) = TWO*rh(:,ny)
 
     end subroutine divu_2d
 
-    subroutine divu_3d(u,rhohalf,gp,rh,dx,dt,press_bc,ng)
+    subroutine divu_3d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
@@ -160,7 +177,7 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dx(:),dt
-      integer        , intent(in   ) :: press_bc(:,:)
+      integer        , intent(in   ) :: phys_bc(:,:)
 
       real(kind=dp_t) :: sum,rhmax
       integer :: i,j,k,nx,ny,nz
@@ -169,12 +186,12 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       ny = size(rh,dim=2) - ng
       nz = size(rh,dim=3) - ng
 
-      if (press_bc(1,1) == BC_NEU) u(-1,:,:,:) = ZERO
-      if (press_bc(1,2) == BC_NEU) u(nx,:,:,:) = ZERO
-      if (press_bc(2,1) == BC_NEU) u(:,-1,:,:) = ZERO
-      if (press_bc(2,2) == BC_NEU) u(:,ny,:,:) = ZERO
-      if (press_bc(3,1) == BC_NEU) u(:,:,-1,:) = ZERO
-      if (press_bc(3,2) == BC_NEU) u(:,:,nz,:) = ZERO
+      if (phys_bc(1,1) == WALL) u(-1,:,:,:) = ZERO
+      if (phys_bc(1,2) == WALL) u(nx,:,:,:) = ZERO
+      if (phys_bc(2,1) == WALL) u(:,-1,:,:) = ZERO
+      if (phys_bc(2,2) == WALL) u(:,ny,:,:) = ZERO
+      if (phys_bc(3,1) == WALL) u(:,:,-1,:) = ZERO
+      if (phys_bc(3,2) == WALL) u(:,:,nz,:) = ZERO
 
       do k = -1,nz
       do j = -1,ny
@@ -206,12 +223,12 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       end do
       end do
 
-      if (press_bc(1,1) == BC_DIR) rh( 0,:,:) = ZERO
-      if (press_bc(1,2) == BC_DIR) rh(nx,:,:) = ZERO
-      if (press_bc(2,1) == BC_DIR) rh(:, 0,:) = ZERO
-      if (press_bc(2,2) == BC_DIR) rh(:,ny,:) = ZERO
-      if (press_bc(3,1) == BC_DIR) rh(:,:, 0) = ZERO
-      if (press_bc(3,2) == BC_DIR) rh(:,:,nz) = ZERO
+      if (phys_bc(1,1) == OUTLET) rh( 0,:,:) = ZERO
+      if (phys_bc(1,2) == OUTLET) rh(nx,:,:) = ZERO
+      if (phys_bc(2,1) == OUTLET) rh(:, 0,:) = ZERO
+      if (phys_bc(2,2) == OUTLET) rh(:,ny,:) = ZERO
+      if (phys_bc(3,1) == OUTLET) rh(:,:, 0) = ZERO
+      if (phys_bc(3,2) == OUTLET) rh(:,:,nz) = ZERO
 
       sum = ZERO
       rhmax = ZERO
@@ -225,12 +242,12 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       end do
       print *,'HGPROJ RHS MAX / SUM',rhmax,sum
 
-      if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
-      if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
-      if (press_bc(2,1) == BC_NEU) rh(:, 0,:) = TWO*rh(:, 0,:)
-      if (press_bc(2,2) == BC_NEU) rh(:,ny,:) = TWO*rh(:,ny,:)
-      if (press_bc(3,1) == BC_NEU) rh(:,:, 0) = TWO*rh(:,:, 0)
-      if (press_bc(3,2) == BC_NEU) rh(:,:,nz) = TWO*rh(:,:,nz)
+      if (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) rh( 0,:,:) = TWO*rh( 0,:,:)
+      if (phys_bc(1,2) == WALL .or. phys_bc(1,1) == INLET) rh(nx,:,:) = TWO*rh(nx,:,:)
+      if (phys_bc(2,1) == WALL .or. phys_bc(1,1) == INLET) rh(:, 0,:) = TWO*rh(:, 0,:)
+      if (phys_bc(2,2) == WALL .or. phys_bc(1,1) == INLET) rh(:,ny,:) = TWO*rh(:,ny,:)
+      if (phys_bc(3,1) == WALL .or. phys_bc(1,1) == INLET) rh(:,:, 0) = TWO*rh(:,:, 0)
+      if (phys_bc(3,2) == WALL .or. phys_bc(1,1) == INLET) rh(:,:,nz) = TWO*rh(:,:,nz)
 
     end subroutine divu_3d
 
@@ -363,15 +380,14 @@ subroutine hgproject(unew,rhohalf,gp,dx,dt,press_bc)
       nx = size(gphi,dim=1)-1
       ny = size(gphi,dim=2)-1
 
-
 !     Subtract off the density-weighted gradient.
       unew(0:nx,0:ny,1) = unew(0:nx,0:ny,1) - gphi(0:nx,0:ny,1)/rhohalf(0:nx,0:ny) 
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
 !     Multiply by dt.
-      unew(0:nx,0:ny,:) = dt * unew(0:nx,0:ny,:)
+      unew(-1:nx,-1:ny,:) = dt * unew(-1:nx,-1:ny,:)
  
-!     Replace (gradient of) pressure by (gradient of) phi.
+!     Replace gradient of pressure by gradient of phi.
       gp(0:nx,0:ny,:) = gphi(0:nx,0:ny,:)
 
     end subroutine mkunew_2d
