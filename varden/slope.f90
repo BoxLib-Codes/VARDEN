@@ -26,7 +26,7 @@ contains
       integer        , intent(in   ) :: lo(2),ng,nvar
       real(kind=dp_t), intent(in   ) ::   s(lo(1)-ng:, lo(2)-ng:,:)
       real(kind=dp_t), intent(  out) :: slx(lo(1)- 1:, lo(2)- 1:,:) 
-      integer, intent(in) ::  bc(2,2)
+      integer, intent(in) ::  bc(:,:)
       integer, intent(in) ::  slope_order
       logical, intent(in) ::  do_refl
 
@@ -204,8 +204,8 @@ contains
       subroutine slopey_2d(s,sly,lo,ng,nvar,bc,slope_order)
 
 
-      integer, intent(in) :: lo(2),ng,nvar
-      integer, intent(in) :: bc(2,2)
+      integer, intent(in) :: lo(:),ng,nvar
+      integer, intent(in) :: bc(:,:)
       integer, intent(in) :: slope_order
 
       real(kind=dp_t), intent( in) ::     s(lo(1)-ng:,lo(2)-ng:,:)
@@ -379,8 +379,8 @@ contains
 
       subroutine slopez_3d(s,slz,lo,ng,nvar,bc,slope_order)
 
-      integer, intent(in) :: lo(3),ng,nvar
-      integer, intent(in) :: bc(3,2)
+      integer, intent(in) :: lo(:),ng,nvar
+      integer, intent(in) :: bc(:,:)
       integer, intent(in) :: slope_order
 
       real(kind=dp_t), intent( in) ::     s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)

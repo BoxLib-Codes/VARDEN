@@ -12,8 +12,8 @@ contains
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(in   ) ::    u(1-ng:,1-ng:)
       real(kind=dp_t), intent(inout) :: diff(:,:)
-      real(kind=dp_t), intent(in   ) :: dx(2)
-      integer        , intent(in   ) :: bc(2,2)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: bc(:,:)
 
       real(kind=dp_t) ::  ux_lft, ux_lft_wall
       real(kind=dp_t) ::  ux_rgt, ux_rgt_wall
@@ -67,8 +67,8 @@ contains
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(in   ) ::    u(1-ng:,1-ng:,1-ng:)
       real(kind=dp_t), intent(inout) :: diff(:,:,:)
-      real(kind=dp_t), intent(in   ) :: dx(3)
-      integer        , intent(in   ) :: bc(3,2)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: bc(:,:)
 
       real(kind=dp_t) ::  ux_lft, ux_lft_wall
       real(kind=dp_t) ::  ux_rgt, ux_rgt_wall

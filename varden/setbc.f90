@@ -12,10 +12,10 @@ contains
 
       subroutine setvelbc_2d(vel,lo,ng,bc,visc_coef)
 
-      integer        , intent(in   ) :: lo(2),ng
+      integer        , intent(in   ) :: lo(:),ng
       real(kind=dp_t), intent(inout) :: vel(lo(1)-ng:, lo(2)-ng:,:)
       real(kind=dp_t), intent(in   ) :: visc_coef
-      integer, intent(in) ::  bc(2,2)
+      integer, intent(in) ::  bc(:,:)
 
 !     Local variables
       integer :: i,j,hi(2)
@@ -101,10 +101,10 @@ contains
 
       subroutine setvelbc_3d(vel,lo,ng,bc,visc_coef)
 
-      integer        , intent(in   ) :: lo(3),ng
+      integer        , intent(in   ) :: lo(:),ng
       real(kind=dp_t), intent(inout) :: vel(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:, :)
       real(kind=dp_t), intent(in   ) :: visc_coef
-      integer, intent(in) ::  bc(3,2)
+      integer, intent(in) ::  bc(:,:)
 
 !     Local variables
       integer :: i,j,k,hi(3)
@@ -279,9 +279,9 @@ contains
 
       subroutine setscalbc_2d(s,lo,ng,bc)
 
-      integer        , intent(in   ) :: lo(2),ng
+      integer        , intent(in   ) :: lo(:),ng
       real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:,:)
-      integer, intent(in) ::  bc(2,2)
+      integer, intent(in) ::  bc(:,:)
 
 !     Local variables
       integer :: i,j,n,ncomp,hi(2)
@@ -367,9 +367,9 @@ contains
 
       subroutine setscalbc_3d(s,lo,ng,bc)
 
-      integer        , intent(in   ) :: lo(3),ng
+      integer        , intent(in   ) :: lo(:),ng
       real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:, :)
-      integer, intent(in) ::  bc(3,2)
+      integer, intent(in) ::  bc(:,:)
 
 !     Local variables
       integer :: i,j,k,n,ncomp,hi(3)

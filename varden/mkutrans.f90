@@ -21,8 +21,8 @@ contains
 
       real(kind=dp_t), intent(inout) ::  utrans(lo(1)-2:,lo(2)-2:,:)
 
-      real(kind=dp_t),intent(in) :: dt,dx(2)
-      integer        ,intent(in) :: bc(2,2)
+      real(kind=dp_t),intent(in) :: dt,dx(:)
+      integer        ,intent(in) :: bc(:,:)
       integer        ,intent(in) :: irz
 
       real(kind=dp_t), allocatable::  velx(:,:,:)
@@ -125,8 +125,8 @@ contains
       real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)
       real(kind=dp_t), intent(inout) :: utrans(lo(1)- 2:,lo(2)- 2:,lo(3)- 2:,:)
 
-      real(kind=dp_t),intent(in) :: dt,dx(3)
-      integer        ,intent(in) :: bc(3,2)
+      real(kind=dp_t),intent(in) :: dt,dx(:)
+      integer        ,intent(in) :: bc(:,:)
 
       real(kind=dp_t), allocatable::  velx(:,:,:,:),vely(:,:,:,:),velz(:,:,:,:)
 
