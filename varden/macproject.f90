@@ -890,7 +890,8 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   real(dp_t) :: omega
   logical :: nodal(rh(nlevs)%dim)
 
-  real(dp_t) :: xa(rh(nlevs)%dim), xb(rh(nlevs)%dim)
+  real(dp_t) ::  xa(rh(nlevs)%dim),  xb(rh(nlevs)%dim)
+  real(dp_t) :: pxa(rh(nlevs)%dim), pxb(rh(nlevs)%dim)
 
   !! Defaults:
 
@@ -1002,10 +1003,12 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
         xb = ZERO
      end if
 
+     pxa = ZERO
+     pxa = ZERO
      do i = mgt(n)%nlevels, 1, -1
         pdv = layout_boxarray(mgt(n)%ss(i)%la)
         call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
-             pdv, mgt(n)%mm(i), xa, xb, pd, stencil_order, &
+             pdv, mgt(n)%mm(i), xa, xb, pxa, pxb, pd, stencil_order, &
              the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,dm+3))
      end do
 
