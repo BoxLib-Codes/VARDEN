@@ -115,7 +115,8 @@ contains
       real (kind = dp_t) :: velfact
 
       Pi = 4.0_dp_t*atan(1.0)
-      velfact = 1.0_dp_t
+!     velfact = 1.0_dp_t
+      velfact = 0.0_dp_t
 
       u = ZERO
       s = ZERO
@@ -137,8 +138,15 @@ contains
       enddo
       enddo
 
+      do j = lo(2), hi(2)
+      do i = lo(1), hi(1)
+        u(i,j,lo(3)-1,3) = 1.0_dp_t
+        s(i,j,lo(3)-1,1) = 1.0_dp_t
+      enddo
+      enddo
+
       if (size(s,dim=4).gt.1) then
-        do n = 1, size(s,dim=4)
+        do n = 2, size(s,dim=4)
         do k = lo(3), hi(3)
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
