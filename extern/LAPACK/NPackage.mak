@@ -177,4 +177,5 @@ fsources = $(fsources) $(lapack_dir)\dnrm2.f
 fobjects = $(fobjects) $(obj_dir)\dnrm2.obj
 
 {$(lapack_dir)}.f{$(obj_dir)}.obj:
+	@if not exist "$(obj_dir)\" mkdir "$(obj_dir)\"
 	$(FOR) /c $(FFLAGS) $< /object:$(obj_dir)
