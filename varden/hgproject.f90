@@ -79,10 +79,16 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
+
       integer :: i,dm,ng
+      real(kind=dp_t)          :: rhmax,rhsum
+      real(kind=dp_t)          :: local_max,local_sum
 
       dm = rh%dim
       ng = unew%ng
+
+      rhmax = ZERO
+      rhsum = ZERO
 
       do i = 1, unew%nboxes
          if ( multifab_remote(unew, i) ) cycle
@@ -93,16 +99,21 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
          select case (dm)
             case (2)
               call divu_2d(ump(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), &
-                           rhp(:,:,1,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng)
+                           rhp(:,:,1,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng, &
+                           local_max, local_sum)
             case (3)
               call divu_3d(ump(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), &
-                           rhp(:,:,:,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng)
+                           rhp(:,:,:,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng, &
+                           local_max, local_sum)
          end select
+         rhmax = max(rhmax,local_max)
+         rhsum = rhsum + local_sum
       end do
+      print *,'HGPROJ RHS MAX / SUM',rhmax,rhsum
 
     end subroutine divu
 
-    subroutine divu_2d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng)
+    subroutine divu_2d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng,rhmax,rhsum)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
@@ -111,9 +122,9 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dx(:),dt
       integer        , intent(in   ) :: phys_bc(:,:)
+      real(kind=dp_t), intent(  out) :: rhmax,rhsum
 
       integer :: i,j,nx,ny
-      real(kind=dp_t) :: sum,rhmax
       nx = size(rh,dim=1) - ng
       ny = size(rh,dim=2) - ng
 
@@ -143,15 +154,14 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       if (phys_bc(2,1) == OUTLET) rh(:, 0) = ZERO
       if (phys_bc(2,2) == OUTLET) rh(:,ny) = ZERO
 
-      sum = ZERO
       rhmax = ZERO
+      rhsum = ZERO
       do j = 0,ny
       do i = 0,nx
-         sum = sum + rh(i,j)
          rhmax = max(rhmax,abs(rh(i,j)))
+         rhsum = rhsum + rh(i,j)
       end do
       end do
-      print *,'HGPROJ RHS MAX / SUM',rhmax,sum
 
       if ( (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) .and. &
            (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) .and. &
@@ -159,7 +169,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
            (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) ) then
          do j = 0,ny
          do i = 0,nx
-            rh(i,j) = rh(i,j) - sum / dble(nx+1) / dble(ny+1)
+            rh(i,j) = rh(i,j) - rhsum / dble(nx+1) / dble(ny+1)
          end do
          end do
       end if
@@ -171,7 +181,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
 
     end subroutine divu_2d
 
-    subroutine divu_3d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng)
+    subroutine divu_3d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng,rhmax,rhsum)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
@@ -180,8 +190,8 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dx(:),dt
       integer        , intent(in   ) :: phys_bc(:,:)
+      real(kind=dp_t), intent(  out) :: rhmax,rhsum
 
-      real(kind=dp_t) :: sum,rhmax
       integer :: i,j,k,nx,ny,nz
 
       nx = size(rh,dim=1) - ng
@@ -232,17 +242,16 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       if (phys_bc(3,1) == OUTLET) rh(:,:, 0) = ZERO
       if (phys_bc(3,2) == OUTLET) rh(:,:,nz) = ZERO
 
-      sum = ZERO
+      rhsum = ZERO
       rhmax = ZERO
       do k = 0,nz
       do j = 0,ny
       do i = 0,nx
-         sum = sum + rh(i,j,k)
+         rhsum = rhsum + rh(i,j,k)
          rhmax = max(rhmax,abs(rh(i,j,k)))
       end do
       end do
       end do
-      print *,'HGPROJ RHS MAX / SUM',rhmax,sum
 
       if (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) rh( 0,:,:) = TWO*rh( 0,:,:)
       if (phys_bc(1,2) == WALL .or. phys_bc(1,1) == INLET) rh(nx,:,:) = TWO*rh(nx,:,:)

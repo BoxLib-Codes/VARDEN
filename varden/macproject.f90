@@ -68,14 +68,14 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
-      real(kind=dp_t)          :: sum,rhmax
+      real(kind=dp_t)          :: rhsum,rhmax
       real(kind=dp_t)          :: local_sum,local_max
       integer :: i,dm
 
       dm = rh%dim
 
       rhmax = ZERO
-      sum   = ZERO
+      rhsum = ZERO
 
       do i = 1, umac%nboxes
          if ( multifab_remote(umac, i) ) cycle
@@ -88,28 +88,28 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
               call divumac_3d(ump(:,:,:,:), rhp(:,:,:,1), dx, local_max, local_sum)
          end select
          rhmax = max(rhmax,local_max)
-         sum   = sum + local_sum
+         rhsum = rhsum + local_sum
       end do
-      print *,'MAX/SUM OF RHS ',rhmax,sum
+      print *,'MAX/SUM OF RHS ',rhmax,rhsum
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,rh,dx,rhmax,sum)
+    subroutine divumac_2d(umac,rh,dx,rhmax,rhsum)
 
       real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,1:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
-      real(kind=dp_t), intent(  out) :: sum,rhmax
+      real(kind=dp_t), intent(  out) :: rhsum,rhmax
 
       integer :: i,j
 
-      sum = 0.0_dp_t
+      rhsum = 0.0_dp_t
       rhmax = 0.0_dp_t
       do j = 0, size(rh,dim=2)-1
       do i = 0, size(rh,dim=1)-1
          rh(i,j) = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) + &
                    (umac(i,j+1,2) - umac(i,j,2)) / dx(2)
-         sum = sum + rh(i,j)
+         rhsum = rhsum + rh(i,j)
          rhmax = max(rhmax,abs(rh(i,j)))
          rh(i,j) = -rh(i,j)
       end do
@@ -117,16 +117,16 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,rh,dx,rhmax,sum)
+    subroutine divumac_3d(umac,rh,dx,rhmax,rhsum)
 
       real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,-1:,1:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
-      real(kind=dp_t), intent(  out) :: sum,rhmax
+      real(kind=dp_t), intent(  out) :: rhsum,rhmax
 
       integer :: i,j,k
 
-      sum = 0.0_dp_t
+      rhsum = 0.0_dp_t
       rhmax = 0.0_dp_t
 
       do k = 0,size(rh,dim=3)-1
@@ -135,7 +135,7 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
          rh(i,j,k) = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) + &
                      (umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) + &
                      (umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
-         sum = sum + rh(i,j,k)
+         rhsum = rhsum + rh(i,j,k)
          rhmax = max(rhmax,abs(rh(i,j,k)))
          rh(i,j,k) = -rh(i,j,k)
       end do
@@ -248,8 +248,10 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: php(:,:,:,:) 
       real(kind=dp_t), pointer ::  bp(:,:,:,:) 
+      real(kind=dp_t)          :: rhmax,local_max
 
       dm = umac%dim
+      rhmax = ZERO
 
       do i = 1, umac%nboxes
          if ( multifab_remote(umac, i) ) cycle
@@ -259,25 +261,28 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
          select case (dm)
             case (2)
               call mkumac_2d(ump(:,:,1,:), php(:,:,1,1), bp(:,:,1,:), dx, &
-                             press_bc%bc_level_array(i,:,:))
+                             press_bc%bc_level_array(i,:,:), local_max)
             case (3)
               call mkumac_3d(ump(:,:,:,:), php(:,:,:,1), bp(:,:,:,:), dx, &
-                             press_bc%bc_level_array(i,:,:))
+                             press_bc%bc_level_array(i,:,:), local_max)
          end select
+         rhmax = max(rhmax,local_max)
       end do
+      print *,'MAX DIVU AFTER PROJECTION',rhmax
 
     end subroutine mkumac
 
-    subroutine mkumac_2d(umac,phi,beta,dx,press_bc)
+    subroutine mkumac_2d(umac,phi,beta,dx,press_bc,rhmax)
 
       real(kind=dp_t), intent(inout) :: umac(0:,0:,1:)
       real(kind=dp_t), intent(inout) ::  phi(0:,0:)
       real(kind=dp_t), intent(in   ) :: beta(0:,0:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
+      real(kind=dp_t), intent(  out) :: rhmax
 
       real(kind=dp_t) :: gpx,gpy
-      real(kind=dp_t) :: rhmax,rh
+      real(kind=dp_t) :: rh
       integer :: i,j,nx,ny
 
       nx = size(umac,dim=1) - 2
@@ -327,18 +332,19 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
          rhmax = max(abs(rh),rhmax)
       end do
       end do
-      print *,'MAX DIVU AFTER MAC PROJECTION ',rhmax
 
     end subroutine mkumac_2d
 
-    subroutine mkumac_3d(umac,phi,beta,dx,press_bc)
+    subroutine mkumac_3d(umac,phi,beta,dx,press_bc,rhmax)
 
       real(kind=dp_t), intent(inout) :: umac(0:,0:,0:,1:)
       real(kind=dp_t), intent(inout) ::  phi(0:,0:,0:)
       real(kind=dp_t), intent(in   ) :: beta(0:,0:,0:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
+      real(kind=dp_t), intent(  out) :: rhmax
 
+      real(kind=dp_t) :: rh
       real(kind=dp_t) :: gpx,gpy,gpz
       integer :: i,j,k,nx,ny,nz
 
@@ -412,6 +418,19 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
       do i = 1,nx
          gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
          umac(i,j,k,3) = umac(i,j,k,3) - beta(i,j,k,3)*gpz
+      end do
+      end do
+      end do
+
+!     This is just a test
+      rhmax = 0.0_dp_t
+      do k = 1,nz
+      do j = 1,ny
+      do i = 1,nx
+         rh = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) + &
+              (umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) + &
+              (umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
+         rhmax = max(abs(rh),rhmax)
       end do
       end do
       end do
