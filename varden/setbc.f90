@@ -38,7 +38,7 @@ contains
                vel(lo(1)-ng:lo(1)-1,j,2) = vel(lo(1),j,2)
             end do
       else if (bc(1,1) .eq. INLET) then
-            do j = lo(2)-1,hi(2)+1
+            do j = lo(2)-ng,hi(2)+ng
                vel(lo(1)-ng:lo(1)-1,j,1) = VX_INLET
                vel(lo(1)-ng:lo(1)-1,j,2) = VY_INLET
             end do
@@ -58,7 +58,7 @@ contains
                vel(hi(1)+1:hi(1)+ng,j,2) = vel(hi(1),j,2)
             end do
       else if (bc(1,2) .eq. INLET) then
-            do j = lo(2)-1,hi(2)+1
+            do j = lo(2)-ng,hi(2)+ng
                vel(hi(1)+1:hi(1)+ng,j,1) = VX_INLET
                vel(hi(1)+1:hi(1)+ng,j,2) = VY_INLET
             end do
@@ -73,12 +73,12 @@ contains
                   + 3.0_dp_t * vel(i,lo(2)+2,1) ) * EIGHTH
             end do
       else if (bc(2,1) .eq. OUTLET) then
-            do i = lo(1),hi(1)
+            do i = lo(1)-1,hi(1)+1
                vel(i,lo(2)-ng:lo(2)-1,1) = vel(i,lo(2),1)
                vel(i,lo(2)-ng:lo(2)-1,2) = vel(i,lo(2),2)
             end do
       else if (bc(2,1) .eq. INLET) then
-            do i = lo(1),hi(1)
+            do i = lo(1)-ng,hi(1)+ng
                vel(i,lo(2)-ng:lo(2)-1,1) = VX_INLET
                vel(i,lo(2)-ng:lo(2)-1,2) = VY_INLET
             end do
@@ -93,12 +93,12 @@ contains
                   + 3.0_dp_t * vel(i,hi(2)-2,1) ) * EIGHTH
             end do
       else if (bc(2,2) .eq. OUTLET) then
-            do i = lo(1),hi(1)
+            do i = lo(1)-1,hi(1)+1
                vel(i,hi(2)+1:hi(2)+ng,1) = vel(i,hi(2),1)
                vel(i,hi(2)+1:hi(2)+ng,2) = vel(i,hi(2),2)
             end do
       else if (bc(2,2) .eq. INLET) then
-            do i = lo(1),hi(1)
+            do i = lo(1)-ng,hi(1)+ng
                vel(i,hi(2)+1:hi(2)+ng,1) = VX_INLET
                vel(i,hi(2)+1:hi(2)+ng,2) = VY_INLET
             end do
