@@ -1,274 +1,176 @@
 module hgproject_module
 
   use bl_types
+  use bl_constants_module
   use bc_module
   use define_bc_module
   use multifab_module
   use boxarray_module
   use stencil_module
+  use ml_solve_module
+  use ml_restriction_module
+  use multifab_fill_ghost_module
 
   implicit none
 
-  real (kind = dp_t), private, parameter :: ZERO   = 0.0_dp_t
-  real (kind = dp_t), private, parameter :: ONE    = 1.0_dp_t
-  real (kind = dp_t), private, parameter :: TWO    = 2.0_dp_t
-  real (kind = dp_t), private, parameter :: HALF   = 0.5_dp_t
-  real (kind = dp_t), private, parameter :: FOURTH = 0.25_dp_t
-  real (kind = dp_t), private, parameter :: EIGHTH = 0.125_dp_t
+! FOR 2-D ONLY
+  integer, private, parameter :: PRESS_COMP = 5
+  logical, private, parameter :: nodal(2) = .true.
+
+! FOR 3-D ONLY
+! integer, private, parameter :: PRESS_COMP = 6
+! logical, private, parameter :: nodal(3) = .true.
 
 contains 
 
-subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,verbose,mg_verbose)
+subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
+                     verbose,mg_verbose)
 
-  type(multifab), intent(inout) :: unew
-  type(multifab), intent(inout) :: rhohalf
-  type(multifab), intent(inout) :: gp
-  type(multifab), intent(inout) :: p
-  type(bc_level), intent(in   ) :: phys_bc
-  integer       , intent(in   ) :: press_bc(:,:)
+  integer       , intent(in   ) :: nlevs
+  type(layout)  , intent(inout) :: la_tower(:)
+  type(multifab), intent(inout) :: unew(:)
+  type(multifab), intent(inout) :: rhohalf(:)
+  type(multifab), intent(inout) :: gp(:)
+  type(multifab), intent(inout) :: p(:)
+  type(bc_tower), intent(in   ) :: the_bc_tower
   integer       , intent(in   ) :: verbose,mg_verbose
-  real(dp_t) :: dx(:),dt
+  real(dp_t)    , intent(in   ) :: dx(:,:),dt
 
 ! Local  
-  type(multifab) :: rh,phi,gphi
-  type(layout) :: la
-  logical   , allocatable :: nodal(:)
-  integer  :: dm,ng,i
-  type(box) :: bx
+  type(multifab), allocatable :: phi(:),gphi(:)
+  integer   , allocatable :: ref_ratio(:,:)
+  integer   , allocatable :: hi_crse(:), hi_fine(:)
+  type(box)      :: fine_domain
+  type(layout  ) :: la
+  integer        :: n,dm,ng,i,RHOCOMP
+  integer        :: ng_for_fill
+  real(dp_t)     :: nrm
 
-  la = unew%la
-  dm = unew%dim
-  ng = unew%ng
-  allocate(nodal(dm))
-  nodal = .True.
+  dm = unew(nlevs)%dim
+  ng = unew(nlevs)%ng
 
-  call multifab_build(  rh, la, 1, 1, nodal)
-  call multifab_build( phi, la, 1, 1, nodal)
-  call multifab_build(gphi, la, dm, 0) 
+  allocate(phi(nlevs), gphi(nlevs))
+  allocate(ref_ratio(2:nlevs,dm))
+  allocate(hi_fine(dm))
+  allocate(hi_crse(dm))
+
+  do n = nlevs,2,-1
+      hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
+      hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
+      ref_ratio(n,:) = hi_fine(:) / hi_crse(:)
+  end do
+
+  do n = 1, nlevs
+     call multifab_build( phi(n), la_tower(n), 1, 1, nodal)
+     call multifab_build(gphi(n), la_tower(n), dm, 0) 
+  end do
 
   if (verbose .eq. 1) then
      print *,' '
-     print *,'... begin hg_projection ... '
-     print *,'... max of u before projection ',norm_inf(unew)
+     nrm = ZERO
+     do n = 1, nlevs
+        nrm = max(nrm,norm_inf(unew(n)))
+     end do
+     print *,'... hgproject: max of u before projection ',nrm
   end if
 
-  call divu(unew,rhohalf,gp,rh,dx,dt,phys_bc,verbose)
+! ng_for_fill = 1
+! RHOCOMP = dm+1
+! do n = 2, nlevs
+!    fine_domain = layout_get_pd(la_tower(n))
+!    call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),fine_domain, &
+!                                   ng_for_fill,ref_ratio(n,:), &
+!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+!                                   1,RHOCOMP,1)
+!    call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+!                                   ng_for_fill,ref_ratio(n,:), &
+!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+!                                   1,1,dm)
+!    call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
+!                                   ng_for_fill,ref_ratio(n,:), &
+!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+!                                   1,1,dm)
+! end do
 
-  call hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
+  call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
-  call mkgp(gphi,phi,dx)
-  call mkunew(unew,gp,gphi,rhohalf,ng,dt)
+  call hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,verbose,mg_verbose)
 
-  call multifab_copy_c(p,1,phi,1,1,all=.true.)
+  do n = 1,nlevs
+     call mkgp(gphi(n),phi(n),dx(n,:))
+     call mk_p(   p(n),phi(n),dt)
+     call mkunew(unew(n),gp(n),gphi(n),rhohalf(n),ng,dt)
+  end do
+
+  do n = nlevs,2,-1
+     call ml_cc_restriction(unew(n-1),unew(n),ref_ratio(n,:))
+     call ml_cc_restriction(  gp(n-1),  gp(n),ref_ratio(n,:))
+  end do
 
   if (verbose .eq. 1) then
-     print *,'... max of u after projection ',norm_inf(unew)
-     print *,'... end hg_projection ... '
+     nrm = ZERO
+     do n = 1, nlevs
+        nrm = max(nrm,norm_inf(unew(n)))
+     end do
+     print *,'... hgproject: max of u after projection ',nrm
      print *,' '
   end if
 
-  call multifab_destroy(rh)
-  call multifab_destroy(phi)
-  call multifab_destroy(gphi)
+  do n = 1,nlevs
+     call multifab_destroy(phi(n))
+     call multifab_destroy(gphi(n))
+  end do
+
+  deallocate(phi)
+  deallocate(gphi)
+  deallocate(ref_ratio)
+  deallocate(hi_crse)
+  deallocate(hi_fine)
 
   contains
 
-    subroutine divu(unew,rhohalf,gp,rh,dx,dt,phys_bc,verbose)
+    subroutine create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
-      type(multifab) , intent(in   ) :: unew
-      type(multifab) , intent(in   ) :: gp
-      type(multifab) , intent(in   ) :: rhohalf
-      type(multifab) , intent(inout) :: rh
-      real(kind=dp_t), intent(in   ) :: dx(:),dt
-      type(bc_level) , intent(in   ) :: phys_bc
-      integer        , intent(in   ) :: verbose
+      integer        , intent(in   ) :: nlevs
+      type(multifab) , intent(inout) :: unew(:)
+      type(multifab) , intent(inout) :: gp(:)
+      type(multifab) , intent(in   ) :: rhohalf(:)
+      real(kind=dp_t), intent(in   ) :: dt
+      type(bc_tower) , intent(in   ) :: the_bc_tower
  
-      real(kind=dp_t), pointer :: ump(:,:,:,:) 
-      real(kind=dp_t), pointer :: rhp(:,:,:,:) 
+      type(bc_level) :: bc
+
+      real(kind=dp_t), pointer :: unp(:,:,:,:) 
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
 
-      integer :: i,dm,ng
-      real(kind=dp_t)          :: rhmax,rhsum
-      real(kind=dp_t)          :: local_max,local_sum
+      integer :: i,n,dm,ng
 
-      dm = rh%dim
-      ng = unew%ng
+      dm = unew(nlevs)%dim
+      ng = unew(nlevs)%ng
 
-      rhmax = ZERO
-      rhsum = ZERO
-
-      do i = 1, unew%nboxes
-         if ( multifab_remote(unew, i) ) cycle
-         ump => dataptr(unew   , i)
-         gpp => dataptr(gp     , i)
-          rp => dataptr(rhohalf, i)
-         rhp => dataptr(rh     , i)
-         select case (dm)
-            case (2)
-              call divu_2d(ump(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), &
-                           rhp(:,:,1,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng, &
-                           local_max, local_sum)
-            case (3)
-              call divu_3d(ump(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), &
-                           rhp(:,:,:,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng, &
-                           local_max, local_sum)
-         end select
-         rhmax = max(rhmax,local_max)
-         rhsum = rhsum + local_sum
-      end do
-      if (verbose .eq. 1) print *,'HGPROJ RHS MAX / SUM',rhmax,rhsum
-
-    end subroutine divu
-
-    subroutine divu_2d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng,rhmax,rhsum)
-
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
-      real(kind=dp_t), intent(in   ) :: gp(-1:,-1:,:)
-      real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:)
-      real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: dx(:),dt
-      integer        , intent(in   ) :: phys_bc(:,:)
-      real(kind=dp_t), intent(  out) :: rhmax,rhsum
-
-      integer :: i,j,nx,ny
-      nx = size(rh,dim=1) - 3
-      ny = size(rh,dim=2) - 3
-
-      do j = -1,ny
-      do i = -1,nx
-         u(i,j,1) = u(i,j,1)/dt + gp(i,j,1)/rhohalf(i,j)
-         u(i,j,2) = u(i,j,2)/dt + gp(i,j,2)/rhohalf(i,j)
-      end do
-      end do
-
-      if (phys_bc(1,1) == WALL) u(-1,:,:) = ZERO
-      if (phys_bc(1,2) == WALL) u(nx,:,:) = ZERO
-      if (phys_bc(2,1) == WALL) u(:,-1,:) = ZERO
-      if (phys_bc(2,2) == WALL) u(:,ny,:) = ZERO
-
-      do j = 0,ny
-      do i = 0,nx
-         rh(i,j) = HALF * (u(i  ,j,1) + u(i  ,j-1,1) &
-                          -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
-                   HALF * (u(i,j  ,2) + u(i-1,j  ,2) &
-                          -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
-      end do
-      end do
-
-      if (phys_bc(1,1) == OUTLET) rh( 0,:) = ZERO
-      if (phys_bc(1,2) == OUTLET) rh(nx,:) = ZERO
-      if (phys_bc(2,1) == OUTLET) rh(:, 0) = ZERO
-      if (phys_bc(2,2) == OUTLET) rh(:,ny) = ZERO
-
-      rhmax = ZERO
-      rhsum = ZERO
-      do j = 0,ny
-      do i = 0,nx
-         rhmax = max(rhmax,abs(rh(i,j)))
-         rhsum = rhsum + rh(i,j)
-      end do
-      end do
-
-      if ( (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) .and. &
-           (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) .and. &
-           (phys_bc(2,1) == WALL .or. phys_bc(2,1) == INLET) .and. &
-           (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) ) then
-         do j = 0,ny
-         do i = 0,nx
-            rh(i,j) = rh(i,j) - rhsum / dble(nx+1) / dble(ny+1)
+      do n = 1, nlevs
+         bc = the_bc_tower%bc_tower_array(n)
+         do i = 1, unew(n)%nboxes
+            if ( multifab_remote(unew(n), i) ) cycle
+            unp => dataptr(unew(n)   , i)
+            gpp => dataptr(gp(n)     , i)
+             rp => dataptr(rhohalf(n), i)
+            select case (dm)
+               case (2)
+                 call create_uvec_2d(unp(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), dt, &
+                                     bc%phys_bc_level_array(i,:,:), ng)
+               case (3)
+                 call create_uvec_3d(unp(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), dt, &
+                                     bc%phys_bc_level_array(i,:,:), ng)
+            end select
          end do
-         end do
-      end if
-
-      if (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) rh( 0,:) = TWO*rh( 0,:)
-      if (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) rh(nx,:) = TWO*rh(nx,:)
-      if (phys_bc(2,1) == WALL .or. phys_bc(2,1) == INLET) rh(:, 0) = TWO*rh(:, 0)
-      if (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) rh(:,ny) = TWO*rh(:,ny)
-
-    end subroutine divu_2d
-
-    subroutine divu_3d(u,rhohalf,gp,rh,dx,dt,phys_bc,ng,rhmax,rhsum)
-
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
-      real(kind=dp_t), intent(in   ) :: gp(-1:,-1:,-1:,:)
-      real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
-      real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: dx(:),dt
-      integer        , intent(in   ) :: phys_bc(:,:)
-      real(kind=dp_t), intent(  out) :: rhmax,rhsum
-
-      integer :: i,j,k,nx,ny,nz
-
-      nx = size(rh,dim=1) - ng
-      ny = size(rh,dim=2) - ng
-      nz = size(rh,dim=3) - ng
-
-      if (phys_bc(1,1) == WALL) u(-1,:,:,:) = ZERO
-      if (phys_bc(1,2) == WALL) u(nx,:,:,:) = ZERO
-      if (phys_bc(2,1) == WALL) u(:,-1,:,:) = ZERO
-      if (phys_bc(2,2) == WALL) u(:,ny,:,:) = ZERO
-      if (phys_bc(3,1) == WALL) u(:,:,-1,:) = ZERO
-      if (phys_bc(3,2) == WALL) u(:,:,nz,:) = ZERO
-
-      do k = -1,nz
-      do j = -1,ny
-      do i = -1,nx
-         u(i,j,k,1) = u(i,j,k,1)/dt + gp(i,j,k,1)/rhohalf(i,j,k)
-         u(i,j,k,2) = u(i,j,k,2)/dt + gp(i,j,k,2)/rhohalf(i,j,k)
-         u(i,j,k,3) = u(i,j,k,3)/dt + gp(i,j,k,3)/rhohalf(i,j,k)
-      end do
-      end do
+         call multifab_fill_boundary(unew(n))
       end do
 
-      do k = 0,nz
-      do j = 0,ny
-      do i = 0,nx
-         rh(i,j,k) = (u(i  ,j,k  ,1) + u(i  ,j-1,k  ,1) &
-                     +u(i  ,j,k-1,1) + u(i  ,j-1,k-1,1) &
-                     -u(i-1,j,k  ,1) - u(i-1,j-1,k  ,1) &
-                     -u(i-1,j,k-1,1) - u(i-1,j-1,k-1,1)) / dx(1) + &
-                     (u(i,j  ,k  ,2) + u(i-1,j  ,k  ,2) &
-                     +u(i,j  ,k-1,2) + u(i-1,j  ,k-1,2) &
-                     -u(i,j-1,k  ,2) - u(i-1,j-1,k  ,2) &
-                     -u(i,j-1,k-1,2) - u(i-1,j-1,k-1,2)) / dx(2) + &
-                     (u(i,j  ,k  ,3) + u(i-1,j  ,k  ,3) &
-                     +u(i,j-1,k  ,3) + u(i-1,j-1,k  ,3) &
-                     -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
-                     -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
-         rh(i,j,k) = FOURTH*rh(i,j,k)
-      end do
-      end do
-      end do
+    end subroutine create_uvec_for_projection
 
-      if (phys_bc(1,1) == OUTLET) rh( 0,:,:) = ZERO
-      if (phys_bc(1,2) == OUTLET) rh(nx,:,:) = ZERO
-      if (phys_bc(2,1) == OUTLET) rh(:, 0,:) = ZERO
-      if (phys_bc(2,2) == OUTLET) rh(:,ny,:) = ZERO
-      if (phys_bc(3,1) == OUTLET) rh(:,:, 0) = ZERO
-      if (phys_bc(3,2) == OUTLET) rh(:,:,nz) = ZERO
-
-      rhsum = ZERO
-      rhmax = ZERO
-      do k = 0,nz
-      do j = 0,ny
-      do i = 0,nx
-         rhsum = rhsum + rh(i,j,k)
-         rhmax = max(rhmax,abs(rh(i,j,k)))
-      end do
-      end do
-      end do
-
-      if (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) rh( 0,:,:) = TWO*rh( 0,:,:)
-      if (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) rh(nx,:,:) = TWO*rh(nx,:,:)
-      if (phys_bc(2,1) == WALL .or. phys_bc(2,1) == INLET) rh(:, 0,:) = TWO*rh(:, 0,:)
-      if (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) rh(:,ny,:) = TWO*rh(:,ny,:)
-      if (phys_bc(3,1) == WALL .or. phys_bc(3,1) == INLET) rh(:,:, 0) = TWO*rh(:,:, 0)
-      if (phys_bc(3,2) == WALL .or. phys_bc(3,2) == INLET) rh(:,:,nz) = TWO*rh(:,:,nz)
-
-    end subroutine divu_3d
+!   ********************************************************************************************* !
 
     subroutine mkgp(gphi,phi,dx)
 
@@ -299,60 +201,33 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,verbose,mg_verbose
 
     end subroutine mkgp
 
-    subroutine mkgp_2d(gp,phi,dx)
+!   ********************************************************************************************* !
 
-      real(kind=dp_t), intent(inout) ::  gp(0:,0:,:)
-      real(kind=dp_t), intent(inout) :: phi(-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
+    subroutine mk_p(p,phi,dt)
 
-      integer :: i,j,nx,ny
+      type(multifab), intent(inout) :: p
+      type(multifab), intent(in   ) :: phi
+      real(kind=dp_t),intent(in   ) :: dt
+ 
+      real(kind=dp_t), pointer :: ph(:,:,:,:) 
+      real(kind=dp_t), pointer :: pp(:,:,:,:) 
+      integer                  :: i
+      real(kind=dp_t)          :: dt_inv
 
-      nx = size(gp,dim=1)
-      ny = size(gp,dim=2)
+      dt_inv = ONE/dt
 
-      do j = 0,ny-1
-      do i = 0,nx-1
-          gp(i,j,1) = HALF*(phi(i+1,j) + phi(i+1,j+1) - &
-                            phi(i  ,j) - phi(i  ,j+1) ) /dx(1)
-          gp(i,j,2) = HALF*(phi(i,j+1) + phi(i+1,j+1) - &
-                            phi(i,j  ) - phi(i+1,j  ) ) /dx(2)
-      end do
-      end do
-
-    end subroutine mkgp_2d
-
-    subroutine mkgp_3d(gp,phi,dx)
-
-      real(kind=dp_t), intent(inout) ::  gp(0:,0:,0:,1:)
-      real(kind=dp_t), intent(inout) :: phi(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
-
-      integer :: i,j,k,nx,ny,nz
-
-      nx = size(gp,dim=1)
-      ny = size(gp,dim=2)
-      nz = size(gp,dim=3)
-
-      do k = 0,nz-1
-      do j = 0,ny-1
-      do i = 0,nx-1
-         gp(i,j,k,1) = FOURTH*(phi(i+1,j,k  ) + phi(i+1,j+1,k  ) &
-                              +phi(i+1,j,k+1) + phi(i+1,j+1,k+1) & 
-                              -phi(i  ,j,k  ) - phi(i  ,j+1,k  ) &
-                              -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) /dx(1)
-         gp(i,j,k,2) = FOURTH*(phi(i,j+1,k  ) + phi(i+1,j+1,k  ) &
-                              +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
-                              -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                              -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) /dx(2)
-         gp(i,j,k,3) = FOURTH*(phi(i,j  ,k+1) + phi(i+1,j  ,k+1) &
-                              +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
-                              -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                              -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) /dx(3)
-      end do
-      end do
+      do i = 1, phi%nboxes
+         if ( multifab_remote(phi, i) ) cycle
+         ph => dataptr(phi, i)
+         pp => dataptr(p  , i)
+         pp = dt_inv * ph
       end do
 
-    end subroutine mkgp_3d
+      call multifab_fill_boundary(p)
+
+    end subroutine mk_p
+
+!   ********************************************************************************************* !
 
     subroutine mkunew(unew,gp,gphi,rhohalf,ng,dt)
 
@@ -389,6 +264,137 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,verbose,mg_verbose
 
     end subroutine mkunew
 
+!   ********************************************************************************************* !
+
+    subroutine create_uvec_2d(u,rhohalf,gp,dt,phys_bc,ng)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) ::       u(-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::      gp( -1:, -1:,:)
+      real(kind=dp_t), intent(in   ) :: rhohalf( -1:, -1:)
+      real(kind=dp_t), intent(in   ) :: dt
+      integer        , intent(in   ) :: phys_bc(:,:)
+
+      integer :: i,j,nx,ny
+      nx = size(gp,dim=1) - 2
+      ny = size(gp,dim=2) - 2
+
+      if (phys_bc(1,1) .eq. INLET) gp(-1,-1:ny,:) = ZERO
+      if (phys_bc(1,2) .eq. INLET) gp(nx,-1:ny,:) = ZERO
+      if (phys_bc(2,1) .eq. INLET) gp(-1:nx,-1,:) = ZERO
+      if (phys_bc(2,2) .eq. INLET) gp(-1:nx,ny,:) = ZERO
+
+      u(-1:nx,-1:ny,1) = u(-1:nx,-1:ny,1) + dt*gp(-1:nx,-1:ny,1)/rhohalf(-1:nx,-1:ny)
+      u(-1:nx,-1:ny,2) = u(-1:nx,-1:ny,2) + dt*gp(-1:nx,-1:ny,2)/rhohalf(-1:nx,-1:ny)
+
+      if (phys_bc(1,1)==SLIP_WALL .or. phys_bc(1,1)==NO_SLIP_WALL) u(-1,:,:) = ZERO
+      if (phys_bc(1,2)==SLIP_WALL .or. phys_bc(1,2)==NO_SLIP_WALL) u(nx,:,:) = ZERO
+      if (phys_bc(2,1)==SLIP_WALL .or. phys_bc(2,1)==NO_SLIP_WALL) u(:,-1,:) = ZERO
+      if (phys_bc(2,2)==SLIP_WALL .or. phys_bc(2,2)==NO_SLIP_WALL) u(:,ny,:) = ZERO
+
+    end subroutine create_uvec_2d
+
+!   ********************************************************************************************* !
+
+    subroutine create_uvec_3d(u,rhohalf,gp,dt,phys_bc,ng)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) ::       u(-ng:,-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::      gp( -1:, -1:, -1:,:)
+      real(kind=dp_t), intent(in   ) :: rhohalf( -1:, -1:, -1:)
+      real(kind=dp_t), intent(in   ) :: dt
+      integer        , intent(in   ) :: phys_bc(:,:)
+
+      integer :: i,j,k,nx,ny,nz
+
+      nx = size(gp,dim=1) - 2
+      ny = size(gp,dim=2) - 2
+      nz = size(gp,dim=3) - 2
+
+      if (phys_bc(1,1) .eq. INLET) gp(-1,-1:ny,-1:nz,:) = ZERO
+      if (phys_bc(1,2) .eq. INLET) gp(nx,-1:ny,-1:nz,:) = ZERO
+      if (phys_bc(2,1) .eq. INLET) gp(-1:nx,-1,-1:nz,:) = ZERO
+      if (phys_bc(2,2) .eq. INLET) gp(-1:nx,ny,-1:nz,:) = ZERO
+      if (phys_bc(3,1) .eq. INLET) gp(-1:nx,-1:ny,-1,:) = ZERO
+      if (phys_bc(3,2) .eq. INLET) gp(-1:nx,-1:ny,nz,:) = ZERO
+
+      u(-1:nx,-1:ny,-1:nz,1) = u(-1:nx,-1:ny,-1:nz,1) + &
+                           dt*gp(-1:nx,-1:ny,-1:nz,1)/rhohalf(-1:nx,-1:ny,-1:nz)
+      u(-1:nx,-1:ny,-1:nz,2) = u(-1:nx,-1:ny,-1:nz,2) + &
+                           dt*gp(-1:nx,-1:ny,-1:nz,2)/rhohalf(-1:nx,-1:ny,-1:nz)
+      u(-1:nx,-1:ny,-1:nz,3) = u(-1:nx,-1:ny,-1:nz,3) + &
+                           dt*gp(-1:nx,-1:ny,-1:nz,3)/rhohalf(-1:nx,-1:ny,-1:nz)
+
+      if (phys_bc(1,1)==SLIP_WALL .or. phys_bc(1,1)==NO_SLIP_WALL) u(-1,:,:,:) = ZERO
+      if (phys_bc(1,2)==SLIP_WALL .or. phys_bc(1,2)==NO_SLIP_WALL) u(nx,:,:,:) = ZERO
+      if (phys_bc(2,1)==SLIP_WALL .or. phys_bc(2,1)==NO_SLIP_WALL) u(:,-1,:,:) = ZERO
+      if (phys_bc(2,2)==SLIP_WALL .or. phys_bc(2,2)==NO_SLIP_WALL) u(:,ny,:,:) = ZERO
+      if (phys_bc(3,1)==SLIP_WALL .or. phys_bc(3,1)==NO_SLIP_WALL) u(:,:,-1,:) = ZERO
+      if (phys_bc(3,2)==SLIP_WALL .or. phys_bc(3,2)==NO_SLIP_WALL) u(:,:,nz,:) = ZERO
+
+    end subroutine create_uvec_3d
+
+!   ********************************************************************************************* !
+
+    subroutine mkgp_2d(gp,phi,dx)
+
+      real(kind=dp_t), intent(inout) ::  gp(0:,0:,:)
+      real(kind=dp_t), intent(inout) :: phi(-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+
+      integer :: i,j,nx,ny
+
+      nx = size(gp,dim=1)
+      ny = size(gp,dim=2)
+
+      do j = 0,ny-1
+      do i = 0,nx-1
+          gp(i,j,1) = HALF*(phi(i+1,j) + phi(i+1,j+1) - &
+                            phi(i  ,j) - phi(i  ,j+1) ) /dx(1)
+          gp(i,j,2) = HALF*(phi(i,j+1) + phi(i+1,j+1) - &
+                            phi(i,j  ) - phi(i+1,j  ) ) /dx(2)
+      end do
+      end do
+
+    end subroutine mkgp_2d
+
+!   ********************************************************************************************* !
+
+    subroutine mkgp_3d(gp,phi,dx)
+
+      real(kind=dp_t), intent(inout) ::  gp(0:,0:,0:,1:)
+      real(kind=dp_t), intent(inout) :: phi(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+
+      integer :: i,j,k,nx,ny,nz
+
+      nx = size(gp,dim=1)
+      ny = size(gp,dim=2)
+      nz = size(gp,dim=3)
+
+      do k = 0,nz-1
+      do j = 0,ny-1
+      do i = 0,nx-1
+         gp(i,j,k,1) = FOURTH*(phi(i+1,j,k  ) + phi(i+1,j+1,k  ) &
+                              +phi(i+1,j,k+1) + phi(i+1,j+1,k+1) & 
+                              -phi(i  ,j,k  ) - phi(i  ,j+1,k  ) &
+                              -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) /dx(1)
+         gp(i,j,k,2) = FOURTH*(phi(i,j+1,k  ) + phi(i+1,j+1,k  ) &
+                              +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
+                              -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
+                              -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) /dx(2)
+         gp(i,j,k,3) = FOURTH*(phi(i,j  ,k+1) + phi(i+1,j  ,k+1) &
+                              +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
+                              -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
+                              -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) /dx(3)
+      end do
+      end do
+      end do
+
+    end subroutine mkgp_3d
+
+!   ********************************************************************************************* !
+
     subroutine mkunew_2d(unew,gp,gphi,rhohalf,ng,dt)
 
       integer        , intent(in   ) :: ng
@@ -406,13 +412,12 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,verbose,mg_verbose
       unew(0:nx,0:ny,1) = unew(0:nx,0:ny,1) - gphi(0:nx,0:ny,1)/rhohalf(0:nx,0:ny) 
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
-!     Multiply by dt.
-      unew(-1:nx+1,-1:ny+1,:) = dt * unew(-1:nx+1,-1:ny+1,:)
-
-!     Replace gradient of pressure by gradient of phi.
-      gp(0:nx,0:ny,:) = gphi(0:nx,0:ny,:)
+!     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
+      gp(0:nx,0:ny,:) = (ONE/dt) * gphi(0:nx,0:ny,:)
 
     end subroutine mkunew_2d
+
+!   ********************************************************************************************* !
 
     subroutine mkunew_3d(unew,gp,gphi,rhohalf,ng,dt)
 
@@ -436,17 +441,14 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,verbose,mg_verbose
       unew(0:nx,0:ny,0:nz,3) = &
           unew(0:nx,0:ny,0:nz,3) - gphi(0:nx,0:ny,0:nz,3)/rhohalf(0:nx,0:ny,0:nz) 
 
-!     Multiply by dt.
-      unew(-1:nx,-1:ny,-1:nz,:) = dt * unew(-1:nx,-1:ny,-1:nz,:)
-
-!     Replace (gradient of) pressure by (gradient of) phi.
-      gp(0:nx,0:ny,0:nz,:) = gphi(0:nx,0:ny,0:nz,:)
+!     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
+      gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
 
     end subroutine mkunew_3d
 
 end subroutine hgproject
 
-subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
+subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_verbose,mg_verbose)
   use BoxLib
   use omp_module
   use f2kcli
@@ -457,163 +459,186 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
   use itsol_module
   use sparse_solve_module
   use bl_mem_stat_module
-  use bl_timer_module
   use box_util_module
   use bl_IO_module
 
-  type(layout),intent(inout) :: la
+  integer       , intent(in   ) :: nlevs
+  type(layout)  , intent(inout) :: la_tower(:)
+  type(multifab), intent(inout) :: unew(:)
+  type(multifab), intent(in   ) :: rhohalf(:)
+  type(multifab), intent(inout) :: phi(:)
+  real(dp_t)    , intent(in)    :: dx(:,:)
+  type(bc_tower), intent(in   ) :: the_bc_tower
+  integer       , intent(in   ) :: divu_verbose,mg_verbose
+!
+! Local variables
+!
 
-  type(box     ) pd
-  type(boxarray) pdv
-
-  type(multifab), allocatable :: coeffs(:)
-
-  real(dp_t), intent(in) :: dx(:)
-  integer, intent(in   ) :: press_bc(:,:)
-  integer, intent(in   ) :: mg_verbose
-
-  type(multifab), intent(inout) :: phi, rh
-  type(multifab), intent(inout) :: rhohalf
   type( multifab) :: ss
   type(imultifab) :: mm
-  type(sparse) :: sparse_object
-  type(mg_tower) :: mgt
-  integer i, dm, ns
+  type(sparse)    :: sparse_object
+  type(layout)    :: la
+  type(box     )  :: pd
+  type(boxarray)  :: pdv
 
-  integer :: test
-  real(dp_t) :: snrm(2)
+  type(mg_tower), allocatable :: mgt(:)
+  type(multifab), allocatable :: coeffs(:),rh(:)
+  integer       , allocatable :: ref_ratio(:,:)
+  integer       , allocatable :: hi_fine(:),hi_crse(:)
 
-  ! MG solver defaults
-  integer :: bottom_solver, bottom_max_iter
   real(dp_t) :: bottom_solver_eps
   real(dp_t) :: eps
+  real(dp_t) :: omega
+
+  integer :: i, dm, ns, test
+  integer :: bottom_solver, bottom_max_iter
   integer :: max_iter
   integer :: min_width
   integer :: max_nlevel
-  integer :: verbose
   integer :: nu1, nu2, gamma, cycle, solver, smoother
-  real(dp_t) :: omega
-  integer :: ng, nc
-
-  type(timer) :: tm(2)
-
-  integer :: stencil_order
-  logical :: nodal(rh%dim)
-
-  real(dp_t) :: xa(rh%dim), xb(rh%dim)
+  integer :: n, ng, nc
+  integer :: max_nlevel_in
+  integer :: verbose
 
   !! Defaults:
 
+  dm                = unew(nlevs)%dim
+
+  allocate(mgt(nlevs))
+  allocate(ref_ratio(2:nlevs,dm))
+  allocate(hi_fine(dm))
+  allocate(hi_crse(dm))
 
   test           = 0
 
-  dm                = rh%dim
-
-  ng                = mgt%ng
-  nc                = mgt%nc
-  max_nlevel        = mgt%max_nlevel
-  max_iter          = mgt%max_iter
-  eps               = mgt%eps
-  solver            = mgt%solver
-  smoother          = mgt%smoother
-  nu1               = mgt%nu1
-  nu2               = mgt%nu2
-  gamma             = mgt%gamma
-  omega             = mgt%omega
-  cycle             = mgt%cycle
-  bottom_solver     = mgt%bottom_solver
-  bottom_solver_eps = mgt%bottom_solver_eps
-  bottom_max_iter   = mgt%bottom_max_iter
-  min_width         = mgt%min_width
-  verbose           = mgt%verbose
+  ng                = mgt(nlevs)%ng
+  nc                = mgt(nlevs)%nc
+  max_nlevel        = mgt(nlevs)%max_nlevel
+  max_iter          = mgt(nlevs)%max_iter
+  eps               = mgt(nlevs)%eps
+  solver            = mgt(nlevs)%solver
+  smoother          = mgt(nlevs)%smoother
+  nu1               = mgt(nlevs)%nu1
+  nu2               = mgt(nlevs)%nu2
+  gamma             = mgt(nlevs)%gamma
+  omega             = mgt(nlevs)%omega
+  cycle             = mgt(nlevs)%cycle
+  bottom_solver     = mgt(nlevs)%bottom_solver
+  bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
+  bottom_max_iter   = mgt(nlevs)%bottom_max_iter
+  min_width         = mgt(nlevs)%min_width
+  verbose           = mgt(nlevs)%verbose
 
 ! Note: put this here to minimize asymmetries - ASA
-  eps = 1.d-12
+  eps = 1.d-14
 
   bottom_solver = 2
-  
-  nodal = .TRUE.
 
-  if ( test /= 0 .AND. max_iter == mgt%max_iter ) then
+  if ( test /= 0 .AND. max_iter == mgt(nlevs)%max_iter ) then
      max_iter = 1000
   end if
 
-  call setval(phi, 0.0_dp_t, all=.true.)
+  do n = 1,nlevs
+     call setval(phi(n), 0.0_dp_t, all=.true.)
+  end do
 
   ns = 3**dm
- 
-  pd = bbox(get_boxarray(la))
 
-  eps = 1.d-13
+  do n = nlevs, 1, -1
 
-  call mg_tower_build(mgt, la, pd, press_bc, &
-       dh = dx(:), &
-       ns = ns, &
-       smoother = smoother, &
-       nu1 = nu1, &
-       nu2 = nu2, &
-       gamma = gamma, &
-       cycle = cycle, &
-       omega = omega, &
-       bottom_solver = bottom_solver, &
-       bottom_max_iter = bottom_max_iter, &
-       bottom_solver_eps = bottom_solver_eps, &
-       max_iter = max_iter, &
-       max_nlevel = max_nlevel, &
-       min_width = min_width, &
-       eps = eps, &
-       verbose = verbose, &
-       nodal = nodal)
+     if (n == 1) then
+        max_nlevel_in = max_nlevel
+     else
+        hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
+        hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
+        ref_ratio(n,:) = hi_fine(:) / hi_crse(:)
+  
+        if ( all(ref_ratio(n,:) == 2) ) then
+           max_nlevel_in = 1
+        else if ( all(ref_ratio(n,:) == 4) ) then
+           max_nlevel_in = 2
+        else 
+           call bl_error("HG_MULTIGRID: confused about ref_ratio")
+        end if
+     end if
 
-! Note the minus sign here is because we solve (-del dot b grad) phi = rhs,
-!   NOT (del dot b grad) phi = rhs
-  allocate(coeffs(mgt%nlevels))
-  call multifab_build(coeffs(mgt%nlevels), la, 1, 1)
-  call setval(coeffs(mgt%nlevels), 0.0_dp_t, 1, all=.true.)
+     pd = layout_get_pd(la_tower(n))
 
-  call mkcoeffs(rhohalf,coeffs(mgt%nlevels))
-  call multifab_fill_boundary(coeffs(mgt%nlevels))
+     call mg_tower_build(mgt(n), la_tower(n), pd, &
+                         the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,PRESS_COMP), &
+          dh = dx(n,:), &
+          ns = ns, &
+          smoother = smoother, &
+          nu1 = nu1, &
+          nu2 = nu2, &
+          gamma = gamma, &
+          cycle = cycle, &
+          omega = omega, &
+          bottom_solver = bottom_solver, &
+          bottom_max_iter = bottom_max_iter, &
+          bottom_solver_eps = bottom_solver_eps, &
+          max_iter = max_iter, &
+          max_nlevel = max_nlevel_in, &
+          min_width = min_width, &
+          eps = eps, &
+          verbose = verbose, &
+          nodal = nodal)
 
-! Do multigrid solve here 
-  xa = 0.0_dp_t
-  xb = 0.0_dp_t
-  call timer_start(tm(1))
-  do i = mgt%nlevels-1, 1, -1
-    call multifab_build(coeffs(i), mgt%ss(i)%la, 1, 1)
-    call setval(coeffs(i), 0.0_dp_t, 1, all=.true.)
-    call coarsen_coeffs(coeffs(i+1),coeffs(i))
-    call multifab_fill_boundary(coeffs(i))
   end do
 
-  do i = mgt%nlevels, 1, -1
-     pdv = layout_boxarray(mgt%ss(i)%la)
-     call stencil_fill_nodal(mgt%ss(i), coeffs(i), mgt%dh(:,i), &
-          mgt%dh(:,mgt%nlevels), &
-          mgt%mm(i), mgt%face_type, pd, pdv)
-     pd  = coarsen(pd,2)
+  do n = nlevs,1,-1
+
+     allocate(coeffs(mgt(n)%nlevels))
+
+     la = la_tower(n)
+     pd = layout_get_pd(la)
+
+     call multifab_build(coeffs(mgt(n)%nlevels), la, 1, 1)
+     call setval(coeffs(mgt(n)%nlevels), 0.0_dp_t, 1, all=.true.)
+
+     call mkcoeffs(rhohalf(n),coeffs(mgt(n)%nlevels))
+     call multifab_fill_boundary(coeffs(mgt(n)%nlevels))
+
+     do i = mgt(n)%nlevels-1, 1, -1
+        call multifab_build(coeffs(i), mgt(n)%ss(i)%la, 1, 1)
+        call setval(coeffs(i), 0.0_dp_t, 1, all=.true.)
+        call coarsen_coeffs(coeffs(i+1),coeffs(i))
+        call multifab_fill_boundary(coeffs(i))
+     end do
+
+!    NOTE: we define the stencils with the finest dx.
+     do i = mgt(n)%nlevels, 1, -1
+        pdv = layout_boxarray(mgt(n)%ss(i)%la)
+        call stencil_fill_nodal(mgt(n)%ss(i), coeffs(i), &
+             mgt(n)%dh(:,i)             , &
+             mgt(nlevs)%dh(:,mgt(nlevs)%nlevels), &
+             mgt(n)%mm(i), mgt(n)%face_type, pd, pdv)
+        pd  = coarsen(pd,2)
+     end do
+
+     if ( n == 1 .and. bottom_solver == 3 ) then
+        call bl_error('NO SPARSE BOTTOM SOLVER FOR NODAL YET ')
+     end if
+
+     do i = mgt(n)%nlevels, 1, -1
+        call multifab_destroy(coeffs(i))
+     end do
+     deallocate(coeffs)
+
   end do
 
-  if ( bottom_solver == 3 ) then
-     call sparse_build(mgt%sparse_object, mgt%ss(1), mgt%mm(1), &
-          mgt%ss(1)%la, stencil_order, mgt%verbose)
-  end if
-  call timer_stop(tm(1))
-  call timer_start(tm(2))
-  call mg_tower_solve(mgt, phi, rh)
-  call timer_stop(tm(2))
-  do i = mgt%nlevels-1, 1, -1
-    call multifab_destroy(coeffs(i))
+  allocate(rh(nlevs))
+  do n = 1, nlevs
+     call multifab_build(rh(n),la_tower(n),1,1,nodal)
   end do
 
-  call multifab_fill_boundary(phi)
+  call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,divu_verbose)
 
-  call multifab_destroy(coeffs(mgt%nlevels))
-  deallocate(coeffs)
+  call ml_nd_solve(la_tower,mgt,rh,phi)
 
-  snrm(1) = norm_l2(phi)
-  snrm(2) = norm_inf(phi)
-  if ( mg_verbose > 0 .and. parallel_IOProcessor() ) &
-       print *, 'solution norm = ', snrm(1), "/", snrm(2)
+  do n = nlevs,1,-1
+     call multifab_fill_boundary(phi(n))
+  end do
 
   if ( test == 3 ) then
      call sparse_destroy(sparse_object)
@@ -622,9 +647,19 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
      call destroy(ss)
      call destroy(mm)
   end if
-  call mg_tower_destroy(mgt)
+
+  do n = 1, nlevs
+     call mg_tower_destroy(mgt(n))
+     call multifab_destroy(rh(n))
+  end do
+
+  deallocate(mgt)
+  deallocate(rh)
+  deallocate(ref_ratio)
 
 end subroutine hg_multigrid
+
+!   ********************************************************************************************* !
 
     subroutine mkcoeffs(rho,coeffs)
 
@@ -652,6 +687,8 @@ end subroutine hg_multigrid
 
     end subroutine mkcoeffs
 
+!   ********************************************************************************************* !
+
     subroutine mkcoeffs_2d(coeffs,rho,ng)
 
       integer :: ng
@@ -671,6 +708,8 @@ end subroutine hg_multigrid
       end do
 
     end subroutine mkcoeffs_2d
+
+!   ********************************************************************************************* !
 
     subroutine mkcoeffs_3d(coeffs,rho,ng)
 
@@ -694,5 +733,599 @@ end subroutine hg_multigrid
       end do
 
     end subroutine mkcoeffs_3d
+
+!   ********************************************************************************************* !
+
+    subroutine divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,verbose)
+
+      integer        , intent(in   ) :: nlevs
+      type(mg_tower) , intent(inout) :: mgt(:)
+      type(multifab) , intent(inout) :: unew(:)
+      type(multifab) , intent(inout) :: rh(:)
+      real(kind=dp_t), intent(in   ) :: dx(:,:)
+      type(bc_tower) , intent(in   ) :: the_bc_tower
+      integer        , intent(in   ) :: ref_ratio(2:,:)
+      integer        , intent(in   ) :: verbose
+
+      type(bc_level) :: bc
+
+      real(kind=dp_t), pointer :: unp(:,:,:,:) 
+      real(kind=dp_t), pointer :: rhp(:,:,:,:) 
+      integer        , pointer ::  mp(:,:,:,:) 
+
+      integer :: i,n,dm,ng
+      integer :: mglev_fine,lom(rh(nlevs)%dim)
+      real(kind=dp_t) :: rhmax,rhsum
+      real(kind=dp_t) :: local_max,local_sum
+      type(      box) :: mbox
+      type(      box) :: pdc
+      type(   layout) :: la_crse,la_fine
+      type(bndry_reg) :: brs_flx
+
+      dm = unew(nlevs)%dim
+      ng = unew(nlevs)%ng
+
+!     rhsum = ZERO
+
+!     Create the regular single-level divergence.
+      do n = 1, nlevs
+         mglev_fine = mgt(n)%nlevels
+         bc = the_bc_tower%bc_tower_array(n)
+         call multifab_fill_boundary(unew(n))
+         do i = 1, unew(n)%nboxes
+            if ( multifab_remote(unew(n), i) ) cycle
+            unp => dataptr(unew(n), i)
+            rhp => dataptr(rh(n)  , i)
+            mp   => dataptr(mgt(n)%mm(mglev_fine),i)
+            select case (dm)
+               case (2)
+                 call divu_2d(unp(:,:,1,:), rhp(:,:,1,1), &
+                               mp(:,:,1,1),  dx(n,:),  &
+                              bc%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+               case (3)
+                 call divu_3d(unp(:,:,:,:), rhp(:,:,:,1), &
+                               mp(:,:,:,1),  dx(n,:), &
+                              bc%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+            rhmax = max(rhmax,local_max)
+!           rhsum = rhsum + local_sum
+            end select
+         end do
+      end do
+
+!     Modify the divu above at coarse-fine interfaces.
+      do n = nlevs,2,-1
+         la_crse = unew(n-1)%la
+         la_fine = unew(n  )%la
+         pdc = layout_get_pd(la_crse)
+         call bndry_reg_build(brs_flx,la_fine,ref_ratio(n,:),pdc,nodal=nodal)
+         bc = the_bc_tower%bc_tower_array(n)
+         call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n,:),mgt(n))
+         call bndry_reg_destroy(brs_flx)
+      end do
+
+      rhmax = ZERO
+      do n = 1,nlevs
+        rhmax = max(rhmax,norm_inf(rh(n)))
+      end do
+
+!     if (verbose .eq. 1) print *,'... hgproject: divu max/sum ',rhmax,rhsum
+      if (verbose .eq. 1) print *,'... hgproject: divu max ',rhmax
+
+    end subroutine divu
+
+!   ********************************************************************************************* !
+
+    subroutine divu_2d(u,rh,mm,dx,press_bc,ng)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
+      real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
+      integer        , intent(inout) :: mm(0:,0:)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: press_bc(:,:)
+
+      integer :: i,j,nx,ny
+      nx = size(rh,dim=1) - 3
+      ny = size(rh,dim=2) - 3
+
+      rh = ZERO
+
+      do j = 0,ny
+      do i = 0,nx
+         if (.not. bc_dirichlet(mm(i,j),1,0)) &
+           rh(i,j) = HALF * (u(i  ,j,1) + u(i  ,j-1,1) &
+                            -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
+                     HALF * (u(i,j  ,2) + u(i-1,j  ,2) &
+                            -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
+           rh(i,j) = rh(i,j) * dx(1) * dx(2)
+      end do
+      end do
+
+      if (press_bc(1,1) == BC_NEU) rh( 0,:) = TWO*rh( 0,:)
+      if (press_bc(1,2) == BC_NEU) rh(nx,:) = TWO*rh(nx,:)
+      if (press_bc(2,1) == BC_NEU) rh(:, 0) = TWO*rh(:, 0)
+      if (press_bc(2,2) == BC_NEU) rh(:,ny) = TWO*rh(:,ny)
+
+    end subroutine divu_2d
+
+!   ********************************************************************************************* !
+
+    subroutine divu_3d(u,rh,mm,dx,press_bc,ng)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
+      real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
+      integer        , intent(inout) :: mm(0:,0:,0:)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: press_bc(:,:)
+
+      integer :: i,j,k,nx,ny,nz
+
+      nx = size(rh,dim=1) - ng
+      ny = size(rh,dim=2) - ng
+      nz = size(rh,dim=3) - ng
+
+      rh = ZERO
+
+      do k = 0,nz
+      do j = 0,ny
+      do i = 0,nx
+         if (.not. bc_dirichlet(mm(i,j,k),1,0)) then
+           rh(i,j,k) = (u(i  ,j,k  ,1) + u(i  ,j-1,k  ,1) &
+                       +u(i  ,j,k-1,1) + u(i  ,j-1,k-1,1) &
+                       -u(i-1,j,k  ,1) - u(i-1,j-1,k  ,1) &
+                       -u(i-1,j,k-1,1) - u(i-1,j-1,k-1,1)) / dx(1) + &
+                       (u(i,j  ,k  ,2) + u(i-1,j  ,k  ,2) &
+                       +u(i,j  ,k-1,2) + u(i-1,j  ,k-1,2) &
+                       -u(i,j-1,k  ,2) - u(i-1,j-1,k  ,2) &
+                       -u(i,j-1,k-1,2) - u(i-1,j-1,k-1,2)) / dx(2) + &
+                       (u(i,j  ,k  ,3) + u(i-1,j  ,k  ,3) &
+                       +u(i,j-1,k  ,3) + u(i-1,j-1,k  ,3) &
+                       -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
+                       -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
+           rh(i,j,k) = FOURTH*rh(i,j,k) * (dx(1)*dx(2)*dx(3))
+         end if
+      end do
+      end do
+      end do
+
+      if (press_bc(1,1) == BC_DIR) rh( 0,:,:) = ZERO
+      if (press_bc(1,2) == BC_DIR) rh(nx,:,:) = ZERO
+      if (press_bc(2,1) == BC_DIR) rh(:, 0,:) = ZERO
+      if (press_bc(2,2) == BC_DIR) rh(:,ny,:) = ZERO
+      if (press_bc(3,1) == BC_DIR) rh(:,:, 0) = ZERO
+      if (press_bc(3,2) == BC_DIR) rh(:,:,nz) = ZERO
+
+      if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
+      if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
+      if (press_bc(2,1) == BC_NEU) rh(:, 0,:) = TWO*rh(:, 0,:)
+      if (press_bc(2,2) == BC_NEU) rh(:,ny,:) = TWO*rh(:,ny,:)
+      if (press_bc(3,1) == BC_NEU) rh(:,:, 0) = TWO*rh(:,:, 0)
+      if (press_bc(3,2) == BC_NEU) rh(:,:,nz) = TWO*rh(:,:,nz)
+
+    end subroutine divu_3d
+
+!   ********************************************************************************************* !
+
+    subroutine crse_fine_divu(n_fine,nlevs,rh_crse,u,brs_flx,dx,bc_fine,ref_ratio,mgt)
+
+      integer        , intent(in   ) :: n_fine,nlevs
+      type(multifab) , intent(inout) :: u(:)
+      type(multifab) , intent(inout) :: rh_crse
+      real(dp_t)     , intent(in   ) :: dx(:,:)
+      type(bc_level) , intent(in   ) :: bc_fine
+      integer        , intent(in   ) :: ref_ratio(:)
+      type(mg_tower) , intent(inout) :: mgt
+      type(bndry_reg), intent(inout) :: brs_flx
+
+      real(kind=dp_t), pointer :: unp(:,:,:,:) 
+      real(kind=dp_t), pointer :: rhp(:,:,:,:) 
+
+      type(multifab) :: temp_rhs
+      type(multifab) :: vol_frac
+      type(  layout) :: la_crse,la_fine
+      type(     box) :: pdc
+      integer :: i,dm,n_crse,ng
+      integer :: mglev_fine
+
+      dm = u(n_fine)%dim
+      n_crse = n_fine-1
+
+      ng = u(nlevs)%ng
+
+      la_crse = u(n_crse)%la
+      la_fine = u(n_fine)%la
+
+      call multifab_build(temp_rhs, la_fine, 1, 1, nodal)
+      call multifab_build(vol_frac, la_crse, 1, 1, nodal)
+      call setval(temp_rhs, ZERO, 1, all=.true.)
+
+!     Zero out the flux registers which will hold the fine contributions
+      call bndry_reg_setval(brs_flx, ZERO, all = .true.)
+
+!     Compute the fine contributions at faces, edges and corners.
+
+!     First compute a residual which only takes contributions from the
+!        grid on which it is calculated.
+       do i = 1, u(n_fine)%nboxes
+          if ( multifab_remote(u(n_fine), i) ) cycle
+          unp => dataptr(u(n_fine), i)
+          rhp => dataptr( temp_rhs, i)
+          select case (dm)
+             case (2)
+               call grid_divu_2d(unp(:,:,1,:), rhp(:,:,1,1), dx(n_fine,:), &
+                                 bc_fine%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+             case (3)
+               call grid_divu_3d(unp(:,:,:,:), rhp(:,:,:,1), dx(n_fine,:), &
+                                 bc_fine%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+          end select
+      end do
+
+      pdc = layout_get_pd(la_crse)
+      mglev_fine = mgt%nlevels
+
+      do i = 1,dm
+         call ml_fine_contrib(brs_flx%bmf(i,0), &
+                              temp_rhs,mgt%mm(mglev_fine),ref_ratio,pdc,-i)
+         call ml_fine_contrib(brs_flx%bmf(i,1), &
+                              temp_rhs,mgt%mm(mglev_fine),ref_ratio,pdc,+i)
+      end do
+
+!     Compute the crse contributions at edges and corners and add to rh(n-1).
+      call setval(vol_frac,ONE,all=.true.)
+      do i = 1,dm
+         call ml_crse_divu_contrib(rh_crse, vol_frac, brs_flx%bmf(i,0), u(n_crse), &
+                                   mgt%mm(mglev_fine), dx(n_fine-1,:), &
+                                   pdc,ref_ratio, -i)
+         call ml_crse_divu_contrib(rh_crse, vol_frac, brs_flx%bmf(i,1), u(n_crse), &
+                                   mgt%mm(mglev_fine), dx(n_fine-1,:),  &
+                                   pdc,ref_ratio, +i)
+      end do
+
+    end subroutine crse_fine_divu
+
+!   ********************************************************************************************* !
+
+    subroutine grid_divu_2d(u,rh,dx,press_bc,ng)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
+      real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: press_bc(:,:)
+
+      integer :: i,j,nx,ny
+      nx = size(rh,dim=1) - 3
+      ny = size(rh,dim=2) - 3
+
+      u(-1,:,:) = ZERO
+      u(nx,:,:) = ZERO
+      u(:,-1,:) = ZERO
+      u(:,ny,:) = ZERO
+
+      do j = 0,ny
+      do i = 0,nx
+         rh(i,j) = HALF * (u(i  ,j,1) + u(i  ,j-1,1) &
+                          -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
+                   HALF * (u(i,j  ,2) + u(i-1,j  ,2) &
+                          -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
+         rh(i,j) = rh(i,j) * dx(1) * dx(2)
+         if (abs(rh(i,j)).gt.1.e-2) print *,'FINE RH ',i,j,rh(i,j)
+      end do
+      end do
+
+      if (press_bc(1,1) == BC_NEU) rh( 0,:) = TWO*rh( 0,:)
+      if (press_bc(1,2) == BC_NEU) rh(nx,:) = TWO*rh(nx,:)
+      if (press_bc(2,1) == BC_NEU) rh(:, 0) = TWO*rh(:, 0)
+      if (press_bc(2,2) == BC_NEU) rh(:,ny) = TWO*rh(:,ny)
+
+    end subroutine grid_divu_2d
+
+!   ********************************************************************************************* !
+
+    subroutine grid_divu_3d(u,rh,dx,press_bc,ng)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
+      real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: press_bc(:,:)
+
+      integer :: i,j,k,nx,ny,nz
+
+      nx = size(rh,dim=1) - ng
+      ny = size(rh,dim=2) - ng
+      nz = size(rh,dim=3) - ng
+
+      u(-1,:,:,:) = ZERO
+      u(nx,:,:,:) = ZERO
+      u(:,-1,:,:) = ZERO
+      u(:,ny,:,:) = ZERO
+      u(:,:,-1,:) = ZERO
+      u(:,:,nz,:) = ZERO
+
+      do k = 0,nz
+      do j = 0,ny
+      do i = 0,nx
+         rh(i,j,k) = (u(i  ,j,k  ,1) + u(i  ,j-1,k  ,1) &
+                     +u(i  ,j,k-1,1) + u(i  ,j-1,k-1,1) &
+                     -u(i-1,j,k  ,1) - u(i-1,j-1,k  ,1) &
+                     -u(i-1,j,k-1,1) - u(i-1,j-1,k-1,1)) / dx(1) + &
+                     (u(i,j  ,k  ,2) + u(i-1,j  ,k  ,2) &
+                     +u(i,j  ,k-1,2) + u(i-1,j  ,k-1,2) &
+                     -u(i,j-1,k  ,2) - u(i-1,j-1,k  ,2) &
+                     -u(i,j-1,k-1,2) - u(i-1,j-1,k-1,2)) / dx(2) + &
+                     (u(i,j  ,k  ,3) + u(i-1,j  ,k  ,3) &
+                     +u(i,j-1,k  ,3) + u(i-1,j-1,k  ,3) &
+                     -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
+                     -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
+         rh(i,j,k) = FOURTH*rh(i,j,k) * (dx(1)*dx(2)*dx(3))
+      end do
+      end do
+      end do
+
+      if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
+      if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
+      if (press_bc(2,1) == BC_NEU) rh(:, 0,:) = TWO*rh(:, 0,:)
+      if (press_bc(2,2) == BC_NEU) rh(:,ny,:) = TWO*rh(:,ny,:)
+      if (press_bc(3,1) == BC_NEU) rh(:,:, 0) = TWO*rh(:,:, 0)
+      if (press_bc(3,2) == BC_NEU) rh(:,:,nz) = TWO*rh(:,:,nz)
+
+    end subroutine grid_divu_3d
+
+!   ********************************************************************************************* !
+
+    subroutine ml_crse_divu_contrib(rh, vol, flux, u, mm, dx, crse_domain, ir, side)
+     type(multifab), intent(inout) :: rh
+     type(multifab), intent(inout) :: vol
+     type(multifab), intent(inout) :: flux
+     type(multifab), intent(in   ) :: u
+     type(imultifab),intent(in   ) :: mm
+     real(kind=dp_t),intent(in   ) :: dx(:)
+     type(box)      ,intent(in   ) :: crse_domain
+     integer        ,intent(in   ) :: ir(:)
+     integer        ,intent(in   ) :: side
+
+     type(box) :: rbox, fbox, ubox, mbox
+     integer :: lo (rh%dim), hi (rh%dim)
+     integer :: lou(rh%dim)
+     integer :: lof(rh%dim), hif(rh%dim)
+     integer :: lor(rh%dim)
+     integer :: lom(rh%dim)
+     integer :: lo_dom(rh%dim), hi_dom(rh%dim)
+     integer :: dir
+     integer :: i, j, n
+     logical :: nodal(rh%dim)
+
+     integer :: dm
+     real(kind=dp_t), pointer :: rp(:,:,:,:)
+     real(kind=dp_t), pointer :: vp(:,:,:,:)
+     real(kind=dp_t), pointer :: fp(:,:,:,:)
+     real(kind=dp_t), pointer :: up(:,:,:,:)
+     integer,         pointer :: mp(:,:,:,:)
+
+     nodal = .true.
+
+     dm  = rh%dim
+     dir = iabs(side)
+
+     lo_dom = lwb(crse_domain)
+     hi_dom = upb(crse_domain)+1
+
+     do j = 1, u%nboxes
+
+       ubox = get_ibox(u,j)
+       lou = lwb(ubox) - u%ng
+       ubox = box_nodalize(ubox,nodal)
+
+       rbox = get_ibox(rh,j)
+       lor = lwb(rbox) - rh%ng
+
+       do i = 1, flux%nboxes
+
+         fbox = get_ibox(flux,i)
+         lof  = lwb(fbox)
+         hif  = upb(fbox)
+
+         mbox = get_ibox(mm,i)
+         lom  = lwb(mbox) - mm%ng
+
+         if ((.not. (lof(dir) == lo_dom(dir) .or. lof(dir) == hi_dom(dir))) .and. & 
+             box_intersects(ubox,fbox)) then
+           lo(:) = lwb(box_intersection(ubox,fbox))
+           hi(:) = upb(box_intersection(ubox,fbox))
+
+           fp => dataptr(flux,i)
+           mp => dataptr(mm  ,i)
+
+           up => dataptr(u  ,j)
+           rp => dataptr(rh ,j)
+           vp => dataptr(vol,j)
+
+           select case (dm)
+           case (2)
+               call ml_interface_2d_divu(rp(:,:,1,1), lor, &
+                                         vp(:,:,1,1), &
+                                         fp(:,:,1,1), lof, hif, &
+                                         up(:,:,1,:), lou, &
+                                         mp(:,:,1,1), lom, &
+                                         lo, hi, ir, side, dx)
+!          case (3)
+!              call ml_interface_3d_divu(rp(:,:,:,1), lor, &
+!                                        vp(:,:,:,1), &
+!                                        fp(:,:,:,1), lof, hif, &
+!                                        up(:,:,:,:), lou, &
+!                                        mp(:,:,:,1), lom, &
+!                                        lo, hi, ir, side, dx)
+           end select
+         end if
+       end do
+     end do
+    end subroutine ml_crse_divu_contrib
+
+!   ********************************************************************************************* !
+
+    subroutine ml_interface_2d_divu(rh, lor, vol_frac, fine_flux, lof, hif, uc, loc, &
+                                    mm, lom, lo, hi, ir, side, dx)
+    integer, intent(in) :: lor(:)
+    integer, intent(in) :: loc(:)
+    integer, intent(in) :: lom(:)
+    integer, intent(in) :: lof(:), hif(:)
+    integer, intent(in) :: lo(:), hi(:)
+    real (kind = dp_t), intent(inout) ::        rh(lor(1):,lor(2):)
+    real (kind = dp_t), intent(inout) ::  vol_frac(lor(1):,lor(2):)
+    real (kind = dp_t), intent(in   ) :: fine_flux(lof(1):,lof(2):)
+    real (kind = dp_t), intent(in   ) ::        uc(loc(1):,loc(2):,:)
+    integer           , intent(in   ) ::        mm(lom(1):,lom(2):)
+    integer           , intent(in   ) :: ir(:)
+    integer           , intent(in   ) :: side
+    real(kind=dp_t)   , intent(in   ) :: dx(:)
+
+    integer :: i, j
+    real (kind = dp_t) :: crse_flux,vol
+
+    i = lo(1)
+    j = lo(2)
+
+!   NOTE: THESE STENCILS ONLY WORK FOR DX == DY.
+
+!   NOTE: MM IS ON THE FINE GRID, NOT THE CRSE
+
+    vol = dx(1)*dx(2)
+
+!   Lo i side
+    if (side == -1) then
+
+      do j = lo(2),hi(2)
+
+        if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+          crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
+        else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+          crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
+        else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+          crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
+        else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+          crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
+        else
+          crse_flux = (HALF*(uc(i,j,1) + uc(i,j-1,1))/dx(1) &
+                      +HALF*(uc(i,j,2) - uc(i,j-1,2))/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
+        end if
+
+        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
+           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+           print *,'LO I F/C: ',j,fine_flux(i,j),crse_flux
+           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
+        end if
+
+      end do
+
+!   Hi i side
+    else if (side ==  1) then
+
+      do j = lo(2),hi(2)
+
+        if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+          crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
+        else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+          crse_flux =      ( uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
+        else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+          crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
+        else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+          crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
+        else
+          crse_flux = (HALF*(-uc(i-1,j,1)-uc(i-1,j-1,1))/dx(1)  &
+                      +HALF*( uc(i-1,j,2)-uc(i-1,j-1,2))/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
+        end if
+
+        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
+           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+           print *,'HI I F/C: ',j,fine_flux(i,j),crse_flux
+           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
+        end if
+
+      end do
+
+!   Lo j side
+    else if (side == -2) then
+
+      do i = lo(1),hi(1)
+
+        if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+          crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
+        else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+          crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
+        else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+          crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
+        else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+          crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
+        else
+          crse_flux = (HALF*(uc(i,j,1)-uc(i-1,j,1))/dx(1)  &
+                      +HALF*(uc(i,j,2)+uc(i-1,j,2))/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
+        end if
+
+        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
+           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+           print *,'LO J F/C: ',i,fine_flux(i,j),crse_flux
+           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
+        end if
+
+      end do
+
+!   Hi j side
+    else if (side ==  2) then
+
+      do i = lo(1),hi(1)
+
+        if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+          crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
+        else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+          crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
+        else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+          crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
+        else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+          crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
+        else
+          crse_flux = (HALF*( uc(i,j-1,1)-uc(i-1,j-1,1))/dx(1) &
+                      +HALF*(-uc(i,j-1,2)-uc(i-1,j-1,2))/dx(2)) * vol
+          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
+        end if
+
+        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
+           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+           print *,'HI J F/C: ',i,fine_flux(i,j),crse_flux
+           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
+        end if
+
+      end do
+
+      do j = lor(2),lor(2)+size(rh,dim=2)-1
+      do i = lor(1),lor(1)+size(rh,dim=1)-1
+        if (abs(rh(i,j)) .gt. 1.e-2) print *,'RH ',i,j,rh(i,j),vol_frac(i,j)
+         rh(i,j) = rh(i,j) * vol_frac(i,j)
+      end do
+      end do
+
+    end if
+
+  end subroutine ml_interface_2d_divu
 
 end module hgproject_module

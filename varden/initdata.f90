@@ -1,34 +1,34 @@
 module init_module
 
   use bl_types
+  use bl_constants_module
   use bc_module
+  use inlet_bc
   use setbc_module
   use define_bc_module
-  use mg_bc_module
   use multifab_module
-  use inflow_values
 
   implicit none
 
-  real (kind = dp_t), private, parameter :: ZERO  = 0.0_dp_t
-
 contains
 
-   subroutine initdata (u,s,dx,prob_hi,phys_bc,visc_coef)
+   subroutine initdata (u,s,dx,prob_hi,bc,nscal)
 
       type(multifab) , intent(inout) :: u,s
       real(kind=dp_t), intent(in   ) :: dx(:)
       real(kind=dp_t), intent(in   ) :: prob_hi(:)
-      type(bc_level) , intent(in   ) :: phys_bc
-      real(kind=dp_t), intent(in   ) :: visc_coef
+      type(bc_level) , intent(in   ) :: bc
+      integer        , intent(in   ) :: nscal
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
-      integer :: i
+      integer :: i,n
+      logical :: is_vel
 
       ng = u%ng
       dm = u%dim
-
+ 
+      is_vel = .true.
       do i = 1, u%nboxes
          if ( multifab_remote(u, i) ) cycle
          uop => dataptr(u, i)
@@ -38,12 +38,20 @@ contains
          select case (dm)
             case (2)
               call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx, prob_hi)
-              call setvelbc_2d(uop(:,:,1,:), lo, ng, phys_bc%bc_level_array(i,:,:), &
-                               visc_coef)
+              do n = 1,dm
+                call setbc_2d(uop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
+              end do
+              do n = 1,nscal
+                call setbc_2d(sop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
+              end do
             case (3)
               call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
-              call setvelbc_3d(uop(:,:,:,:), lo, ng, phys_bc%bc_level_array(i,:,:), &
-                               visc_coef)
+              do n = 1,dm
+                call setbc_3d(uop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
+              end do
+              do n = 1,nscal
+                call setbc_3d(sop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
+              end do
          end select
       end do
       call multifab_fill_boundary(u)
@@ -65,44 +73,62 @@ contains
       integer :: i, j, n
       real (kind = dp_t) :: x,y,r,cpx,cpy,spx,spy,Pi
       real (kind = dp_t) :: velfact
+      real (kind = dp_t) :: ro
 
       Pi = 4.0_dp_t*atan(1.0) 
-!     velfact = 1.0_dp_t
-      velfact = 0.0_dp_t
+      velfact = 1.0_dp_t
+
+!     ro is the density of air
+      ro = 1.2e-3
 
       u = ZERO
       s = ZERO
 
       do j = lo(2), hi(2)
-        y = (float(j)+0.5) * dx(2) / prob_hi(2)
+        y = (float(j)+HALF) * dx(2) / prob_hi(2)
         do i = lo(1), hi(1)
-           x = (float(i)+0.5) * dx(1) / prob_hi(1)
+           x = (float(i)+HALF) * dx(1) / prob_hi(1)
            spx = sin(Pi*x)
            spy = sin(Pi*y)
            cpx = cos(Pi*x)
            cpy = cos(Pi*y)
-           u(i,j,1) =  2.0_dp_t*velfact*spy*cpy*spx*spx
-           u(i,j,2) = -2.0_dp_t*velfact*spx*cpx*spy*spy
-           s(i,j,1) = 1.0_dp_t
-!          r = sqrt((x-0.5)**2 + (y-0.5)**2)
-!          s(i,j,1) = merge(1.2_dp_t,1.0_dp_t,r .lt. 0.15)
+
+           u(i,j,1) = ZERO
+           if ((float(j)+HALF)*dx(2).le.FOURTH*prob_hi(2)) then
+              u(i,j,2) = ONE
+           else
+              u(i,j,2) = ZERO
+           end if
+           s(i,j,1) = ro
+           s(i,j,2) = ZERO
+
+!          if (j.eq.11) u(i,j,2) = ONE
+
+!          u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
+!          u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
+!          s(i,j,1) = ONE
+!          r = sqrt((x-HALF)**2 + (y-HALF)**2)
+!          s(i,j,1) = merge(1.2_dp_t,ONE,r .lt. 0.15)
         enddo
       enddo
 
-      do i = lo(1)-1, hi(1)+1
-        u(i,lo(2)-1,1) = VX_INLET
-        u(i,lo(2)-1,2) = VY_INLET
-        s(i,lo(2)-1,1) = RHO_INLET
-      enddo
+!     Impose inflow conditions if grid touches inflow boundary.
+      if (lo(2) .eq. 0) then
+         u(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_VX
+         u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY
+         s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
+         s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
+         s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
+      end if
 
-      if (size(s,dim=3).gt.1) then
-        do n = 2, size(s,dim=3)
+      if (size(s,dim=3).gt.2) then
+        do n = 3, size(s,dim=3)
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
-!          s(i,j,n) = 1.0_dp_t
-           y = (float(j)+0.5) * dx(2) / prob_hi(2)
-           x = (float(i)+0.5) * dx(1) / prob_hi(1)
-           r = sqrt((x-0.5)**2 + (y-0.5)**2)
+!          s(i,j,n) = ONE
+           y = (float(j)+HALF) * dx(2) / prob_hi(2)
+           x = (float(i)+HALF) * dx(1) / prob_hi(1)
+           r = sqrt((x-HALF)**2 + (y-HALF)**2)
            s(i,j,n) = r
         end do
         end do
@@ -127,33 +153,25 @@ contains
       real (kind = dp_t) :: velfact
 
       Pi = 4.0_dp_t*atan(1.0)
-!     velfact = 1.0_dp_t
-      velfact = 0.0_dp_t
+      velfact = ONE
 
       u = ZERO
       s = ZERO
 
       do k = lo(3), hi(3)
       do j = lo(2), hi(2)
-        y = (float(j)+0.5) * dx(2) / prob_hi(2)
+        y = (float(j)+HALF) * dx(2) / prob_hi(2)
         do i = lo(1)-ng, hi(1)+ng
-         x = (float(i)+0.5) * dx(1) / prob_hi(1)
+         x = (float(i)+HALF) * dx(1) / prob_hi(1)
          spx = sin(Pi*x)
          spy = sin(Pi*y)
          cpx = cos(Pi*x)
          cpy = cos(Pi*y)
-         u(i,j,k,1) =  2.0_dp_t*velfact*spy*cpy*spx*spx
-         u(i,j,k,2) = -2.0_dp_t*velfact*spx*cpx*spy*spy
-         u(i,j,k,3) = 0.0_dp_t
-         s(i,j,k,1) = 1.0_dp_t
+         u(i,j,k,1) =  TWO*velfact*spy*cpy*spx*spx
+         u(i,j,k,2) = -TWO*velfact*spx*cpx*spy*spy
+         u(i,j,k,3) = ZERO
+         s(i,j,k,1) = ONE
       enddo
-      enddo
-      enddo
-
-      do j = lo(2), hi(2)
-      do i = lo(1), hi(1)
-        u(i,j,lo(3)-1,3) = 1.0_dp_t
-        s(i,j,lo(3)-1,1) = 1.0_dp_t
       enddo
       enddo
 
@@ -162,7 +180,7 @@ contains
         do k = lo(3), hi(3)
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
-           s(i,j,k,n) = 1.0_dp_t
+           s(i,j,k,n) = ONE
         end do
         end do
         end do
@@ -170,45 +188,5 @@ contains
       end if
 
    end subroutine initdata_3d
-
-   subroutine define_bcs(phys_bc,norm_vel_bc,tang_vel_bc,scal_bc,press_bc,visc_coef)
-
-   integer        , intent(in   ) :: phys_bc(:,:)
-   integer        , intent(  out) :: norm_vel_bc(:,:)
-   integer        , intent(  out) :: tang_vel_bc(:,:)
-   integer        , intent(  out) :: scal_bc(:,:)
-   integer        , intent(  out) :: press_bc(:,:)
-   real(kind=dp_t), intent(in   ) :: visc_coef
-
-   integer :: dm,i,n
-
-   dm = size(phys_bc,dim=1)
- 
-   do n = 1, dm
-   do i = 1, 2
-      if (phys_bc(n,i) == WALL) then
-          norm_vel_bc(n,i) = BC_DIR
-          if (visc_coef > 0.0_dp_t) then
-             tang_vel_bc(n,i) = BC_DIR
-          else
-             tang_vel_bc(n,i) = BC_NEU
-          end if
-              scal_bc(n,i) = BC_NEU
-             press_bc(n,i) = BC_NEU
-      else if (phys_bc(n,i) == INLET) then
-          norm_vel_bc(n,i) = BC_DIR
-          tang_vel_bc(n,i) = BC_DIR
-              scal_bc(n,i) = BC_DIR
-             press_bc(n,i) = BC_NEU
-      else if (phys_bc(n,i) == OUTLET) then
-          norm_vel_bc(n,i) = BC_NEU
-          tang_vel_bc(n,i) = BC_NEU
-              scal_bc(n,i) = BC_NEU
-             press_bc(n,i) = BC_DIR
-      end if
-   end do
-   end do
-
-   end subroutine define_bcs
 
 end module init_module

@@ -38,12 +38,14 @@ contains
     end if
 
     write(unit=sd_name, fmt='(a,"/State")') trim(dirname)
-    print *,'Writing state to checkpoint file ',sd_name
     call fabio_ml_multifab_write_d(mfs, rrs, sd_name)
 
     write(unit=sd_name_nodal, fmt='(a,"/Pressure")') trim(dirname)
-    print *,'Writing pressure to checkpoint file ',sd_name_nodal
     call fabio_ml_multifab_write_d(mfs_nodal, rrs, sd_name_nodal)
+
+    print *,'Writing    state to checkpoint file ',trim(sd_name)
+    print *,'Writing pressure to checkpoint file ',trim(sd_name_nodal)
+    print *,' '
     
     nl = size(mfs)
     nc = ncomp(mfs(1))
