@@ -379,12 +379,12 @@ contains
            call ml_fill_fluxes(mgt(n)%ss(mglev), brs_flx%bmf(i,0), &
                 uu(n), mgt(n)%mm(mglev), ref_ratio(i), -1, i)
            call ml_interface(res(n-1), brs_flx%bmf(i,0), uu(n-1), &
-                mgt(n-1)%ss(mgt(n-1)%nlevels), pdc, -1, i)
+                mgt(n-1)%ss(mgt(n-1)%nlevels), pdc, -1, i, ONE)
 
            call ml_fill_fluxes(mgt(n)%ss(mglev), brs_flx%bmf(i,1), &
                 uu(n), mgt(n)%mm(mglev), ref_ratio(i), 1, i)
            call ml_interface(res(n-1), brs_flx%bmf(i,1), uu(n-1), &
-                mgt(n-1)%ss(mgt(n-1)%nlevels), pdc, +1, i)
+                mgt(n-1)%ss(mgt(n-1)%nlevels), pdc, +1, i, ONE)
         end do
 
      end subroutine crse_fine_residual
