@@ -38,7 +38,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
   nscal = 2
   bc_comp = dm + nscal + 1
 
-  stencil_order = 1
+  stencil_order = 2
 
   allocate(ref_ratio(nlevs,dm),hi_fine(dm),hi_crse(dm))
   do n = 2,nlevs
