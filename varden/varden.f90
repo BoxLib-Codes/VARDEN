@@ -31,6 +31,7 @@ subroutine varden()
   real(dp_t) :: time,dt,dtold,dt_hold,dt_temp
   real(dp_t) :: unrm
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
+  integer    :: mg_verbose
   integer    :: istep
   integer    :: i, n, nlevs, n_plot_comps, nscal
 
@@ -98,6 +99,7 @@ subroutine varden()
   namelist /probin/ bcy_hi
   namelist /probin/ bcz_lo
   namelist /probin/ bcz_hi
+  namelist /probin/ mg_verbose
 
   narg = command_argument_count()
 
@@ -229,6 +231,10 @@ subroutine varden()
            farg = farg + 1
            call get_command_argument(farg, value = fname)
            read(fname, *) bcz_hi
+        case ('--mg_verbose')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) mg_verbose
 
         case ('--test_set')
            farg = farg + 1
@@ -326,7 +332,7 @@ subroutine varden()
 ! Define dx at the base level, then at refined levels.
   domain_box = mba%pd(1)
   do i = 1,dm
-    dx(1,i) = prob_hi(i) / float(domain_box%hi(1)-domain_box%lo(1)+1)
+    dx(1,i) = prob_hi(i) / float(domain_box%hi(i)-domain_box%lo(i)+1)
   end do
   do n = 2,nlevs
     dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
@@ -384,7 +390,7 @@ subroutine varden()
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
      call hgproject(uold(n),rhohalf(n),p(n),gp(n),dx(n,:),dt_temp, &
-                    phys_bc_tower%bc_tower_array(n),domain_press_bc)
+                    phys_bc_tower%bc_tower_array(n),domain_press_bc,mg_verbose)
      call multifab_fill_boundary(uold(n))
      call multifab_fill_boundary(sold(n))
   end do
@@ -420,7 +426,7 @@ subroutine varden()
                       scal_bc_tower%bc_tower_array(n), &
                       press_bc_tower%bc_tower_array(n), &
                       domain_press_bc, domain_norm_vel_bc, domain_scal_bc, &
-                      visc_coef,diff_coef)
+                      visc_coef,diff_coef,mg_verbose)
       end do
      end do
 
@@ -469,7 +475,7 @@ subroutine varden()
                        scal_bc_tower%bc_tower_array(n), &
                        press_bc_tower%bc_tower_array(n), &
                        domain_press_bc, domain_norm_vel_bc, domain_scal_bc, &
-                       visc_coef,diff_coef)
+                       visc_coef,diff_coef,mg_verbose)
 
           time = time + dt
 
