@@ -44,7 +44,7 @@ subroutine visc_solve(nlevs,la_tower,unew,rho,dx,mu,the_bc_tower,mg_verbose)
   print *,' '
   print *,'... begin viscous solves  ... '
 
-  stencil_order = 1
+  stencil_order = 2
 
   do n = 1,nlevs
      print *,'BEFORE: MAX OF U AT LEVEL ',n,norm_inf(unew(n),1,1,all=.true.)
