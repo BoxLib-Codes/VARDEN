@@ -2,6 +2,7 @@ module laplac_module
 
    use bl_types
    use bc_module
+   use mg_bc_module
    use cvmg_module
 
    implicit none
@@ -57,11 +58,6 @@ contains
             uy_top = uy_top / dx(2)
  
             diff(i,j) = (ux_rgt-ux_lft)/dx(1) + (uy_top-uy_bot)/dx(2)
-            print *,'DIFF ',i,j,diff(i,j)
-            print *,'USING BOT ',u(i,0),u(i,1),u(i,2),u(i,3)
-            print *,'WALL? ',bc(2,1).eq.BC_DIR
-
-            print *,' '
       end do
       end do
 

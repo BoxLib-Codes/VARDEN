@@ -22,7 +22,7 @@ subroutine macproject(umac,rho,dx,press_bc)
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
   type(layout) :: la
-  integer  :: dm
+  integer  :: dm,stencil_order
 
   la = umac%la
   dm = rho%dim
@@ -39,7 +39,13 @@ subroutine macproject(umac,rho,dx,press_bc)
   call setval(alpha,ZERO,all=.true.)
   call setval(  phi,ZERO,all=.true.)
 
-  call mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
+  stencil_order = 1
+
+  print *,' '
+  print *,'... begin mac_projection ... '
+  call mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc,stencil_order)
+  print *,'...   end mac_projection ... '
+  print *,' '
 
   call mkumac(umac,phi,beta,dx,press_bc)
 
@@ -405,7 +411,7 @@ subroutine macproject(umac,rho,dx,press_bc)
 
 end subroutine macproject
 
-subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
+subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
   use BoxLib
   use omp_module
   use f2kcli
@@ -416,11 +422,11 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
   use itsol_module
   use sparse_solve_module
   use bl_mem_stat_module
-  use bl_timer_module
   use box_util_module
   use bl_IO_module
 
   type(layout),intent(inout) :: la
+  integer     ,intent(in   ) :: stencil_order
 
   type(boxarray) pdv
   type(box) pd
@@ -428,7 +434,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
   type(multifab), allocatable :: coeffs(:)
 
   real(dp_t), intent(in) :: dx(:)
-  integer   , intent(in) :: press_bc(:,:)
+  integer   , intent(in) :: bc(:,:)
 
   type(multifab), intent(in   ) :: alpha, beta
   type(multifab), intent(inout) :: rh, phi
@@ -436,7 +442,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
   type(imultifab) :: mm
   type(sparse) :: sparse_object
   type(mg_tower) :: mgt
-  integer i, idir, dm, ns
+  integer i, dm, ns
 
   integer :: test
   real(dp_t) :: snrm(2)
@@ -451,11 +457,6 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
   integer :: verbose
   integer :: nu1, nu2, gamma, cycle, solver, smoother
   real(dp_t) :: omega
-  integer :: ng, nc
-
-  type(timer) :: tm(2)
-
-  integer :: stencil_order
   logical :: nodal(rh%dim)
 
   real(dp_t) :: xa(rh%dim), xb(rh%dim)
@@ -466,8 +467,6 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
 
   dm             = rh%dim
 
-  ng                = mgt%ng
-  nc                = mgt%nc
   max_nlevel        = mgt%max_nlevel
   max_iter          = mgt%max_iter
   eps               = mgt%eps
@@ -484,22 +483,18 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
   min_width         = mgt%min_width
   verbose           = mgt%verbose
 
-  stencil_order = 1
   bottom_solver = 0
   
   nodal = .FALSE.
 
-  if ( test /= 0 .AND. max_iter == mgt%max_iter ) then
+  if ( test /= 0 .AND. max_iter == mgt%max_iter ) &
      max_iter = 1000
-  end if
-
-! call setval(phi, 0.0_dp_t, all=.true.)
 
   ns = 1 + dm*3
 
   pd = bbox(get_boxarray(la))
 
-  call mg_tower_build(mgt, la, pd, press_bc, &
+  call mg_tower_build(mgt, la, pd, bc, &
        dh = dx(:), &
        ns = ns, &
        smoother = smoother, &
@@ -518,14 +513,6 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
        verbose = verbose, &
        nodal = nodal)
 
-! if ( parallel_IOProcessor() ) then
-!    print *, 'PARALLEL EFFICIENCIES'
-!    do i = mgt%nlevels, 1, -1
-!       print *, 'LEV ', i, ' EFFICIENCY ', &
-!            layout_efficiency(get_layout(mgt%ss(i)))
-!    end do
-! end if
-
   allocate(coeffs(mgt%nlevels))
   call multifab_build(coeffs(mgt%nlevels), la, 1+dm, 1)
   call multifab_copy_c(coeffs(mgt%nlevels),1,alpha,1,1,all=.true.)
@@ -534,38 +521,30 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc)
 ! Do multigrid solve here 
   xa = 0.0_dp_t
   xb = 0.0_dp_t
-  call timer_start(tm(1))
   do i = mgt%nlevels-1, 1, -1
     call multifab_build(coeffs(i), mgt%ss(i)%la, 1+dm, 1)
-    do idir = 1, dm+1
-      call setval(coeffs(i), 0.0_dp_t, 1, dm+1, all=.true.)
-    end do
+    call setval(coeffs(i), 0.0_dp_t, 1, dm+1, all=.true.)
     call coarsen_coeffs(coeffs(i+1),coeffs(i))
   end do
   do i = mgt%nlevels, 1, -1
      pdv = layout_boxarray(mgt%ss(i)%la)
      call stencil_fill_cc(mgt%ss(i), coeffs(i), mgt%dh(:,i), pdv, &
-          mgt%mm(i), xa, xb, pd, stencil_order, press_bc)
+          mgt%mm(i), xa, xb, pd, stencil_order, bc)
   end do
 
   if ( bottom_solver == 3 ) then
      call sparse_build(mgt%sparse_object, mgt%ss(1), mgt%mm(1), &
           mgt%ss(1)%la, stencil_order, mgt%verbose)
   end if
-  call timer_stop(tm(1))
-  call timer_start(tm(2))
 
+! Put the problem in residual-correction form.
   i = mgt%nlevels
   call mg_defect(mgt%ss(i),mgt%dd(i),rh,phi,mgt%mm(i))
-  print *,'RHS '
-  call print(rh)
-  print *,'RESID '
-  call print(mgt%dd(i))
+  call multifab_copy_c(rh,1,mgt%dd(i),1,1,all=.true.)
 
   call setval(phi,ZERO,all=.true.)
-  call mg_tower_solve(mgt, phi, mgt%dd(i))
+  call mg_tower_solve(mgt, phi, rh)
 
-  call timer_stop(tm(2))
   do i = mgt%nlevels-1, 1, -1
     call multifab_destroy(coeffs(i))
   end do

@@ -50,6 +50,7 @@ subroutine varden()
   type(multifab), pointer ::       sold(:) => Null()
   type(multifab), pointer ::       snew(:) => Null()
   type(multifab), pointer ::    rhohalf(:) => Null()
+  type(multifab), pointer ::          p(:) => Null()
   type(multifab), pointer ::         gp(:) => Null()
   type(multifab), pointer ::      force(:) => Null()
   type(multifab), pointer :: scal_force(:) => Null()
@@ -63,6 +64,7 @@ subroutine varden()
   integer :: un, ierr
   logical :: lexist
   logical :: need_inputs
+  logical :: nodal(3)
 
   type(layout)    :: la
   type(mboxarray) :: mba
@@ -93,6 +95,13 @@ subroutine varden()
 
   need_inputs = .TRUE.
   test_set = ''
+
+  bcx_lo         = WALL
+  bcy_lo         = WALL
+  bcz_lo         = WALL
+  bcx_hi         = WALL
+  bcy_hi         = WALL
+  bcz_hi         = WALL
 
   call get_environment_variable('PROBIN', probin_env, status = ierr)
   if ( need_inputs .AND. ierr == 0 ) then
@@ -125,13 +134,6 @@ subroutine varden()
      close(unit=un)
      need_inputs = .FALSE.
   end if
-
-  bcx_lo         = WALL
-  bcy_lo         = WALL
-  bcz_lo         = WALL
-  bcx_hi         = WALL
-  bcy_hi         = WALL
-  bcz_hi         = WALL
 
   if ( .true. ) then
      do while ( farg <= narg )
@@ -242,8 +244,10 @@ subroutine varden()
 
   allocate(uold(nlevs),unew(nlevs))
   allocate(sold(nlevs),snew(nlevs))
-  allocate(gp(nlevs),rhohalf(nlevs))
+  allocate(p(nlevs),gp(nlevs),rhohalf(nlevs))
   allocate(force(nlevs),scal_force(nlevs))
+
+  nodal = .true.
 
   do n = nlevs,1,-1
      call multifab_build(   uold(n), la_tower(n),    dm, 3)
@@ -253,6 +257,7 @@ subroutine varden()
 
      call multifab_build(scal_force(n), la_tower(n), nscal, 1)
      call multifab_build(     force(n), la_tower(n),    dm, 1)
+     call multifab_build(         p(n), la_tower(n),     1, 1, nodal)
      call multifab_build(        gp(n), la_tower(n),    dm, 1)
      call multifab_build(   rhohalf(n), la_tower(n),     1, 1)
 
@@ -313,12 +318,16 @@ subroutine varden()
      call initdata(uold(n),sold(n),dx)
      call multifab_fill_boundary(sold(n))
 
+!    We do this here in order to set any Dirichlet boundary conditions.
+     unew(n) = uold(n)
+     snew(n) = sold(n)
+
      unrm = norm_inf(uold(n))
      print *,'MAX OF UOLD BEFORE PROJ ',unrm,' AT LEVEL ',n
 
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
-     call hgproject(uold(n),rhohalf(n),gp(n),dx,dt_temp,press_bc)
+     call hgproject(uold(n),rhohalf(n),p(n),gp(n),dx,dt_temp,phys_bc,press_bc)
      call multifab_fill_boundary(uold(n))
   end do
 
@@ -344,7 +353,7 @@ subroutine varden()
          call advance(uold(n),unew(n),sold(n),snew(n),rhohalf(n),&
                       umac,uedgex,uedgey,uedgez, &
                       sedgex,sedgey,sedgez, &
-                      utrans,gp(n),force(n),scal_force(n),&
+                      utrans,p(n),gp(n),force(n),scal_force(n),&
                       dx,time,dt,phys_bc,norm_vel_bc,tang_vel_bc, &
                       scal_bc,press_bc,visc_coef,diff_coef)
       end do
@@ -388,7 +397,7 @@ subroutine varden()
           call advance(uold(n),unew(n),sold(n),snew(n),rhohalf(n), &
                        umac,uedgex,uedgey,uedgez, &
                        sedgex,sedgey,sedgez, &
-                       utrans,gp(n),force(n),scal_force(n),&
+                       utrans,p(n),gp(n),force(n),scal_force(n),&
                        dx,time,dt,phys_bc,norm_vel_bc,tang_vel_bc, &
                        scal_bc,press_bc,visc_coef,diff_coef)
 
@@ -435,6 +444,7 @@ subroutine varden()
      call multifab_destroy(sold(n))
      call multifab_destroy(snew(n))
      call multifab_destroy(gp(n))
+     call multifab_destroy( p(n))
      call multifab_destroy(rhohalf(n))
      call multifab_destroy(force(n))
      call multifab_destroy(scal_force(n))

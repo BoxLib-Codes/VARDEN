@@ -23,7 +23,7 @@ subroutine visc_solve(unew,rho,dx,mu,visc_bc)
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
   type(layout) :: la
-  integer  :: n,dm
+  integer  :: n,dm,stencil_order
 
   la = unew%la
   dm = rho%dim
@@ -33,12 +33,17 @@ subroutine visc_solve(unew,rho,dx,mu,visc_bc)
   call multifab_build(alpha, la,  1, 1)
   call multifab_build( beta, la, dm, 1)
 
-  call multifab_copy_c(alpha,1,rho,1,1)
-  call setval(beta,mu,all=.true.)
+! call multifab_copy_c(alpha,1,rho,1,1)
+! call setval(beta,mu,all=.true.)
+! HACK HACK HACK 
+  call setval(alpha,0.0_dp_t,all=.true.)
+  call setval(beta,1.0_dp_t,all=.true.)
+
+  stencil_order = 1
 
   do n = 1,dm
      call mkrhs(rh,unew,rho,phi,n)
-     call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc)
+     call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order)
      call multifab_copy_c(unew,n,phi,1,1)
   end do
 
@@ -133,7 +138,7 @@ subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp)
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
   type(layout) :: la
-  integer  :: n,dm
+  integer  :: n,dm,stencil_order
 
   la = snew%la
   dm = snew%dim
@@ -148,11 +153,11 @@ subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp)
   
   call mkrhs(rh,snew,phi,comp)
 
-  call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc)
+  stencil_order = 2
 
-  call print(phi)
+  call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order)
+
   call multifab_plus_plus_c(snew,comp,phi,1,1)
-  call print(snew)
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)

@@ -21,7 +21,7 @@ contains
    subroutine advance(uold,unew,sold,snew,rhohalf,&
                       umac,uedgex,uedgey,uedgez,&
                       sedgex,sedgey,sedgez, &
-                      utrans,gp,ext_force,ext_scal_force,dx,time,dt, &
+                      utrans,p,gp,ext_force,ext_scal_force,dx,time,dt, &
                       phys_bc,norm_vel_bc,tang_vel_bc, &
                       scal_bc,press_bc,visc_coef,diff_coef)
 
@@ -33,6 +33,7 @@ contains
       type(multifab) , intent(inout) :: rhohalf
       type(multifab) , intent(inout) :: uedgex,uedgey,uedgez,utrans
       type(multifab) , intent(inout) :: sedgex,sedgey,sedgez
+      type(multifab) , intent(inout) ::  p
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(inout) :: ext_force
       type(multifab) , intent(inout) :: ext_scal_force
@@ -95,7 +96,7 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call setvelbc_2d (uop(:,:,1,:), lo, ng_u, phys_bc, visc_coef, irz)
+              call setvelbc_2d (uop(:,:,1,:), lo, ng_u, phys_bc, visc_coef)
               call setscalbc_2d(sop(:,:,1,:), lo, ng_u, phys_bc)
             case (3)
               call setvelbc_3d (uop(:,:,:,:), lo, ng_u, phys_bc, visc_coef)
@@ -375,13 +376,14 @@ contains
       end do
 
 !     Do the viscous solve for Crank-Nicolson discretization.
+!       Note we can send in norm_vel_bc because tang_vel_bc is the same if visc_coef > 0
       if (visc_coef > ZERO) then
         mu = HALF*dt*visc_coef
         call visc_solve(unew,rhohalf,dx,mu,norm_vel_bc)
       end if
 
 !     Project the new velocity field.
-      call hgproject(unew,rhohalf,gp,dx,dt,press_bc)
+      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
 
       call multifab_destroy(force)
 

@@ -2,10 +2,13 @@ module init_module
 
   use bl_types
   use bc_module
+  use mg_bc_module
   use cvmg_module
   use multifab_module
 
   implicit none
+
+  real (kind = dp_t), private, parameter :: ZERO  = 0.0_dp_t
 
 contains
 
@@ -52,11 +55,14 @@ contains
       real (kind = dp_t) :: velfact
 
       Pi = 4.0_dp_t*atan(1.0) 
-      velfact = 0.0_dp_t
+      velfact = 1.0_dp_t
 
-      do j = lo(2)-ng, hi(2)+ng
+      u = ZERO
+      s = ZERO
+
+      do j = lo(2), hi(2)
         y = (float(j)+0.5) / float(hi(2)+1)
-        do i = lo(1)-ng, hi(1)+ng
+        do i = lo(1), hi(1)
            x = (float(i)+0.5) / float(hi(1)+1)
            spx = sin(Pi*x)
            spy = sin(Pi*y)
@@ -64,15 +70,16 @@ contains
            cpy = cos(Pi*y)
            u(i,j,1) =  2.0_dp_t*velfact*spy*cpy*spx*spx
            u(i,j,2) = -2.0_dp_t*velfact*spx*cpx*spy*spy
-!          s(i,j,1) = 1.0_dp_t
-           r = sqrt((x-0.5)**2 + (y-0.5)**2)
-           s(i,j,1) = cvmgt(1.2_dp_t,1.0_dp_t,r .lt. 0.15)
+           s(i,j,1) = 1.0_dp_t
+!          r = sqrt((x-0.5)**2 + (y-0.5)**2)
+!          s(i,j,1) = cvmgt(1.2_dp_t,1.0_dp_t,r .lt. 0.15)
         enddo
       enddo
+
       if (size(s,dim=3).gt.1) then
         do n = 2, size(s,dim=3)
-        do j = lo(2)-ng, hi(2)+ng
-        do i = lo(1)-ng, hi(1)+ng
+        do j = lo(2), hi(2)
+        do i = lo(1), hi(1)
 !          s(i,j,n) = 1.0_dp_t
            y = (float(j)+0.5) / float(hi(2)+1)
            x = (float(i)+0.5) / float(hi(1)+1)
@@ -97,11 +104,16 @@ contains
 !     Local variables
       integer :: i, j, k, n
       real (kind = dp_t) :: x,y,cpx,cpy,spx,spy,Pi
+      real (kind = dp_t) :: velfact
 
       Pi = 4.0_dp_t*atan(1.0)
+      velfact = 1.0_dp_t
 
-      do k = lo(3)-ng, hi(3)+ng
-      do j = lo(2)-ng, hi(2)+ng
+      u = ZERO
+      s = ZERO
+
+      do k = lo(3), hi(3)
+      do j = lo(2), hi(2)
         y = (float(j)+0.5) / float(hi(2)+1)
         do i = lo(1)-ng, hi(1)+ng
          x = (float(i)+0.5) / float(hi(1)+1)
@@ -109,8 +121,8 @@ contains
          spy = sin(Pi*y)
          cpx = cos(Pi*x)
          cpy = cos(Pi*y)
-         u(i,j,k,1) =  2.0_dp_t*spy*cpy*spx*spx
-         u(i,j,k,2) = -2.0_dp_t*spx*cpx*spy*spy
+         u(i,j,k,1) =  2.0_dp_t*velfact*spy*cpy*spx*spx
+         u(i,j,k,2) = -2.0_dp_t*velfact*spx*cpx*spy*spy
          u(i,j,k,3) = 0.0_dp_t
          s(i,j,k,1) = 1.0_dp_t
       enddo
@@ -119,9 +131,9 @@ contains
 
       if (size(s,dim=4).gt.1) then
         do n = 1, size(s,dim=4)
-        do k = lo(3)-ng, hi(3)+ng
-        do j = lo(2)-ng, hi(2)+ng
-        do i = lo(1)-ng, hi(1)+ng
+        do k = lo(3), hi(3)
+        do j = lo(2), hi(2)
+        do i = lo(1), hi(1)
            s(i,j,k,n) = 1.0_dp_t
         end do
         end do

@@ -80,16 +80,6 @@ contains
       hx = dx(1)
       hy = dx(2)
 
-!      print *,'NCOMP ',ncomp
-!      if (velpred.eq.0) then
-!      do n = 1,ncomp
-!      do j = js,je 
-!      do i = is,ie 
-!        print *,'SY ',i,j,slopey(i,j,n)
-!      end do
-!      end do
-!      end do
-!      end if
 !
 !     Loop for fluxes on x-edges.
 !
