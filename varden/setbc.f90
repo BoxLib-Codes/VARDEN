@@ -37,7 +37,7 @@ contains
       else
 
          if (bc(1,1) .eq. WALL) then
-            do j = lo(2),hi(2)
+            do j = lo(2)-1,hi(2)+1
                vel(lo(1)-ng:lo(1)-1,j,1) = ZERO
                vel(lo(1)-ng:lo(1)-1,j,2) = &
                  ( 15.0_dp_t * vel(lo(1)  ,j,2) &
@@ -45,14 +45,14 @@ contains
                   + 3.0_dp_t * vel(lo(1)+2,j,2) ) * EIGHTH
             end do
          else if (bc(1,1) .eq. OUTLET) then
-            do j = lo(2),hi(2)
+            do j = lo(2)-1,hi(2)+1
                vel(lo(1)-ng:lo(1)-1,j,1) = vel(lo(1),j,1)
                vel(lo(1)-ng:lo(1)-1,j,2) = vel(lo(1),j,2)
             end do
          end if
 
          if (bc(1,2) .eq. WALL) then
-            do j = lo(2),hi(2)
+            do j = lo(2)-1,hi(2)+1
                vel(hi(1)+1:hi(1)+ng,j,1) = ZERO
                vel(hi(1)+1:hi(1)+ng,j,2) = &
                  ( 15.0_dp_t * vel(hi(1)  ,j,2) &
@@ -60,7 +60,7 @@ contains
                   + 3.0_dp_t * vel(hi(1)-2,j,2) ) * EIGHTH
             end do
          else if (bc(1,2) .eq. OUTLET) then
-            do j = lo(2),hi(2)
+            do j = lo(2)-1,hi(2)+1
                vel(hi(1)+1:hi(1)+ng,j,1) = vel(hi(1),j,1)
                vel(hi(1)+1:hi(1)+ng,j,2) = vel(hi(1),j,2)
             end do
@@ -131,8 +131,8 @@ contains
       else
 
          if (bc(1,1) .eq. WALL) then
-            do k = lo(3),hi(3)
-            do j = lo(2),hi(2)
+            do k = lo(3)-1,hi(3)+1
+            do j = lo(2)-1,hi(2)+1
                vel(lo(1)-ng:lo(1)-1,j,k,1) = ZERO
                vel(lo(1)-ng:lo(1)-1,j,k,2) = &
                  ( 15.0_dp_t * vel(lo(1)  ,j,k,2) &
@@ -145,8 +145,8 @@ contains
             end do
             end do
          else if (bc(1,1) .eq. OUTLET) then
-            do k = lo(3),hi(3)
-            do j = lo(2),hi(2)
+            do k = lo(3)-1,hi(3)+1
+            do j = lo(2)-1,hi(2)+1
                vel(lo(1)-ng:lo(1)-1,j,k,1) = vel(lo(1),j,k,1)
                vel(lo(1)-ng:lo(1)-1,j,k,2) = vel(lo(1),j,k,2)
                vel(lo(1)-ng:lo(1)-1,j,k,3) = vel(lo(1),j,k,3)
@@ -155,8 +155,8 @@ contains
          end if
 
          if (bc(1,2) .eq. WALL) then
-            do k = lo(3),hi(3)
-            do j = lo(2),hi(2)
+            do k = lo(3)-1,hi(3)+1
+            do j = lo(2)-1,hi(2)+1
                vel(hi(1)+1:hi(1)+ng,j,k,1) = ZERO
                vel(hi(1)+1:hi(1)+ng,j,k,2) = &
                  ( 15.0_dp_t * vel(hi(1)  ,j,k,2) &
@@ -169,8 +169,8 @@ contains
             end do
             end do
          else if (bc(1,2) .eq. OUTLET) then
-            do k = lo(3),hi(3)
-            do j = lo(2),hi(2)
+            do k = lo(3)-1,hi(3)+1
+            do j = lo(2)-1,hi(2)+1
                vel(hi(1)+1:hi(1)+ng,j,k,1) = vel(hi(1),j,k,1)
                vel(hi(1)+1:hi(1)+ng,j,k,2) = vel(hi(1),j,k,2)
                vel(hi(1)+1:hi(1)+ng,j,k,3) = vel(hi(1),j,k,3)
@@ -179,7 +179,7 @@ contains
          end if
 
          if (bc(2,1) .eq. WALL) then
-            do k = lo(3),hi(3)
+            do k = lo(3)-1,hi(3)+1
             do i = lo(1)-ng,hi(1)+ng
                vel(i,lo(2)-ng:lo(2)-1,k,2) = ZERO
                vel(i,lo(2)-ng:lo(2)-1,k,1) = &
@@ -193,7 +193,7 @@ contains
             end do
             end do
          else if (bc(2,1) .eq. OUTLET) then
-            do k = lo(3),hi(3)
+            do k = lo(3)-1,hi(3)+1
             do i = lo(1)-ng,hi(1)+ng
                vel(i,lo(2)-ng:lo(2)-1,k,1) = vel(i,lo(2),k,1)
                vel(i,lo(2)-ng:lo(2)-1,k,2) = vel(i,lo(2),k,2)
@@ -203,7 +203,7 @@ contains
          end if
 
          if (bc(2,2) .eq. WALL) then
-            do k = lo(3),hi(3)
+            do k = lo(3)-1,hi(3)+1
             do i = lo(1)-ng,hi(1)+ng
                vel(i,hi(2)+1:hi(2)+ng,k,2) = ZERO
                vel(i,hi(2)+1:hi(2)+ng,k,1) = &
@@ -217,7 +217,7 @@ contains
             end do
             end do
          else if (bc(2,1) .eq. OUTLET) then
-            do k = lo(3),hi(3)
+            do k = lo(3)-1,hi(3)+1
             do i = lo(1)-ng,hi(1)+ng
                vel(i,hi(2)+1:hi(2)+ng,k,1) = vel(i,hi(2),k,1)
                vel(i,hi(2)+1:hi(2)+ng,k,2) = vel(i,hi(2),k,2)
@@ -293,7 +293,7 @@ contains
 
       if (bc(1,1) .eq. WALL) then
          do n = 1,ncomp
-         do j = lo(2),hi(2)
+         do j = lo(2)-1,hi(2)+1
             s(lo(1)-ng:lo(1)-1,j,n) = &
                1.5_dp_t * s(lo(1)  ,j,n)  - 0.5_dp_t * s(lo(1)+1,j,n)
 !             ( 15.0_dp_t * s(lo(1)  ,j,n) &
@@ -303,7 +303,7 @@ contains
          end do
       else if (bc(1,1) .eq. OUTLET) then
          do n = 1,ncomp
-         do j = lo(2),hi(2)
+         do j = lo(2)-1,hi(2)+1
             s(lo(1)-ng:lo(1)-1,j,n) = s(lo(1),j,n)
          end do
          end do
@@ -311,7 +311,7 @@ contains
 
       if (bc(1,2) .eq. WALL) then
          do n = 1,ncomp
-         do j = lo(2),hi(2)
+         do j = lo(2)-1,hi(2)+1
             s(hi(1)+1:hi(1)+ng,j,n) = &
                1.5_dp_t * s(hi(1)  ,j,n)  - 0.5_dp_t * s(hi(1)-1,j,n)
 !             ( 15.0_dp_t * s(hi(1)  ,j,n) &
@@ -321,7 +321,7 @@ contains
          end do
       else if (bc(1,2) .eq. OUTLET) then
          do n = 1,ncomp
-         do j = lo(2),hi(2)
+         do j = lo(2)-1,hi(2)+1
             s(hi(1)+1:hi(1)+ng,j,n) = s(hi(1),j,n)
          end do
          end do
@@ -382,8 +382,8 @@ contains
 
       if (bc(1,1) .eq. WALL) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
+         do k = lo(3)-1,hi(3)+1
+         do j = lo(2)-1,hi(2)+1
             s(lo(1)-ng:lo(1)-1,j,k,n) = &
               ( 15.0_dp_t * s(lo(1)  ,j,k,n) &
                -10.0_dp_t * s(lo(1)+1,j,k,n) &
@@ -393,8 +393,8 @@ contains
          end do
       else if (bc(1,1) .eq. OUTLET) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
+         do k = lo(3)-1,hi(3)+1
+         do j = lo(2)-1,hi(2)+1
             s(lo(1)-ng:lo(1)-1,j,k,n) = s(lo(1),j,k,n)
          end do
          end do
@@ -403,8 +403,8 @@ contains
 
       if (bc(1,2) .eq. WALL) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
+         do k = lo(3)-1,hi(3)+1
+         do j = lo(2)-1,hi(2)+1
             s(hi(1)+1:hi(1)+ng,j,k,n) = &
               ( 15.0_dp_t * s(hi(1)  ,j,k,n) &
                -10.0_dp_t * s(hi(1)-1,j,k,n) &
@@ -414,8 +414,8 @@ contains
          end do
       else
          do n = 1,ncomp
-         do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
+         do k = lo(3)-1,hi(3)+1
+         do j = lo(2)-1,hi(2)+1
             s(hi(1)+1:hi(1)+ng,j,k,n) = s(hi(1),j,k,n)
          end do
          end do
@@ -424,7 +424,7 @@ contains
 
       if (bc(2,1) .eq. WALL) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
+         do k = lo(3)-1,hi(3)+1
          do i = lo(1)-ng,hi(1)+ng
             s(i,lo(2)-ng:lo(2)-1,k,n) = &
               ( 15.0_dp_t * s(i,lo(2)  ,k,n) &
@@ -435,7 +435,7 @@ contains
          end do
       else if (bc(2,1) .eq. OUTLET) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
+         do k = lo(3)-1,hi(3)+1
          do i = lo(1)-ng,hi(1)+ng
             s(i,lo(2)-ng:lo(2)-1,k,n) = s(i,lo(2),k,n)
          end do
@@ -445,7 +445,7 @@ contains
 
       if (bc(2,2) .eq. WALL) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
+         do k = lo(3)-1,hi(3)+1
          do i = lo(1)-ng,hi(1)+ng
             s(i,hi(2)+1:hi(2)+ng,k,n) = &
               ( 15.0_dp_t * s(i,hi(2)  ,k,n) &
@@ -456,7 +456,7 @@ contains
          end do
       else if (bc(2,2) .eq. OUTLET) then
          do n = 1,ncomp
-         do k = lo(3),hi(3)
+         do k = lo(3)-1,hi(3)+1
          do i = lo(1)-ng,hi(1)+ng
             s(i,hi(2)+1:hi(2)+ng,k,n) = s(i,hi(2),k,n)
          end do
