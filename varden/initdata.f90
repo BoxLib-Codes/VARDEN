@@ -57,6 +57,7 @@ contains
 
       Pi = 4.0_dp_t*atan(1.0) 
       velfact = 1.0_dp_t
+      velfact = 0.0_dp_t
 
       u = ZERO
       s = ZERO
@@ -75,6 +76,11 @@ contains
 !          r = sqrt((x-0.5)**2 + (y-0.5)**2)
 !          s(i,j,1) = merge(1.2_dp_t,1.0_dp_t,r .lt. 0.15)
         enddo
+      enddo
+
+      do i = lo(1), hi(1)
+        u(i,lo(2)-1,2) = 1.0_dp_t
+        s(i,lo(2)-1,1) = 1.0_dp_t
       enddo
 
       if (size(s,dim=3).gt.1) then

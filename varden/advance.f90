@@ -25,7 +25,7 @@ contains
                       phys_bc,norm_vel_bc,tang_vel_bc, &
                       scal_bc,press_bc, &
                       domain_press_bc,domain_norm_vel_bc,domain_scal_bc, &
-                      visc_coef,diff_coef)
+                      visc_coef,diff_coef,mg_verbose)
 
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -50,6 +50,7 @@ contains
       type(bc_level) , intent(in   ) :: scal_bc
       real(kind=dp_t), intent(in   ) :: visc_coef
       real(kind=dp_t), intent(in   ) :: diff_coef
+      integer        , intent(in   ) :: mg_verbose
 
       type(multifab) :: force,scal_force
 
@@ -188,7 +189,7 @@ contains
          end select
       end do
 
-      call macproject(umac,sold,dx,press_bc,domain_press_bc)
+      call macproject(umac,sold,dx,press_bc,domain_press_bc,mg_verbose)
   
 !     Create scalar force at time n.
       visc_fac = ONE
@@ -303,7 +304,7 @@ contains
       if (diff_coef > ZERO) then
         comp = 2
         visc_mu = HALF*dt*diff_coef
-        call diff_scalar_solve(snew,dx,visc_mu,domain_scal_bc,comp)
+        call diff_scalar_solve(snew,dx,visc_mu,domain_scal_bc,comp,mg_verbose)
         call multifab_fill_boundary(snew)
       end if
 
@@ -400,12 +401,12 @@ contains
 !       Note we can send in norm_vel_bc because tang_vel_bc is the same if visc_coef > 0
       if (visc_coef > ZERO) then
         visc_mu = HALF*dt*visc_coef
-        call visc_solve(unew,rhohalf,dx,visc_mu,domain_norm_vel_bc)
+        call visc_solve(unew,rhohalf,dx,visc_mu,domain_norm_vel_bc,mg_verbose)
         call multifab_fill_boundary(unew)
       end if
 
 !     Project the new velocity field.
-      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,domain_press_bc)
+      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,domain_press_bc,mg_verbose)
 
       call multifab_destroy(force)
 

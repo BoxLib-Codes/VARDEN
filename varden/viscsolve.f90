@@ -13,12 +13,13 @@ module viscous_module
 
 contains 
 
-subroutine visc_solve(unew,rho,dx,mu,visc_bc)
+subroutine visc_solve(unew,rho,dx,mu,visc_bc,mg_verbose)
 
   type(multifab), intent(inout) :: unew
   type(multifab), intent(in   ) :: rho
   real(dp_t)    , intent(in   ) :: dx(:),mu
   integer       , intent(in   ) :: visc_bc(:,:)
+  integer       , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
@@ -46,7 +47,7 @@ subroutine visc_solve(unew,rho,dx,mu,visc_bc)
 
   do n = 1,dm
      call mkrhs(rh,unew,rho,phi,n)
-     call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order)
+     call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order,mg_verbose)
      call multifab_copy_c(unew,n,phi,1,1)
   end do
 
@@ -137,12 +138,13 @@ subroutine visc_solve(unew,rho,dx,mu,visc_bc)
 
 end subroutine visc_solve
 
-subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp)
+subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp,mg_verbose)
 
   type(multifab), intent(inout) :: snew
   real(dp_t)    , intent(in   ) :: dx(:),mu
   integer       , intent(in   ) :: visc_bc(:,:)
   integer       , intent(in   ) :: comp
+  integer       , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
@@ -169,7 +171,7 @@ subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp)
 
   stencil_order = 2
 
-  call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order)
+  call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order,mg_verbose)
 
   call multifab_plus_plus_c(snew,comp,phi,1,1)
 

@@ -18,7 +18,7 @@ module hgproject_module
 
 contains 
 
-subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
+subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
 
   type(multifab), intent(inout) :: unew
   type(multifab), intent(inout) :: rhohalf
@@ -27,6 +27,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
   type(bc_level), intent(in   ) :: phys_bc
   integer       , intent(in   ) :: press_bc(:,:)
   real(dp_t) :: dx(:),dt
+  integer       , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab) :: rh,phi,gphi
@@ -50,7 +51,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
 
   call divu(unew,rhohalf,gp,rh,dx,dt,phys_bc)
 
-  call hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
+  call hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
 
   call mkgp(gphi,phi,dx)
   call mkunew(unew,gp,gphi,rhohalf,ng,dt)
@@ -438,7 +439,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
 
 end subroutine hgproject
 
-subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
+subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
   use BoxLib
   use omp_module
   use f2kcli
@@ -462,6 +463,7 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
 
   real(dp_t), intent(in) :: dx(:)
   integer, intent(in   ) :: press_bc(:,:)
+  integer, intent(in   ) :: mg_verbose
 
   type(multifab), intent(inout) :: phi, rh
   type(multifab), intent(inout) :: rhohalf
@@ -550,7 +552,7 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
        max_nlevel = max_nlevel, &
        min_width = min_width, &
        eps = eps, &
-       verbose = verbose, &
+       verbose = mg_verbose, &
        nodal = nodal)
 
 ! Note the minus sign here is because we solve (-del dot b grad) phi = rhs,

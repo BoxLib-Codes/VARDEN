@@ -13,13 +13,14 @@ module macproject_module
 
 contains 
 
-subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
+subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
   type(multifab), intent(inout) :: umac
   type(multifab), intent(in   ) :: rho
   integer       , intent(in   ) :: domain_press_bc(:,:)
   type(bc_level), intent(in   ) :: press_bc
   real(dp_t) :: dx(:)
+  integer       , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
@@ -46,7 +47,7 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
 
   stencil_order = 1
 
-  call mac_multigrid(la,rh,phi,alpha,beta,dx,domain_press_bc,stencil_order)
+  call mac_multigrid(la,rh,phi,alpha,beta,dx,domain_press_bc,stencil_order,mg_verbose)
 
   call mkumac(umac,phi,beta,dx,press_bc)
 
@@ -439,7 +440,7 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
 
 end subroutine macproject
 
-subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
+subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order,mg_verbose)
   use BoxLib
   use omp_module
   use f2kcli
@@ -455,6 +456,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
 
   type(layout),intent(inout) :: la
   integer     ,intent(in   ) :: stencil_order
+  integer     ,intent(in   ) :: mg_verbose
 
   type(boxarray) pdv
   type(box) pd
@@ -539,7 +541,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
        max_nlevel = max_nlevel, &
        min_width = min_width, &
        eps = eps, &
-       verbose = verbose, &
+       verbose = mg_verbose, &
        nodal = nodal)
 
   allocate(coeffs(mgt%nlevels))
