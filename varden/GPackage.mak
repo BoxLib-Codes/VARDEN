@@ -1,0 +1,16 @@
+f90sources += advance.f90
+f90sources += bc.f90
+f90sources += cvmg.f90
+f90sources += estdt.f90
+f90sources += hgproject.f90
+f90sources += initdata.f90
+f90sources += laplac.f90
+f90sources += macproject.f90
+f90sources += mkflux.f90
+f90sources += mkforce.f90
+f90sources += mkutrans.f90
+f90sources += setbc.f90
+f90sources += setvelbc.f90
+f90sources += slope.f90
+f90sources += varden.f90
+f90sources += viscsolve.f90

@@ -1,0 +1,11 @@
+&PROBIN
+ test_set = "gr0_2d"
+ max_step  = 1
+ init_iter = 2
+ stop_time = 10000.
+ cflfac = 0.9
+ bcx_lo = 2
+ bcx_hi = 2
+ bcy_lo = 2
+ bcy_hi = 2
+/
