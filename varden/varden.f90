@@ -526,31 +526,33 @@ subroutine varden()
 ! Begin the initial iterations to define an initial pressure field.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if (restart < 0 .and. init_iter > 0) then
-     if (verbose .eq. 1) print *,'DOING ',init_iter,' INITIAL ITERATIONS ' 
-     do istep = 1,init_iter
-      do n = 1,nlevs
-         call advance(uold(n),unew(n),sold(n),snew(n),rhohalf(n),&
-                      umac,uedgex,uedgey,uedgez, &
-                      sedgex,sedgey,sedgez, &
-                      utrans,gp(n),p(n),force(n),scal_force(n),&
-                      dx(n,:),time,dt, &
-                      phys_bc_tower%bc_tower_array(n), &
-                      norm_bc_tower%bc_tower_array(n), &
-                      tang_bc_tower%bc_tower_array(n), &
-                      scal_bc_tower%bc_tower_array(n), &
-                      press_bc_tower%bc_tower_array(n), &
-                      domain_press_bc, domain_norm_vel_bc, domain_scal_bc, &
-                      visc_coef,diff_coef,verbose,mg_verbose)
-      end do
-      if (verbose .eq. 1) then
-         do n = 1,nlevs
-            print *,'MAX OF UOLD ',norm_inf(uold(n)),' AT LEVEL ',n
-            print *,'MAX OF UNEW ',norm_inf(unew(n)),' AT LEVEL ',n
-         end do
-         print *,' '
-      end if
-     end do
+  if (restart < 0) then
+     if (init_iter > 0) then
+       if (verbose .eq. 1) print *,'DOING ',init_iter,' INITIAL ITERATIONS ' 
+       do istep = 1,init_iter
+        do n = 1,nlevs
+           call advance(uold(n),unew(n),sold(n),snew(n),rhohalf(n),&
+                        umac,uedgex,uedgey,uedgez, &
+                        sedgex,sedgey,sedgez, &
+                        utrans,gp(n),p(n),force(n),scal_force(n),&
+                        dx(n,:),time,dt, &
+                        phys_bc_tower%bc_tower_array(n), &
+                        norm_bc_tower%bc_tower_array(n), &
+                        tang_bc_tower%bc_tower_array(n), &
+                        scal_bc_tower%bc_tower_array(n), &
+                        press_bc_tower%bc_tower_array(n), &
+                        domain_press_bc, domain_norm_vel_bc, domain_scal_bc, &
+                        visc_coef,diff_coef,verbose,mg_verbose)
+        end do
+        if (verbose .eq. 1) then
+           do n = 1,nlevs
+              print *,'MAX OF UOLD ',norm_inf(uold(n)),' AT LEVEL ',n
+              print *,'MAX OF UNEW ',norm_inf(unew(n)),' AT LEVEL ',n
+           end do
+           print *,' '
+        end if
+       end do
+     end if
 
      do n = 1,nlevs
         call make_vorticity(vort(n),uold(n),dx(n,:), &

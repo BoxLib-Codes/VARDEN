@@ -4,7 +4,7 @@ module inflow_values
    implicit none
 
    real(kind=dp_t), parameter ::  VX_INLET = 0.0d0
-   real(kind=dp_t), parameter ::  VY_INLET = 0.0d0
+   real(kind=dp_t), parameter ::  VY_INLET = 1.0d0
    real(kind=dp_t), parameter ::  VZ_INLET = 0.0d0
    real(kind=dp_t), parameter :: RHO_INLET = 1.0d0
 

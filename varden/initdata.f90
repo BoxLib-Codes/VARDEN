@@ -6,6 +6,7 @@ module init_module
   use define_bc_module
   use mg_bc_module
   use multifab_module
+  use inflow_values
 
   implicit none
 
@@ -66,7 +67,7 @@ contains
       real (kind = dp_t) :: velfact
 
       Pi = 4.0_dp_t*atan(1.0) 
-      velfact = 1.0_dp_t
+!     velfact = 1.0_dp_t
       velfact = 0.0_dp_t
 
       u = ZERO
@@ -88,10 +89,11 @@ contains
         enddo
       enddo
 
-!     do i = lo(1), hi(1)
-!       u(i,lo(2)-1,2) = 1.0_dp_t
-!       s(i,lo(2)-1,1) = 1.0_dp_t
-!     enddo
+      do i = lo(1)-1, hi(1)+1
+        u(i,lo(2)-1,1) = VX_INLET
+        u(i,lo(2)-1,2) = VY_INLET
+        s(i,lo(2)-1,1) = RHO_INLET
+      enddo
 
       if (size(s,dim=3).gt.1) then
         do n = 2, size(s,dim=3)
