@@ -3,7 +3,6 @@ module mkflux_module
   use bl_types
   use multifab_module
   use slope_module
-  use cvmg_module
 
   implicit none
 
@@ -93,48 +92,48 @@ contains
           sptop = s(i,j+1,n) - (HALF + dth*u(i,j+1,2)/hy) * slopey(i,j+1,n)
 !    $            + dth * force(i,j+1,n)
 
-          sptop = cvmgt(s(i,je+1,n),sptop,j.eq.je .and. bc(2,2) .eq. INLET)
-          spbot = cvmgt(s(i,je+1,n),spbot,j.eq.je .and. bc(2,2) .eq. INLET)
+          sptop = merge(s(i,je+1,n),sptop,j.eq.je .and. bc(2,2) .eq. INLET)
+          spbot = merge(s(i,je+1,n),spbot,j.eq.je .and. bc(2,2) .eq. INLET)
 
           if (j .eq. je .and. bc(2,2) .eq. WALL) then
             if (is_vel .and. n .eq. 2) then
               sptop = ZERO
               spbot = ZERO
             elseif (is_vel .and. n .eq. 1) then
-              sptop = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
-              spbot = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
+              sptop = merge(ZERO,spbot,visc_coef .gt. ZERO)
+              spbot = merge(ZERO,spbot,visc_coef .gt. ZERO)
             else
               sptop = spbot
             endif
           endif
 
-          splus = cvmgp(spbot,sptop,utrans(i,j+1,2))
+          splus = merge(spbot,sptop,utrans(i,j+1,2).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = cvmgt(splus, savg, abs(utrans(i,j+1,2)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i,j+1,2)) .gt. eps)
 
           smtop = s(i,j  ,n) - (HALF + dth*u(i,j  ,2)/hy) * slopey(i,j  ,n)
 !    $            + dth * force(i,j  ,n)
           smbot = s(i,j-1,n) + (HALF - dth*u(i,j-1,2)/hy) * slopey(i,j-1,n)
 !    $            + dth * force(i,j-1,n)
 
-          smtop = cvmgt(s(i,js-1,n),smtop,j.eq.js .and. bc(2,1) .eq. INLET)
-          smbot = cvmgt(s(i,js-1,n),smbot,j.eq.js .and. bc(2,1) .eq. INLET)
+          smtop = merge(s(i,js-1,n),smtop,j.eq.js .and. bc(2,1) .eq. INLET)
+          smbot = merge(s(i,js-1,n),smbot,j.eq.js .and. bc(2,1) .eq. INLET)
 
           if (j .eq. js .and. bc(2,1) .eq. WALL) then
             if (is_vel .and. (n .eq. 2)) then
               smtop = ZERO
               smbot = ZERO
             elseif (is_vel .and. (n .ne. 2)) then
-              smbot = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
-              smtop = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
+              smbot = merge(ZERO,smtop,visc_coef .gt. ZERO)
+              smtop = merge(ZERO,smtop,visc_coef .gt. ZERO)
             else
               smbot = smtop
             endif
           endif
 
-          sminus = cvmgp(smbot,smtop,utrans(i,j,2))
+          sminus = merge(smbot,smtop,utrans(i,j,2).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,2)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,2)) .gt. eps)
 
           st = force(i,j,n) - &
                 HALF * (utrans(i,j,2)+utrans(i,j+1,2))*(splus - sminus) / hy
@@ -152,14 +151,14 @@ contains
              test = ( (s_l(i) .le. ZERO  .and. &
                        s_r(i) .ge. ZERO)  .or. &
                      (abs(s_l(i) + s_r(i)) .lt. eps) )
-             sedgex(i,j,n)=cvmgp(s_l(i),s_r(i),savg)
-             sedgex(i,j,n)=cvmgt(savg,sedgex(i,j,n),test)
+             sedgex(i,j,n)=merge(s_l(i),s_r(i),savg.gt.ZERO)
+             sedgex(i,j,n)=merge(savg,sedgex(i,j,n),test)
            enddo
          else
            do i = is, ie+1 
-             sedgex(i,j,n)=cvmgp(s_l(i),s_r(i),uadv(i,j,1))
+             sedgex(i,j,n)=merge(s_l(i),s_r(i),uadv(i,j,1).gt.ZERO)
              savg = HALF*(s_r(i) + s_l(i))
-             sedgex(i,j,n)=cvmgt(savg,sedgex(i,j,n),abs(uadv(i,j,1)) .lt. eps)
+             sedgex(i,j,n)=merge(savg,sedgex(i,j,n),abs(uadv(i,j,1)) .lt. eps)
            enddo
          endif
 
@@ -167,7 +166,7 @@ contains
            if (is_vel .and. n .eq. 1) then
              sedgex(is,j,n) = ZERO
            elseif (is_vel .and. n .ne. 1) then
-             sedgex(is,j,n) = cvmgt(ZERO,s_r(is),visc_coef.gt.0.0.and.irz.eq.0)
+             sedgex(is,j,n) = merge(ZERO,s_r(is),visc_coef.gt.0.0.and.irz.eq.0)
            else 
              sedgex(is,j,n) = s_r(is)
            endif
@@ -180,7 +179,7 @@ contains
            if (is_vel .and. n .eq. 1) then
              sedgex(ie+1,j,n) = ZERO
            else if (is_vel .and. n .ne. 1) then
-             sedgex(ie+1,j,n) = cvmgt(ZERO,s_l(ie+1),visc_coef .gt. 0.0)
+             sedgex(ie+1,j,n) = merge(ZERO,s_l(ie+1),visc_coef .gt. 0.0)
            else 
              sedgex(ie+1,j,n) = s_l(ie+1)
            endif
@@ -213,48 +212,48 @@ contains
           sprgt = s(i+1,j,n) - (HALF + dth*u(i+1,j,1)/hx) * slopex(i+1,j,n)
 !    $            + dth * force(i+1,j,n)
 
-          sprgt = cvmgt(s(ie+1,j,n),sprgt,i.eq.ie .and. bc(1,2) .eq. INLET)
-          splft = cvmgt(s(ie+1,j,n),splft,i.eq.ie .and. bc(1,2) .eq. INLET)
+          sprgt = merge(s(ie+1,j,n),sprgt,i.eq.ie .and. bc(1,2) .eq. INLET)
+          splft = merge(s(ie+1,j,n),splft,i.eq.ie .and. bc(1,2) .eq. INLET)
 
           if (i .eq. ie .and. bc(1,2) .eq. WALL) then
             if (is_vel .and. n .eq. 1) then
               splft = ZERO
               sprgt = ZERO
             elseif (is_vel .and. n .ne. 1) then
-              sprgt = cvmgt(ZERO,splft,visc_coef .gt. ZERO)
-              splft = cvmgt(ZERO,splft,visc_coef .gt. ZERO)
+              sprgt = merge(ZERO,splft,visc_coef .gt. ZERO)
+              splft = merge(ZERO,splft,visc_coef .gt. ZERO)
             else
               sprgt = splft
             endif
           endif
 
-          splus = cvmgp(splft,sprgt,utrans(i+1,j,1))
+          splus = merge(splft,sprgt,utrans(i+1,j,1).gt.ZERO)
           savg  = HALF * (splft + sprgt)
-          splus = cvmgt(splus, savg, abs(utrans(i+1,j,1)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i+1,j,1)) .gt. eps)
 
           smrgt = s(i  ,j,n) - (HALF + dth*u(i  ,j,1)/hx) * slopex(i  ,j,n)
 !    $            + dth * force(i  ,j,n)
           smlft = s(i-1,j,n) + (HALF - dth*u(i-1,j,1)/hx) * slopex(i-1,j,n)
 !    $            + dth * force(i-1,j,n)
 
-          smrgt = cvmgt(s(is-1,j,n),smrgt,i.eq.is .and. bc(1,1) .eq. INLET)
-          smlft = cvmgt(s(is-1,j,n),smlft,i.eq.is .and. bc(1,1) .eq. INLET)
+          smrgt = merge(s(is-1,j,n),smrgt,i.eq.is .and. bc(1,1) .eq. INLET)
+          smlft = merge(s(is-1,j,n),smlft,i.eq.is .and. bc(1,1) .eq. INLET)
 
           if (i .eq. is .and. bc(1,1) .eq. WALL) then
             if (is_vel .and. n .eq. 1) then
               smlft = ZERO
               smrgt = ZERO
             elseif (is_vel .and. n .ne. 1) then
-              smlft = cvmgt(ZERO,smrgt,visc_coef.gt.ZERO.and.irz.eq.0)
-              smrgt = cvmgt(ZERO,smrgt,visc_coef.gt.ZERO.and.irz.eq.0)
+              smlft = merge(ZERO,smrgt,visc_coef.gt.ZERO.and.irz.eq.0)
+              smrgt = merge(ZERO,smrgt,visc_coef.gt.ZERO.and.irz.eq.0)
             else
               smlft = smrgt
             endif
           endif
 
-          sminus = cvmgp(smlft,smrgt,utrans(i,j,1))
+          sminus = merge(smlft,smrgt,utrans(i,j,1).gt.ZERO)
           savg   = HALF * (smlft + smrgt)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,1)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,1)) .gt. eps)
 
           st = force(i,j,n) - &
                HALF * (utrans(i,j,1)+utrans(i+1,j,1))*(splus - sminus) / hx
@@ -272,15 +271,15 @@ contains
             test = ( (s_b(j) .le. ZERO  .and. &
                       s_t(j) .ge. ZERO)  .or. &
                    (abs(s_b(j) + s_t(j)) .lt. eps) )
-            sedgey(i,j,n)=cvmgp(s_b(j),s_t(j),savg)
-            sedgey(i,j,n)=cvmgt(savg,sedgey(i,j,n),test)
+            sedgey(i,j,n)=merge(s_b(j),s_t(j),savg.gt.ZERO)
+            sedgey(i,j,n)=merge(savg,sedgey(i,j,n),test)
           enddo
         else
 
           do j = js, je+1 
-            sedgey(i,j,n)=cvmgp(s_b(j),s_t(j),uadv(i,j,2))
+            sedgey(i,j,n)=merge(s_b(j),s_t(j),uadv(i,j,2).gt.ZERO)
             savg = HALF*(s_b(j) + s_t(j))
-            sedgey(i,j,n)=cvmgt(savg,sedgey(i,j,n),abs(uadv(i,j,2)) .lt. eps)
+            sedgey(i,j,n)=merge(savg,sedgey(i,j,n),abs(uadv(i,j,2)) .lt. eps)
           enddo
         endif
 
@@ -288,7 +287,7 @@ contains
           if (is_vel .and. n .eq. 2) then
             sedgey(i,js,n) = ZERO
           elseif (is_vel .and. n .ne. 2) then
-            sedgey(i,js,n) = cvmgt(ZERO,s_t(js),visc_coef .gt. 0.0)
+            sedgey(i,js,n) = merge(ZERO,s_t(js),visc_coef .gt. 0.0)
           else 
             sedgey(i,js,n) = s_t(js)
           endif
@@ -302,7 +301,7 @@ contains
           if (is_vel .and. n .eq. 2) then
             sedgey(i,je+1,n) = ZERO
           elseif (is_vel .and. n .ne. 2) then
-            sedgey(i,je+1,n) = cvmgt(ZERO,s_b(je+1),visc_coef .gt. 0.0)
+            sedgey(i,je+1,n) = merge(ZERO,s_b(je+1),visc_coef .gt. 0.0)
           else 
             sedgey(i,je+1,n) = s_b(je+1)
           endif
@@ -418,48 +417,48 @@ contains
           sptop = s(i,j+1,k,n) - (HALF + dth*u(i,j+1,k,2)/hy)*slopey(i,j+1,k,n)
 !    $            + dth * force(i,j+1,k,n)
 
-          sptop = cvmgt(s(i,je+1,k,n),sptop,j.eq.je .and. bc(2,2) .eq. INLET)
-          spbot = cvmgt(s(i,je+1,k,n),spbot,j.eq.je .and. bc(2,2) .eq. INLET)
+          sptop = merge(s(i,je+1,k,n),sptop,j.eq.je .and. bc(2,2) .eq. INLET)
+          spbot = merge(s(i,je+1,k,n),spbot,j.eq.je .and. bc(2,2) .eq. INLET)
 
           if (j .eq. je .and. bc(2,2) .eq. WALL) then
             if (is_vel .and. n .eq. 2) then
               sptop = ZERO
               spbot = ZERO
             else if (is_vel .and. n .ne. 2) then
-              sptop = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
-              spbot = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
+              sptop = merge(ZERO,spbot,visc_coef .gt. ZERO)
+              spbot = merge(ZERO,spbot,visc_coef .gt. ZERO)
             else
               sptop = spbot
             endif
           endif
 
-          splus = cvmgp(spbot,sptop,utrans(i,j+1,k,2))
+          splus = merge(spbot,sptop,utrans(i,j+1,k,2).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = cvmgt(splus, savg, abs(utrans(i,j+1,k,2)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i,j+1,k,2)) .gt. eps)
 
           smtop = s(i,j  ,k,n) - (HALF + dth*u(i,j  ,k,2)/hy)*slopey(i,j  ,k,n)
 !    $            + dth * force(i,j  ,k,n)
           smbot = s(i,j-1,k,n) + (HALF - dth*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,n)
 !    $            + dth * force(i,j-1,k,n)
 
-          smtop = cvmgt(s(i,js-1,k,n),smtop,j.eq.js .and. bc(2,1) .eq. INLET)
-          smbot = cvmgt(s(i,js-1,k,n),smbot,j.eq.js .and. bc(2,1) .eq. INLET)
+          smtop = merge(s(i,js-1,k,n),smtop,j.eq.js .and. bc(2,1) .eq. INLET)
+          smbot = merge(s(i,js-1,k,n),smbot,j.eq.js .and. bc(2,1) .eq. INLET)
 
           if (j .eq. js .and. bc(2,1) .eq. WALL) then
             if (is_vel .and. n .eq. 2) then
               smtop = ZERO
               smbot = ZERO
             else if (is_vel .and. n .ne. 2) then
-              smtop = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
-              smbot = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
+              smtop = merge(ZERO,smtop,visc_coef .gt. ZERO)
+              smbot = merge(ZERO,smtop,visc_coef .gt. ZERO)
             else
               smbot = smtop
             endif
           endif
 
-          sminus = cvmgp(smbot,smtop,utrans(i,j,k,2))
+          sminus = merge(smbot,smtop,utrans(i,j,k,2).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,k,2)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k,2)) .gt. eps)
 
           str =  HALF * (utrans(i,j,k,2)+utrans(i,j+1,k,2))*(splus - sminus) / hy
 
@@ -472,48 +471,48 @@ contains
           sptop = s(i,j,k+1,n) - (HALF + dth*u(i,j,k+1,3)/hz)*slopez(i,j,k+1,n)
 !    $            + dth * force(i,j,k+1,n)
 
-          sptop = cvmgt(s(i,j,ke+1,n),sptop,k.eq.ke .and. bc(3,2) .eq. INLET)
-          spbot = cvmgt(s(i,j,ke+1,n),spbot,k.eq.ke .and. bc(3,2) .eq. INLET)
+          sptop = merge(s(i,j,ke+1,n),sptop,k.eq.ke .and. bc(3,2) .eq. INLET)
+          spbot = merge(s(i,j,ke+1,n),spbot,k.eq.ke .and. bc(3,2) .eq. INLET)
 
           if (k .eq. ke .and. bc(3,2) .eq. WALL) then
             if (is_vel .and. n .eq. 3) then
               sptop = ZERO
               spbot = ZERO
             else if (is_vel .and. n .ne. 3) then
-              sptop = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
-              spbot = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
+              sptop = merge(ZERO,spbot,visc_coef .gt. ZERO)
+              spbot = merge(ZERO,spbot,visc_coef .gt. ZERO)
             else
               sptop = spbot
             endif
           endif
 
-          splus = cvmgp(spbot,sptop,utrans(i,j,k+1,3))
+          splus = merge(spbot,sptop,utrans(i,j,k+1,3).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = cvmgt(splus, savg, abs(utrans(i,j,k+1,3)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i,j,k+1,3)) .gt. eps)
 
           smtop = s(i,j,k  ,n) - (HALF + dth*u(i,j,k  ,3)/hz)*slopez(i,j,k  ,n)
 !    $            + dth * force(i,j,k  ,n)
           smbot = s(i,j,k-1,n) + (HALF - dth*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,n)
 !    $            + dth * force(i,j,k-1,n)
 
-          smtop = cvmgt(s(i,j,ks-1,n),smtop,k.eq.ks .and. bc(3,1) .eq. INLET)
-          smbot = cvmgt(s(i,j,ks-1,n),smbot,k.eq.ks .and. bc(3,1) .eq. INLET)
+          smtop = merge(s(i,j,ks-1,n),smtop,k.eq.ks .and. bc(3,1) .eq. INLET)
+          smbot = merge(s(i,j,ks-1,n),smbot,k.eq.ks .and. bc(3,1) .eq. INLET)
 
           if (k .eq. ks .and. bc(3,1) .eq. WALL) then
             if (is_vel .and. n .eq. 3) then
               smtop = ZERO
               smbot = ZERO
             else if (is_vel .and. n .ne. 3) then
-              smtop = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
-              smbot = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
+              smtop = merge(ZERO,smtop,visc_coef .gt. ZERO)
+              smbot = merge(ZERO,smtop,visc_coef .gt. ZERO)
             else 
               smbot = smtop
             endif
           endif
 
-          sminus = cvmgp(smbot,smtop,utrans(i,j,k,3))
+          sminus = merge(smbot,smtop,utrans(i,j,k,3).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,k,3)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k,3)) .gt. eps)
 
           str = str + HALF * (utrans(i,j,k,3)+utrans(i,j,k+1,3))* &
                              (splus - sminus) / hz
@@ -536,14 +535,14 @@ contains
             test = ( (s_l(i) .le. ZERO  .and. &
                       s_r(i) .ge. ZERO)  .or. &
                     (abs(s_l(i) + s_r(i)) .lt. eps) )
-            sedgex(i,j,k,n)=cvmgp(s_l(i),s_r(i),savg)
-            sedgex(i,j,k,n)=cvmgt(savg,sedgex(i,j,k,n),test)
+            sedgex(i,j,k,n)=merge(s_l(i),s_r(i),savg.gt.ZERO)
+            sedgex(i,j,k,n)=merge(savg,sedgex(i,j,k,n),test)
           enddo
         else
           do i = is, ie+1 
-            sedgex(i,j,k,n)=cvmgp(s_l(i),s_r(i),uadv(i,j,k,1))
+            sedgex(i,j,k,n)=merge(s_l(i),s_r(i),uadv(i,j,k,1).gt.ZERO)
             savg = HALF*(s_r(i) + s_l(i))
-            sedgex(i,j,k,n)=cvmgt(savg,sedgex(i,j,k,n),abs(uadv(i,j,k,1)) .lt. eps)
+            sedgex(i,j,k,n)=merge(savg,sedgex(i,j,k,n),abs(uadv(i,j,k,1)) .lt. eps)
           enddo
         endif
 
@@ -551,7 +550,7 @@ contains
           if (is_vel .and. n .eq. 1) then
             sedgex(is,j,k,n) = ZERO
           else if (is_vel .and. n .ne. 1) then
-            sedgex(is,j,k,n) = cvmgt(ZERO,s_r(is),visc_coef .gt. 0.0)
+            sedgex(is,j,k,n) = merge(ZERO,s_r(is),visc_coef .gt. 0.0)
           else 
             sedgex(is,j,k,n) = s_r(is)
           endif
@@ -565,7 +564,7 @@ contains
           if (is_vel .and. n .eq. 1) then
             sedgex(ie+1,j,k,n) = ZERO
           else if (is_vel .and. n .ne. 1) then
-            sedgex(ie+1,j,k,n) = cvmgt(ZERO,s_l(ie+1),visc_coef .gt. 0.0)
+            sedgex(ie+1,j,k,n) = merge(ZERO,s_l(ie+1),visc_coef .gt. 0.0)
           else 
             sedgex(ie+1,j,k,n) = s_l(ie+1)
           endif
@@ -607,48 +606,48 @@ contains
           sprgt = s(i+1,j,k,n) - (HALF + dth*u(i+1,j,k,1)/hx)*slopex(i+1,j,k,n)
 !    $            + dth * force(i+1,j,k,n)
 
-          sprgt = cvmgt(s(ie+1,j,k,n),sprgt,i.eq.ie .and. bc(1,2) .eq. INLET)
-          splft = cvmgt(s(ie+1,j,k,n),splft,i.eq.ie .and. bc(1,2) .eq. INLET)
+          sprgt = merge(s(ie+1,j,k,n),sprgt,i.eq.ie .and. bc(1,2) .eq. INLET)
+          splft = merge(s(ie+1,j,k,n),splft,i.eq.ie .and. bc(1,2) .eq. INLET)
 
           if (i .eq. ie .and. bc(1,2) .eq. WALL) then
             if (is_vel .and. n .eq. 1) then
               sprgt = ZERO
               splft = ZERO
             else if (is_vel .and. n .ne. 1) then
-              sprgt = cvmgt(ZERO,splft,visc_coef .gt. ZERO)
-              splft = cvmgt(ZERO,splft,visc_coef .gt. ZERO)
+              sprgt = merge(ZERO,splft,visc_coef .gt. ZERO)
+              splft = merge(ZERO,splft,visc_coef .gt. ZERO)
             else
               sprgt = splft
             endif
           endif
 
-          splus = cvmgp(splft,sprgt,utrans(i+1,j,k,1))
+          splus = merge(splft,sprgt,utrans(i+1,j,k,1).gt.ZERO)
           savg  = HALF * (splft + sprgt)
-          splus = cvmgt(splus, savg, abs(utrans(i+1,j,k,1)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i+1,j,k,1)) .gt. eps)
 
           smrgt = s(i  ,j,k,n) - (HALF + dth*u(i  ,j,k,1)/hx)*slopex(i  ,j,k,n)
 !    $            + dth * force(i  ,j,k,n)
           smlft = s(i-1,j,k,n) + (HALF - dth*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,n)
 !    $            + dth * force(i-1,j,k,n)
 
-          smrgt = cvmgt(s(is-1,j,k,n),smrgt,i.eq.is .and. bc(1,1) .eq. INLET)
-          smlft = cvmgt(s(is-1,j,k,n),smlft,i.eq.is .and. bc(1,1) .eq. INLET)
+          smrgt = merge(s(is-1,j,k,n),smrgt,i.eq.is .and. bc(1,1) .eq. INLET)
+          smlft = merge(s(is-1,j,k,n),smlft,i.eq.is .and. bc(1,1) .eq. INLET)
 
           if (i .eq. is .and. bc(1,1) .eq. WALL) then
             if (is_vel .and. n .eq. 1) then
               smrgt = ZERO
               smlft = ZERO
             else if (is_vel .and. n .ne. 1) then
-              smrgt = cvmgt(ZERO,smrgt,visc_coef .gt. ZERO)
-              smlft = cvmgt(ZERO,smrgt,visc_coef .gt. ZERO)
+              smrgt = merge(ZERO,smrgt,visc_coef .gt. ZERO)
+              smlft = merge(ZERO,smrgt,visc_coef .gt. ZERO)
             else
               smlft = smrgt
             endif
           endif
  
-          sminus = cvmgp(smlft,smrgt,utrans(i,j,k,1))
+          sminus = merge(smlft,smrgt,utrans(i,j,k,1).gt.ZERO)
           savg   = HALF * (smlft + smrgt)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,k,1)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k,1)) .gt. eps)
 
           str    = HALF * (utrans(i,j,k,1)+utrans(i+1,j,k,1))*(splus - sminus) / hx
 
@@ -661,48 +660,48 @@ contains
           sptop = s(i,j,k+1,n) - (HALF + dth*u(i,j,k+1,3)/hz)*slopez(i,j,k+1,n)
 !    $            + dth * force(i,j,k+1,n)
 
-          sptop = cvmgt(s(i,j,ke+1,n),sptop,k.eq.ke .and. bc(3,2) .eq. INLET)
-          spbot = cvmgt(s(i,j,ke+1,n),spbot,k.eq.ke .and. bc(3,2) .eq. INLET)
+          sptop = merge(s(i,j,ke+1,n),sptop,k.eq.ke .and. bc(3,2) .eq. INLET)
+          spbot = merge(s(i,j,ke+1,n),spbot,k.eq.ke .and. bc(3,2) .eq. INLET)
 
           if (k .eq. ke .and. bc(3,2) .eq. WALL) then
             if (is_vel .and. n .eq. 3) then
               sptop = ZERO
               spbot = ZERO
             else if (is_vel .and. n .ne. 3) then
-              sptop = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
-              spbot = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
+              sptop = merge(ZERO,spbot,visc_coef .gt. ZERO)
+              spbot = merge(ZERO,spbot,visc_coef .gt. ZERO)
             else
               sptop = spbot
             endif
           endif
 
-          splus = cvmgp(spbot,sptop,utrans(i,j,k+1,3))
+          splus = merge(spbot,sptop,utrans(i,j,k+1,3).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = cvmgt(splus, savg, abs(utrans(i,j,k+1,3)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i,j,k+1,3)) .gt. eps)
 
           smtop = s(i,j,k  ,n) - (HALF + dth*u(i,j,k  ,3)/hz)*slopez(i,j,k  ,n)
 !    $            + dth * force(i,j,k  ,n)
           smbot = s(i,j,k-1,n) + (HALF - dth*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,n)
 !    $            + dth * force(i,j,k-1,n)
 
-          smtop = cvmgt(s(i,j,ks-1,n),smtop,k.eq.ke .and. bc(3,1) .eq. INLET)
-          smbot = cvmgt(s(i,j,ks-1,n),smbot,k.eq.ke .and. bc(3,1) .eq. INLET)
+          smtop = merge(s(i,j,ks-1,n),smtop,k.eq.ke .and. bc(3,1) .eq. INLET)
+          smbot = merge(s(i,j,ks-1,n),smbot,k.eq.ke .and. bc(3,1) .eq. INLET)
 
           if (k .eq. ks  .and.  bc(3,1) .eq. WALL) then
             if (is_vel .and. n .eq. 3) then
               smtop = ZERO
               smbot = ZERO
             else if (is_vel .and. n .ne. 3) then
-              smbot = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
-              smtop = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
+              smbot = merge(ZERO,smtop,visc_coef .gt. ZERO)
+              smtop = merge(ZERO,smtop,visc_coef .gt. ZERO)
             else
               smbot = smtop
             endif
           endif
 
-          sminus = cvmgp(smbot,smtop,utrans(i,j,k,3))
+          sminus = merge(smbot,smtop,utrans(i,j,k,3).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,k,3)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k,3)) .gt. eps)
 
           str = str + HALF * (utrans(i,j,k,3)+utrans(i,j,k+1,3))*(splus - sminus) / hz
 
@@ -724,14 +723,14 @@ contains
             test = ( (s_b(j) .le. ZERO  .and. &
                       s_t(j) .ge. ZERO)  .or. &
                    (abs(s_b(j) + s_t(j)) .lt. eps) )
-            sedgey(i,j,k,n)=cvmgp(s_b(j),s_t(j),savg)
-            sedgey(i,j,k,n)=cvmgt(savg,sedgey(i,j,k,n),test)
+            sedgey(i,j,k,n)=merge(s_b(j),s_t(j),savg.gt.ZERO)
+            sedgey(i,j,k,n)=merge(savg,sedgey(i,j,k,n),test)
           enddo
         else
           do j = js, je+1 
-            sedgey(i,j,k,n)=cvmgp(s_b(j),s_t(j),uadv(i,j,k,2))
+            sedgey(i,j,k,n)=merge(s_b(j),s_t(j),uadv(i,j,k,2).gt.ZERO)
             savg = HALF*(s_t(j) + s_b(j))
-            sedgey(i,j,k,n)=cvmgt(savg,sedgey(i,j,k,n),abs(uadv(i,j,k,2)) .lt. eps)
+            sedgey(i,j,k,n)=merge(savg,sedgey(i,j,k,n),abs(uadv(i,j,k,2)) .lt. eps)
           enddo
         endif
 
@@ -739,7 +738,7 @@ contains
           if (is_vel .and. n .eq. 2) then
             sedgey(i,js,k,n) = ZERO
           else if (is_vel .and. n .ne. 2) then
-            sedgey(i,js,k,n) = cvmgt(ZERO,s_t(js),visc_coef .gt. 0.0)
+            sedgey(i,js,k,n) = merge(ZERO,s_t(js),visc_coef .gt. 0.0)
           else
             sedgey(i,js,k,n) = s_t(js)
           endif
@@ -753,7 +752,7 @@ contains
           if (is_vel .and. n .eq. 2) then
             sedgey(i,je+1,k,n) = ZERO
           else if (is_vel .and. n .ne. 2) then
-            sedgey(i,je+1,k,n) = cvmgt(ZERO,s_b(je+1),visc_coef .gt. 0.0)
+            sedgey(i,je+1,k,n) = merge(ZERO,s_b(je+1),visc_coef .gt. 0.0)
           else
             sedgey(i,je+1,k,n) = s_b(je+1)
           endif
@@ -795,48 +794,48 @@ contains
           sprgt = s(i+1,j,k,n) - (HALF + dth*u(i+1,j,k,1)/hx) * slopex(i+1,j,k,n)
 !    $            + dth * force(i+1,j,k,n)
 
-          sprgt = cvmgt(s(ie+1,j,k,n),sprgt,i.eq.ie .and. bc(1,2) .eq. INLET)
-          splft = cvmgt(s(ie+1,j,k,n),splft,i.eq.ie .and. bc(1,2) .eq. INLET)
+          sprgt = merge(s(ie+1,j,k,n),sprgt,i.eq.ie .and. bc(1,2) .eq. INLET)
+          splft = merge(s(ie+1,j,k,n),splft,i.eq.ie .and. bc(1,2) .eq. INLET)
 
           if (i .eq. ie  .and.  bc(1,2) .eq. WALL) then
             if (is_vel .and. n .eq. 1) then
               sprgt = ZERO
               splft = ZERO
             else if (is_vel .and. n .ne. 1) then
-              sprgt = cvmgt(ZERO,splft,visc_coef .gt. ZERO)
-              splft = cvmgt(ZERO,splft,visc_coef .gt. ZERO)
+              sprgt = merge(ZERO,splft,visc_coef .gt. ZERO)
+              splft = merge(ZERO,splft,visc_coef .gt. ZERO)
             else
               sprgt = splft
             endif
           endif
 
-          splus = cvmgp(splft,sprgt,utrans(i+1,j,k,1))
+          splus = merge(splft,sprgt,utrans(i+1,j,k,1).gt.ZERO)
           savg  = HALF * (splft + sprgt)
-          splus = cvmgt(splus, savg, abs(utrans(i+1,j,k,1)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i+1,j,k,1)) .gt. eps)
 
           smrgt = s(i  ,j,k,n) - (HALF + dth*u(i  ,j,k,1)/hx)*slopex(i  ,j,k,n)
 !    $            + dth * force(i  ,j,k,n)
           smlft = s(i-1,j,k,n) + (HALF - dth*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,n)
 !    $            + dth * force(i-1,j,k,n)
 
-          smrgt = cvmgt(s(is-1,j,k,n),smrgt,i.eq.is .and. bc(1,1) .eq. INLET)
-          smlft = cvmgt(s(is-1,j,k,n),smlft,i.eq.is .and. bc(1,1) .eq. INLET)
+          smrgt = merge(s(is-1,j,k,n),smrgt,i.eq.is .and. bc(1,1) .eq. INLET)
+          smlft = merge(s(is-1,j,k,n),smlft,i.eq.is .and. bc(1,1) .eq. INLET)
 
           if (i .eq. is  .and.  bc(1,1) .eq. WALL) then
             if (is_vel .and. n .eq. 1) then
               smrgt = ZERO
               smlft = ZERO
             else if (is_vel .and. n .ne. 1) then
-              smrgt = cvmgt(ZERO,smrgt,visc_coef .gt. ZERO)
-              smlft = cvmgt(ZERO,smrgt,visc_coef .gt. ZERO)
+              smrgt = merge(ZERO,smrgt,visc_coef .gt. ZERO)
+              smlft = merge(ZERO,smrgt,visc_coef .gt. ZERO)
             else
               smlft = smrgt
             endif
           endif
  
-          sminus = cvmgp(smlft,smrgt,utrans(i,j,k,1))
+          sminus = merge(smlft,smrgt,utrans(i,j,k,1).gt.ZERO)
           savg   = HALF * (smlft + smrgt)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,k,1)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k,1)) .gt. eps)
 
           str = HALF * (utrans(i,j,k,1)+utrans(i+1,j,k,1))*(splus - sminus) / hx
 
@@ -849,48 +848,48 @@ contains
           sptop = s(i,j+1,k,n) - (HALF + dth*u(i,j+1,k,2)/hy)*slopey(i,j+1,k,n)
 !    $            + dth * force(i,j+1,k,n)
 
-          sptop = cvmgt(s(i,je+1,k,n),sptop,j.eq.je .and. bc(2,2) .eq. INLET)
-          spbot = cvmgt(s(i,je+1,k,n),spbot,j.eq.je .and. bc(2,2) .eq. INLET)
+          sptop = merge(s(i,je+1,k,n),sptop,j.eq.je .and. bc(2,2) .eq. INLET)
+          spbot = merge(s(i,je+1,k,n),spbot,j.eq.je .and. bc(2,2) .eq. INLET)
 
           if (j .eq. je .and. bc(2,2) .eq. WALL) then
             if (is_vel .and. n .eq. 2) then
               sptop = ZERO
               spbot = ZERO
             else if (is_vel .and. n .ne. 2) then
-              sptop = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
-              spbot = cvmgt(ZERO,spbot,visc_coef .gt. ZERO)
+              sptop = merge(ZERO,spbot,visc_coef .gt. ZERO)
+              spbot = merge(ZERO,spbot,visc_coef .gt. ZERO)
             else
               sptop = spbot
             endif
           endif
 
-          splus = cvmgp(spbot,sptop,utrans(i,j+1,k,2))
+          splus = merge(spbot,sptop,utrans(i,j+1,k,2).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = cvmgt(splus, savg, abs(utrans(i,j+1,k,2)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i,j+1,k,2)) .gt. eps)
 
           smtop = s(i,j  ,k,n) - (HALF + dth*u(i,j  ,k,2)/hy)*slopey(i,j  ,k,n)
 !    $            + dth * force(i,j  ,k,n)
           smbot = s(i,j-1,k,n) + (HALF - dth*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,n)
 !    $            + dth * force(i,j-1,k,n)
 
-          smtop = cvmgt(s(i,js-1,k,n),smtop,j.eq.js .and. bc(2,1) .eq. INLET)
-          smbot = cvmgt(s(i,js-1,k,n),smbot,j.eq.js .and. bc(2,1) .eq. INLET)
+          smtop = merge(s(i,js-1,k,n),smtop,j.eq.js .and. bc(2,1) .eq. INLET)
+          smbot = merge(s(i,js-1,k,n),smbot,j.eq.js .and. bc(2,1) .eq. INLET)
 
           if (j .eq. js  .and.  bc(2,1) .eq. WALL) then
             if (is_vel .and. n .eq. 2) then
               smtop = ZERO
               smbot = ZERO
             else if (is_vel .and. n .ne. 2) then
-              smtop = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
-              smbot = cvmgt(ZERO,smtop,visc_coef .gt. ZERO)
+              smtop = merge(ZERO,smtop,visc_coef .gt. ZERO)
+              smbot = merge(ZERO,smtop,visc_coef .gt. ZERO)
             else
               smbot = smtop
             endif
           endif
 
-          sminus = cvmgp(smbot,smtop,utrans(i,j,k,2))
+          sminus = merge(smbot,smtop,utrans(i,j,k,2).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = cvmgt(sminus, savg, abs(utrans(i,j,k,2)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k,2)) .gt. eps)
 
           str =  str + HALF * (utrans(i,j,k,2)+utrans(i,j+1,k,2))*(splus - sminus) / hy
 
@@ -913,14 +912,14 @@ contains
             test = ( (s_d(k) .le. ZERO  .and. &
                       s_u(k) .ge. ZERO)  .or. &
                    (abs(s_d(k) + s_u(k)) .lt. eps) )
-            sedgez(i,j,k,n)=cvmgp(s_d(k),s_u(k),savg)
-            sedgez(i,j,k,n)=cvmgt(savg,sedgez(i,j,k,n),test)
+            sedgez(i,j,k,n)=merge(s_d(k),s_u(k),savg.gt.ZERO)
+            sedgez(i,j,k,n)=merge(savg,sedgez(i,j,k,n),test)
           enddo
         else
           do k = ks, ke+1 
-            sedgez(i,j,k,n)=cvmgp(s_d(k),s_u(k),uadv(i,j,k,3))
+            sedgez(i,j,k,n)=merge(s_d(k),s_u(k),uadv(i,j,k,3).gt.ZERO)
             savg = HALF*(s_d(k) + s_u(k))
-            sedgez(i,j,k,n)=cvmgt(savg,sedgez(i,j,k,n),abs(uadv(i,j,k,3)) .lt. eps)
+            sedgez(i,j,k,n)=merge(savg,sedgez(i,j,k,n),abs(uadv(i,j,k,3)) .lt. eps)
           enddo
         endif
 
@@ -928,7 +927,7 @@ contains
           if (is_vel .and. n .eq. 3) then
             sedgez(i,j,ks,n) = ZERO
           else if (is_vel .and. n .ne. 3) then
-            sedgez(i,j,ks,n) = cvmgt(ZERO,s_u(ks),visc_coef .gt. 0.0)
+            sedgez(i,j,ks,n) = merge(ZERO,s_u(ks),visc_coef .gt. 0.0)
           else
             sedgez(i,j,ks,n) = s_u(ks)
           endif
@@ -942,7 +941,7 @@ contains
           if (is_vel .and. n .eq. 3) then
             sedgez(i,j,ke+1,n) = ZERO
           else if (is_vel .and. n .ne. 3) then
-            sedgez(i,j,ke+1,n) = cvmgt(ZERO,s_d(ke+1),visc_coef .gt. 0.0)
+            sedgez(i,j,ke+1,n) = merge(ZERO,s_d(ke+1),visc_coef .gt. 0.0)
           else
             sedgez(i,j,ke+1,n) = s_d(ke+1)
           endif

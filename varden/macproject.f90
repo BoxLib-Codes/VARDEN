@@ -32,6 +32,9 @@ subroutine macproject(umac,rho,dx,press_bc)
   call multifab_build(alpha, la,  1, 1)
   call multifab_build( beta, la, dm, 1)
 
+  print *,' '
+  print *,'... begin mac_projection ... '
+
   call divumac(umac,rh,dx)
 
   call mk_mac_coeffs(rho,beta,press_bc)
@@ -41,13 +44,12 @@ subroutine macproject(umac,rho,dx,press_bc)
 
   stencil_order = 1
 
-  print *,' '
-  print *,'... begin mac_projection ... '
   call mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc,stencil_order)
-  print *,'...   end mac_projection ... '
-  print *,' '
 
   call mkumac(umac,phi,beta,dx,press_bc)
+
+  print *,'...   end mac_projection ... '
+  print *,' '
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)

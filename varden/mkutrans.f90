@@ -3,7 +3,6 @@ module mkutrans_module
   use bl_types
   use multifab_module
   use slope_module
-  use cvmg_module
 
   implicit none
 
@@ -72,20 +71,20 @@ contains
           ulft = vel(i-1,j,1) + (HALF - dth*vel(i-1,j,1)/hx) * velx(i-1,j,1)
 !    $           + dth * force(i-1,j,1)
 
-          urgt = cvmgt(vel(is-1,j,1),urgt,i.eq.is   .and. bc(1,1) .eq. INLET)
-          urgt = cvmgt(vel(ie+1,j,1),urgt,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
-          urgt = cvmgt(ZERO     ,urgt,i.eq.is   .and. bc(1,1) .eq. WALL)
-          urgt = cvmgt(ZERO     ,urgt,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
+          urgt = merge(vel(is-1,j,1),urgt,i.eq.is   .and. bc(1,1) .eq. INLET)
+          urgt = merge(vel(ie+1,j,1),urgt,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
+          urgt = merge(ZERO     ,urgt,i.eq.is   .and. bc(1,1) .eq. WALL)
+          urgt = merge(ZERO     ,urgt,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
 
-          ulft = cvmgt(vel(is-1,j,1),ulft,i.eq.is   .and. bc(1,1) .eq. INLET)
-          ulft = cvmgt(vel(ie+1,j,1),ulft,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
-          ulft = cvmgt(ZERO     ,ulft,i.eq.is   .and. bc(1,1) .eq. WALL)
-          ulft = cvmgt(ZERO     ,ulft,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
+          ulft = merge(vel(is-1,j,1),ulft,i.eq.is   .and. bc(1,1) .eq. INLET)
+          ulft = merge(vel(ie+1,j,1),ulft,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
+          ulft = merge(ZERO     ,ulft,i.eq.is   .and. bc(1,1) .eq. WALL)
+          ulft = merge(ZERO     ,ulft,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
 
-          utrans(i,j,1) = cvmgp(ulft,urgt,ulft+urgt)
+          utrans(i,j,1) = merge(ulft,urgt,(ulft+urgt).gt.ZERO)
           test = ( (ulft .le. ZERO  .and.  urgt .ge. ZERO)  .or.  &
                    (abs(ulft+urgt) .lt. eps) )
-          utrans(i,j,1) = cvmgt(ZERO,utrans(i,j,1),test)
+          utrans(i,j,1) = merge(ZERO,utrans(i,j,1),test)
 
         enddo
       enddo
@@ -99,20 +98,20 @@ contains
           vbot = vel(i,j-1,2) + (HALF - dth*vel(i,j-1,2)/hy) * vely(i,j-1,2)
 !    $           + dth * force(i,j-1,2)
 
-          vtop = cvmgt(vel(i,js-1,2),vtop,j.eq.js   .and. bc(2,1) .eq. INLET)
-          vtop = cvmgt(vel(i,je+1,2),vtop,j.eq.je+1 .and. bc(2,2) .eq. INLET)
-          vtop = cvmgt(ZERO     ,vtop,j.eq.js   .and. bc(2,1) .eq. WALL)
-          vtop = cvmgt(ZERO     ,vtop,j.eq.je+1 .and. bc(2,2) .eq. WALL)
+          vtop = merge(vel(i,js-1,2),vtop,j.eq.js   .and. bc(2,1) .eq. INLET)
+          vtop = merge(vel(i,je+1,2),vtop,j.eq.je+1 .and. bc(2,2) .eq. INLET)
+          vtop = merge(ZERO     ,vtop,j.eq.js   .and. bc(2,1) .eq. WALL)
+          vtop = merge(ZERO     ,vtop,j.eq.je+1 .and. bc(2,2) .eq. WALL)
 
-          vbot = cvmgt(vel(i,js-1,2),vbot,j.eq.js   .and. bc(2,1) .eq. INLET)
-          vbot = cvmgt(vel(i,je+1,2),vbot,j.eq.je+1 .and. bc(2,2) .eq. INLET)
-          vbot = cvmgt(ZERO     ,vbot,j.eq.js   .and. bc(2,1) .eq. WALL)
-          vbot = cvmgt(ZERO     ,vbot,j.eq.je+1 .and. bc(2,2) .eq. WALL)
+          vbot = merge(vel(i,js-1,2),vbot,j.eq.js   .and. bc(2,1) .eq. INLET)
+          vbot = merge(vel(i,je+1,2),vbot,j.eq.je+1 .and. bc(2,2) .eq. INLET)
+          vbot = merge(ZERO     ,vbot,j.eq.js   .and. bc(2,1) .eq. WALL)
+          vbot = merge(ZERO     ,vbot,j.eq.je+1 .and. bc(2,2) .eq. WALL)
 
-          utrans(i,j,2)=cvmgp(vbot,vtop,vbot+vtop)
+          utrans(i,j,2)=merge(vbot,vtop,(vbot+vtop).gt.ZERO)
           test = ( (vbot .le. ZERO  .and.  vtop .ge. ZERO)  .or.  &
                    (abs(vbot+vtop) .lt. eps))
-          utrans(i,j,2) = cvmgt(ZERO,utrans(i,j,2),test)
+          utrans(i,j,2) = merge(ZERO,utrans(i,j,2),test)
         enddo
       enddo
 
@@ -184,20 +183,20 @@ contains
           ulft = vel(i-1,j,k,1) + (HALF - dth*vel(i-1,j,k,1)/hx) * velx(i-1,j,k,1)
 !    $           + dth * force(i-1,j,k,1)
 
-          urgt = cvmgt(vel(is-1,j,k,1),urgt,i.eq.is   .and. bc(1,1) .eq. INLET)
-          urgt = cvmgt(vel(ie+1,j,k,1),urgt,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
-          urgt = cvmgt(ZERO           ,urgt,i.eq.is   .and. bc(1,1) .eq. WALL)
-          urgt = cvmgt(ZERO           ,urgt,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
+          urgt = merge(vel(is-1,j,k,1),urgt,i.eq.is   .and. bc(1,1) .eq. INLET)
+          urgt = merge(vel(ie+1,j,k,1),urgt,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
+          urgt = merge(ZERO           ,urgt,i.eq.is   .and. bc(1,1) .eq. WALL)
+          urgt = merge(ZERO           ,urgt,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
 
-          ulft = cvmgt(vel(is-1,j,k,1),ulft,i.eq.is   .and. bc(1,1) .eq. INLET)
-          ulft = cvmgt(vel(ie+1,j,k,1),ulft,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
-          ulft = cvmgt(ZERO           ,ulft,i.eq.is   .and. bc(1,1) .eq. WALL)
-          ulft = cvmgt(ZERO           ,ulft,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
+          ulft = merge(vel(is-1,j,k,1),ulft,i.eq.is   .and. bc(1,1) .eq. INLET)
+          ulft = merge(vel(ie+1,j,k,1),ulft,i.eq.ie+1 .and. bc(1,2) .eq. INLET)
+          ulft = merge(ZERO           ,ulft,i.eq.is   .and. bc(1,1) .eq. WALL)
+          ulft = merge(ZERO           ,ulft,i.eq.ie+1 .and. bc(1,2) .eq. WALL)
 
-          utrans(i,j,k,1) = cvmgp(ulft,urgt,ulft+urgt)
+          utrans(i,j,k,1) = merge(ulft,urgt,(ulft+urgt).gt.ZERO)
           test=( (ulft .le. ZERO  .and.  urgt .ge. ZERO)  .or. &
                 (abs(ulft+urgt) .lt. eps) )
-          utrans(i,j,k,1) = cvmgt(ZERO,utrans(i,j,k,1),test)
+          utrans(i,j,k,1) = merge(ZERO,utrans(i,j,k,1),test)
 
         enddo
         enddo
@@ -213,20 +212,20 @@ contains
           vbot = vel(i,j-1,k,2) + (HALF - dth*vel(i,j-1,k,2)/hy) * vely(i,j-1,k,2)
 !    $           + dth * force(i,j-1,k,2)
 
-          vtop = cvmgt(vel(i,js-1,k,2),vtop,j.eq.js   .and. bc(2,1) .eq. INLET)
-          vtop = cvmgt(vel(i,je+1,k,2),vtop,j.eq.je+1 .and. bc(2,2) .eq. INLET)
-          vtop = cvmgt(ZERO           ,vtop,j.eq.js   .and. bc(2,1) .eq. WALL)
-          vtop = cvmgt(ZERO           ,vtop,j.eq.je+1 .and. bc(2,2) .eq. WALL)
+          vtop = merge(vel(i,js-1,k,2),vtop,j.eq.js   .and. bc(2,1) .eq. INLET)
+          vtop = merge(vel(i,je+1,k,2),vtop,j.eq.je+1 .and. bc(2,2) .eq. INLET)
+          vtop = merge(ZERO           ,vtop,j.eq.js   .and. bc(2,1) .eq. WALL)
+          vtop = merge(ZERO           ,vtop,j.eq.je+1 .and. bc(2,2) .eq. WALL)
 
-          vbot = cvmgt(vel(i,js-1,k,2),vbot,j.eq.js   .and. bc(2,1) .eq. INLET)
-          vbot = cvmgt(vel(i,je+1,k,2),vbot,j.eq.je+1 .and. bc(2,2) .eq. INLET)
-          vbot = cvmgt(ZERO           ,vbot,j.eq.js   .and. bc(2,1) .eq. WALL)
-          vbot = cvmgt(ZERO           ,vbot,j.eq.je+1 .and. bc(2,2) .eq. WALL)
+          vbot = merge(vel(i,js-1,k,2),vbot,j.eq.js   .and. bc(2,1) .eq. INLET)
+          vbot = merge(vel(i,je+1,k,2),vbot,j.eq.je+1 .and. bc(2,2) .eq. INLET)
+          vbot = merge(ZERO           ,vbot,j.eq.js   .and. bc(2,1) .eq. WALL)
+          vbot = merge(ZERO           ,vbot,j.eq.je+1 .and. bc(2,2) .eq. WALL)
 
-          utrans(i,j,k,2)=cvmgp(vbot,vtop,vbot+vtop)
+          utrans(i,j,k,2)=merge(vbot,vtop,(vbot+vtop).gt.ZERO)
           test = ( (vbot .le. ZERO  .and.  vtop .ge. ZERO)  .or. &
                    (abs(vbot+vtop) .lt. eps))
-          utrans(i,j,k,2) = cvmgt(ZERO,utrans(i,j,k,2),test)
+          utrans(i,j,k,2) = merge(ZERO,utrans(i,j,k,2),test)
 
         enddo
         enddo
@@ -242,20 +241,20 @@ contains
           wbot = vel(i,j,k-1,3) + (HALF - dth*vel(i,j,k-1,3)/hz) * velz(i,j,k-1,3)
 !    $           + dth * force(i,j,k-1,3)
 
-          wtop = cvmgt(vel(i,j,ks-1,3),wtop,k.eq.ks   .and. bc(3,1) .eq. INLET)
-          wtop = cvmgt(vel(i,j,ke+1,3),wtop,k.eq.ke+1 .and. bc(3,2) .eq. INLET)
-          wtop = cvmgt(ZERO           ,wtop,k.eq.ks   .and. bc(3,1) .eq. WALL)
-          wtop = cvmgt(ZERO           ,wtop,k.eq.ke+1 .and. bc(3,2) .eq. WALL)
+          wtop = merge(vel(i,j,ks-1,3),wtop,k.eq.ks   .and. bc(3,1) .eq. INLET)
+          wtop = merge(vel(i,j,ke+1,3),wtop,k.eq.ke+1 .and. bc(3,2) .eq. INLET)
+          wtop = merge(ZERO           ,wtop,k.eq.ks   .and. bc(3,1) .eq. WALL)
+          wtop = merge(ZERO           ,wtop,k.eq.ke+1 .and. bc(3,2) .eq. WALL)
 
-          wbot = cvmgt(vel(i,j,ks-1,3),wbot,k.eq.ks   .and. bc(3,1) .eq. INLET)
-          wbot = cvmgt(vel(i,j,ke+1,3),wbot,k.eq.ke+1 .and. bc(3,2) .eq. INLET)
-          wbot = cvmgt(ZERO           ,wbot,k.eq.ks   .and. bc(3,1) .eq. WALL)
-          wbot = cvmgt(ZERO           ,wbot,k.eq.ke+1 .and. bc(3,2) .eq. WALL)
+          wbot = merge(vel(i,j,ks-1,3),wbot,k.eq.ks   .and. bc(3,1) .eq. INLET)
+          wbot = merge(vel(i,j,ke+1,3),wbot,k.eq.ke+1 .and. bc(3,2) .eq. INLET)
+          wbot = merge(ZERO           ,wbot,k.eq.ks   .and. bc(3,1) .eq. WALL)
+          wbot = merge(ZERO           ,wbot,k.eq.ke+1 .and. bc(3,2) .eq. WALL)
 
-          utrans(i,j,k,3)=cvmgp(wbot,wtop,wbot+wtop)
+          utrans(i,j,k,3)=merge(wbot,wtop,(wbot+wtop).gt.ZERO)
           test = ( (wbot .le. ZERO  .and.  wtop .ge. ZERO)  .or. &
                    (abs(wbot+wtop) .lt. eps))
-          utrans(i,j,k,3) = cvmgt(ZERO,utrans(i,j,k,3),test)
+          utrans(i,j,k,3) = merge(ZERO,utrans(i,j,k,3),test)
 
         enddo
         enddo
