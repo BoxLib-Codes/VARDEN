@@ -1,3 +1,4 @@
+
 subroutine varden()
   use BoxLib
   use omp_module
@@ -14,6 +15,7 @@ subroutine varden()
   use bl_timer_module
   use box_util_module
   use bl_IO_module
+  use define_bc_module
   use fabio_module
   use plotfile_module
 
@@ -27,20 +29,22 @@ subroutine varden()
   real(dp_t) :: visc_coef
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
-  real(dp_t) :: time,dt,dtold,dt_temp
+  real(dp_t) :: time,dt,dtold,dt_hold,dt_temp
   real(dp_t) :: unrm
-  real(dp_t) :: dx(3)
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: istep
-  integer    :: n, nlevs, n_plot_comps, nscal
+  integer    :: i, n, nlevs, n_plot_comps, nscal
 
-  integer     , allocatable ::   phys_bc(:,:)
-  integer     , allocatable :: norm_vel_bc(:,:)
-  integer     , allocatable :: tang_vel_bc(:,:)
-  integer     , allocatable :: scal_bc(:,:)
-  integer     , allocatable :: press_bc(:,:)
+  real(dp_t) :: prob_hi_x, prob_hi_y, prob_hi_z
+
+  integer     , allocatable :: domain_phys_bc(:,:)
+  integer     , allocatable :: domain_press_bc(:,:)
+  integer     , allocatable :: domain_norm_vel_bc(:,:)
+  integer     , allocatable :: domain_tang_vel_bc(:,:)
+  integer     , allocatable :: domain_scal_bc(:,:)
   integer     , allocatable :: rrs(:)
   integer     , allocatable :: ref_ratio(:)
+  real(dp_t)  , allocatable :: dx(:,:), prob_hi(:)
   type(layout), allocatable :: la_tower(:)
 
   type(multifab) :: umac, uedgex, uedgey, uedgez, utrans
@@ -66,10 +70,22 @@ subroutine varden()
   logical :: need_inputs
   logical :: nodal(3)
 
+  integer :: nx,ny,nz
+
   type(layout)    :: la
+  type(box)       :: domain_box
   type(mboxarray) :: mba
 
+  type(bc_tower) ::  phys_bc_tower
+  type(bc_tower) :: press_bc_tower
+  type(bc_tower) :: norm_bc_tower
+  type(bc_tower) :: tang_bc_tower
+  type(bc_tower) :: scal_bc_tower
+
   namelist /probin/ stop_time
+  namelist /probin/ prob_hi_x
+  namelist /probin/ prob_hi_y
+  namelist /probin/ prob_hi_z
   namelist /probin/ max_step
   namelist /probin/ plot_int
   namelist /probin/ init_iter
@@ -139,6 +155,21 @@ subroutine varden()
      do while ( farg <= narg )
         call get_command_argument(farg, value = fname)
         select case (fname)
+
+        case ('--prob_hi_x')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) prob_hi_x
+
+        case ('--prob_hi_y')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) prob_hi_y
+
+        case ('--prob_hi_z')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) prob_hi_z
 
         case ('--cfl')
            farg = farg + 1
@@ -242,6 +273,9 @@ subroutine varden()
      call layout_build_pn(la_tower(n), la_tower(n-1), mba%bas(n), ref_ratio)
   end do
 
+  allocate(dx(nlevs,dm))
+  allocate(prob_hi(dm))
+
   allocate(uold(nlevs),unew(nlevs))
   allocate(sold(nlevs),snew(nlevs))
   allocate(p(nlevs),gp(nlevs),rhohalf(nlevs))
@@ -285,37 +319,59 @@ subroutine varden()
 
   call setval(umac,0.0_dp_t, all=.true.)
 
-  dx = 1.d0
+  prob_hi(1) = prob_hi_x
+  if (dm > 1) prob_hi(2) = prob_hi_y
+  if (dm > 2) prob_hi(3) = prob_hi_z
+
+! Define dx at the base level, then at refined levels.
+  domain_box = mba%pd(1)
+  do i = 1,dm
+    dx(1,i) = prob_hi(i) / float(domain_box%hi(1)-domain_box%lo(1)+1)
+  end do
+  do n = 2,nlevs
+    dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
+  end do
 
   time = 0.d0
-  dt = 0.d0
+  dt = 1.d20
 
   allocate(rrs(nlevs-1))
   if (nlevs > 1) rrs = 2
 
-! Put the bc values from the inputs file into phys_bc
-  allocate(phys_bc(dm,2))
-  phys_bc(1,1) = bcx_lo
-  phys_bc(1,2) = bcx_hi
+! Allocate the arrays for the boundary conditions at the physical boundaries.
+  allocate(domain_phys_bc(dm,2))
+  allocate(domain_press_bc(dm,2))
+  allocate(domain_norm_vel_bc(dm,2))
+  allocate(domain_tang_vel_bc(dm,2))
+  allocate(domain_scal_bc(dm,2))
+
+! Put the bc values from the inputs file into domain_phys_bc
+  domain_phys_bc(1,1) = bcx_lo
+  domain_phys_bc(1,2) = bcx_hi
   if (dm > 1) then
-     phys_bc(2,1) = bcy_lo
-     phys_bc(2,2) = bcy_hi
+     domain_phys_bc(2,1) = bcy_lo
+     domain_phys_bc(2,2) = bcy_hi
   end if
   if (dm > 2) then
-     phys_bc(3,1) = bcz_lo
-     phys_bc(3,2) = bcz_hi
+     domain_phys_bc(3,1) = bcz_lo
+     domain_phys_bc(3,2) = bcz_hi
   end if
 
-! Translate the phys_bc values into bc's for each component
-  allocate(norm_vel_bc(dm,2))
-  allocate(tang_vel_bc(dm,2))
-  allocate(scal_bc(dm,2))
-  allocate(press_bc(dm,2))
-  call define_bcs(phys_bc,norm_vel_bc,tang_vel_bc,scal_bc,press_bc,visc_coef)
+! Translate the domain_phys_bc values into domain_bc's for each component
+  call define_bcs(domain_phys_bc,domain_norm_vel_bc,domain_tang_vel_bc, &
+                  domain_scal_bc,domain_press_bc,visc_coef)
+
+! Build the arrays for each grid from the domain_bc arrays.
+  call bc_tower_build( phys_bc_tower,la_tower,domain_phys_bc,INTERIOR)
+  call bc_tower_build(press_bc_tower,la_tower,domain_press_bc,BC_INT)
+  call bc_tower_build( norm_bc_tower,la_tower,domain_norm_vel_bc,BC_INT)
+  call bc_tower_build( tang_bc_tower,la_tower,domain_tang_vel_bc,BC_INT)
+  call bc_tower_build( scal_bc_tower,la_tower,domain_scal_bc,BC_INT)
 
   dt_temp = 1.0_dp_t
   do n = 1,nlevs
-     call initdata(uold(n),sold(n),dx)
+     call initdata(uold(n),sold(n),dx(n,:),prob_hi)
+     call multifab_fill_boundary(uold(n))
      call multifab_fill_boundary(sold(n))
 
 !    We do this here in order to set any Dirichlet boundary conditions.
@@ -327,8 +383,10 @@ subroutine varden()
 
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
-     call hgproject(uold(n),rhohalf(n),p(n),gp(n),dx,dt_temp,phys_bc,press_bc)
+     call hgproject(uold(n),rhohalf(n),p(n),gp(n),dx(n,:),dt_temp, &
+                    phys_bc_tower%bc_tower_array(n),domain_press_bc)
      call multifab_fill_boundary(uold(n))
+     call multifab_fill_boundary(sold(n))
   end do
 
   do n = 1,nlevs
@@ -343,7 +401,9 @@ subroutine varden()
   dtold = dt
 
   do n = 1,nlevs
-     call estdt(uold(n),sold(n),dx,cflfac,dtold,dt)
+     dt_hold = dt
+     call estdt(uold(n),sold(n),dx(n,:),cflfac,dtold,dt)
+     dt = min(dt_hold,dt)
   end do
 
   if (init_iter > 0) then
@@ -354,8 +414,13 @@ subroutine varden()
                       umac,uedgex,uedgey,uedgez, &
                       sedgex,sedgey,sedgez, &
                       utrans,p(n),gp(n),force(n),scal_force(n),&
-                      dx,time,dt,phys_bc,norm_vel_bc,tang_vel_bc, &
-                      scal_bc,press_bc,visc_coef,diff_coef)
+                      dx(n,:),time,dt,phys_bc_tower%bc_tower_array(n), &
+                      norm_bc_tower%bc_tower_array(n), &
+                      tang_bc_tower%bc_tower_array(n), &
+                      scal_bc_tower%bc_tower_array(n), &
+                      press_bc_tower%bc_tower_array(n), &
+                      domain_press_bc, domain_norm_vel_bc, domain_scal_bc, &
+                      visc_coef,diff_coef)
       end do
      end do
 
@@ -390,7 +455,7 @@ subroutine varden()
           call multifab_fill_boundary(sold(n))
 
           dtold = dt
-          call estdt(uold(n),sold(n),dx,cflfac,dtold,dt)
+          call estdt(uold(n),sold(n),dx(n,:),cflfac,dtold,dt)
 
           print *,'MAX OF UOLD ',norm_inf(uold(n)),' AT TIME ',time
 
@@ -398,8 +463,13 @@ subroutine varden()
                        umac,uedgex,uedgey,uedgez, &
                        sedgex,sedgey,sedgez, &
                        utrans,p(n),gp(n),force(n),scal_force(n),&
-                       dx,time,dt,phys_bc,norm_vel_bc,tang_vel_bc, &
-                       scal_bc,press_bc,visc_coef,diff_coef)
+                       dx(n,:),time,dt,phys_bc_tower%bc_tower_array(n), &
+                       norm_bc_tower%bc_tower_array(n), &
+                       tang_bc_tower%bc_tower_array(n), &
+                       scal_bc_tower%bc_tower_array(n), &
+                       press_bc_tower%bc_tower_array(n), &
+                       domain_press_bc, domain_norm_vel_bc, domain_scal_bc, &
+                       visc_coef,diff_coef)
 
           time = time + dt
 
@@ -451,9 +521,10 @@ subroutine varden()
      call multifab_destroy(plotdata(n))
   end do
 
-  deallocate(norm_vel_bc)
-  deallocate(tang_vel_bc)
-  deallocate(scal_bc)
-  deallocate(press_bc)
+  deallocate(domain_norm_vel_bc)
+  deallocate(domain_tang_vel_bc)
+  deallocate(domain_scal_bc)
+  deallocate(domain_press_bc)
+  deallocate(domain_phys_bc)
 
 end subroutine varden

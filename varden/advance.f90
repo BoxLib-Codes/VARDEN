@@ -23,7 +23,9 @@ contains
                       sedgex,sedgey,sedgez, &
                       utrans,p,gp,ext_force,ext_scal_force,dx,time,dt, &
                       phys_bc,norm_vel_bc,tang_vel_bc, &
-                      scal_bc,press_bc,visc_coef,diff_coef)
+                      scal_bc,press_bc, &
+                      domain_press_bc,domain_norm_vel_bc,domain_scal_bc, &
+                      visc_coef,diff_coef)
 
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -38,11 +40,14 @@ contains
       type(multifab) , intent(inout) :: ext_force
       type(multifab) , intent(inout) :: ext_scal_force
       real(kind=dp_t), intent(inout) :: dx(:),time,dt
-      integer        , intent(in   ) ::   phys_bc(:,:)
-      integer        , intent(in   ) :: norm_vel_bc(:,:)
-      integer        , intent(in   ) :: tang_vel_bc(:,:)
-      integer        , intent(in   ) :: scal_bc(:,:)
-      integer        , intent(in   ) :: press_bc(:,:)
+      type(bc_level) , intent(in   ) :: phys_bc
+      type(bc_level) , intent(in   ) :: press_bc
+      integer        , intent(in   ) :: domain_press_bc(:,:)
+      integer        , intent(in   ) :: domain_norm_vel_bc(:,:)
+      integer        , intent(in   ) :: domain_scal_bc(:,:)
+      type(bc_level) , intent(in   ) :: norm_vel_bc
+      type(bc_level) , intent(in   ) :: tang_vel_bc
+      type(bc_level) , intent(in   ) :: scal_bc
       real(kind=dp_t), intent(in   ) :: visc_coef
       real(kind=dp_t), intent(in   ) :: diff_coef
 
@@ -96,11 +101,11 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call setvelbc_2d (uop(:,:,1,:), lo, ng_u, phys_bc, visc_coef)
-              call setscalbc_2d(sop(:,:,1,:), lo, ng_u, phys_bc)
+              call setvelbc_2d (uop(:,:,1,:), lo, ng_u, phys_bc%bc_level_array(i,:,:), visc_coef)
+              call setscalbc_2d(sop(:,:,1,:), lo, ng_u, phys_bc%bc_level_array(i,:,:))
             case (3)
-              call setvelbc_3d (uop(:,:,:,:), lo, ng_u, phys_bc, visc_coef)
-              call setscalbc_3d(sop(:,:,:,:), lo, ng_u, phys_bc)
+              call setvelbc_3d (uop(:,:,:,:), lo, ng_u, phys_bc%bc_level_array(i,:,:), visc_coef)
+              call setscalbc_3d(sop(:,:,:,:), lo, ng_u, phys_bc%bc_level_array(i,:,:))
          end select
       end do
       call multifab_fill_boundary(uold)
@@ -120,12 +125,16 @@ contains
          select case (dm)
             case (2)
               call mkforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
-                              ng_u, ng_u, &
-                              dx, norm_vel_bc, tang_vel_bc, visc_coef, visc_fac)
+                              ng_u, ng_u, dx, &
+                              norm_vel_bc%bc_level_array(i,:,:), &
+                              tang_vel_bc%bc_level_array(i,:,:), &
+                              visc_coef, visc_fac)
             case (3)
               call mkforce_3d(fp(:,:,:,:), ep(:,:,:,:), gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
-                              ng_u, ng_u, &
-                              dx, norm_vel_bc, tang_vel_bc, visc_coef, visc_fac)
+                              ng_u, ng_u, dx, &
+                              norm_vel_bc%bc_level_array(i,:,:), &
+                              tang_vel_bc%bc_level_array(i,:,:), &
+                              visc_coef, visc_fac)
          end select
       end do
       call multifab_fill_boundary(force)
@@ -142,10 +151,10 @@ contains
          select case (dm)
             case (2)
               call mkutrans_2d(uop(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
-                               lo,dx,dt,ng_u,phys_bc,irz)
+                               lo,dx,dt,ng_u,phys_bc%bc_level_array(i,:,:),irz)
             case (3)
               call mkutrans_3d(uop(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
-                               lo,dx,dt,ng_u,phys_bc)
+                               lo,dx,dt,ng_u,phys_bc%bc_level_array(i,:,:))
          end select
       end do
 
@@ -168,18 +177,18 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, irz, phys_bc, velpred, ng_u)
+                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
             case (3)
               uepz => dataptr(uedgez, i)
               call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              ump(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, phys_bc, velpred, ng_u)
+                             visc_coef, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
          end select
       end do
 
-      call macproject(umac,sold,dx,press_bc)
+      call macproject(umac,sold,dx,press_bc,domain_press_bc)
   
 !     Create scalar force at time n.
       visc_fac = ONE
@@ -193,10 +202,12 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sp(:,:,1,:), &
-                                  ng_u, dx, scal_bc, diff_coef, visc_fac)
+                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  diff_coef, visc_fac)
             case (3)
               call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sp(:,:,:,:), &
-                                  ng_u, dx, scal_bc, diff_coef, visc_fac)
+                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  diff_coef, visc_fac)
          end select
       end do
       call multifab_fill_boundary(scal_force)
@@ -221,14 +232,14 @@ contains
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, irz, phys_bc, velpred, ng_u)
+                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
             case (3)
               sepz => dataptr(sedgez, i)
               call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              ump(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, phys_bc, velpred, ng_u)
+                             visc_coef, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
          end select
       end do
   
@@ -244,10 +255,12 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sp(:,:,1,:), &
-                                  ng_u, dx, scal_bc, diff_coef, visc_fac)
+                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  diff_coef, visc_fac)
             case (3)
               call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sp(:,:,:,:), &
-                                  ng_u, dx, scal_bc, diff_coef, visc_fac)
+                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  diff_coef, visc_fac)
          end select
       end do
       call multifab_fill_boundary(scal_force)
@@ -272,7 +285,7 @@ contains
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
                              lo, hi, ng_u, dx, time, dt, is_conservative)
-              call setscalbc_2d(rp(:,:,1,:), lo, ng_rho, phys_bc)
+              call setscalbc_2d(rp(:,:,1,:), lo, ng_rho, phys_bc%bc_level_array(i,:,:))
             case (3)
               uepz => dataptr(uedgez, i)
               call update_3d(sop(:,:,:,:) , ump(:,:,:,:),  &
@@ -280,7 +293,7 @@ contains
                              fp(:,:,:,:) , snp(:,:,:,:), &
                              rp(:,:,:,1) , &
                              lo, hi, ng_u, dx, time, dt, is_conservative)
-              call setscalbc_3d(rp(:,:,:,:), lo, ng_rho, phys_bc)
+              call setscalbc_3d(rp(:,:,:,:), lo, ng_rho, phys_bc%bc_level_array(i,:,:))
          end select
       end do
       call multifab_fill_boundary(rhohalf)
@@ -289,7 +302,7 @@ contains
       if (diff_coef > ZERO) then
         comp = 2
         mu = HALF*dt*diff_coef
-        call diff_scalar_solve(snew,dx,mu,scal_bc,comp)
+        call diff_scalar_solve(snew,dx,mu,domain_scal_bc,comp)
       end if
 
 !     Create the edge states of velocity using the MAC velocity 
@@ -311,13 +324,13 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, irz, phys_bc, velpred, ng_u)
+                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
             case (3)
               call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              ump(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, phys_bc, velpred, ng_u)
+                             visc_coef, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
          end select
       end do
   
@@ -335,12 +348,16 @@ contains
          select case (dm)
             case (2)
               call mkforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
-                              ng_u, ng_rho, &
-                              dx, norm_vel_bc, tang_vel_bc, visc_coef, visc_fac)
+                              ng_u, ng_rho, dx, &
+                              norm_vel_bc%bc_level_array(i,:,:), &
+                              tang_vel_bc%bc_level_array(i,:,:), &
+                              visc_coef, visc_fac)
             case (3)
               call mkforce_3d(fp(:,:,:,:), ep(:,:,:,:), gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
-                              ng_u, ng_rho, &
-                              dx, norm_vel_bc, tang_vel_bc, visc_coef, visc_fac)
+                              ng_u, ng_rho, dx, &
+                              norm_vel_bc%bc_level_array(i,:,:), &
+                              tang_vel_bc%bc_level_array(i,:,:), &
+                              visc_coef, visc_fac)
          end select
       end do
       call multifab_fill_boundary(force)
@@ -374,16 +391,19 @@ contains
                              lo, hi, ng_u, dx, time, dt, is_conservative)
          end select
       end do
+ 
+      call multifab_fill_boundary(unew)
 
 !     Do the viscous solve for Crank-Nicolson discretization.
 !       Note we can send in norm_vel_bc because tang_vel_bc is the same if visc_coef > 0
       if (visc_coef > ZERO) then
         mu = HALF*dt*visc_coef
-        call visc_solve(unew,rhohalf,dx,mu,norm_vel_bc)
+        call visc_solve(unew,rhohalf,dx,mu,domain_norm_vel_bc)
+        call multifab_fill_boundary(unew)
       end if
 
 !     Project the new velocity field.
-      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
+      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,domain_press_bc)
 
       call multifab_destroy(force)
 
