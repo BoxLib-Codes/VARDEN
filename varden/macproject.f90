@@ -441,6 +441,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
   type(multifab), intent(in   ) :: alpha, beta
   type(multifab), intent(inout) :: rh, phi
   type( multifab) :: ss
+  type( multifab) :: phi0
   type(imultifab) :: mm
   type(sparse) :: sparse_object
   type(mg_tower) :: mgt
@@ -541,17 +542,22 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
 
 ! Put the problem in residual-correction form.
   i = mgt%nlevels
-  call mg_defect(mgt%ss(i),mgt%dd(i),rh,phi,mgt%mm(i))
+  call multifab_build(phi0,la,1,1)
+  call multifab_copy_c(phi0,1,phi,1,1,all=.true.)
+  call mg_defect(mgt%ss(i),mgt%dd(i),rh,phi0,mgt%mm(i))
   call multifab_copy_c(rh,1,mgt%dd(i),1,1,all=.true.)
 
   call setval(phi,ZERO,all=.true.)
   call mg_tower_solve(mgt, phi, rh)
+  call saxpy(phi,1.d0,phi0)
 
   do i = mgt%nlevels-1, 1, -1
     call multifab_destroy(coeffs(i))
   end do
 
   call multifab_fill_boundary(phi)
+
+  call multifab_destroy(phi0)
 
   call multifab_destroy(coeffs(mgt%nlevels))
   deallocate(coeffs)

@@ -33,19 +33,28 @@ subroutine visc_solve(unew,rho,dx,mu,visc_bc)
   call multifab_build(alpha, la,  1, 1)
   call multifab_build( beta, la, dm, 1)
 
-! call multifab_copy_c(alpha,1,rho,1,1)
-! call setval(beta,mu,all=.true.)
-! HACK HACK HACK 
-  call setval(alpha,0.0_dp_t,all=.true.)
-  call setval(beta,1.0_dp_t,all=.true.)
+  print *,' '
+  print *,'... begin viscous solves  ... '
+
+  call multifab_copy_c(alpha,1,rho,1,1)
+  call setval(beta,mu,all=.true.)
 
   stencil_order = 1
+
+  print *,'MAX OF U BEFORE ',norm_inf(unew,1,1,all=.true.)
+  print *,'MAX OF V BEFORE ',norm_inf(unew,2,1,all=.true.)
 
   do n = 1,dm
      call mkrhs(rh,unew,rho,phi,n)
      call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order)
      call multifab_copy_c(unew,n,phi,1,1)
   end do
+
+  print *,'MAX OF U AFTER ',norm_inf(unew,1,1,all=.true.)
+  print *,'MAX OF V AFTER ',norm_inf(unew,2,1,all=.true.)
+
+  print *,'...   end viscous solves  ... '
+  print *,' '
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)
