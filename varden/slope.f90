@@ -21,14 +21,13 @@ module slope_module
 
 contains
 
-      subroutine slopex_2d(s,slx,lo,ng,nvar,bc,do_refl,slope_order)
+      subroutine slopex_2d(s,slx,lo,ng,nvar,bc,slope_order)
 
       integer        , intent(in   ) :: lo(2),ng,nvar
       real(kind=dp_t), intent(in   ) ::   s(lo(1)-ng:, lo(2)-ng:,:)
       real(kind=dp_t), intent(  out) :: slx(lo(1)- 1:, lo(2)- 1:,:) 
-      integer, intent(in) ::  bc(:,:)
+      integer, intent(in) ::  bc(:,:,:)
       integer, intent(in) ::  slope_order
-      logical, intent(in) ::  do_refl
 
 !     Local variables
       integer :: hi(2)
@@ -74,7 +73,7 @@ contains
               slx(i,j,iv)= sflag*min(slim,abs(del))
             enddo
 
-            if (bc(1,1) .eq. WALL  .or.  bc(1,1) .eq. INLET) then
+            if (bc(1,1,iv) .eq. EXT_DIR  .or. bc(1,1,iv) .eq. HOEXTRAP) then
 
               slx(is-1,j,iv) = zero
               del = (s(is+1,j,iv)+three*s(is,j,iv)- &
@@ -86,13 +85,9 @@ contains
               sflag = sign(one,del)
               slx(is,j,iv)= sflag*min(slim,abs(del))
 
-            elseif (bc(1,1) .eq. OUTLET) then
-
-              slx(is-1,j,iv) = zero
-
             endif
 
-            if (bc(1,2) .eq. WALL  .or.  bc(1,2) .eq. INLET) then
+            if (bc(1,2,iv) .eq. EXT_DIR  .or. bc(1,2,iv) .eq. HOEXTRAP) then
 
               slx(ie+1,j,iv) = zero
               del = -(s(ie-1,j,iv)+three*s(ie,j,iv)- &
@@ -103,10 +98,6 @@ contains
               slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slx(ie,j,iv)= sflag*min(slim,abs(del))
-
-            elseif (bc(1,2) .eq. OUTLET) then
-
-              slx(ie+1,j,iv) = zero
 
             endif
           enddo
@@ -135,11 +126,11 @@ contains
             slx(i,j,iv) = dxscr(i,flag)*min(abs(ds),dxscr(i,lim))
           enddo
 
-          if (bc(1,1) .eq. WALL  .or.  bc(1,1) .eq. INLET) then
+          if (bc(1,1,iv) .eq. EXT_DIR  .or. bc(1,1,iv) .eq. HOEXTRAP) then
 
             slx(is-1,j,iv) = zero
 
-            if (is.ne.0 .or. .not. do_refl .or. iv.gt.1) then
+            if (is.ne.0 .or. iv.gt.1) then
               del = -sixteen/fifteen*s(is-1,j,iv) + half*s(is,j,iv) + &
                               two3rd*s(is+1,j,iv) - tenth*s(is+2,j,iv)
               dmin = two*(s(is  ,j,iv)-s(is-1,j,iv))
@@ -156,13 +147,9 @@ contains
               slx(is+1,j,iv) = dxscr(is+1,flag)*min(abs(ds),dxscr(is+1,lim))
             endif
 
-          elseif (bc(1,1) .eq. OUTLET) then
-
-            slx(is-1,j,iv) = zero
-
           endif
 
-          if (bc(1,2) .eq. WALL  .or.  bc(1,2) .eq. INLET) then
+          if (bc(1,2,iv) .eq. EXT_DIR  .or. bc(1,2,iv) .eq. HOEXTRAP) then
 
             slx(ie+1,j,iv) = zero
 
@@ -181,21 +168,9 @@ contains
                  sixth * (dxscr(ie-2,fromm) + dxscr(ie,fromm))
             slx(ie-1,j,iv) = dxscr(ie-1,flag)*min(abs(ds),dxscr(ie-1,lim))
 
-          elseif (bc(1,2) .eq. OUTLET) then
-
-            slx(ie+1,j,iv) = zero
-
           endif
         enddo
       enddo
-
-       if (is.eq.0 .and. do_refl .and. iv.eq.1) then
-          do iv = 2,nvar
-          do j = js,je 
-            slx(is-1,j,iv)=-slx(is,j,iv)
-          enddo
-          enddo
-       endif
 
       endif
 
@@ -205,7 +180,7 @@ contains
 
 
       integer, intent(in) :: lo(:),ng,nvar
-      integer, intent(in) :: bc(:,:)
+      integer, intent(in) :: bc(:,:,:)
       integer, intent(in) :: slope_order
 
       real(kind=dp_t), intent( in) ::     s(lo(1)-ng:,lo(2)-ng:,:)
@@ -255,7 +230,7 @@ contains
             enddo
           enddo
 
-          if (bc(2,1) .eq. WALL  .or.  bc(2,1) .eq. INLET) then
+          if (bc(2,1,iv) .eq. EXT_DIR .or. bc(2,1,iv) .eq. HOEXTRAP) then
 
             do i = is-1,ie+1 
               sly(i,js-1,iv) = zero
@@ -269,15 +244,9 @@ contains
               sly(i,js,iv)= sflag*min(slim,abs(del))
             enddo
 
-          else if (bc(2,1) .eq. OUTLET) then
-
-            do i = is-1, ie+1 
-              sly(i,js-1,iv) = zero
-            enddo
-
           endif
 
-          if (bc(2,2) .eq. WALL  .or.  bc(2,2) .eq. INLET) then
+          if (bc(2,2,iv) .eq. EXT_DIR .or. bc(2,2,iv) .eq. HOEXTRAP) then
 
             do i = is-1, ie+1 
               sly(i,je+1,iv) = zero
@@ -289,12 +258,6 @@ contains
               slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               sly(i,je,iv)= sflag*min(slim,abs(del))
-            enddo
-
-          else if (bc(2,2) .eq. OUTLET) then
-
-            do i = is-1, ie+1 
-              sly(i,je+1,iv) = zero
             enddo
 
           endif
@@ -322,8 +285,7 @@ contains
             sly(i,j,iv) = dyscr(j,flag)*min(abs(ds),dyscr(j,lim))
           enddo
 
-
-          if (bc(2,1) .eq. WALL  .or.  bc(2,1) .eq. INLET) then
+          if (bc(2,1,iv) .eq. EXT_DIR .or. bc(2,1,iv) .eq. HOEXTRAP) then
 
             sly(i,js-1,iv) = zero
             del = -sixteen/fifteen*s(i,js-1,iv) +  half*s(i,js ,iv) +  &
@@ -341,13 +303,9 @@ contains
                  sixth * (dyscr(js+2,fromm) + dyscr(js,fromm))
             sly(i,js+1,iv) = dyscr(js+1,flag)*min(abs(ds),dyscr(js+1,lim))
 
-          elseif (bc(2,1) .eq. OUTLET) then
-
-            sly(i,js-1,iv) = zero
-
           endif
 
-          if (bc(2,2) .eq. WALL  .or.  bc(2,2) .eq. INLET) then
+          if (bc(2,2,iv) .eq. EXT_DIR .or. bc(2,2,iv) .eq. HOEXTRAP) then
 
             sly(i,je+1,iv) = zero
             del = -( -sixteen/fifteen*s(i,je+1,iv) +  half*s(i,je  ,iv) + &
@@ -365,11 +323,8 @@ contains
                  sixth * (dyscr(je-2,fromm) + dyscr(je,fromm))
             sly(i,je-1,iv) = dyscr(je-1,flag)*min(abs(ds),dyscr(je-1,lim))
 
-          elseif (bc(2,2) .eq. OUTLET) then
-
-            sly(i,je+1,iv) = zero
-
           endif
+
         enddo
       enddo
 
@@ -380,7 +335,7 @@ contains
       subroutine slopez_3d(s,slz,lo,ng,nvar,bc,slope_order)
 
       integer, intent(in) :: lo(:),ng,nvar
-      integer, intent(in) :: bc(:,:)
+      integer, intent(in) :: bc(:,:,:)
       integer, intent(in) :: slope_order
 
       real(kind=dp_t), intent( in) ::     s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)
@@ -435,8 +390,7 @@ contains
           enddo
           enddo
 
-          if (bc(3,1) .eq. WALL  .or.  bc(3,1) .eq. INLET) then
-
+          if (bc(3,1,iv) .eq. EXT_DIR .or. bc(3,1,iv) .eq. HOEXTRAP) then
             do j = js-1,je+1 
             do i = is-1,ie+1 
               slz(i,j,ks-1,iv) = zero
@@ -451,17 +405,9 @@ contains
             enddo
             enddo
 
-          else if (bc(3,1) .eq. OUTLET) then
-
-            do j = js-1, je+1 
-            do i = is-1, ie+1 
-              slz(i,j,ks-1,iv) = zero
-            enddo
-            enddo
-
           endif
 
-          if (bc(3,2) .eq. WALL  .or.  bc(3,2) .eq. INLET) then
+          if (bc(3,2,iv) .eq. EXT_DIR .or. bc(3,2,iv) .eq. HOEXTRAP) then
 
             do j = js-1, je+1 
             do i = is-1, ie+1 
@@ -474,14 +420,6 @@ contains
               slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slz(i,j,ke,iv)= sflag*min(slim,abs(del))
-            enddo
-            enddo
-
-          else if (bc(3,2) .eq. OUTLET) then
-
-            do j = js-1, je+1 
-            do i = is-1, ie+1 
-              slz(i,j,ke+1,iv) = zero
             enddo
             enddo
 
@@ -511,7 +449,7 @@ contains
             slz(i,j,k,iv) = dzscr(k,flag)*min(abs(ds),dzscr(k,lim))
           enddo
 
-          if (bc(3,1) .eq. WALL  .or.  bc(3,1) .eq. INLET) then
+          if (bc(3,1,iv) .eq. EXT_DIR .or. bc(3,1,iv) .eq. HOEXTRAP) then
 
             slz(i,j,ks-1,iv) = zero
             del = -sixteen/fifteen*s(i,j,ks-1,iv) +  half*s(i,j,ks ,iv) +  &
@@ -529,13 +467,9 @@ contains
                  sixth * (dzscr(ks+2,fromm) + dzscr(ks,fromm))
             slz(i,j,ks+1,iv) = dzscr(ks+1,flag)*min(abs(ds),dzscr(ks+1,lim))
 
-          elseif (bc(3,1) .eq. OUTLET) then
-
-            slz(i,j,ks-1,iv) = zero
-
           endif
 
-          if (bc(3,2) .eq. WALL  .or.  bc(3,2) .eq. INLET) then
+          if (bc(3,2,iv) .eq. EXT_DIR .or. bc(3,2,iv) .eq. HOEXTRAP) then
 
             slz(i,j,ke+1,iv) = zero
             del = -( -sixteen/fifteen*s(i,j,ke+1,iv) +  half*s(i,j,ke  ,iv) + &
@@ -552,10 +486,6 @@ contains
             ds = two * two3rd * dzscr(ke-1,cen) -  &
                  sixth * (dzscr(ke-2,fromm) + dzscr(ke,fromm))
             slz(i,j,ke-1,iv) = dzscr(ke-1,flag)*min(abs(ds),dzscr(ke-1,lim))
-
-          elseif (bc(3,2) .eq. OUTLET) then
-
-            slz(i,j,ke+1,iv) = zero
 
           endif
         enddo

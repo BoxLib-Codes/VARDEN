@@ -9,58 +9,84 @@ module viscous_module
 
   implicit none
 
-  real (kind = dp_t), private, parameter :: TWO   = 2.0_dp_t
-
 contains 
 
-subroutine visc_solve(unew,rho,dx,mu,visc_bc,mg_verbose)
+subroutine visc_solve(nlevs,la_tower,unew,rho,dx,mu,the_bc_tower,mg_verbose)
 
-  type(multifab), intent(inout) :: unew
-  type(multifab), intent(in   ) :: rho
-  real(dp_t)    , intent(in   ) :: dx(:),mu
-  integer       , intent(in   ) :: visc_bc(:,:)
+  integer       , intent(in   ) :: nlevs
+  type(layout)  , intent(inout) :: la_tower(:)
+  type(multifab), intent(inout) :: unew(:)
+  type(multifab), intent(in   ) :: rho(:)
+  real(dp_t)    , intent(in   ) :: dx(:,:),mu
+  type(bc_tower), intent(in   ) :: the_bc_tower
   integer       , intent(in   ) :: mg_verbose
 
 ! Local  
-  type(multifab) :: rh,phi,alpha,beta
-  type(layout) :: la
-  integer  :: n,dm,stencil_order
+  type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
+  type(flux_reg), pointer     :: fine_flx(:) => Null()
+  integer  :: n,d,dm,stencil_order
+  integer  :: bc_comp
 
-  la = unew%la
-  dm = rho%dim
+  dm = rho(nlevs)%dim
 
-  call multifab_build(   rh, la,  1, 0)
-  call multifab_build(  phi, la,  1, 1)
-  call multifab_build(alpha, la,  1, 1)
-  call multifab_build( beta, la, dm, 1)
+  allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
+
+  do n = 1,nlevs
+     call multifab_build(   rh(n), la_tower(n),  1, 0)
+     call multifab_build(  phi(n), la_tower(n),  1, 1)
+     call multifab_build(alpha(n), la_tower(n),  1, 1)
+     call multifab_build( beta(n), la_tower(n), dm, 1)
+
+     call multifab_copy_c(alpha(n),1,rho(n),1,1)
+     call setval(beta(n),mu,all=.true.)
+  end do
 
   print *,' '
   print *,'... begin viscous solves  ... '
 
-  call multifab_copy_c(alpha,1,rho,1,1)
-  call setval(beta,mu,all=.true.)
-
   stencil_order = 1
 
-  print *,'MAX OF U BEFORE ',norm_inf(unew,1,1,all=.true.)
-  print *,'MAX OF V BEFORE ',norm_inf(unew,2,1,all=.true.)
-
-  do n = 1,dm
-     call mkrhs(rh,unew,rho,phi,n)
-     call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order,mg_verbose)
-     call multifab_copy_c(unew,n,phi,1,1)
+  do n = 1,nlevs
+     print *,'BEFORE: MAX OF U AT LEVEL ',n,norm_inf(unew(n),1,1,all=.true.)
+     print *,'BEFORE: MAX OF V AT LEVEL ',n,norm_inf(unew(n),2,1,all=.true.)
   end do
 
-  print *,'MAX OF U AFTER ',norm_inf(unew,1,1,all=.true.)
-  print *,'MAX OF V AFTER ',norm_inf(unew,2,1,all=.true.)
+  allocate(fine_flx(2:nlevs))
+  do n = 2,nlevs
+     call flux_reg_build(fine_flx(n),la_tower(n),layout_get_pd(la_tower(n)))
+  end do
+
+  do d = 1,dm
+     do n = 1,nlevs
+        call mkrhs(rh(n),unew(n),rho(n),phi(n),d)
+     end do
+     bc_comp = d
+     call mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
+                        the_bc_tower,bc_comp,stencil_order,mg_verbose)
+     do n = 1,nlevs
+        call multifab_copy_c(unew(n),d,phi(n),1,1)
+     end do
+  end do
+
+  do n = 1,nlevs
+     print *,'BEFORE: MAX OF U AT LEVEL ',n,norm_inf(unew(n),1,1,all=.true.)
+     print *,'BEFORE: MAX OF V AT LEVEL ',n,norm_inf(unew(n),2,1,all=.true.)
+  end do
 
   print *,'...   end viscous solves  ... '
   print *,' '
 
-  call multifab_destroy(rh)
-  call multifab_destroy(phi)
-  call multifab_destroy(alpha)
-  call multifab_destroy(beta)
+  do n = 1,nlevs
+     call multifab_destroy(rh(n))
+     call multifab_destroy(phi(n))
+     call multifab_destroy(alpha(n))
+     call multifab_destroy(beta(n))
+  end do
+
+  deallocate(rh)
+  deallocate(phi)
+  deallocate(alpha)
+  deallocate(beta)
 
   contains
 
@@ -138,52 +164,79 @@ subroutine visc_solve(unew,rho,dx,mu,visc_bc,mg_verbose)
 
 end subroutine visc_solve
 
-subroutine diff_scalar_solve(snew,dx,mu,visc_bc,comp,mg_verbose)
+subroutine diff_scalar_solve(nlevs,la_tower,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose)
 
-  type(multifab), intent(inout) :: snew
-  real(dp_t)    , intent(in   ) :: dx(:),mu
-  integer       , intent(in   ) :: visc_bc(:,:)
-  integer       , intent(in   ) :: comp
+  integer       , intent(in   ) :: nlevs
+  type(layout)  , intent(inout) :: la_tower(:)
+  type(multifab), intent(inout) :: snew(:)
+  real(dp_t)    , intent(in   ) :: dx(:,:)
+  real(dp_t)    , intent(in   ) :: mu
+  type(bc_tower), intent(in   ) :: the_bc_tower
+  integer       , intent(in   ) :: icomp,bc_comp
   integer       , intent(in   ) :: mg_verbose
 
 ! Local  
-  type(multifab) :: rh,phi,alpha,beta
+  type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
+  type(flux_reg), pointer     :: fine_flx(:) => Null()
   type(layout) :: la
   integer  :: n,dm,stencil_order
 
-  la = snew%la
-  dm = snew%dim
+  dm = snew(nlevs)%dim
 
-  call multifab_build(   rh, la,  1, 0)
-  call multifab_build(  phi, la,  1, 1)
-  call multifab_build(alpha, la,  1, 1)
-  call multifab_build( beta, la, dm, 1)
+  allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
+
+  do n = 1,nlevs
+     call multifab_build(   rh(n), la_tower(n),  1, 0)
+     call multifab_build(  phi(n), la_tower(n),  1, 1)
+     call multifab_build(alpha(n), la_tower(n),  1, 1)
+     call multifab_build( beta(n), la_tower(n), dm, 1)
+     call setval(alpha(n),ONE,all=.true.)
+     call setval( beta(n), mu,all=.true.)
+  end do
 
   print *,' '
   print *,'... begin diffusive solve  ... '
 
-  print *,'MAX OF S BEFORE ',norm_inf(snew,1,1,all=.true.)
- 
-  call setval(alpha,1.0_dp_t,all=.true.)
-  call setval(beta,mu,all=.true.)
-  
-  call mkrhs(rh,snew,phi,comp)
+  do n = 1,nlevs
+    print *,'BEFORE: MAX OF S AT LEVEL ',n,norm_inf(snew(n),1,1,all=.true.)
+  end do
+
+  do n = 1,nlevs
+     call mkrhs(rh(n),snew(n),phi(n),icomp)
+  end do
 
   stencil_order = 2
 
-  call mac_multigrid(la,rh,phi,alpha,beta,dx,visc_bc,stencil_order,mg_verbose)
+  allocate(fine_flx(2:nlevs))
+  do n = 2,nlevs
+     call flux_reg_build(fine_flx(n),la_tower(n),layout_get_pd(la_tower(n)))
+  end do
 
-  call multifab_plus_plus_c(snew,comp,phi,1,1)
+  call mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
+                     the_bc_tower,bc_comp,stencil_order,mg_verbose)
 
-  print *,'MAX OF S AFTER ',norm_inf(snew,1,1,all=.true.)
+  do n = 1,nlevs
+     call multifab_plus_plus_c(snew(n),icomp,phi(n),1,1)
+  end do
+
+  do n = 1,nlevs
+    print *,'AFTER: MAX OF S AT LEVEL ',n,norm_inf(snew(n),1,1,all=.true.)
+  end do
 
   print *,' '
   print *,'...   end diffusive solve  ... '
 
-  call multifab_destroy(rh)
-  call multifab_destroy(phi)
-  call multifab_destroy(alpha)
-  call multifab_destroy(beta)
+  do n = 1,nlevs
+     call multifab_destroy(rh(n))
+     call multifab_destroy(phi(n))
+     call multifab_destroy(alpha(n))
+     call multifab_destroy(beta(n))
+  end do
+
+  deallocate(rh)
+  deallocate(phi)
+  deallocate(alpha)
+  deallocate(beta)
 
   contains
 

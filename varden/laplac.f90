@@ -2,7 +2,6 @@ module laplac_module
 
    use bl_types
    use bc_module
-   use mg_bc_module
 
    implicit none
 
