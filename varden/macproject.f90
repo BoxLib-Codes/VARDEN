@@ -293,20 +293,36 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
          do j = 1,ny
             phi(0,j) = phi(1,j)
          end do
+      elseif (press_bc(1,1) == BC_DIR) then
+         do j = 1,ny
+            phi(0,j) = -phi(1,j)
+         end do
       end if
       if (press_bc(1,2) == BC_NEU) then
          do j = 1,ny
             phi(nx+1,j) = phi(nx,j)
+         end do
+      elseif (press_bc(1,2) == BC_DIR) then
+         do j = 1,ny
+            phi(nx+1,j) = -phi(nx,j)
          end do
       end if
       if (press_bc(2,1) == BC_NEU) then
          do i = 1,nx
             phi(i,0) = phi(i,1)
          end do
+         do i = 1,nx
+            phi(i,0) = -phi(i,1)
+         end do
+      elseif (press_bc(2,1) == BC_DIR) then
       end if
       if (press_bc(2,2) == BC_NEU) then
          do i = 1,nx
             phi(i,ny+1) = phi(i,ny)
+         end do
+      elseif (press_bc(2,2) == BC_DIR) then
+         do i = 1,nx
+            phi(i,ny+1) = -phi(i,ny)
          end do
       end if
 
@@ -359,11 +375,23 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
             phi(0,j,k) = phi(1,j,k)
          end do
          end do
+      elseif (press_bc(1,1) == BC_DIR) then
+         do k = 1,nz
+         do j = 1,ny
+            phi(0,j,k) = -phi(1,j,k)
+         end do
+         end do
       end if
       if (press_bc(1,2) == BC_NEU) then
          do k = 1,nz
          do j = 1,ny
             phi(nx+1,j,k) = phi(nx,j,k)
+         end do
+         end do
+      elseif (press_bc(1,2) == BC_DIR) then
+         do k = 1,nz
+         do j = 1,ny
+            phi(nx+1,j,k) = -phi(nx,j,k)
          end do
          end do
       end if
@@ -373,11 +401,23 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
             phi(i,0,k) = phi(i,1,k)
          end do
          end do
+      elseif (press_bc(2,1) == BC_DIR) then
+         do k = 1,nz
+         do i = 1,nx
+            phi(i,0,k) = -phi(i,1,k)
+         end do
+         end do
       end if
       if (press_bc(2,2) == BC_NEU) then
          do k = 1,nz
          do i = 1,nx
             phi(i,ny+1,k) = phi(i,ny,k)
+         end do
+         end do
+      elseif (press_bc(2,2) == BC_DIR) then
+         do k = 1,nz
+         do i = 1,nx
+            phi(i,ny+1,k) = -phi(i,ny,k)
          end do
          end do
       end if
@@ -387,11 +427,23 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
             phi(i,j,0) = phi(i,j,1)
          end do
          end do
+      elseif (press_bc(3,1) == BC_DIR) then
+         do j = 1,ny
+         do i = 1,nx
+            phi(i,j,0) = -phi(i,j,1)
+         end do
+         end do
       end if
       if (press_bc(3,2) == BC_NEU) then
          do j = 1,ny
          do i = 1,nx
             phi(i,j,nz+1) = phi(i,j,nz)
+         end do
+         end do
+      elseif (press_bc(3,2) == BC_DIR) then
+         do j = 1,ny
+         do i = 1,nx
+            phi(i,j,nz+1) = -phi(i,j,nz)
          end do
          end do
       end if
