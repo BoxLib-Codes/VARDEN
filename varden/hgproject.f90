@@ -56,7 +56,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
   call mkgp(gphi,phi,dx)
   call mkunew(unew,gp,gphi,rhohalf,ng,dt)
 
-  p = phi
+  call multifab_copy_c(p,1,phi,1,1,all=.true.)
 
   print *,'...   end hg_projection ... '
   print *,' '
@@ -255,11 +255,11 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
       end do
 
       if (phys_bc(1,1) == WALL .or. phys_bc(1,1) == INLET) rh( 0,:,:) = TWO*rh( 0,:,:)
-      if (phys_bc(1,2) == WALL .or. phys_bc(1,1) == INLET) rh(nx,:,:) = TWO*rh(nx,:,:)
-      if (phys_bc(2,1) == WALL .or. phys_bc(1,1) == INLET) rh(:, 0,:) = TWO*rh(:, 0,:)
-      if (phys_bc(2,2) == WALL .or. phys_bc(1,1) == INLET) rh(:,ny,:) = TWO*rh(:,ny,:)
-      if (phys_bc(3,1) == WALL .or. phys_bc(1,1) == INLET) rh(:,:, 0) = TWO*rh(:,:, 0)
-      if (phys_bc(3,2) == WALL .or. phys_bc(1,1) == INLET) rh(:,:,nz) = TWO*rh(:,:,nz)
+      if (phys_bc(1,2) == WALL .or. phys_bc(1,2) == INLET) rh(nx,:,:) = TWO*rh(nx,:,:)
+      if (phys_bc(2,1) == WALL .or. phys_bc(2,1) == INLET) rh(:, 0,:) = TWO*rh(:, 0,:)
+      if (phys_bc(2,2) == WALL .or. phys_bc(2,2) == INLET) rh(:,ny,:) = TWO*rh(:,ny,:)
+      if (phys_bc(3,1) == WALL .or. phys_bc(3,1) == INLET) rh(:,:, 0) = TWO*rh(:,:, 0)
+      if (phys_bc(3,2) == WALL .or. phys_bc(3,2) == INLET) rh(:,:,nz) = TWO*rh(:,:,nz)
 
     end subroutine divu_3d
 
@@ -430,7 +430,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
           unew(0:nx,0:ny,0:nz,3) - gphi(0:nx,0:ny,0:nz,3)/rhohalf(0:nx,0:ny,0:nz) 
 
 !     Multiply by dt.
-      unew(0:nx,0:ny,0:nz,:) = dt * unew(0:nx,0:ny,0:nz,:)
+      unew(-1:nx,-1:ny,-1:nz,:) = dt * unew(-1:nx,-1:ny,-1:nz,:)
 
 !     Replace (gradient of) pressure by (gradient of) phi.
       gp(0:nx,0:ny,0:nz,:) = gphi(0:nx,0:ny,0:nz,:)
