@@ -429,7 +429,12 @@ contains
        real(dp_t)               :: eps
        real(dp_t)               :: res_norm, soln_norm, snrm(2), ni
 
-       do_diagnostics = 0
+       real(dp_t)               :: mult_half
+
+       type(box)           :: bx
+       real(dp_t), pointer :: ap(:,:,:,:)
+
+       do_diagnostics = 1
 
        eps = 1.d-12
 
@@ -506,13 +511,13 @@ contains
 
   do n = nlevs,2,-1
     pdc = layout_get_pd(la_tower(n-1))
-    call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),pdc)
+    call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n), &
+                                  orig_soln(n-1),orig_soln(n),pdc)
   enddo
  
   do n = nlevs,1,-1
     call multifab_copy(rh(n),res(n),all=.true.)
   enddo
-
 
   !!
   !! Solver Starts Here
@@ -587,7 +592,8 @@ contains
            ! (3) Compute a coarse-fine residual at coarse nodes on the coarse-fine interface.
 
            pdc = layout_get_pd(la_tower(n-1))
-           call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),pdc)
+           call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),&
+                                         soln(n-1),soln(n),pdc)
 
            if (n < nlevs) call multifab_copy(uu_hold(n),uu(n),all=.true.)
            call setval(uu(n),ZERO,all=.true.)
@@ -656,7 +662,8 @@ contains
         call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
                             mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, ref_ratio)
         pdc = layout_get_pd(la_tower(n-1))
-        call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),pdc)
+        call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),&
+                                      soln(n-1),soln(n),pdc)
      end do
 
      res_norm = ZERO
@@ -719,13 +726,16 @@ contains
 
    contains
 
-        subroutine crse_fine_residual_nodal(n,mgt,brs_flx,crse_res,temp_res,pdc)
+        subroutine crse_fine_residual_nodal(n,mgt,brs_flx,crse_res,temp_res, &
+                                            crse_soln,fine_soln,pdc)
 
            integer        , intent(in   ) :: n
            type(mg_tower) , intent(inout) :: mgt(:)
            type(bndry_reg), intent(inout) :: brs_flx
            type(multifab) , intent(inout) :: crse_res
            type(multifab) , intent(inout) :: temp_res
+           type(multifab) , intent(inout) :: crse_soln
+           type(multifab) , intent(inout) :: fine_soln
            type(box)      , intent(in   ) :: pdc
 
            integer :: i,dm,mglev
@@ -741,7 +751,7 @@ contains
 !          First compute a residual which only takes contributions from the
 !             grid on which it is calculated.
            call grid_res(mgt(n),mglev,mgt(n)%ss(mglev),temp_res, &
-                         rh(n),soln(n),mgt(n)%mm(mglev),mgt(n)%face_type)
+                         rh(n),fine_soln,mgt(n)%mm(mglev),mgt(n)%face_type)
 
            do i = 1,dm
               call ml_fine_contrib(brs_flx%bmf(i,0), &
@@ -752,11 +762,11 @@ contains
 
 !          Compute the crse contributions at edges and corners and add to res(n-1).
            do i = 1,dm
-              call ml_crse_contrib(crse_res, brs_flx%bmf(i,0), soln(n-1), &
+              call ml_crse_contrib(crse_res, brs_flx%bmf(i,0), crse_soln, &
                    mgt(n-1)%ss(mgt(n-1)%nlevels), &
                    mgt(n)%mm(mglev), &
                    pdc,ref_ratio, -i)
-              call ml_crse_contrib(crse_res, brs_flx%bmf(i,1), soln(n-1), &
+              call ml_crse_contrib(crse_res, brs_flx%bmf(i,1), crse_soln, &
                    mgt(n-1)%ss(mgt(n-1)%nlevels), &
                    mgt(n)%mm(mglev), &
                    pdc,ref_ratio, +i)
