@@ -23,8 +23,6 @@ contains
 
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
       hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
- 
-      print *,'ICOMP IN SETBC ',icomp
 
       if (bc(1,1) .eq. EXT_DIR) then
             do j = lo(2)-1,hi(2)+1
