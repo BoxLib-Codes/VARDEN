@@ -10,7 +10,6 @@ module hgproject_module
   use stencil_module
   use ml_solve_module
   use ml_restriction_module
-  use multifab_fill_ghost_module
 
   implicit none
 
