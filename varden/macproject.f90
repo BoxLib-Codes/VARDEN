@@ -1,6 +1,7 @@
 module macproject_module
 
   use bl_types
+  use define_bc_module
   use multifab_module
   use boxarray_module
   use stencil_module
@@ -12,11 +13,12 @@ module macproject_module
 
 contains 
 
-subroutine macproject(umac,rho,dx,press_bc)
+subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
 
   type(multifab), intent(inout) :: umac
   type(multifab), intent(in   ) :: rho
-  integer       , intent(in   ) :: press_bc(:,:)
+  integer       , intent(in   ) :: domain_press_bc(:,:)
+  type(bc_level), intent(in   ) :: press_bc
   real(dp_t) :: dx(:)
 
 ! Local  
@@ -37,14 +39,14 @@ subroutine macproject(umac,rho,dx,press_bc)
 
   call divumac(umac,rh,dx)
 
-  call mk_mac_coeffs(rho,beta,press_bc)
+  call mk_mac_coeffs(rho,beta)
 
   call setval(alpha,ZERO,all=.true.)
   call setval(  phi,ZERO,all=.true.)
 
   stencil_order = 1
 
-  call mac_multigrid(la,rh,phi,alpha,beta,dx,press_bc,stencil_order)
+  call mac_multigrid(la,rh,phi,alpha,beta,dx,domain_press_bc,stencil_order)
 
   call mkumac(umac,phi,beta,dx,press_bc)
 
@@ -66,9 +68,14 @@ subroutine macproject(umac,rho,dx,press_bc)
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
+      real(kind=dp_t),         :: sum,rhmax
+      real(kind=dp_t),         :: local_sum,local_max
       integer :: i,dm
 
       dm = rh%dim
+
+      rhmax = ZERO
+      sum   = ZERO
 
       do i = 1, umac%nboxes
          if ( multifab_remote(umac, i) ) cycle
@@ -76,22 +83,25 @@ subroutine macproject(umac,rho,dx,press_bc)
          rhp => dataptr(rh  , i)
          select case (dm)
             case (2)
-              call divumac_2d(ump(:,:,1,:), rhp(:,:,1,1), dx)
+              call divumac_2d(ump(:,:,1,:), rhp(:,:,1,1), dx, local_max, local_sum)
             case (3)
-              call divumac_3d(ump(:,:,:,:), rhp(:,:,:,1), dx)
+              call divumac_3d(ump(:,:,:,:), rhp(:,:,:,1), dx, local_max, local_sum)
          end select
+         rhmax = max(rhmax,local_max)
+         sum   = sum + local_sum
       end do
+      print *,'MAX/SUM OF RHS ',rhmax,sum
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,rh,dx)
+    subroutine divumac_2d(umac,rh,dx,rhmax,sum)
 
       real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,1:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
+      real(kind=dp_t), intent(  out) :: sum,rhmax
 
       integer :: i,j
-      real(kind=dp_t) :: sum,rhmax
 
       sum = 0.0_dp_t
       rhmax = 0.0_dp_t
@@ -104,18 +114,17 @@ subroutine macproject(umac,rho,dx,press_bc)
          rh(i,j) = -rh(i,j)
       end do
       end do
-      print *,'MAX/SUM OF RHS ',rhmax,sum
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,rh,dx)
+    subroutine divumac_3d(umac,rh,dx,rhmax,sum)
 
       real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,-1:,1:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
+      real(kind=dp_t), intent(  out) :: sum,rhmax
 
       integer :: i,j,k
-      real(kind=dp_t) :: sum,rhmax
 
       sum = 0.0_dp_t
       rhmax = 0.0_dp_t
@@ -132,15 +141,13 @@ subroutine macproject(umac,rho,dx,press_bc)
       end do
       end do
       end do
-      print *,'MAX/SUM OF RHS ',rhmax,sum
 
     end subroutine divumac_3d
 
-    subroutine mk_mac_coeffs(rho,beta,press_bc)
+    subroutine mk_mac_coeffs(rho,beta)
 
       type(multifab) , intent(in   ) :: rho
       type(multifab) , intent(inout) :: beta
-      integer       , intent(in   ) :: press_bc(:,:)
  
       real(kind=dp_t), pointer :: bp(:,:,:,:) 
       real(kind=dp_t), pointer :: rp(:,:,:,:) 
@@ -155,20 +162,19 @@ subroutine macproject(umac,rho,dx,press_bc)
          bp => dataptr(beta, i)
          select case (dm)
             case (2)
-              call mk_mac_coeffs_2d(bp(:,:,1,:), rp(:,:,1,1), press_bc, ng)
+              call mk_mac_coeffs_2d(bp(:,:,1,:), rp(:,:,1,1), ng)
             case (3)
-              call mk_mac_coeffs_3d(bp(:,:,:,:), rp(:,:,:,1), press_bc, ng)
+              call mk_mac_coeffs_3d(bp(:,:,:,:), rp(:,:,:,1), ng)
          end select
       end do
 
     end subroutine mk_mac_coeffs
 
-    subroutine mk_mac_coeffs_2d(beta,rho,press_bc,ng)
+    subroutine mk_mac_coeffs_2d(beta,rho,ng)
 
       integer :: ng
       real(kind=dp_t), intent(inout) :: beta(   0:,   0:,:)
       real(kind=dp_t), intent(inout) ::  rho(1-ng:,1-ng:)
-      integer       , intent(in   ) :: press_bc(:,:)
 
       integer :: i,j
       integer :: nx,ny
@@ -190,12 +196,11 @@ subroutine macproject(umac,rho,dx,press_bc)
 
     end subroutine mk_mac_coeffs_2d
 
-    subroutine mk_mac_coeffs_3d(beta,rho,press_bc,ng)
+    subroutine mk_mac_coeffs_3d(beta,rho,ng)
 
       integer :: ng
       real(kind=dp_t), intent(inout) :: beta(   0:,   0:,   0:,:)
       real(kind=dp_t), intent(inout) ::  rho(1-ng:,1-ng:,1-ng:)
-      integer       , intent(in   ) :: press_bc(:,:)
 
       integer :: i,j,k
       integer :: nx,ny,nz
@@ -236,7 +241,7 @@ subroutine macproject(umac,rho,dx,press_bc)
       type(multifab), intent(in   ) :: phi
       type(multifab), intent(in   ) :: beta
       real(dp_t) :: dx(:)
-      integer       , intent(in   ) :: press_bc(:,:)
+      type(bc_level), intent(in   ) :: press_bc
 
       integer :: i,dm
  
@@ -253,9 +258,11 @@ subroutine macproject(umac,rho,dx,press_bc)
           bp => dataptr(beta, i)
          select case (dm)
             case (2)
-              call mkumac_2d(ump(:,:,1,:), php(:,:,1,1), bp(:,:,1,:), dx, press_bc)
+              call mkumac_2d(ump(:,:,1,:), php(:,:,1,1), bp(:,:,1,:), dx, &
+                             press_bc%bc_level_array(i,:,:))
             case (3)
-              call mkumac_3d(ump(:,:,:,:), php(:,:,:,1), bp(:,:,:,:), dx, press_bc)
+              call mkumac_3d(ump(:,:,:,:), php(:,:,:,1), bp(:,:,:,:), dx, &
+                             press_bc%bc_level_array(i,:,:))
          end select
       end do
 
@@ -436,7 +443,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order)
   type(multifab), allocatable :: coeffs(:)
 
   real(dp_t), intent(in) :: dx(:)
-  integer   , intent(in) :: bc(:,:)
+  integer, intent(in   ) :: bc(:,:)
 
   type(multifab), intent(in   ) :: alpha, beta
   type(multifab), intent(inout) :: rh, phi

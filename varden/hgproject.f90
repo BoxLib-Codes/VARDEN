@@ -2,6 +2,7 @@ module hgproject_module
 
   use bl_types
   use bc_module
+  use define_bc_module
   use multifab_module
   use boxarray_module
   use stencil_module
@@ -23,15 +24,16 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
   type(multifab), intent(inout) :: rhohalf
   type(multifab), intent(inout) :: gp
   type(multifab), intent(inout) :: p
+  type(bc_level), intent(in   ) :: phys_bc
   integer       , intent(in   ) :: press_bc(:,:)
-  integer       , intent(in   ) ::  phys_bc(:,:)
   real(dp_t) :: dx(:),dt
 
 ! Local  
   type(multifab) :: rh,phi,gphi
   type(layout) :: la
   logical   , allocatable :: nodal(:)
-  integer  :: dm,ng
+  integer  :: dm,ng,i
+  type(box) :: bx
 
   la = unew%la
   dm = unew%dim
@@ -71,7 +73,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       type(multifab) , intent(in   ) :: rhohalf
       type(multifab) , intent(inout) :: rh
       real(kind=dp_t), intent(in   ) :: dx(:),dt
-      integer        , intent(in   ) :: phys_bc(:,:)
+      type(bc_level) , intent(in   ) :: phys_bc
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
@@ -91,10 +93,10 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
          select case (dm)
             case (2)
               call divu_2d(ump(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), &
-                           rhp(:,:,1,1), dx, dt, phys_bc, ng)
+                           rhp(:,:,1,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng)
             case (3)
               call divu_3d(ump(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), &
-                           rhp(:,:,:,1), dx, dt, phys_bc, ng)
+                           rhp(:,:,:,1), dx, dt, phys_bc%bc_level_array(i,:,:), ng)
          end select
       end do
 
@@ -115,17 +117,17 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
       nx = size(rh,dim=1) - ng
       ny = size(rh,dim=2) - ng
 
-      if (phys_bc(1,1) == WALL) u(-1,:,:) = ZERO
-      if (phys_bc(1,2) == WALL) u(nx,:,:) = ZERO
-      if (phys_bc(2,1) == WALL) u(:,-1,:) = ZERO
-      if (phys_bc(2,2) == WALL) u(:,ny,:) = ZERO
-
       do j = -1,ny
       do i = -1,nx
          u(i,j,1) = u(i,j,1)/dt + gp(i,j,1)/rhohalf(i,j)
          u(i,j,2) = u(i,j,2)/dt + gp(i,j,2)/rhohalf(i,j)
       end do
       end do
+
+      if (phys_bc(1,1) == WALL) u(-1,:,:) = ZERO
+      if (phys_bc(1,2) == WALL) u(nx,:,:) = ZERO
+      if (phys_bc(2,1) == WALL) u(:,-1,:) = ZERO
+      if (phys_bc(2,2) == WALL) u(:,ny,:) = ZERO
 
       do j = 0,ny
       do i = 0,nx
@@ -276,6 +278,8 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
          end select
       end do
 
+      call multifab_fill_boundary(gphi)
+
     end subroutine mkgp
 
     subroutine mkgp_2d(gp,phi,dx)
@@ -364,6 +368,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc)
          end select
       end do
       call multifab_fill_boundary(unew)
+      call multifab_fill_boundary(gp)
 
     end subroutine mkunew
 
@@ -441,12 +446,13 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
 
   type(layout),intent(inout) :: la
 
-  type(box) pd
+  type(box     ) pd
+  type(boxarray) pdv
 
   type(multifab), allocatable :: coeffs(:)
 
   real(dp_t), intent(in) :: dx(:)
-  integer   , intent(in) :: press_bc(:,:)
+  integer, intent(in   ) :: press_bc(:,:)
 
   type(multifab), intent(inout) :: phi, rh
   type(multifab), intent(inout) :: rhohalf
@@ -538,14 +544,6 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
        verbose = verbose, &
        nodal = nodal)
 
-! if ( parallel_IOProcessor() ) then
-!    print *, 'PARALLEL EFFICIENCIES'
-!    do i = mgt%nlevels, 1, -1
-!       print *, 'LEV ', i, ' EFFICIENCY ', &
-!            layout_efficiency(get_layout(mgt%ss(i)))
-!    end do
-! end if
-
 ! Note the minus sign here is because we solve (-del dot b grad) phi = rhs,
 !   NOT (del dot b grad) phi = rhs
   allocate(coeffs(mgt%nlevels))
@@ -553,18 +551,7 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
   call setval(coeffs(mgt%nlevels), 0.0_dp_t, 1, all=.true.)
 
   call mkcoeffs(rhohalf,coeffs(mgt%nlevels))
-
-! if (dm == 2) then
-!    do i = 1,layout_nboxes(la)
-!       call multifab_setval_bx(coeffs(mgt%nlevels), -1.0_dp_t, get_box(la,i), all=.true.)
-!    end do 
-! else
-!    do i = 1,layout_nboxes(la)
-!       call multifab_setval_bx(coeffs(mgt%nlevels), -1.0_dp_t, get_box(la,i), all=.true.)
-!    end do 
-! end if
   call multifab_fill_boundary(coeffs(mgt%nlevels))
-
 
 ! Do multigrid solve here 
   xa = 0.0_dp_t
@@ -578,9 +565,11 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc)
   end do
 
   do i = mgt%nlevels, 1, -1
+     pdv = layout_boxarray(mgt%ss(i)%la)
      call stencil_fill_nodal(mgt%ss(i), coeffs(i), mgt%dh(:,i), &
           mgt%dh(:,mgt%nlevels), &
-          mgt%mm(i), mgt%face_type, pd)
+          mgt%mm(i), mgt%face_type, pd, pdv)
+     pd  = coarsen(pd,2)
   end do
 
   if ( bottom_solver == 3 ) then
