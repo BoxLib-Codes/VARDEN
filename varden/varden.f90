@@ -1,4 +1,3 @@
-
 subroutine varden()
   use BoxLib
   use omp_module
@@ -35,7 +34,7 @@ subroutine varden()
   integer    :: istep
   integer    :: i, n, nlevs, n_plot_comps, nscal
 
-  real(dp_t) :: prob_hi_x, prob_hi_y, prob_hi_z
+  real(dp_t) :: prob_hi_x,prob_hi_y,prob_hi_z
 
   integer     , allocatable :: domain_phys_bc(:,:)
   integer     , allocatable :: domain_press_bc(:,:)
@@ -300,6 +299,7 @@ subroutine varden()
      call setval(sold(n),0.0_dp_t, all=.true.)
      call setval(snew(n),0.0_dp_t, all=.true.)
 
+     call setval(         p(n),0.0_dp_t, all=.true.)
      call setval(        gp(n),0.0_dp_t, all=.true.)
      call setval(   rhohalf(n),1.0_dp_t, all=.true.)
      call setval(     force(n),0.0_dp_t, all=.true.)
@@ -513,8 +513,8 @@ subroutine varden()
      call multifab_destroy(unew(n))
      call multifab_destroy(sold(n))
      call multifab_destroy(snew(n))
-     call multifab_destroy(gp(n))
      call multifab_destroy( p(n))
+     call multifab_destroy(gp(n))
      call multifab_destroy(rhohalf(n))
      call multifab_destroy(force(n))
      call multifab_destroy(scal_force(n))

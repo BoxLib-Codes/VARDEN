@@ -81,7 +81,7 @@ contains
       integer :: comp
       logical :: is_conservative
       logical :: is_vel
-      real(kind=dp_t) :: visc_fac,mu
+      real(kind=dp_t) :: visc_fac,visc_mu
 
       ng_u   = uold%ng
       ng_rho = rhohalf%ng
@@ -297,12 +297,14 @@ contains
          end select
       end do
       call multifab_fill_boundary(rhohalf)
+      call multifab_fill_boundary(snew)
 
 !     Do the diffusive solve for Crank-Nicolson discretization of tracer.
       if (diff_coef > ZERO) then
         comp = 2
-        mu = HALF*dt*diff_coef
-        call diff_scalar_solve(snew,dx,mu,domain_scal_bc,comp)
+        visc_mu = HALF*dt*diff_coef
+        call diff_scalar_solve(snew,dx,visc_mu,domain_scal_bc,comp)
+        call multifab_fill_boundary(snew)
       end if
 
 !     Create the edge states of velocity using the MAC velocity 
@@ -397,8 +399,8 @@ contains
 !     Do the viscous solve for Crank-Nicolson discretization.
 !       Note we can send in norm_vel_bc because tang_vel_bc is the same if visc_coef > 0
       if (visc_coef > ZERO) then
-        mu = HALF*dt*visc_coef
-        call visc_solve(unew,rhohalf,dx,mu,domain_norm_vel_bc)
+        visc_mu = HALF*dt*visc_coef
+        call visc_solve(unew,rhohalf,dx,visc_mu,domain_norm_vel_bc)
         call multifab_fill_boundary(unew)
       end if
 
