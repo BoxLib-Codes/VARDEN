@@ -4,7 +4,7 @@
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 1
+ max_step  = 2
  plot_int  = 10
  chk_int   = 50
  init_iter = 2
@@ -22,6 +22,6 @@
  verbose = 1
  mg_verbose = 0
 
-!restart = 0
+ restart = 1
 do_initial_projection = 1
 /
