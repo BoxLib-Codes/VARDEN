@@ -195,7 +195,7 @@ contains
                           rh(n-1), soln(n-1), mgt(n-1)%mm(mglev_crse))
 
            pdc = layout_get_pd(la_tower(n-1))
-           call crse_fine_residual(n,mgt,uu,brs_flx(n),pdc,ref_ratio)
+           call crse_fine_residual_cc(n,mgt,uu,brs_flx(n),pdc,ref_ratio)
 
            ! (3) Restrict the residual from the finer level (impt to do
            !     this last so we overwrite anything extra which may have
@@ -278,7 +278,7 @@ contains
         call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
                             mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, ref_ratio)
         pdc = layout_get_pd(la_tower(n-1))
-        call crse_fine_residual(n,mgt,uu,brs_flx(n),pdc,ref_ratio)
+        call crse_fine_residual_cc(n,mgt,uu,brs_flx(n),pdc,ref_ratio)
      end do
 
      res_norm = ZERO
@@ -360,7 +360,7 @@ contains
 
    contains
 
-     subroutine crse_fine_residual(n,mgt,uu,brs_flx,pdc,ref_ratio)
+     subroutine crse_fine_residual_cc(n,mgt,uu,brs_flx,pdc,ref_ratio)
 
         integer        , intent(in   ) :: n
         type(mg_tower) , intent(inout) :: mgt(:)
@@ -387,53 +387,49 @@ contains
                 mgt(n-1)%ss(mgt(n-1)%nlevels), pdc, +1, i, ONE)
         end do
 
-     end subroutine crse_fine_residual
+     end subroutine crse_fine_residual_cc
 
    end subroutine ml_cc_solve
 
-   subroutine ml_nd_solve(la_tower,mgt,rh,soln)
+   subroutine ml_nd_solve(la_tower,mgt,rh,soln,orig_soln)
 
-      type(layout)   , intent(inout) :: la_tower(:)
-      type(mg_tower) , intent(inout) :: mgt(:)
-      type(multifab) , intent(inout) :: rh(:)
-      type(multifab) , intent(inout) :: soln(:)
+       type(layout)   , intent(inout) :: la_tower(:)
+       type(mg_tower) , intent(inout) :: mgt(:)
+       type(multifab) , intent(inout) :: rh(:)
+       type(multifab) , intent(inout) :: soln(:)
+       type(multifab) , intent(inout) :: orig_soln(:)
 
        type(box)      :: pd,pdc
        type(boxarray) :: pdv
-
        type(boxarray) :: bac
 
-
        integer :: nlevs
-       type(multifab), pointer ::       uu(:) => Null()
-       type(multifab), pointer ::  uu_hold(:) => Null()
-       type(multifab), pointer ::      res(:) => Null()
-       type(multifab), pointer :: temp_res(:) => Null()
+       type( multifab), pointer ::       uu(:) => Null()
+       type( multifab), pointer ::  uu_hold(:) => Null()
+       type( multifab), pointer ::      res(:) => Null()
+       type( multifab), pointer :: temp_res(:) => Null()
        type(lmultifab), pointer :: fine_mask(:) => Null()
 
        type(bndry_reg), pointer :: brs_flx(:) => Null()
 
-       type(layout) :: la
-            integer i, n, dm, ns
-       integer :: ng_for_res
-       integer mglev, mglev_crse, iter, it
-       integer, allocatable :: lo(:), hi(:)
+       type(layout)             :: la
+       integer                  :: i, n, dm, ns
+       integer                  :: mglev, mglev_crse, iter, it
+       integer                  :: ng_for_res
+       integer                  :: do_diagnostics 
+       logical                  :: all_done
 
-       real(dp_t) :: Anorm, bnorm
-       real(dp_t) :: eps
+       integer, allocatable     :: lo(:), hi(:)
+       integer, allocatable     :: ref_ratio(:)
+       integer, allocatable     :: hi_fine(:)
+       integer, allocatable     :: hi_crse(:)
+       logical, allocatable     :: nodal(:)
 
-       integer, allocatable :: ref_ratio(:)
-       integer, allocatable :: hi_fine(:)
-       integer, allocatable :: hi_crse(:)
-       real(dp_t) :: snrm(2), ni
-       real(dp_t) :: res_norm,soln_norm
+       real(dp_t)               :: Anorm, bnorm
+       real(dp_t)               :: eps
+       real(dp_t)               :: res_norm, soln_norm, snrm(2), ni
 
-       logical :: all_done
-       logical, allocatable :: nodal(:)
-
-       integer              :: do_diagnostics 
-
-       do_diagnostics = 1
+       do_diagnostics = 0
 
        eps = 1.d-12
 
@@ -476,8 +472,6 @@ contains
           call setval(  uu_hold(n), ZERO,all=.true.)
           call setval( res(n), ZERO,all=.true.)
           call setval(temp_res(n), ZERO,all=.true.)
- 
-          call multifab_copy(res(n),rh(n),all=.true.)
 
           if ( n < nlevs ) then
              call create_nodal_mask(n,fine_mask(n), &
@@ -499,6 +493,26 @@ contains
           call bndry_reg_build(brs_flx(n), la, ref_ratio, pdc, nodal = nodal)
 
        end do
+
+  !!
+  !! Put into residual-correction form
+  !!
+
+  do n = nlevs,1,-1
+    mglev = mgt(n)%nlevels
+    call mg_defect(mgt(n)%ss(mglev),res(n), &
+                   rh(n),orig_soln(n),mgt(n)%mm(mglev))
+  enddo
+
+  do n = nlevs,2,-1
+    pdc = layout_get_pd(la_tower(n-1))
+    call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),pdc)
+  enddo
+ 
+  do n = nlevs,1,-1
+    call multifab_copy(rh(n),res(n),all=.true.)
+  enddo
+
 
   !!
   !! Solver Starts Here
@@ -570,10 +584,10 @@ contains
            call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
                                mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, ref_ratio)
 
-           ! (3) Compute a coarse-fine residual at the coarse-fine interface.
+           ! (3) Compute a coarse-fine residual at coarse nodes on the coarse-fine interface.
 
            pdc = layout_get_pd(la_tower(n-1))
-           call crse_fine_residual(n,mgt,brs_flx(n),temp_res(n),pdc)
+           call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),pdc)
 
            if (n < nlevs) call multifab_copy(uu_hold(n),uu(n),all=.true.)
            call setval(uu(n),ZERO,all=.true.)
@@ -642,7 +656,7 @@ contains
         call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
                             mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, ref_ratio)
         pdc = layout_get_pd(la_tower(n-1))
-        call crse_fine_residual(n,mgt,brs_flx(n),temp_res(n),pdc)
+        call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),pdc)
      end do
 
      res_norm = ZERO
@@ -705,11 +719,12 @@ contains
 
    contains
 
-        subroutine crse_fine_residual(n,mgt,brs_flx,temp_res,pdc)
+        subroutine crse_fine_residual_nodal(n,mgt,brs_flx,crse_res,temp_res,pdc)
 
            integer        , intent(in   ) :: n
            type(mg_tower) , intent(inout) :: mgt(:)
            type(bndry_reg), intent(inout) :: brs_flx
+           type(multifab) , intent(inout) :: crse_res
            type(multifab) , intent(inout) :: temp_res
            type(box)      , intent(in   ) :: pdc
 
@@ -737,16 +752,16 @@ contains
 
 !          Compute the crse contributions at edges and corners and add to res(n-1).
            do i = 1,dm
-              call ml_crse_contrib(res(n-1), brs_flx%bmf(i,0), soln(n-1), &
+              call ml_crse_contrib(crse_res, brs_flx%bmf(i,0), soln(n-1), &
                    mgt(n-1)%ss(mgt(n-1)%nlevels), &
                    mgt(n)%mm(mglev), &
                    pdc,ref_ratio, -i)
-              call ml_crse_contrib(res(n-1), brs_flx%bmf(i,1), soln(n-1), &
+              call ml_crse_contrib(crse_res, brs_flx%bmf(i,1), soln(n-1), &
                    mgt(n-1)%ss(mgt(n-1)%nlevels), &
                    mgt(n)%mm(mglev), &
                    pdc,ref_ratio, +i)
            end do
-        end subroutine crse_fine_residual
+        end subroutine crse_fine_residual_nodal
 
         subroutine create_nodal_mask(n,mask,mm_crse,mm_fine,la_tower)
 

@@ -6,6 +6,7 @@ module hgproject_module
   use define_bc_module
   use multifab_module
   use boxarray_module
+  use init_module
   use stencil_module
   use ml_solve_module
   use ml_restriction_module
@@ -40,7 +41,7 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(multifab), allocatable :: phi(:),gphi(:)
   integer   , allocatable :: ref_ratio(:,:)
   integer   , allocatable :: hi_crse(:), hi_fine(:)
-  type(box)      :: fine_domain
+  type(box)      :: pd,bx
   type(layout  ) :: la
   integer        :: n,dm,ng,i,RHOCOMP
   integer        :: ng_for_fill
@@ -63,6 +64,11 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1, nlevs
      call multifab_build( phi(n), la_tower(n), 1, 1, nodal)
      call multifab_build(gphi(n), la_tower(n), dm, 0) 
+     call multifab_copy(phi(n),p(n))
+     call multifab_mult_mult_s(phi(n),dt,all=.true.)
+  end do
+
+  do n = 1, nlevs
   end do
 
   if (verbose .eq. 1) then
@@ -73,24 +79,6 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
      end do
      print *,'... hgproject: max of u before projection ',nrm
   end if
-
-! ng_for_fill = 1
-! RHOCOMP = dm+1
-! do n = 2, nlevs
-!    fine_domain = layout_get_pd(la_tower(n))
-!    call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),fine_domain, &
-!                                   ng_for_fill,ref_ratio(n,:), &
-!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-!                                   1,RHOCOMP,1)
-!    call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
-!                                   ng_for_fill,ref_ratio(n,:), &
-!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-!                                   1,1,dm)
-!    call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
-!                                   ng_for_fill,ref_ratio(n,:), &
-!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-!                                   1,1,dm)
-! end do
 
   call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
@@ -483,6 +471,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
 
   type(mg_tower), allocatable :: mgt(:)
   type(multifab), allocatable :: coeffs(:),rh(:)
+  type(multifab), allocatable :: phi_orig(:)
   integer       , allocatable :: ref_ratio(:,:)
   integer       , allocatable :: hi_fine(:),hi_crse(:)
 
@@ -538,7 +527,11 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
      max_iter = 1000
   end if
 
+  allocate(phi_orig(nlevs))
   do n = 1,nlevs
+     la = la_tower(n)
+     call multifab_build(phi_orig(n), la, 1, 1, phi(n)%nodal)
+     call multifab_copy(phi_orig(n),phi(n))
      call setval(phi(n), 0.0_dp_t, all=.true.)
   end do
 
@@ -616,10 +609,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
         pd  = coarsen(pd,2)
      end do
 
-     if ( n == 1 .and. bottom_solver == 3 ) then
-        call bl_error('NO SPARSE BOTTOM SOLVER FOR NODAL YET ')
-     end if
-
      do i = mgt(n)%nlevels, 1, -1
         call multifab_destroy(coeffs(i))
      end do
@@ -634,7 +623,12 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
 
   call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,divu_verbose)
 
-  call ml_nd_solve(la_tower,mgt,rh,phi)
+  call ml_nd_solve(la_tower,mgt,rh,phi,phi_orig)
+
+! Add the original conditions back in
+  do n = 1,nlevs
+     call saxpy(phi(n),ONE,phi_orig(n))
+  end do
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
@@ -1010,7 +1004,6 @@ end subroutine hg_multigrid
                    HALF * (u(i,j  ,2) + u(i-1,j  ,2) &
                           -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
          rh(i,j) = rh(i,j) * dx(1) * dx(2)
-         if (abs(rh(i,j)).gt.1.e-2) print *,'FINE RH ',i,j,rh(i,j)
       end do
       end do
 
@@ -1218,8 +1211,6 @@ end subroutine hg_multigrid
 
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
            rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
-           print *,'LO I F/C: ',j,fine_flux(i,j),crse_flux
-           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
         end if
 
       end do
@@ -1249,8 +1240,6 @@ end subroutine hg_multigrid
 
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
            rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
-           print *,'HI I F/C: ',j,fine_flux(i,j),crse_flux
-           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
         end if
 
       end do
@@ -1280,8 +1269,6 @@ end subroutine hg_multigrid
 
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
            rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
-           print *,'LO J F/C: ',i,fine_flux(i,j),crse_flux
-           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
         end if
 
       end do
@@ -1311,15 +1298,12 @@ end subroutine hg_multigrid
 
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
            rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
-           print *,'HI J F/C: ',i,fine_flux(i,j),crse_flux
-           print *,'FROM ',rh(i,j)+crse_flux-fine_flux(i,j),' TO ',rh(i,j)
         end if
 
       end do
 
       do j = lor(2),lor(2)+size(rh,dim=2)-1
       do i = lor(1),lor(1)+size(rh,dim=1)-1
-        if (abs(rh(i,j)) .gt. 1.e-2) print *,'RH ',i,j,rh(i,j),vol_frac(i,j)
          rh(i,j) = rh(i,j) * vol_frac(i,j)
       end do
       end do

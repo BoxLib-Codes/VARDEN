@@ -94,15 +94,18 @@ contains
            cpy = cos(Pi*y)
 
            u(i,j,1) = ZERO
-           if ((float(j)+HALF)*dx(2).le.FOURTH*prob_hi(2)) then
-              u(i,j,2) = ONE
-           else
+!          if ((float(j)+HALF)*dx(2).le.FOURTH*prob_hi(2)) then
+!             u(i,j,2) = ONE
+!          else
               u(i,j,2) = ZERO
-           end if
-           s(i,j,1) = ro
+!          end if
+!          s(i,j,1) = ro
+
+           s(i,j,1) = ONE
            s(i,j,2) = ZERO
 
-!          if (j.eq.11) u(i,j,2) = ONE
+!          Initial data for Poiseuille flow.
+           u(i,j,2) = ONE * (x) * (ONE - x)
 
 !          u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
 !          u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
@@ -113,13 +116,13 @@ contains
       enddo
 
 !     Impose inflow conditions if grid touches inflow boundary.
-      if (lo(2) .eq. 0) then
-         u(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_VX
-         u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY
-         s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
-         s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
-         s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
-      end if
+!     if (lo(2) .eq. 0) then
+!        u(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_VX
+!        u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY
+!        s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
+!        s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
+!        s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
+!     end if
 
       if (size(s,dim=3).gt.2) then
         do n = 3, size(s,dim=3)
@@ -188,5 +191,29 @@ contains
       end if
 
    end subroutine initdata_3d
+
+   subroutine impose_pressure_bcs(p,la_tower,mult)
+
+     type(multifab ), intent(inout) :: p(:)
+     type(layout   ), intent(in   ) :: la_tower(:)
+     real(kind=dp_t), intent(in   ) :: mult
+ 
+     type(box) :: bx,pd
+     integer :: i,n,nlevs
+     
+     nlevs = size(p,dim=1)
+
+     do n = 1,nlevs
+        pd = layout_get_pd(la_tower(n))
+        do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
+           bx = get_ibox(p(n),i)
+           if (bx%lo(2) == pd%lo(2)) then
+             bx%hi(2) = bx%lo(2)
+             call setval(p(n),mult,bx)
+           end if
+        end do
+     end do
+
+   end subroutine impose_pressure_bcs
 
 end module init_module
