@@ -68,8 +68,8 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc)
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
-      real(kind=dp_t),         :: sum,rhmax
-      real(kind=dp_t),         :: local_sum,local_max
+      real(kind=dp_t)          :: sum,rhmax
+      real(kind=dp_t)          :: local_sum,local_max
       integer :: i,dm
 
       dm = rh%dim
