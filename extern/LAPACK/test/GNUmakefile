@@ -9,7 +9,7 @@ FPARALLEL := ../../..
 
 include $(FPARALLEL)/mk/GMakedefs.mak
 
-f90sources += main.f90
+fsources += main.f
 fsources += t_dsyev.f
 fsources += t_dsygv.f
 
