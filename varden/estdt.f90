@@ -16,10 +16,13 @@ contains
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
+      real(kind=dp_t) :: dt_hold
       integer :: i
 
       ng = u%ng
       dm = u%dim
+
+      dt_hold = 1.d20
 
       do i = 1, u%nboxes
          if ( multifab_remote(u, i) ) cycle
@@ -35,6 +38,7 @@ contains
               call estdt_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, &
                             ng, dx, cflfac, dtold, dt)
          end select
+         dt = min(dt_hold,dt)
       end do
 
    end subroutine estdt
@@ -97,11 +101,8 @@ contains
       endif
 
       dt = dt * cflfac
-      print *,'DT * CFL ',dt
-      print *,'USING ',spdx,spdy
 
       if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
-      print *,'DT IS NOW ',dt
 
    end subroutine estdt_2d
 
