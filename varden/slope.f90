@@ -3,7 +3,6 @@ module slope_module
   use bl_types
   use bc_module
   use multifab_module
-  use cvmg_module
 
   implicit none
 
@@ -70,7 +69,7 @@ contains
               dpls = two*(s(i+1,j,iv) - s(i  ,j,iv))
               dmin = two*(s(i  ,j,iv) - s(i-1,j,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slx(i,j,iv)= sflag*min(slim,abs(del))
             enddo
@@ -83,7 +82,7 @@ contains
               dpls = two*(s(is+1,j,iv) - s(is  ,j,iv))
               dmin = two*(s(is  ,j,iv) - s(is-1,j,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slx(is,j,iv)= sflag*min(slim,abs(del))
 
@@ -101,7 +100,7 @@ contains
               dpls = two*(s(ie  ,j,iv) - s(ie-1,j,iv))
               dmin = two*(s(ie+1,j,iv) - s(ie  ,j,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slx(ie,j,iv)= sflag*min(slim,abs(del))
 
@@ -124,7 +123,7 @@ contains
             dmin = two*(s(i  ,j,iv)-s(i-1,j,iv))
             dpls = two*(s(i+1,j,iv)-s(i  ,j,iv))
             dxscr(i,lim)= min(abs(dmin),abs(dpls))
-            dxscr(i,lim) = cvmgp(dxscr(i,lim),zero,dpls*dmin)
+            dxscr(i,lim) = merge(dxscr(i,lim),zero,dpls*dmin.gt.ZERO)
             dxscr(i,flag) = sign(one,dxscr(i,cen))
             dxscr(i,fromm)= dxscr(i,flag)*min(dxscr(i,lim), &
                             abs(dxscr(i,cen)))
@@ -146,7 +145,7 @@ contains
               dmin = two*(s(is  ,j,iv)-s(is-1,j,iv))
               dpls = two*(s(is+1,j,iv)-s(is  ,j,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slx(is,j,iv)= sflag*min(slim,abs(del))
 
@@ -172,7 +171,7 @@ contains
             dmin = two*(s(ie  ,j,iv)-s(ie-1,j,iv))
             dpls = two*(s(ie+1,j,iv)-s(ie  ,j,iv))
             slim = min(abs(dpls), abs(dmin))
-            slim = cvmgp(slim, zero, dpls*dmin)
+            slim = merge(slim, zero, dpls*dmin.gt.ZERO)
             sflag = sign(one,del)
             slx(ie,j,iv)= sflag*min(slim,abs(del))
 
@@ -249,7 +248,7 @@ contains
               dpls = two *(s(i,j+1,iv) - s(i,j  ,iv))
               dmin = two *(s(i,j  ,iv) - s(i,j-1,iv))
               slim = min(abs(dpls),abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               sly(i,j,iv)= sflag*min(slim,abs(del))
 
@@ -265,7 +264,7 @@ contains
               dpls = two*(s(i,js+1,iv) - s(i,js  ,iv))
               dmin = two*(s(i,js  ,iv) - s(i,js-1,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               sly(i,js,iv)= sflag*min(slim,abs(del))
             enddo
@@ -287,7 +286,7 @@ contains
               dpls = two*(s(i,je+1,iv) - s(i,je ,iv))
               dmin = two*(s(i,je  ,iv) - s(i,je-1,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               sly(i,je,iv)= sflag*min(slim,abs(del))
             enddo
@@ -312,7 +311,7 @@ contains
             dmin = two*(s(i,j  ,iv)-s(i,j-1,iv))
             dpls = two*(s(i,j+1,iv)-s(i,j  ,iv))
             dyscr(j,lim)  = min(abs(dmin),abs(dpls))
-            dyscr(j,lim)  = cvmgp(dyscr(j,lim),zero,dpls*dmin)
+            dyscr(j,lim)  = merge(dyscr(j,lim),zero,dpls*dmin.gt.ZERO)
             dyscr(j,flag) = sign(one,dyscr(j,cen))
             dyscr(j,fromm)= dyscr(j,flag)*min(dyscr(j,lim),abs(dyscr(j,cen)))
           enddo
@@ -332,7 +331,7 @@ contains
             dmin = two*(s(i,js  ,iv)-s(i,js-1,iv))
             dpls = two*(s(i,js+1,iv)-s(i,js  ,iv))
             slim = min(abs(dpls), abs(dmin))
-            slim = cvmgp(slim, zero, dpls*dmin)
+            slim = merge(slim, zero, dpls*dmin.gt.ZERO)
             sflag = sign(one,del)
             sly(i,js,iv)= sflag*min(slim,abs(del))
 
@@ -356,7 +355,7 @@ contains
             dmin = two*(s(i,je ,iv)-s(i,je-1,iv))
             dpls = two*(s(i,je+1,iv)-s(i,je ,iv))
             slim = min(abs(dpls), abs(dmin))
-            slim = cvmgp(slim, zero, dpls*dmin)
+            slim = merge(slim, zero, dpls*dmin.gt.ZERO)
             sflag = sign(one,del)
             sly(i,je,iv)= sflag*min(slim,abs(del))
 
@@ -428,7 +427,7 @@ contains
               dpls = two *(s(i,j,k+1,iv) - s(i,j,k  ,iv))
               dmin = two *(s(i,j,k  ,iv) - s(i,j,k-1,iv))
               slim = min(abs(dpls),abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slz(i,j,k,iv)= sflag*min(slim,abs(del))
 
@@ -446,7 +445,7 @@ contains
               dpls = two*(s(i,j,ks+1,iv) - s(i,j,ks  ,iv))
               dmin = two*(s(i,j,ks  ,iv) - s(i,j,ks-1,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slz(i,j,ks,iv)= sflag*min(slim,abs(del))
             enddo
@@ -472,7 +471,7 @@ contains
               dpls = two*(s(i,j,ke+1,iv) - s(i,j,ke ,iv))
               dmin = two*(s(i,j,ke  ,iv) - s(i,j,ke-1,iv))
               slim = min(abs(dpls), abs(dmin))
-              slim = cvmgp(slim, zero, dpls*dmin)
+              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
               sflag = sign(one,del)
               slz(i,j,ke,iv)= sflag*min(slim,abs(del))
             enddo
@@ -501,7 +500,7 @@ contains
             dmin = two*(s(i,j,k  ,iv)-s(i,j,k-1,iv))
             dpls = two*(s(i,j,k+1,iv)-s(i,j,k  ,iv))
             dzscr(k,lim)  = min(abs(dmin),abs(dpls))
-            dzscr(k,lim)  = cvmgp(dzscr(k,lim),zero,dpls*dmin)
+            dzscr(k,lim)  = merge(dzscr(k,lim),zero,dpls*dmin.gt.ZERO)
             dzscr(k,flag) = sign(one,dzscr(k,cen))
             dzscr(k,fromm)= dzscr(k,flag)*min(dzscr(k,lim),abs(dzscr(k,cen)))
           enddo
@@ -520,7 +519,7 @@ contains
             dmin = two*(s(i,j,ks  ,iv)-s(i,j,ks-1,iv))
             dpls = two*(s(i,j,ks+1,iv)-s(i,j,ks  ,iv))
             slim = min(abs(dpls), abs(dmin))
-            slim = cvmgp(slim, zero, dpls*dmin)
+            slim = merge(slim, zero, dpls*dmin.gt.ZERO)
             sflag = sign(one,del)
             slz(i,j,ks,iv)= sflag*min(slim,abs(del))
 
@@ -544,7 +543,7 @@ contains
             dmin = two*(s(i,j,ke ,iv)-s(i,j,ke-1,iv))
             dpls = two*(s(i,j,ke+1,iv)-s(i,j,ke ,iv))
             slim = min(abs(dpls), abs(dmin))
-            slim = cvmgp(slim, zero, dpls*dmin)
+            slim = merge(slim, zero, dpls*dmin.gt.ZERO)
             sflag = sign(one,del)
             slz(i,j,ke,iv)= sflag*min(slim,abs(del))
 
