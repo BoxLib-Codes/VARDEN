@@ -381,8 +381,8 @@ subroutine varden()
      call multifab_fill_boundary(sold(n))
 
 !    We do this here in order to set any Dirichlet boundary conditions.
-     unew(n) = uold(n)
-     snew(n) = sold(n)
+     call multifab_copy_c(unew(n),1,uold(n),1,dm)
+     call multifab_copy_c(snew(n),1,sold(n),1,nscal)
 
      unrm = norm_inf(uold(n))
      print *,'MAX OF UOLD BEFORE PROJ ',unrm,' AT LEVEL ',n
