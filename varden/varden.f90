@@ -4,7 +4,7 @@ subroutine varden()
   use omp_module
   use f2kcli
   use list_box_module
-  use mboxarray_module
+  use ml_boxarray_module
   use layout_module
   use multifab_module
   use init_module
@@ -98,7 +98,7 @@ subroutine varden()
 
   type(layout)    :: la
   type(box)       :: domain_box
-  type(mboxarray) :: mba
+  type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
 ! type(bc_tower) :: press_bc_tower

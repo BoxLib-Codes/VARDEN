@@ -7,7 +7,7 @@ module ml_solve_module
    use stencil_module
    use mg_module
    use list_box_module
-   use mboxarray_module
+   use ml_boxarray_module
    use itsol_module
    use sparse_solve_module
    use bl_mem_stat_module
