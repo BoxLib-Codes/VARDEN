@@ -5,7 +5,7 @@
  init_iter = 2
  stop_time = 10000.
  prob_hi_x = 8.0
- prob_hi_y = 32.0
+ prob_hi_y = 8.0
  cflfac = 0.9
  visc_coef = 0.0001
  visc_coef = 0.0
