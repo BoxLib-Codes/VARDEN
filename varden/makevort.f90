@@ -45,10 +45,10 @@ contains
 
       implicit none
 
-      integer, intent(in) :: lo(2), hi(2), ng
+      integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(  out) :: vort(lo(1):,lo(2):)  
       real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(in   ) :: dx(2)
+      real (kind = dp_t), intent(in   ) :: dx(:)
       integer           , intent(in   ) :: bc(:,:)
 
 !     Local variables

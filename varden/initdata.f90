@@ -63,11 +63,11 @@ contains
 
       implicit none
 
-      integer, intent(in) :: lo(2), hi(2), ng
+      integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(in ) :: dx(2)
-      real (kind = dp_t), intent(in ) :: prob_hi(2)
+      real (kind = dp_t), intent(in ) :: dx(:)
+      real (kind = dp_t), intent(in ) :: prob_hi(:)
 
 !     Local variables
       integer :: i, j, n
@@ -88,30 +88,21 @@ contains
         y = (float(j)+HALF) * dx(2) / prob_hi(2)
         do i = lo(1), hi(1)
            x = (float(i)+HALF) * dx(1) / prob_hi(1)
-           spx = sin(Pi*x)
-           spy = sin(Pi*y)
-           cpx = cos(Pi*x)
-           cpy = cos(Pi*y)
-
-           u(i,j,1) = ZERO
-!          if ((float(j)+HALF)*dx(2).le.FOURTH*prob_hi(2)) then
-!             u(i,j,2) = ONE
-!          else
-              u(i,j,2) = ZERO
-!          end if
-!          s(i,j,1) = ro
-
-           s(i,j,1) = ONE
-           s(i,j,2) = ZERO
 
 !          Initial data for Poiseuille flow.
-           u(i,j,2) = ONE * (x) * (ONE - x)
+!          u(i,j,2) = ONE * (x) * (ONE - x)
 
+!          Initial data for vortex-in-a-box
+!          spx = sin(Pi*x)
+!          spy = sin(Pi*y)
+!          cpx = cos(Pi*x)
+!          cpy = cos(Pi*y)
 !          u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
 !          u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
-!          s(i,j,1) = ONE
-!          r = sqrt((x-HALF)**2 + (y-HALF)**2)
-!          s(i,j,1) = merge(1.2_dp_t,ONE,r .lt. 0.15)
+
+           s(i,j,1) = ONE
+           r = sqrt((x-HALF)**2 + (y-HALF)**2)
+           s(i,j,2) = merge(1.2_dp_t,ONE,r .lt. 0.15)
         enddo
       enddo
 
@@ -144,11 +135,11 @@ contains
 
       implicit none
 
-      integer, intent(in) :: lo(3), hi(3), ng
+      integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(in ) :: dx(3)
-      real (kind = dp_t), intent(in ) :: prob_hi(3)
+      real (kind = dp_t), intent(in ) :: dx(:)
+      real (kind = dp_t), intent(in ) :: prob_hi(:)
     
 !     Local variables
       integer :: i, j, k, n
