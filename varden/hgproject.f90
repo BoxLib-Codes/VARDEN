@@ -18,7 +18,7 @@ module hgproject_module
 
 contains 
 
-subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
+subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,verbose,mg_verbose)
 
   type(multifab), intent(inout) :: unew
   type(multifab), intent(inout) :: rhohalf
@@ -26,8 +26,8 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
   type(multifab), intent(inout) :: p
   type(bc_level), intent(in   ) :: phys_bc
   integer       , intent(in   ) :: press_bc(:,:)
+  integer       , intent(in   ) :: verbose,mg_verbose
   real(dp_t) :: dx(:),dt
-  integer       , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab) :: rh,phi,gphi
@@ -46,10 +46,13 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
   call multifab_build( phi, la, 1, 1, nodal)
   call multifab_build(gphi, la, dm, 0) 
 
-  print *,' '
-  print *,'... begin hg_projection ... '
+  if (verbose .eq. 1) then
+     print *,' '
+     print *,'... begin hg_projection ... '
+     print *,'... max of u before projection ',norm_inf(unew)
+  end if
 
-  call divu(unew,rhohalf,gp,rh,dx,dt,phys_bc)
+  call divu(unew,rhohalf,gp,rh,dx,dt,phys_bc,verbose)
 
   call hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
 
@@ -58,8 +61,11 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
 
   call multifab_copy_c(p,1,phi,1,1,all=.true.)
 
-  print *,'...   end hg_projection ... '
-  print *,' '
+  if (verbose .eq. 1) then
+     print *,'... max of u after projection ',norm_inf(unew)
+     print *,'... end hg_projection ... '
+     print *,' '
+  end if
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)
@@ -67,7 +73,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
 
   contains
 
-    subroutine divu(unew,rhohalf,gp,rh,dx,dt,phys_bc)
+    subroutine divu(unew,rhohalf,gp,rh,dx,dt,phys_bc,verbose)
 
       type(multifab) , intent(in   ) :: unew
       type(multifab) , intent(in   ) :: gp
@@ -75,6 +81,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
       type(multifab) , intent(inout) :: rh
       real(kind=dp_t), intent(in   ) :: dx(:),dt
       type(bc_level) , intent(in   ) :: phys_bc
+      integer        , intent(in   ) :: verbose
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
@@ -110,7 +117,7 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
          rhmax = max(rhmax,local_max)
          rhsum = rhsum + local_sum
       end do
-      print *,'HGPROJ RHS MAX / SUM',rhmax,rhsum
+      if (verbose .eq. 1) print *,'HGPROJ RHS MAX / SUM',rhmax,rhsum
 
     end subroutine divu
 
@@ -126,8 +133,8 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
       real(kind=dp_t), intent(  out) :: rhmax,rhsum
 
       integer :: i,j,nx,ny
-      nx = size(rh,dim=1) - ng
-      ny = size(rh,dim=2) - ng
+      nx = size(rh,dim=1) - 3
+      ny = size(rh,dim=2) - 3
 
       do j = -1,ny
       do i = -1,nx
@@ -400,8 +407,8 @@ subroutine hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,press_bc,mg_verbose)
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
 !     Multiply by dt.
-      unew(-1:nx,-1:ny,:) = dt * unew(-1:nx,-1:ny,:)
- 
+      unew(-1:nx+1,-1:ny+1,:) = dt * unew(-1:nx+1,-1:ny+1,:)
+
 !     Replace gradient of pressure by gradient of phi.
       gp(0:nx,0:ny,:) = gphi(0:nx,0:ny,:)
 
@@ -520,6 +527,9 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
   min_width         = mgt%min_width
   verbose           = mgt%verbose
 
+! Note: put this here to minimize asymmetries - ASA
+  eps = 1.d-12
+
   bottom_solver = 2
   
   nodal = .TRUE.
@@ -552,7 +562,7 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
        max_nlevel = max_nlevel, &
        min_width = min_width, &
        eps = eps, &
-       verbose = mg_verbose, &
+       verbose = verbose, &
        nodal = nodal)
 
 ! Note the minus sign here is because we solve (-del dot b grad) phi = rhs,
@@ -602,7 +612,7 @@ subroutine hg_multigrid(la,rh,rhohalf,phi,dx,press_bc,mg_verbose)
 
   snrm(1) = norm_l2(phi)
   snrm(2) = norm_inf(phi)
-  if ( parallel_IOProcessor() ) &
+  if ( mg_verbose > 0 .and. parallel_IOProcessor() ) &
        print *, 'solution norm = ', snrm(1), "/", snrm(2)
 
   if ( test == 3 ) then

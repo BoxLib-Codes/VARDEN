@@ -21,11 +21,12 @@ contains
    subroutine advance(uold,unew,sold,snew,rhohalf,&
                       umac,uedgex,uedgey,uedgez,&
                       sedgex,sedgey,sedgez, &
-                      utrans,p,gp,ext_force,ext_scal_force,dx,time,dt, &
+                      utrans,gp,p,ext_force,ext_scal_force,&
+                      dx,time,dt, &
                       phys_bc,norm_vel_bc,tang_vel_bc, &
                       scal_bc,press_bc, &
                       domain_press_bc,domain_norm_vel_bc,domain_scal_bc, &
-                      visc_coef,diff_coef,mg_verbose)
+                      visc_coef,diff_coef,verbose,mg_verbose)
 
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -35,8 +36,8 @@ contains
       type(multifab) , intent(inout) :: rhohalf
       type(multifab) , intent(inout) :: uedgex,uedgey,uedgez,utrans
       type(multifab) , intent(inout) :: sedgex,sedgey,sedgez
-      type(multifab) , intent(inout) ::  p
       type(multifab) , intent(inout) :: gp
+      type(multifab) , intent(inout) ::  p
       type(multifab) , intent(inout) :: ext_force
       type(multifab) , intent(inout) :: ext_scal_force
       real(kind=dp_t), intent(inout) :: dx(:),time,dt
@@ -50,7 +51,7 @@ contains
       type(bc_level) , intent(in   ) :: scal_bc
       real(kind=dp_t), intent(in   ) :: visc_coef
       real(kind=dp_t), intent(in   ) :: diff_coef
-      integer        , intent(in   ) :: mg_verbose
+      integer        , intent(in   ) :: verbose, mg_verbose
 
       type(multifab) :: force,scal_force
 
@@ -77,15 +78,21 @@ contains
       integer :: irz
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: velpred
-      integer :: dm,ng_u,ng_rho
+      integer :: dm,ng_cell,ng_edge,ng_rho
       integer :: i
       integer :: comp
       logical :: is_conservative
       logical :: is_vel
       real(kind=dp_t) :: visc_fac,visc_mu
 
-      ng_u   = uold%ng
-      ng_rho = rhohalf%ng
+      real(kind=dp_t) :: half_dt
+
+      half_dt = HALF * dt
+
+      ng_cell = uold%ng
+      ng_rho  = rhohalf%ng
+      ng_edge = umac%ng
+
       dm      = uold%dim
    
       irz = 0
@@ -102,11 +109,11 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call setvelbc_2d (uop(:,:,1,:), lo, ng_u, phys_bc%bc_level_array(i,:,:), visc_coef)
-              call setscalbc_2d(sop(:,:,1,:), lo, ng_u, phys_bc%bc_level_array(i,:,:))
+              call setvelbc_2d (uop(:,:,1,:), lo, ng_cell, phys_bc%bc_level_array(i,:,:), visc_coef)
+              call setscalbc_2d(sop(:,:,1,:), lo, ng_cell, phys_bc%bc_level_array(i,:,:))
             case (3)
-              call setvelbc_3d (uop(:,:,:,:), lo, ng_u, phys_bc%bc_level_array(i,:,:), visc_coef)
-              call setscalbc_3d(sop(:,:,:,:), lo, ng_u, phys_bc%bc_level_array(i,:,:))
+              call setvelbc_3d (uop(:,:,:,:), lo, ng_cell, phys_bc%bc_level_array(i,:,:), visc_coef)
+              call setscalbc_3d(sop(:,:,:,:), lo, ng_cell, phys_bc%bc_level_array(i,:,:))
          end select
       end do
       call multifab_fill_boundary(uold)
@@ -126,13 +133,13 @@ contains
          select case (dm)
             case (2)
               call mkforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
-                              ng_u, ng_u, dx, &
+                              ng_cell, ng_cell, dx, &
                               norm_vel_bc%bc_level_array(i,:,:), &
                               tang_vel_bc%bc_level_array(i,:,:), &
                               visc_coef, visc_fac)
             case (3)
               call mkforce_3d(fp(:,:,:,:), ep(:,:,:,:), gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
-                              ng_u, ng_u, dx, &
+                              ng_cell, ng_cell, dx, &
                               norm_vel_bc%bc_level_array(i,:,:), &
                               tang_vel_bc%bc_level_array(i,:,:), &
                               visc_coef, visc_fac)
@@ -152,10 +159,10 @@ contains
          select case (dm)
             case (2)
               call mkutrans_2d(uop(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
-                               lo,dx,dt,ng_u,phys_bc%bc_level_array(i,:,:),irz)
+                               lo,dx,dt,ng_cell,ng_edge,phys_bc%bc_level_array(i,:,:),irz)
             case (3)
               call mkutrans_3d(uop(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
-                               lo,dx,dt,ng_u,phys_bc%bc_level_array(i,:,:))
+                               lo,dx,dt,ng_cell,ng_edge,phys_bc%bc_level_array(i,:,:))
          end select
       end do
 
@@ -178,18 +185,20 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
+                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), &
+                             velpred, ng_cell, ng_edge)
             case (3)
               uepz => dataptr(uedgez, i)
               call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              ump(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
+                             visc_coef, phys_bc%bc_level_array(i,:,:), &
+                             velpred, ng_cell, ng_edge)
          end select
       end do
 
-      call macproject(umac,sold,dx,press_bc,domain_press_bc,mg_verbose)
+      call macproject(umac,sold,dx,press_bc,domain_press_bc,verbose,mg_verbose)
   
 !     Create scalar force at time n.
       visc_fac = ONE
@@ -203,11 +212,11 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sp(:,:,1,:), &
-                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  ng_cell, dx, scal_bc%bc_level_array(i,:,:), &
                                   diff_coef, visc_fac)
             case (3)
               call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sp(:,:,:,:), &
-                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  ng_cell, dx, scal_bc%bc_level_array(i,:,:), &
                                   diff_coef, visc_fac)
          end select
       end do
@@ -233,14 +242,16 @@ contains
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
+                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), &
+                             velpred, ng_cell, ng_edge)
             case (3)
               sepz => dataptr(sedgez, i)
               call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              ump(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
+                             visc_coef, phys_bc%bc_level_array(i,:,:), &
+                             velpred, ng_cell, ng_edge)
          end select
       end do
   
@@ -256,11 +267,11 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sp(:,:,1,:), &
-                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  ng_cell, dx, scal_bc%bc_level_array(i,:,:), &
                                   diff_coef, visc_fac)
             case (3)
               call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sp(:,:,:,:), &
-                                  ng_u, dx, scal_bc%bc_level_array(i,:,:), &
+                                  ng_cell, dx, scal_bc%bc_level_array(i,:,:), &
                                   diff_coef, visc_fac)
          end select
       end do
@@ -285,7 +296,7 @@ contains
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
-                             lo, hi, ng_u, dx, time, dt, is_conservative)
+                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_conservative)
               call setscalbc_2d(rp(:,:,1,:), lo, ng_rho, phys_bc%bc_level_array(i,:,:))
             case (3)
               uepz => dataptr(uedgez, i)
@@ -293,7 +304,7 @@ contains
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              fp(:,:,:,:) , snp(:,:,:,:), &
                              rp(:,:,:,1) , &
-                             lo, hi, ng_u, dx, time, dt, is_conservative)
+                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_conservative)
               call setscalbc_3d(rp(:,:,:,:), lo, ng_rho, phys_bc%bc_level_array(i,:,:))
          end select
       end do
@@ -327,13 +338,15 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
+                             visc_coef, irz, phys_bc%bc_level_array(i,:,:), &
+                             velpred, ng_cell, ng_edge)
             case (3)
               call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              ump(:,:,:,:), utp(:,:,:,:), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, &
-                             visc_coef, phys_bc%bc_level_array(i,:,:), velpred, ng_u)
+                             visc_coef, phys_bc%bc_level_array(i,:,:), &
+                             velpred, ng_cell, ng_edge)
          end select
       end do
   
@@ -351,13 +364,13 @@ contains
          select case (dm)
             case (2)
               call mkforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
-                              ng_u, ng_rho, dx, &
+                              ng_cell, ng_rho, dx, &
                               norm_vel_bc%bc_level_array(i,:,:), &
                               tang_vel_bc%bc_level_array(i,:,:), &
                               visc_coef, visc_fac)
             case (3)
               call mkforce_3d(fp(:,:,:,:), ep(:,:,:,:), gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
-                              ng_u, ng_rho, dx, &
+                              ng_cell, ng_rho, dx, &
                               norm_vel_bc%bc_level_array(i,:,:), &
                               tang_vel_bc%bc_level_array(i,:,:), &
                               visc_coef, visc_fac)
@@ -384,14 +397,14 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              fp(:,:,1,:), unp(:,:,1,:), &
                              rp(:,:,1,1), &
-                             lo, hi, ng_u, dx, time, dt, is_conservative)
+                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_conservative)
             case (3)
               uepz => dataptr(uedgez, i)
               call update_3d(uop(:,:,:,:), ump(:,:,:,:),  &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              fp(:,:,:,:), unp(:,:,:,:), &
                              rp(:,:,:,1), &
-                             lo, hi, ng_u, dx, time, dt, is_conservative)
+                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_conservative)
          end select
       end do
  
@@ -406,26 +419,33 @@ contains
       end if
 
 !     Project the new velocity field.
-      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,domain_press_bc,mg_verbose)
+      call hgproject(unew,rhohalf,p,gp,dx,dt,phys_bc,domain_press_bc,verbose,mg_verbose)
 
       call multifab_destroy(force)
+      call multifab_destroy(scal_force)
+
+      if (verbose .eq. 1) then
+         print *,'MAX OF UNEW ',norm_inf(unew),' AT TIME ',time
+         print *,'MAX OF SNEW ',norm_inf(snew),' AT TIME ',time
+         print *,' '
+      end if
 
    end subroutine advance
 
    subroutine update_2d (sold,umac,sedgex,sedgey,force,snew,rhohalf, &
-                         lo,hi,ng,dx,time,dt,is_cons)
+                         lo,hi,ng_cell,ng_edge,dx,time,dt,is_cons)
 
       implicit none
 
-      integer, intent(in) :: lo(2), hi(2), ng
-      real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:,:)  
+      integer, intent(in) :: lo(:), hi(:), ng_cell, ng_edge
+      real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng_cell:,lo(2)-ng_cell:,:)  
+      real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng_cell:,lo(2)-ng_cell:,:)  
+      real (kind = dp_t), intent(in   ) ::    umac(lo(1)-ng_edge:,lo(2)-ng_edge:,:)  
       real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:)
-      real (kind = dp_t), intent(in   ) :: dx(2)
+      real (kind = dp_t), intent(in   ) :: dx(:)
       real (kind = dp_t), intent(in   ) :: time,dt
       logical :: is_cons
 
@@ -479,20 +499,20 @@ contains
    end subroutine update_2d
 
    subroutine update_3d (sold,umac,sedgex,sedgey,sedgez,force,snew,rhohalf, &
-                         lo,hi,ng,dx,time,dt,is_cons)
+                         lo,hi,ng_cell,ng_edge,dx,time,dt,is_cons)
 
       implicit none
 
-      integer, intent(in) :: lo(3), hi(3), ng
-      real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
+      integer, intent(in) :: lo(:), hi(:), ng_cell, ng_edge
+      real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:,:)  
+      real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:,:)  
+      real (kind = dp_t), intent(in   ) ::    umac(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)  
       real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(in   ) ::  sedgez(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
-      real (kind = dp_t), intent(in   ) :: dx(3)
+      real (kind = dp_t), intent(in   ) :: dx(:)
       real (kind = dp_t), intent( in) :: time,dt
       logical :: is_cons
     

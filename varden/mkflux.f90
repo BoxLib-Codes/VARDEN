@@ -14,17 +14,17 @@ contains
 
       subroutine mkflux_2d(s,u,sedgex,sedgey,&
                            uadv,utrans,force,lo,dx,dt,is_vel, &
-                           visc_coef,irz,bc,velpred,ng)
+                           visc_coef,irz,bc,velpred,ng_cell,ng_edge)
 
-      integer, intent(in) :: lo(2),ng
+      integer, intent(in) :: lo(2),ng_cell,ng_edge
 
-      real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
-      real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
+      real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
+      real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
       real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
       real(kind=dp_t), intent(inout) :: sedgex(lo(1)- 1:,lo(2)- 1:,:)
       real(kind=dp_t), intent(inout) :: sedgey(lo(1)- 1:,lo(2)- 1:,:)
-      real(kind=dp_t), intent(inout) ::   uadv(lo(1)-1:,lo(2)-1:,:)
-      real(kind=dp_t), intent(in   ) :: utrans(lo(1)-2:,lo(2)-2:,:)
+      real(kind=dp_t), intent(inout) ::   uadv(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
+      real(kind=dp_t), intent(in   ) :: utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:),visc_coef
       integer        ,intent(in) :: irz,velpred,bc(:,:)
@@ -53,8 +53,8 @@ contains
       ncomp = size(s,dim=3)
       do_refl = irz .eq. 1
 
-      hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-      hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
+      hi(1) = lo(1) + size(s,dim=1) - (2*ng_cell+1)
+      hi(2) = lo(2) + size(s,dim=2) - (2*ng_cell+1)
 
       allocate(s_l(lo(1)-1:hi(1)+2))
       allocate(s_r(lo(1)-1:hi(1)+2))
@@ -64,8 +64,8 @@ contains
       allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
       allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-      call slopex_2d(s,slopex,lo,ng,ncomp,bc,do_refl,slope_order)
-      call slopey_2d(s,slopey,lo,ng,ncomp,bc,        slope_order)
+      call slopex_2d(s,slopex,lo,ng_cell,ncomp,bc,do_refl,slope_order)
+      call slopey_2d(s,slopey,lo,ng_cell,ncomp,bc,        slope_order)
 
       eps = 1.0e-8
 
@@ -324,21 +324,21 @@ contains
 
       subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,&
                            uadv,utrans,force,lo,dx,dt,is_vel, &
-                           visc_coef,bc,velpred,ng)
+                           visc_coef,bc,velpred,ng_cell,ng_edge)
 
 
       implicit none
 
-      integer, intent(in) :: lo(3),ng
+      integer, intent(in) :: lo(3),ng_cell,ng_edge
 
-      real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-      real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
+      real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:, :)
+      real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:, :)
       real(kind=dp_t),intent(in   ) ::  force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(inout) :: sedgex(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(inout) :: sedgey(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(inout) :: sedgez(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
-      real(kind=dp_t),intent(inout) ::   uadv(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
-      real(kind=dp_t),intent(in   ) :: utrans(lo(1)-2:,lo(2)-2:,lo(3)-2:,:)
+      real(kind=dp_t),intent(inout) ::   uadv(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)
+      real(kind=dp_t),intent(in   ) :: utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:),visc_coef
       integer        ,intent(in) :: velpred,bc(:,:)
@@ -364,9 +364,9 @@ contains
       integer :: ncomp
       logical :: do_refl = .false.
 
-      hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-      hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-      hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
+      hi(1) = lo(1) + size(s,dim=1) - (2*ng_cell+1)
+      hi(2) = lo(2) + size(s,dim=2) - (2*ng_cell+1)
+      hi(3) = lo(3) + size(s,dim=3) - (2*ng_cell+1)
 
       allocate(s_l(lo(1)-1:hi(1)+2))
       allocate(s_r(lo(1)-1:hi(1)+2))
@@ -381,10 +381,10 @@ contains
 
       ncomp = size(s,dim=4)
       do k = lo(3),hi(3)
-         call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng,ncomp,bc,do_refl,slope_order)
-         call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng,ncomp,bc,        slope_order)
+         call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng_cell,ncomp,bc,do_refl,slope_order)
+         call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng_cell,ncomp,bc,        slope_order)
       end do
-      call slopez_3d(s,slopez,lo,ng,ncomp,bc,slope_order)
+      call slopez_3d(s,slopez,lo,ng_cell,ncomp,bc,slope_order)
 
       eps = 1.0e-8
 

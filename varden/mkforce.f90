@@ -11,12 +11,12 @@ contains
                             norm_vel_bc,tang_vel_bc,visc_coef,visc_fac)
 
       integer        , intent(in   ) :: ng_u,ng_rho
-      real(kind=dp_t), intent(  out) :: force(0:,0:,:)
-      real(kind=dp_t), intent(in   ) :: ext_force(0:,0:,:)
-      real(kind=dp_t), intent(in   ) ::    gp(0:,0:,:)
-      real(kind=dp_t), intent(in   ) ::   rho(1-ng_rho:,1-ng_rho:)
-      real(kind=dp_t), intent(in   ) ::     u(1-ng_u  :,1-ng_u  :,:)
-      real(kind=dp_t), intent(in   ) ::    dx(2)
+      real(kind=dp_t), intent(  out) ::       force(0:,0:,:)
+      real(kind=dp_t), intent(in   ) ::   ext_force(0:,0:,:)
+      real(kind=dp_t), intent(in   ) ::          gp(0:,0:,:)
+      real(kind=dp_t), intent(in   ) ::         rho(1-ng_rho:,1-ng_rho:)
+      real(kind=dp_t), intent(in   ) ::           u(1-ng_u  :,1-ng_u  :,:)
+      real(kind=dp_t), intent(in   ) ::          dx(:)
       integer        , intent(in   ) :: norm_vel_bc(:,:)
       integer        , intent(in   ) :: tang_vel_bc(:,:)
       real(kind=dp_t), intent(in   ) :: visc_coef, visc_fac
@@ -37,7 +37,8 @@ contains
          do j = 1,size(force,dim=2)-2
          do i = 1,size(force,dim=1)-2
            lapu = visc_coef * visc_fac * diff(i,j)
-           force(i,j,n) = ext_force(i,j,n) + (lapu - gp(i,j,n)) / rho(i,j)
+           force(i,j,n) = ext_force(i,j,n) + &
+                          (lapu - gp(i,j,n)) / rho(i,j)
          end do
          end do
       end do
@@ -48,12 +49,12 @@ contains
                             norm_vel_bc,tang_vel_bc,visc_coef,visc_fac)
 
       integer        , intent(in   ) :: ng_u,ng_rho
-      real(kind=dp_t), intent(  out) :: force(0:,0:,0:,:)
-      real(kind=dp_t), intent(in   ) :: ext_force(0:,0:,0:,:)
-      real(kind=dp_t), intent(in   ) ::    gp(0:,0:,0:,:)
-      real(kind=dp_t), intent(in   ) ::   rho(1-ng_rho:,1-ng_rho:,1-ng_rho:)
-      real(kind=dp_t), intent(in   ) ::     u(1-ng_u  :,1-ng_u  :,1-ng_u  :,:)
-      real(kind=dp_t), intent(in   ) ::    dx(3)
+      real(kind=dp_t), intent(  out) ::       force(0:,0:,0:,:)
+      real(kind=dp_t), intent(in   ) ::   ext_force(0:,0:,0:,:)
+      real(kind=dp_t), intent(in   ) ::          gp(0:,0:,0:,:)
+      real(kind=dp_t), intent(in   ) ::         rho(1-ng_rho:,1-ng_rho:,1-ng_rho:)
+      real(kind=dp_t), intent(in   ) ::           u(1-ng_u  :,1-ng_u  :,1-ng_u  :,:)
+      real(kind=dp_t), intent(in   ) ::          dx(:)
       integer        , intent(in   ) :: norm_vel_bc(:,:)
       integer        , intent(in   ) :: tang_vel_bc(:,:)
       real(kind=dp_t), intent(in   ) :: visc_coef, visc_fac
@@ -86,11 +87,11 @@ contains
       subroutine mkscalforce_2d(force,ext_force,s,ng,dx,bc,diff_coef,visc_fac)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(  out) :: force(0:,0:,:)
+      real(kind=dp_t), intent(  out) ::     force(0:,0:,:)
       real(kind=dp_t), intent(in   ) :: ext_force(0:,0:,:)
-      real(kind=dp_t), intent(in   ) ::     s(1-ng  :,1-ng  :,:)
-      real(kind=dp_t), intent(in   ) ::    dx(:)
-      integer        , intent(in   ) :: bc(:,:) 
+      real(kind=dp_t), intent(in   ) ::         s(1-ng  :,1-ng  :,:)
+      real(kind=dp_t), intent(in   ) ::        dx(:)
+      integer        , intent(in   ) ::        bc(:,:) 
       real(kind=dp_t), intent(in   ) :: diff_coef, visc_fac
 
       real(kind=dp_t) :: diff(1:size(force,dim=1)-2,1:size(force,dim=2)-2)
@@ -115,11 +116,11 @@ contains
       subroutine mkscalforce_3d(force,ext_force,s,ng,dx,bc,diff_coef,visc_fac)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(  out) :: force(0:,0:,0:,:)
+      real(kind=dp_t), intent(  out) ::     force(0:,0:,0:,:)
       real(kind=dp_t), intent(in   ) :: ext_force(0:,0:,0:,:)
-      real(kind=dp_t), intent(in   ) :: s(1-ng  :,1-ng  :,1-ng  :,:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
-      integer        , intent(in   ) :: bc(:,:) 
+      real(kind=dp_t), intent(in   ) ::         s(1-ng  :,1-ng  :,1-ng  :,:)
+      real(kind=dp_t), intent(in   ) ::        dx(:)
+      integer        , intent(in   ) ::        bc(:,:) 
       real(kind=dp_t), intent(in   ) :: diff_coef, visc_fac
 
       real(kind=dp_t) :: diff(1:size(force,dim=1)-2,1:size(force,dim=2)-2,&

@@ -12,14 +12,13 @@ module mkutrans_module
 
 contains
 
-      subroutine mkutrans_2d(vel,utrans,force,lo,dx,dt,ng,bc,irz)
+      subroutine mkutrans_2d(vel,utrans,force,lo,dx,dt,ng_cell,ng_edge,bc,irz)
 
-      integer, intent(in) :: lo(2),ng
+      integer, intent(in) :: lo(2),ng_cell,ng_edge
 
-      real(kind=dp_t), intent(in) ::     vel(lo(1)-ng:,lo(2)-ng:,:)
-      real(kind=dp_t), intent(in) ::   force(lo(1)- 1:,lo(2)- 1:,:)
-
-      real(kind=dp_t), intent(inout) ::  utrans(lo(1)-2:,lo(2)-2:,:)
+      real(kind=dp_t), intent(in   ) ::     vel(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
+      real(kind=dp_t), intent(in   ) ::   force(lo(1)-      1:,lo(2)-      1:,:)
+      real(kind=dp_t), intent(inout) ::  utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) :: bc(:,:)
@@ -40,8 +39,8 @@ contains
 
       logical :: test, do_refl
 
-      hi(1) = lo(1) + size(vel,dim=1) - (2*ng+1)
-      hi(2) = lo(2) + size(vel,dim=2) - (2*ng+1)
+      hi(1) = lo(1) + size(vel,dim=1) - (2*ng_cell+1)
+      hi(2) = lo(2) + size(vel,dim=2) - (2*ng_cell+1)
 
       is = lo(1)
       js = lo(2)
@@ -59,8 +58,8 @@ contains
       allocate(vely(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
 
       do_refl = (irz.eq.1)
-      call slopex_2d(vel,velx,lo,ng,2,bc,do_refl,slope_order)
-      call slopey_2d(vel,vely,lo,ng,2,bc,        slope_order)
+      call slopex_2d(vel,velx,lo,ng_cell,2,bc,do_refl,slope_order)
+      call slopey_2d(vel,vely,lo,ng_cell,2,bc,        slope_order)
 
 !     Create the x-velocity to be used for transverse derivatives.
       do j = js-1,je+1 
@@ -117,13 +116,13 @@ contains
 
       end subroutine mkutrans_2d
 
-      subroutine mkutrans_3d(vel,utrans,force,lo,dx,dt,ng,bc)
+      subroutine mkutrans_3d(vel,utrans,force,lo,dx,dt,ng_cell,ng_edge,bc)
 
-      integer, intent(in) :: lo(3),ng
+      integer, intent(in) :: lo(3),ng_cell,ng_edge
 
-      real(kind=dp_t), intent(in   ) ::    vel(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)
-      real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)
-      real(kind=dp_t), intent(inout) :: utrans(lo(1)- 2:,lo(2)- 2:,lo(3)- 2:,:)
+      real(kind=dp_t), intent(in   ) ::    vel(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:,:)
+      real(kind=dp_t), intent(in   ) ::  force(lo(1)-      1:,lo(2)-      1:,lo(3)-      1:,:)
+      real(kind=dp_t), intent(inout) :: utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) :: bc(:,:)
@@ -144,9 +143,9 @@ contains
 
       integer :: slope_order = 4
 
-      hi(1) = lo(1) + size(vel,dim=1) - (2*ng+1)
-      hi(2) = lo(2) + size(vel,dim=2) - (2*ng+1)
-      hi(3) = lo(3) + size(vel,dim=2) - (2*ng+1)
+      hi(1) = lo(1) + size(vel,dim=1) - (2*ng_cell+1)
+      hi(2) = lo(2) + size(vel,dim=2) - (2*ng_cell+1)
+      hi(3) = lo(3) + size(vel,dim=2) - (2*ng_cell+1)
  
       is = lo(1)
       js = lo(2)
@@ -168,10 +167,10 @@ contains
       allocate(velz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
 
       do k = lo(3),hi(3)
-         call slopex_2d(vel(:,:,k,:),velx(:,:,k,:),lo,ng,3,bc,do_refl,slope_order)
-         call slopey_2d(vel(:,:,k,:),vely(:,:,k,:),lo,ng,3,bc,        slope_order)
+         call slopex_2d(vel(:,:,k,:),velx(:,:,k,:),lo,ng_cell,3,bc,do_refl,slope_order)
+         call slopey_2d(vel(:,:,k,:),vely(:,:,k,:),lo,ng_cell,3,bc,        slope_order)
       end do
-      call slopez_3d(vel,velz,lo,ng,  3,bc,    slope_order)
+      call slopez_3d(vel,velz,lo,ng_cell,  3,bc,    slope_order)
 
 !     Create the x-velocity to be used for transverse derivatives.
       do k = ks-1,ke+1

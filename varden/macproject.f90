@@ -13,14 +13,14 @@ module macproject_module
 
 contains 
 
-subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
+subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,verbose,mg_verbose)
 
   type(multifab), intent(inout) :: umac
   type(multifab), intent(in   ) :: rho
   integer       , intent(in   ) :: domain_press_bc(:,:)
   type(bc_level), intent(in   ) :: press_bc
+  integer       , intent(in   ) :: verbose,mg_verbose
   real(dp_t) :: dx(:)
-  integer       , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab) :: rh,phi,alpha,beta
@@ -35,10 +35,12 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
   call multifab_build(alpha, la,  1, 1)
   call multifab_build( beta, la, dm, 1)
 
-  print *,' '
-  print *,'... begin mac_projection ... '
+  if (verbose .eq. 1) then
+     print *,' '
+     print *,'... begin mac_projection ... '
+  end if
 
-  call divumac(umac,rh,dx)
+  call divumac(umac,rh,dx,verbose)
 
   call mk_mac_coeffs(rho,beta)
 
@@ -49,10 +51,12 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
   call mac_multigrid(la,rh,phi,alpha,beta,dx,domain_press_bc,stencil_order,mg_verbose)
 
-  call mkumac(umac,phi,beta,dx,press_bc)
+  call mkumac(umac,phi,beta,dx,press_bc,verbose)
 
-  print *,'...   end mac_projection ... '
-  print *,' '
+  if (verbose .eq. 1) then
+     print *,'...   end mac_projection ... '
+     print *,' '
+  end if
 
   call multifab_destroy(rh)
   call multifab_destroy(phi)
@@ -61,11 +65,12 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
   contains
 
-    subroutine divumac(umac,rh,dx)
+    subroutine divumac(umac,rh,dx,verbose)
 
       type(multifab) , intent(in   ) :: umac
       type(multifab) , intent(inout) :: rh
       real(kind=dp_t), intent(in   ) :: dx(:)
+      integer        , intent(in   ) :: verbose
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
@@ -91,13 +96,13 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
          rhmax = max(rhmax,local_max)
          rhsum = rhsum + local_sum
       end do
-      print *,'MAX/SUM OF RHS ',rhmax,rhsum
+      if (verbose .eq. 1) print *,'MAX/SUM OF RHS ',rhmax,rhsum
 
     end subroutine divumac
 
     subroutine divumac_2d(umac,rh,dx,rhmax,rhsum)
 
-      real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,1:)
+      real(kind=dp_t), intent(in   ) :: umac(-2:,-2:,:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
       real(kind=dp_t), intent(  out) :: rhsum,rhmax
@@ -120,7 +125,7 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
     subroutine divumac_3d(umac,rh,dx,rhmax,rhsum)
 
-      real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,-1:,1:)
+      real(kind=dp_t), intent(in   ) :: umac(-2:,-2:,-2:,:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       real(kind=dp_t), intent(  out) :: rhsum,rhmax
@@ -174,8 +179,8 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
     subroutine mk_mac_coeffs_2d(beta,rho,ng)
 
       integer :: ng
-      real(kind=dp_t), intent(inout) :: beta(   0:,   0:,:)
-      real(kind=dp_t), intent(inout) ::  rho(1-ng:,1-ng:)
+      real(kind=dp_t), intent(inout) :: beta( -1:, -1:,:)
+      real(kind=dp_t), intent(inout) ::  rho(-ng:,-ng:)
 
       integer :: i,j
       integer :: nx,ny
@@ -183,14 +188,14 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
       nx = size(beta,dim=1) - 2
       ny = size(beta,dim=2) - 2
 
-      do j = 1,ny
-      do i = 1,nx+1
+      do j = 0,ny-1
+      do i = 0,nx
          beta(i,j,1) = TWO / (rho(i,j) + rho(i-1,j))
       end do
       end do
 
-      do j = 1,ny+1
-      do i = 1,nx
+      do j = 0,ny
+      do i = 0,nx-1
          beta(i,j,2) = TWO / (rho(i,j) + rho(i,j-1))
       end do
       end do
@@ -200,8 +205,8 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
     subroutine mk_mac_coeffs_3d(beta,rho,ng)
 
       integer :: ng
-      real(kind=dp_t), intent(inout) :: beta(   0:,   0:,   0:,:)
-      real(kind=dp_t), intent(inout) ::  rho(1-ng:,1-ng:,1-ng:)
+      real(kind=dp_t), intent(inout) :: beta( -1:, -1:, -1:,:)
+      real(kind=dp_t), intent(inout) ::  rho(-ng:,-ng:,-ng:)
 
       integer :: i,j,k
       integer :: nx,ny,nz
@@ -210,25 +215,25 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
       ny = size(beta,dim=2) - 2
       nz = size(beta,dim=3) - 2
 
-      do k = 1,nz
-      do j = 1,ny
-      do i = 1,nx+1
+      do k = 0,nz-1
+      do j = 0,ny-1
+      do i = 0,nx
          beta(i,j,k,1) = TWO / (rho(i,j,k) + rho(i-1,j,k))
       end do
       end do
       end do
 
-      do k = 1,nz
-      do j = 1,ny+1
-      do i = 1,nx
+      do k = 0,nz-1
+      do j = 0,ny
+      do i = 0,nx-1
          beta(i,j,k,2) = TWO / (rho(i,j,k) + rho(i,j-1,k))
       end do
       end do
       end do
 
-      do k = 1,nz+1
-      do j = 1,ny
-      do i = 1,nx
+      do k = 0,nz
+      do j = 0,ny-1
+      do i = 0,nx-1
          beta(i,j,k,3) = TWO / (rho(i,j,k) + rho(i,j,k-1))
       end do
       end do
@@ -236,13 +241,14 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
     end subroutine mk_mac_coeffs_3d
 
-    subroutine mkumac(umac,phi,beta,dx,press_bc)
+    subroutine mkumac(umac,phi,beta,dx,press_bc,verbose)
 
       type(multifab), intent(inout) :: umac
       type(multifab), intent(in   ) :: phi
       type(multifab), intent(in   ) :: beta
       real(dp_t) :: dx(:)
       type(bc_level), intent(in   ) :: press_bc
+      integer       , intent(in   ) :: verbose
 
       integer :: i,dm
  
@@ -269,15 +275,15 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
          end select
          rhmax = max(rhmax,local_max)
       end do
-      print *,'MAX DIVU AFTER PROJECTION',rhmax
+      if (verbose .eq. 1) print *,'MAX DIVU AFTER PROJECTION',rhmax
 
     end subroutine mkumac
 
     subroutine mkumac_2d(umac,phi,beta,dx,press_bc,rhmax)
 
-      real(kind=dp_t), intent(inout) :: umac(0:,0:,1:)
-      real(kind=dp_t), intent(inout) ::  phi(0:,0:)
-      real(kind=dp_t), intent(in   ) :: beta(0:,0:,:)
+      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,:)
+      real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
       real(kind=dp_t), intent(  out) :: rhmax
@@ -286,55 +292,55 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
       real(kind=dp_t) :: rh
       integer :: i,j,nx,ny
 
-      nx = size(umac,dim=1) - 2
-      ny = size(umac,dim=2) - 2
+      nx = size(umac,dim=1) - 4
+      ny = size(umac,dim=2) - 4
 
       if (press_bc(1,1) == BC_NEU) then
-         do j = 1,ny
-            phi(0,j) = phi(1,j)
+         do j = 0,ny-1
+            phi(-1,j) = phi(0,j)
          end do
-      elseif (press_bc(1,1) == BC_DIR) then
-         do j = 1,ny
-            phi(0,j) = -phi(1,j)
+      else if (press_bc(1,1) == BC_DIR) then
+         do j = 0,ny-1
+            phi(-1,j) = -phi(0,j)
          end do
       end if
       if (press_bc(1,2) == BC_NEU) then
-         do j = 1,ny
-            phi(nx+1,j) = phi(nx,j)
+         do j = 0,ny-1
+            phi(nx,j) = phi(nx-1,j)
          end do
-      elseif (press_bc(1,2) == BC_DIR) then
-         do j = 1,ny
-            phi(nx+1,j) = -phi(nx,j)
+      else if (press_bc(1,2) == BC_DIR) then
+         do j = 0,ny-1
+            phi(nx,j) = -phi(nx-1,j)
          end do
       end if
       if (press_bc(2,1) == BC_NEU) then
-         do i = 1,nx
-            phi(i,0) = phi(i,1)
+         do i = 0,nx-1
+            phi(i,-1) = phi(i,0)
          end do
-         do i = 1,nx
-            phi(i,0) = -phi(i,1)
+      else if (press_bc(2,1) == BC_DIR) then
+         do i = 0,nx-1
+            phi(i,-1) = -phi(i,0)
          end do
-      elseif (press_bc(2,1) == BC_DIR) then
       end if
       if (press_bc(2,2) == BC_NEU) then
-         do i = 1,nx
-            phi(i,ny+1) = phi(i,ny)
+         do i = 0,nx-1
+            phi(i,ny) = phi(i,ny-1)
          end do
-      elseif (press_bc(2,2) == BC_DIR) then
-         do i = 1,nx
-            phi(i,ny+1) = -phi(i,ny)
+      else if (press_bc(2,2) == BC_DIR) then
+         do i = 0,nx-1
+            phi(i,ny) = -phi(i,ny-1)
          end do
       end if
 
-      do j = 1,ny
-      do i = 1,nx+1
+      do j = 0,ny-1
+      do i = 0,nx
          gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
          umac(i,j,1) = umac(i,j,1) - beta(i,j,1)*gpx
       end do
       end do
 
-      do j = 1,ny+1
-      do i = 1,nx
+      do j = 0,ny
+      do i = 0,nx-1
          gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
          umac(i,j,2) = umac(i,j,2) - beta(i,j,2)*gpy
       end do
@@ -342,8 +348,8 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
 !     This is just a test
       rhmax = 0.0_dp_t
-      do j = 1,ny
-      do i = 1,nx
+      do j = 0,ny-1
+      do i = 0,nx-1
          rh = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) + &
               (umac(i,j+1,2) - umac(i,j,2)) / dx(2)
          rhmax = max(abs(rh),rhmax)
@@ -354,9 +360,9 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
     subroutine mkumac_3d(umac,phi,beta,dx,press_bc,rhmax)
 
-      real(kind=dp_t), intent(inout) :: umac(0:,0:,0:,1:)
-      real(kind=dp_t), intent(inout) ::  phi(0:,0:,0:)
-      real(kind=dp_t), intent(in   ) :: beta(0:,0:,0:,:)
+      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,-2:,:)
+      real(kind=dp_t), intent(inout) ::  phi(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,-1:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
       real(kind=dp_t), intent(  out) :: rhmax
@@ -365,110 +371,110 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
       real(kind=dp_t) :: gpx,gpy,gpz
       integer :: i,j,k,nx,ny,nz
 
-      nx = size(umac,dim=1) - 2
-      ny = size(umac,dim=2) - 2
-      nz = size(umac,dim=3) - 2
+      nx = size(umac,dim=1) - 4
+      ny = size(umac,dim=2) - 4
+      nz = size(umac,dim=3) - 4
 
       if (press_bc(1,1) == BC_NEU) then
-         do k = 1,nz
-         do j = 1,ny
-            phi(0,j,k) = phi(1,j,k)
+         do k = 0,nz-1
+         do j = 0,ny-1
+            phi(-1,j,k) = phi(0,j,k)
          end do
          end do
-      elseif (press_bc(1,1) == BC_DIR) then
-         do k = 1,nz
-         do j = 1,ny
-            phi(0,j,k) = -phi(1,j,k)
+      else if (press_bc(1,1) == BC_DIR) then
+         do k = 0,nz-1
+         do j = 0,ny-1
+            phi(-1,j,k) = -phi(0,j,k)
          end do
          end do
       end if
       if (press_bc(1,2) == BC_NEU) then
-         do k = 1,nz
-         do j = 1,ny
-            phi(nx+1,j,k) = phi(nx,j,k)
+         do k = 0,nz-1
+         do j = 0,ny-1
+            phi(nx,j,k) = phi(nx-1,j,k)
          end do
          end do
-      elseif (press_bc(1,2) == BC_DIR) then
-         do k = 1,nz
-         do j = 1,ny
-            phi(nx+1,j,k) = -phi(nx,j,k)
+      else if (press_bc(1,2) == BC_DIR) then
+         do k = 0,nz-1
+         do j = 0,ny-1
+            phi(nx,j,k) = -phi(nx-1,j,k)
          end do
          end do
       end if
       if (press_bc(2,1) == BC_NEU) then
-         do k = 1,nz
-         do i = 1,nx
-            phi(i,0,k) = phi(i,1,k)
+         do k = 0,nz-1
+         do i = 0,nx-1
+            phi(i,-1,k) = phi(i,0,k)
          end do
          end do
-      elseif (press_bc(2,1) == BC_DIR) then
-         do k = 1,nz
-         do i = 1,nx
-            phi(i,0,k) = -phi(i,1,k)
+      else if (press_bc(2,1) == BC_DIR) then
+         do k = 0,nz-1
+         do i = 0,nx-1
+            phi(i,-1,k) = -phi(i,0,k)
          end do
          end do
       end if
       if (press_bc(2,2) == BC_NEU) then
-         do k = 1,nz
-         do i = 1,nx
-            phi(i,ny+1,k) = phi(i,ny,k)
+         do k = 0,nz-1
+         do i = 0,nx-1
+            phi(i,ny,k) = phi(i,ny-1,k)
          end do
          end do
-      elseif (press_bc(2,2) == BC_DIR) then
-         do k = 1,nz
-         do i = 1,nx
-            phi(i,ny+1,k) = -phi(i,ny,k)
+      else if (press_bc(2,2) == BC_DIR) then
+         do k = 0,nz-1
+         do i = 0,nx-1
+            phi(i,ny,k) = -phi(i,ny-1,k)
          end do
          end do
       end if
       if (press_bc(3,1) == BC_NEU) then
-         do j = 1,ny
-         do i = 1,nx
-            phi(i,j,0) = phi(i,j,1)
+         do j = 0,ny-1
+         do i = 0,nx-1
+            phi(i,j,-1) = phi(i,j,0)
          end do
          end do
-      elseif (press_bc(3,1) == BC_DIR) then
-         do j = 1,ny
-         do i = 1,nx
-            phi(i,j,0) = -phi(i,j,1)
+      else if (press_bc(3,1) == BC_DIR) then
+         do j = 0,ny-1
+         do i = 0,nx-1
+            phi(i,j,-1) = -phi(i,j,0)
          end do
          end do
       end if
       if (press_bc(3,2) == BC_NEU) then
-         do j = 1,ny
-         do i = 1,nx
-            phi(i,j,nz+1) = phi(i,j,nz)
+         do j = 0,ny-1
+         do i = 0,nx-1
+            phi(i,j,nz) = phi(i,j,nz-1)
          end do
          end do
-      elseif (press_bc(3,2) == BC_DIR) then
-         do j = 1,ny
-         do i = 1,nx
-            phi(i,j,nz+1) = -phi(i,j,nz)
+      else if (press_bc(3,2) == BC_DIR) then
+         do j = 0,ny-1
+         do i = 0,nx-1
+            phi(i,j,nz) = -phi(i,j,nz-1)
          end do
          end do
       end if
 
-      do k = 1,nz
-      do j = 1,ny
-      do i = 1,nx+1
+      do k = 0,nz-1
+      do j = 0,ny-1
+      do i = 0,nx
          gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
          umac(i,j,k,1) = umac(i,j,k,1) - beta(i,j,k,1)*gpx
       end do
       end do
       end do
 
-      do k = 1,nz
-      do j = 1,ny+1
-      do i = 1,nx
+      do k = 0,nz-1
+      do j = 0,ny
+      do i = 0,nx-1
          gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
          umac(i,j,k,2) = umac(i,j,k,2) - beta(i,j,k,2)*gpy
       end do
       end do
       end do
 
-      do k = 1,nz+1
-      do j = 1,ny
-      do i = 1,nx
+      do k = 0,nz
+      do j = 0,ny-1
+      do i = 0,nx-1
          gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
          umac(i,j,k,3) = umac(i,j,k,3) - beta(i,j,k,3)*gpz
       end do
@@ -477,9 +483,9 @@ subroutine macproject(umac,rho,dx,press_bc,domain_press_bc,mg_verbose)
 
 !     This is just a test
       rhmax = 0.0_dp_t
-      do k = 1,nz
-      do j = 1,ny
-      do i = 1,nx
+      do k = 0,nz-1
+      do j = 0,ny-1
+      do i = 0,nx-1
          rh = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) + &
               (umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) + &
               (umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
@@ -566,6 +572,9 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order,mg_verbose)
   min_width         = mgt%min_width
   verbose           = mgt%verbose
 
+! Note: put this here to minimize asymmetries - ASA
+  eps = 1.d-12
+
   bottom_solver = 0
   
   nodal = .FALSE.
@@ -593,7 +602,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order,mg_verbose)
        max_nlevel = max_nlevel, &
        min_width = min_width, &
        eps = eps, &
-       verbose = mg_verbose, &
+       verbose = verbose, &
        nodal = nodal)
 
   allocate(coeffs(mgt%nlevels))
@@ -644,7 +653,7 @@ subroutine mac_multigrid(la,rh,phi,alpha,beta,dx,bc,stencil_order,mg_verbose)
 
   snrm(1) = norm_l2(phi)
   snrm(2) = norm_inf(phi)
-  if ( parallel_IOProcessor() ) &
+  if ( mg_verbose > 0 .and. parallel_IOProcessor() ) &
        print *, 'solution norm = ', snrm(1), "/", snrm(2)
 
   if ( test == 3 ) then

@@ -2,6 +2,8 @@ module init_module
 
   use bl_types
   use bc_module
+  use setbc_module
+  use define_bc_module
   use mg_bc_module
   use multifab_module
 
@@ -11,11 +13,13 @@ module init_module
 
 contains
 
-   subroutine initdata (u,s,dx,prob_hi)
+   subroutine initdata (u,s,dx,prob_hi,phys_bc,visc_coef)
 
-      type(multifab) , intent( in) :: u,s
-      real(kind=dp_t), intent( in) :: dx(:)
-      real(kind=dp_t), intent( in) :: prob_hi(:)
+      type(multifab) , intent(inout) :: u,s
+      real(kind=dp_t), intent(in   ) :: dx(:)
+      real(kind=dp_t), intent(in   ) :: prob_hi(:)
+      type(bc_level) , intent(in   ) :: phys_bc
+      real(kind=dp_t), intent(in   ) :: visc_coef
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
@@ -33,10 +37,16 @@ contains
          select case (dm)
             case (2)
               call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx, prob_hi)
+              call setvelbc_2d(uop(:,:,1,:), lo, ng, phys_bc%bc_level_array(i,:,:), &
+                               visc_coef)
             case (3)
               call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
+              call setvelbc_3d(uop(:,:,:,:), lo, ng, phys_bc%bc_level_array(i,:,:), &
+                               visc_coef)
          end select
       end do
+      call multifab_fill_boundary(u)
+      call multifab_fill_boundary(s)
 
    end subroutine initdata
 
@@ -78,10 +88,10 @@ contains
         enddo
       enddo
 
-      do i = lo(1), hi(1)
-        u(i,lo(2)-1,2) = 1.0_dp_t
-        s(i,lo(2)-1,1) = 1.0_dp_t
-      enddo
+!     do i = lo(1), hi(1)
+!       u(i,lo(2)-1,2) = 1.0_dp_t
+!       s(i,lo(2)-1,1) = 1.0_dp_t
+!     enddo
 
       if (size(s,dim=3).gt.1) then
         do n = 2, size(s,dim=3)
