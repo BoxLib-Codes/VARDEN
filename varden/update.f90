@@ -70,10 +70,6 @@ module update_module
              snew(i,j,1) = sold(i,j,1) - dt * ugradu + dt * force(i,j,1)
              snew(i,j,2) = sold(i,j,2) - dt * ugradv + dt * force(i,j,2)
 
-             if (abs(snew(i,j,1)) .gt. 1.e-4) then
-               print *,'BIG U ',i,j,snew(i,j,1)
-             end if
-
            enddo
          enddo
          u_symm_max = -1.e20
