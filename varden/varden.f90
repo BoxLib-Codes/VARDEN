@@ -41,7 +41,7 @@ subroutine varden()
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
   real(dp_t) :: time,dt,half_dt,dtold,dt_hold,dt_temp
-  real(dp_t) :: visc_mu
+  real(dp_t) :: visc_mu, pressure_inflow_val
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: k,istep,ng_cell,ng_edge
   integer    :: i, d, n, nlevs, n_plot_comps, n_chk_comps, nscal
@@ -130,6 +130,8 @@ subroutine varden()
   namelist /probin/ bcz_hi
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
+
+  nodal = .true.
 
   ng_edge = 2
   ng_cell = 3
@@ -372,6 +374,7 @@ subroutine varden()
         call setval(  gp(n),0.0_dp_t, all=.true.)
         call setval(   p(n),0.0_dp_t, all=.true.)
      end do
+
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -383,8 +386,6 @@ subroutine varden()
   allocate(uedgex(nlevs),uedgey(nlevs),sedgex(nlevs),sedgey(nlevs))
   allocate(rhohalf(nlevs),vort(nlevs))
   allocate(force(nlevs),scal_force(nlevs))
-
-  nodal = .true.
 
   do n = nlevs,1,-1
      call multifab_build(   unew(n), la_tower(n),    dm, ng_cell)
@@ -490,14 +491,19 @@ subroutine varden()
 
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
-     if (do_initial_projection > 0) &
+     if (do_initial_projection > 0) then
        call hgproject(nlevs,la_tower,uold,rhohalf,p,gp,dx,dt_temp, &
                       the_bc_tower, verbose, mg_verbose)
-
-     do n = 1,nlevs
-        call setval(gp(n)  ,0.0_dp_t, all=.true.)
-     end do
-
+       do n = 1,nlevs
+          call setval( p(n)  ,0.0_dp_t, all=.true.)
+          call setval(gp(n)  ,0.0_dp_t, all=.true.)
+       end do
+       if (bcy_lo == OUTLET) then
+          pressure_inflow_val = 0.04
+          print *,'IMPOSING INFLOW PRESSURE '
+          call impose_pressure_bcs(p,la_tower,pressure_inflow_val)
+       end if
+     end if
   endif
 
   allocate(lo(dm),hi(dm))
