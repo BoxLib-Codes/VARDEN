@@ -78,7 +78,6 @@ module update_module
            do i = lo(1), hi(1)/2
              u_symm = snew(i,j,1) + snew(hi(1)-i,j,1)
              u_symm_max = max(u_symm_max, abs(u_symm))
-!            if (abs(u_symm) .gt. 1.e-7) print *,'USYMM AT ',i,j,snew(i,j,1),snew(hi(1)-i,j,1)
              v_symm = snew(i,j,2) - snew(hi(1)-i,j,2)
              v_symm_max = max(v_symm_max, abs(v_symm))
            end do

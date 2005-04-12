@@ -498,11 +498,12 @@ subroutine varden()
           call setval( p(n)  ,0.0_dp_t, all=.true.)
           call setval(gp(n)  ,0.0_dp_t, all=.true.)
        end do
-       if (bcy_lo == OUTLET) then
-          pressure_inflow_val = 0.04
-          print *,'IMPOSING INFLOW PRESSURE '
-          call impose_pressure_bcs(p,la_tower,pressure_inflow_val)
-       end if
+     end if
+
+     if (bcy_lo == OUTLET) then
+        pressure_inflow_val = 1.0
+        print *,'IMPOSING INFLOW PRESSURE '
+        call impose_pressure_bcs(p,la_tower,pressure_inflow_val)
      end if
   endif
 
