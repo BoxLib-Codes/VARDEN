@@ -189,8 +189,8 @@ contains
      type(layout   ), intent(in   ) :: la_tower(:)
      real(kind=dp_t), intent(in   ) :: mult
  
-     type(box) :: bx,pd
-     integer :: i,n,nlevs
+     type(box)           :: bx,pd
+     integer             :: i,n,nlevs
      
      nlevs = size(p,dim=1)
 
