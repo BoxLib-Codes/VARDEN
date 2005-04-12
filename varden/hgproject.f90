@@ -526,6 +526,9 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
      max_iter = 1000
   end if
 
+! Note: put this here for robustness
+  max_iter = 100
+
   allocate(phi_orig(nlevs))
   do n = 1,nlevs
      la = la_tower(n)
@@ -623,11 +626,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
   call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,divu_verbose)
 
   call ml_nd_solve(la_tower,mgt,rh,phi,phi_orig)
-
-! Add the original conditions back in
-  do n = 1,nlevs
-     call saxpy(phi(n),ONE,phi_orig(n))
-  end do
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
