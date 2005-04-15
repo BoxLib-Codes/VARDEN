@@ -607,7 +607,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
         call stencil_fill_nodal(mgt(n)%ss(i), coeffs(i), &
              mgt(n)%dh(:,i)             , &
              mgt(nlevs)%dh(:,mgt(nlevs)%nlevels), &
-             mgt(n)%mm(i), mgt(n)%face_type, pd, pdv)
+             mgt(n)%mm(i), mgt(n)%face_type)
         pd  = coarsen(pd,2)
      end do
 
