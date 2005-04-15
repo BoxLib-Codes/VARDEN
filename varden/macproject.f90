@@ -14,7 +14,7 @@ module macproject_module
 contains 
 
 subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
-                      verbose,mg_verbose)
+                      ref_ratio,verbose,mg_verbose)
 
   integer       , intent(in   ) :: nlevs
   type(layout)  , intent(inout) :: la_tower(:)
@@ -22,14 +22,12 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
   type(multifab), intent(inout) :: rho(:)
   real(dp_t)    , intent(in   ) :: dx(:,:)
   type(bc_tower), intent(in   ) :: the_bc_tower
+  integer       , intent(in   ) :: ref_ratio(:,:)
   integer       , intent(in   ) :: verbose,mg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-  integer       , allocatable :: ref_ratio(:,:)
-  integer       , allocatable :: hi_fine(:), hi_crse(:)
   type(flux_reg), pointer     :: fine_flx(:) => Null()
-! type(box)                   :: fine_domain
   integer                     :: dm,stencil_order,n
   integer                     :: ng,nc
   integer                     :: nscal,bc_comp
@@ -40,13 +38,6 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 
   stencil_order = 2
 
-  allocate(ref_ratio(nlevs,dm),hi_fine(dm),hi_crse(dm))
-  do n = 2,nlevs
-     hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
-     hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
-     ref_ratio(n,:) = hi_fine(:) / hi_crse(:)
-  end do
- 
   allocate(rh(nlevs), phi(nlevs), alpha(nlevs), beta(nlevs))
 
   do n = 1, nlevs
@@ -70,15 +61,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
   end do
 
   call mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
-                     the_bc_tower,bc_comp,stencil_order,mg_verbose)
-
-! do n = 2, nlevs
-!    fine_domain = layout_get_pd(la_tower(n))
-!    call multifab_fill_ghost_cells(phi(n),phi(n-1),fine_domain, &
-!                                   ng,ref_ratio(n,:), &
-!                                   the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-!                                   1,dm+3,1)
-! end do
+                     the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
 
   call mkumac(nlevs,rh,umac,phi,beta,fine_flx,dx,the_bc_tower,ref_ratio,verbose)
 
@@ -113,7 +96,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
       dm = rh(nlevs)%dim
 
       do n = nlevs,2,-1
-        call ml_edge_restriction(umac(n),umac(n-1),ref_ratio(n,:))
+        call ml_edge_restriction(umac(n),umac(n-1),ref_ratio(n-1,:))
       end do
 
       do n = 1,nlevs
@@ -132,7 +115,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 
       rhmax = norm_inf(rh(nlevs))
       do n = nlevs,2,-1
-         call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n,:))
+         call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n-1,:))
          rhmax = max(rhmax,norm_inf(rh(n-1)))
       end do
 
@@ -203,7 +186,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
       do n = 2, nlevs
          fine_domain = layout_get_pd(la_tower(n))
          call multifab_fill_ghost_cells(rho(n),rho(n-1),fine_domain, &
-                                        ng_fill,ref_ratio(n,:), &
+                                        ng_fill,ref_ratio(n-1,:), &
                                         the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                                         1,dm+1,1)
       end do
@@ -363,11 +346,11 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
       end do
 
       do n = nlevs,2,-1
-         call ml_edge_restriction(umac(n),umac(n-1),ref_ratio(n,:))
+         call ml_edge_restriction(umac(n),umac(n-1),ref_ratio(n-1,:))
       end do
 
       do n = nlevs,2,-1
-         call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n,:))
+         call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n-1,:))
       end do
 
       rhmax = ZERO
@@ -832,7 +815,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 end subroutine macproject
 
 subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
-                         the_bc_tower,bc_comp,stencil_order,mg_verbose)
+                         the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
 
   use f2kcli
   use stencil_module
@@ -849,6 +832,7 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   integer     ,intent(in   ) :: nlevs
   type(layout),intent(inout) :: la_tower(:)
   integer     ,intent(in   ) :: stencil_order
+  integer     ,intent(in   ) :: ref_ratio(:,:)
   integer     ,intent(in   ) :: mg_verbose
 
   real(dp_t), intent(in) :: dx(:,:)
@@ -872,9 +856,6 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   integer i, dm, ns
 
   integer :: test
-  integer, allocatable :: ref_ratio(:)
-  integer, allocatable :: hi_fine(:)
-  integer, allocatable :: hi_crse(:)
   real(dp_t) :: snrm(2)
 
   ! MG solver defaults
@@ -898,9 +879,6 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   dm             = rh(nlevs)%dim
 
   allocate(mgt(nlevs))
-  allocate(ref_ratio(dm))
-  allocate(hi_fine(dm))
-  allocate(hi_crse(dm))
 
   test           = 0
 
@@ -937,12 +915,9 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
      if (n == 1) then
         max_nlevel_in = max_nlevel
      else
-        hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
-        hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
-        ref_ratio = hi_fine / hi_crse
-        if ( all(ref_ratio == 2) ) then
+        if ( all(ref_ratio(n-1,:) == 2) ) then
            max_nlevel_in = 1
-        else if ( all(ref_ratio == 4) ) then
+        else if ( all(ref_ratio(n-1,:) == 4) ) then
            max_nlevel_in = 2
         else
            call bl_error("MAC_MULTIGRID: confused about ref_ratio")
@@ -993,11 +968,8 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
      end do
 
      if (n > 1) then
-        hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
-        hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
-        ref_ratio = hi_fine / hi_crse
-        xa = HALF*ref_ratio*mgt(n)%dh(:,mgt(n)%nlevels)
-        xb = HALF*ref_ratio*mgt(n)%dh(:,mgt(n)%nlevels)
+        xa = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
+        xb = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
      else
         xa = ZERO
         xb = ZERO
@@ -1025,7 +997,7 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
 
   call ml_cc_solve(la_tower, mgt, rh, phi, fine_flx, &
                    the_bc_tower%bc_tower_array(nlevs)%ell_bc_level_array(0,:,:,dm+3), &
-                   stencil_order)
+                   stencil_order,ref_ratio)
 
   do n = 1,nlevs
      call multifab_fill_boundary(phi(n))
@@ -1043,7 +1015,6 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
      call mg_tower_destroy(mgt(n))
   end do
   deallocate(mgt)
-  deallocate(ref_ratio)
 
 end subroutine mac_multigrid
 

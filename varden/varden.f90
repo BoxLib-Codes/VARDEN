@@ -54,7 +54,7 @@ subroutine varden()
 
   integer     , allocatable :: domain_phys_bc(:,:)
   integer     , pointer     :: rrs(:)
-  integer     , allocatable :: ref_ratio(:)
+  integer     , allocatable :: ref_ratio(:,:)
   real(dp_t)  , pointer     :: dx(:,:)
   real(dp_t)  , allocatable :: prob_hi(:)
   type(layout), pointer     :: la_tower(:)
@@ -356,10 +356,10 @@ subroutine varden()
      nlevs = mba%nlevel
      allocate(la_tower(nlevs))
      call build(la_tower(1), mba%bas(1))
-     allocate(ref_ratio(dm))
+     allocate(ref_ratio(nlevs-1,dm))
      do n = 2, nlevs
-        ref_ratio = mba%rr(n-1,:)
-        call layout_build_pn(la_tower(n), la_tower(n-1), mba%bas(n), ref_ratio)
+        ref_ratio(n-1,:) = mba%rr(n-1,:)
+        call layout_build_pn(la_tower(n), la_tower(n-1), mba%bas(n), ref_ratio(n-1,:))
      end do
      allocate(dx(nlevs,dm))
 
@@ -485,15 +485,15 @@ subroutine varden()
                       the_bc_tower%bc_tower_array(n),nscal)
      end do
      do n = nlevs,2,-1
-        call ml_cc_restriction(uold(n-1),uold(n),ref_ratio)
-        call ml_cc_restriction(sold(n-1),sold(n),ref_ratio)
+        call ml_cc_restriction(uold(n-1),uold(n),ref_ratio(n-1,:))
+        call ml_cc_restriction(sold(n-1),sold(n),ref_ratio(n-1,:))
      end do
 
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
        call hgproject(nlevs,la_tower,uold,rhohalf,p,gp,dx,dt_temp, &
-                      the_bc_tower, verbose, mg_verbose)
+                      the_bc_tower, ref_ratio, verbose, mg_verbose)
        do n = 1,nlevs
           call setval( p(n)  ,0.0_dp_t, all=.true.)
           call setval(gp(n)  ,0.0_dp_t, all=.true.)
@@ -501,7 +501,7 @@ subroutine varden()
      end if
 
      if (bcy_lo == OUTLET) then
-        pressure_inflow_val = 1.0
+        pressure_inflow_val = .16
         print *,'IMPOSING INFLOW PRESSURE '
         call impose_pressure_bcs(p,la_tower,pressure_inflow_val)
      end if
@@ -583,7 +583,7 @@ subroutine varden()
         end do
 
         call macproject(nlevs,la_tower,umac,sold,dx,the_bc_tower, &
-                        verbose,mg_verbose)
+                        ref_ratio,verbose,mg_verbose)
 
         do n = 1,nlevs
            call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
@@ -599,7 +599,8 @@ subroutine varden()
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(nlevs,la_tower,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,mg_verbose)
+          call diff_scalar_solve(nlevs,la_tower,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,&
+                                 ref_ratio,mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -618,7 +619,7 @@ subroutine varden()
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(nlevs,la_tower,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose)
+           call visc_solve(nlevs,la_tower,unew,rhohalf,dx,visc_mu,the_bc_tower,ref_ratio,mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -627,7 +628,7 @@ subroutine varden()
 
 !       Project the new velocity field.
         call hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower, verbose, mg_verbose)
+                       the_bc_tower, ref_ratio, verbose, mg_verbose)
 
         if (verbose .eq. 1) then
            do n = 1,nlevs
@@ -714,7 +715,7 @@ subroutine varden()
         end do
 
         call macproject(nlevs,la_tower,umac,sold,dx,the_bc_tower, &
-                        verbose,mg_verbose)
+                        ref_ratio,verbose,mg_verbose)
 
         do n = 1,nlevs
            call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
@@ -730,7 +731,8 @@ subroutine varden()
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(nlevs,la_tower,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,mg_verbose)
+          call diff_scalar_solve(nlevs,la_tower,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
+                                 ref_ratio,mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -749,7 +751,7 @@ subroutine varden()
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(nlevs,la_tower,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose)
+           call visc_solve(nlevs,la_tower,unew,rhohalf,dx,visc_mu,the_bc_tower,ref_ratio,mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -758,7 +760,7 @@ subroutine varden()
 
 !       Project the new velocity field.
         call hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose)
+                       the_bc_tower,ref_ratio, verbose,mg_verbose)
 
         time = time + dt
 

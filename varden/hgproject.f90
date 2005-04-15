@@ -24,7 +24,7 @@ module hgproject_module
 contains 
 
 subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                     verbose,mg_verbose)
+                     ref_ratio,verbose,mg_verbose)
 
   integer       , intent(in   ) :: nlevs
   type(layout)  , intent(inout) :: la_tower(:)
@@ -33,13 +33,12 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(multifab), intent(inout) :: gp(:)
   type(multifab), intent(inout) :: p(:)
   type(bc_tower), intent(in   ) :: the_bc_tower
+  integer       , intent(in   ) :: ref_ratio(:,:)
   integer       , intent(in   ) :: verbose,mg_verbose
   real(dp_t)    , intent(in   ) :: dx(:,:),dt
 
 ! Local  
   type(multifab), allocatable :: phi(:),gphi(:)
-  integer   , allocatable :: ref_ratio(:,:)
-  integer   , allocatable :: hi_crse(:), hi_fine(:)
   type(box)      :: pd,bx
   type(layout  ) :: la
   integer        :: n,dm,ng,i,RHOCOMP
@@ -50,15 +49,6 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   ng = unew(nlevs)%ng
 
   allocate(phi(nlevs), gphi(nlevs))
-  allocate(ref_ratio(2:nlevs,dm))
-  allocate(hi_fine(dm))
-  allocate(hi_crse(dm))
-
-  do n = nlevs,2,-1
-      hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
-      hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
-      ref_ratio(n,:) = hi_fine(:) / hi_crse(:)
-  end do
 
   do n = 1, nlevs
      call multifab_build( phi(n), la_tower(n), 1, 1, nodal)
@@ -81,7 +71,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
-  call hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,verbose,mg_verbose)
+  call hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower, &
+                    ref_ratio,verbose,mg_verbose)
 
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
@@ -90,8 +81,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   do n = nlevs,2,-1
-     call ml_cc_restriction(unew(n-1),unew(n),ref_ratio(n,:))
-     call ml_cc_restriction(  gp(n-1),  gp(n),ref_ratio(n,:))
+     call ml_cc_restriction(unew(n-1),unew(n),ref_ratio(n-1,:))
+     call ml_cc_restriction(  gp(n-1),  gp(n),ref_ratio(n-1,:))
   end do
 
   if (verbose .eq. 1) then
@@ -110,9 +101,6 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   deallocate(phi)
   deallocate(gphi)
-  deallocate(ref_ratio)
-  deallocate(hi_crse)
-  deallocate(hi_fine)
 
   contains
 
@@ -435,7 +423,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 end subroutine hgproject
 
-subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_verbose,mg_verbose)
+subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
+                        ref_ratio,divu_verbose,mg_verbose)
   use BoxLib
   use omp_module
   use f2kcli
@@ -456,6 +445,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
   type(multifab), intent(inout) :: phi(:)
   real(dp_t)    , intent(in)    :: dx(:,:)
   type(bc_tower), intent(in   ) :: the_bc_tower
+  integer       , intent(in   ) :: ref_ratio(:,:)
   integer       , intent(in   ) :: divu_verbose,mg_verbose
 !
 ! Local variables
@@ -471,8 +461,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
   type(mg_tower), allocatable :: mgt(:)
   type(multifab), allocatable :: coeffs(:),rh(:)
   type(multifab), allocatable :: phi_orig(:)
-  integer       , allocatable :: ref_ratio(:,:)
-  integer       , allocatable :: hi_fine(:),hi_crse(:)
 
   real(dp_t) :: bottom_solver_eps
   real(dp_t) :: eps
@@ -493,9 +481,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
   dm                = unew(nlevs)%dim
 
   allocate(mgt(nlevs))
-  allocate(ref_ratio(2:nlevs,dm))
-  allocate(hi_fine(dm))
-  allocate(hi_crse(dm))
 
   test           = 0
 
@@ -544,13 +529,9 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
      if (n == 1) then
         max_nlevel_in = max_nlevel
      else
-        hi_fine = upb(layout_get_pd(la_tower(n  ))) + 1
-        hi_crse = upb(layout_get_pd(la_tower(n-1))) + 1
-        ref_ratio(n,:) = hi_fine(:) / hi_crse(:)
-  
-        if ( all(ref_ratio(n,:) == 2) ) then
+        if ( all(ref_ratio(n-1,:) == 2) ) then
            max_nlevel_in = 1
-        else if ( all(ref_ratio(n,:) == 4) ) then
+        else if ( all(ref_ratio(n-1,:) == 4) ) then
            max_nlevel_in = 2
         else 
            call bl_error("HG_MULTIGRID: confused about ref_ratio")
@@ -625,7 +606,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
 
   call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,divu_verbose)
 
-  call ml_nd_solve(la_tower,mgt,rh,phi,phi_orig)
+  call ml_nd_solve(la_tower,mgt,rh,phi,phi_orig,ref_ratio)
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
@@ -646,7 +627,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,divu_ver
 
   deallocate(mgt)
   deallocate(rh)
-  deallocate(ref_ratio)
+! deallocate(ref_ratio)
 
 end subroutine hg_multigrid
 
@@ -735,7 +716,7 @@ end subroutine hg_multigrid
       type(multifab) , intent(inout) :: rh(:)
       real(kind=dp_t), intent(in   ) :: dx(:,:)
       type(bc_tower) , intent(in   ) :: the_bc_tower
-      integer        , intent(in   ) :: ref_ratio(2:,:)
+      integer        , intent(in   ) :: ref_ratio(:,:)
       integer        , intent(in   ) :: verbose
 
       type(bc_level) :: bc
@@ -788,9 +769,9 @@ end subroutine hg_multigrid
          la_crse = unew(n-1)%la
          la_fine = unew(n  )%la
          pdc = layout_get_pd(la_crse)
-         call bndry_reg_build(brs_flx,la_fine,ref_ratio(n,:),pdc,nodal=nodal)
+         call bndry_reg_build(brs_flx,la_fine,ref_ratio(n-1,:),pdc,nodal=nodal)
          bc = the_bc_tower%bc_tower_array(n)
-         call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n,:),mgt(n))
+         call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n-1,:),mgt(n))
          call bndry_reg_destroy(brs_flx)
       end do
 
