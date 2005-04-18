@@ -1,6 +1,7 @@
 module ml_solve_module
 
    use bl_types
+   use bl_constants_module
    use define_bc_module
    use multifab_module
    use boxarray_module
@@ -22,12 +23,9 @@ module ml_solve_module
    use ml_util_module
    use bndry_reg_module
    use flux_reg_module
+   use ml_nd_module
  
    implicit none
-
-   real (kind = dp_t), private, parameter :: ZERO  = 0.0_dp_t
-   real (kind = dp_t), private, parameter :: HALF  = 0.5_dp_t
-   real (kind = dp_t), private, parameter :: ONE   = 1.0_dp_t
 
 contains
 
@@ -42,7 +40,6 @@ contains
       integer       , intent(in   ) :: stencil_order
       integer       , intent(in   ) :: ref_ratio(:,:)
 
-      type(boxarray) :: pdv
       type(box     ) :: pd,pdc,pdf
       type(boxarray) :: bac
       
@@ -353,39 +350,27 @@ contains
 
    end subroutine ml_cc_solve
 
-   subroutine ml_nd_solve(la_tower,mgt,rh,soln,soln_bcs,ref_ratio)
+   subroutine ml_nd_solve(la_tower,mgt,rh,full_soln,ref_ratio)
 
        type(layout)   , intent(inout) :: la_tower(:)
        type(mg_tower) , intent(inout) :: mgt(:)
        type(multifab) , intent(inout) :: rh(:)
-       type(multifab) , intent(inout) :: soln(:)
-       type(multifab) , intent(inout) :: soln_bcs(:)
+       type(multifab) , intent(inout) :: full_soln(:)
        integer        , intent(in   ) :: ref_ratio(:,:)
 
-       type(box)      :: pd,pdc
-       type(boxarray) :: pdv
-       type(boxarray) :: bac
+       type(lmultifab), pointer       :: fine_mask(:) => Null()
+
+       type(box)      :: pd
 
        integer :: nlevs
-       type( multifab), pointer ::       uu(:) => Null()
-       type( multifab), pointer ::  uu_hold(:) => Null()
-       type( multifab), pointer ::      res(:) => Null()
-       type( multifab), pointer :: temp_res(:) => Null()
-       type(lmultifab), pointer :: fine_mask(:) => Null()
-
-       type(bndry_reg), pointer :: brs_flx(:) => Null()
 
        type(layout)             :: la
        integer                  :: i, n, dm, ns
-       integer                  :: mglev, mglev_crse, iter, it
-       integer                  :: ng_for_res
        integer                  :: do_diagnostics 
-       logical                  :: all_done
 
        integer, allocatable     :: lo(:), hi(:)
        logical, allocatable     :: nodal(:)
 
-       real(dp_t)               :: Anorm, bnorm
        real(dp_t)               :: eps
        real(dp_t)               :: snrm(2)
        real(dp_t), pointer      :: rp(:,:,:,:)
@@ -393,9 +378,7 @@ contains
        type(box)           :: bx
        real(dp_t), pointer :: ap(:,:,:,:)
 
-
        do_diagnostics = 0
-
        eps = 1.d-12
 
        nlevs = size(la_tower)
@@ -403,37 +386,14 @@ contains
        allocate(nodal(dm), lo(dm), hi(dm))
        nodal = .true.
 
-       allocate(uu(nlevs), uu_hold(nlevs), res(nlevs))
-       allocate(temp_res(nlevs))
        allocate(fine_mask(nlevs))
-
-       allocate(brs_flx(2:nlevs))
 
 !      We are only considering the dense stencils here (3 in 1d, 9 in 2d, 27 in 3d)
        ns = 3**dm
 
-!      We carry ghost cells in the residual for the nodal case only.
-       ng_for_res = 1
-
        do n = nlevs, 1, -1
 
-          la = la_tower(n)
-          pd = layout_get_pd(la)
-          if ( parallel_ioprocessor() ) then
-             print *,'LEVEL ',n
-             print *,'PD ',extent(pd,dim=1),extent(pd,dim=2)
-          end if
-
-          call multifab_build(uu(n), la, 1, 1, nodal)
-          call multifab_build(uu_hold(n), la, 1, 1, nodal)
-          call multifab_build(res(n), la, 1, ng_for_res, nodal)
-          call multifab_build(temp_res(n), la, 1, ng_for_res, nodal)
-          call lmultifab_build(fine_mask(n), la, 1, 0, nodal)
-          call setval(  uu(n), ZERO,all=.true.)
-          call setval(  uu_hold(n), ZERO,all=.true.)
-          call setval( res(n), ZERO,all=.true.)
-          call setval(temp_res(n), ZERO,all=.true.)
-
+          call lmultifab_build(fine_mask(n), la_tower(n), 1, 0, nodal)
           if ( n < nlevs ) then
              call create_nodal_mask(n,fine_mask(n), &
                                     mgt(n  )%mm(mgt(n  )%nlevels), &
@@ -442,19 +402,7 @@ contains
           else
              call setval(fine_mask(n), val = .true., all = .true.)
           endif
-          if ( n == 1 ) exit
-
-!        Build the (coarse resolution) flux registers to be used in computing
-!         the residual at a non-finest AMR level.
- 
-          pdc = layout_get_pd(la_tower(n-1))
-          call bndry_reg_build(brs_flx(n), la, ref_ratio(n-1,:), pdc, nodal = nodal)
-
        end do
-
-  !!
-  !! Compute "res" to see if converged 
-  !!
 
 ! HACK HACK 
   do n = nlevs,1,-1
@@ -468,317 +416,34 @@ contains
     rp => dataptr(rh(n),1,bx,1,1)
     rp = -1.0
 
-    call setval(soln_bcs(n),ZERO,all=.true.)
+    call setval(full_soln(n),ZERO,all=.true.)
 !   if (n == 1) then
-!     bx = get_ibox(soln_bcs(n),1)
+!     bx = get_ibox(full_soln(n),1)
 !     bx%hi(2) = bx%lo(2)
-!     rp => dataptr(soln_bcs(n),1,bx,1,1)
+!     rp => dataptr(full_soln(n),1,bx,1,1)
 !     rp = 1.0
 !   end if
   enddo
 ! END HACK 
 
-  do n = nlevs,1,-1
-    mglev = mgt(n)%nlevels
-    call mg_defect(mgt(n)%ss(mglev),res(n), &
-                   rh(n),soln_bcs(n),mgt(n)%mm(mglev))
-  end do
+  call ml_nd(la_tower,mgt,rh,full_soln,fine_mask,ref_ratio,do_diagnostics,eps)
 
-  do n = nlevs,2,-1
-    mglev      = mgt(n  )%nlevels
-    mglev_crse = mgt(n-1)%nlevels
-    call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
-                        mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, ref_ratio(n-1,:))
-    pdc = layout_get_pd(la_tower(n-1))
-    call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n), &
-                                  soln_bcs(n-1),soln_bcs(n),pdc)
-  enddo
-
-  do n = 1,nlevs
-     call multifab_copy(rh(n),res(n),all=.true.)
-  end do
-
-  !!
-  !! Solver Starts Here
-  !!
-
-  bnorm = ml_norm_inf(rh,fine_mask)
-
-  Anorm = stencil_norm(mgt(nlevs)%ss(mgt(nlevs)%nlevels))
-  do n = 1, nlevs-1
-     Anorm = max(stencil_norm(mgt(n)%ss(mgt(n)%nlevels), fine_mask(n)), Anorm)
-  end do
-  
-  do iter = 1, mgt(nlevs)%max_iter
-
-     if ( ml_converged(res, soln, fine_mask, bnorm, Anorm, eps) ) exit
-
-     ! Set: uu = 0
-     do n = 1,nlevs
-       call setval(uu(n), ZERO, all=.true.)
-     end do
-
-     ! Set: uu_hold = 0
-     do n = 2,nlevs-1
-       call setval(uu_hold(n), ZERO, all=.true.)
-     end do
-
-     ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! 
-
-     !   Down the V-cycle
-     do n = nlevs,2,-1
-
-        mglev      = mgt(n  )%nlevels
-        mglev_crse = mgt(n-1)%nlevels
-
-        if (do_diagnostics == 1 .and.  parallel_ioprocessor() ) &
-           print *,'DWN: RES BEFORE GSRB AT LEVEL ',n, norm_inf(res(n))
-
-        ! Relax ...
-        call mini_cycle(mgt(n), mgt(n)%cycle, mglev, mgt(n)%ss(mglev), &
-                        uu(n), res(n), mgt(n)%mm(mglev), mgt(n)%nu1, mgt(n)%nu2, &
-                        mgt(n)%gamma)
-
-        ! Add: Soln += uu
-        call saxpy(soln(n  ), ONE,uu(n))
-
-        ! Compute COARSE Res = Rh - Lap(Soln)
-        call mg_defect(mgt(n-1)%ss(mglev_crse),res(n-1), &
-                       rh(n-1),soln(n-1),mgt(n-1)%mm(mglev_crse))
-
-        ! Compute FINE Res = Res - Lap(uu)
-        call mg_defect(mgt(n)%ss(mglev), temp_res(n), &
-                       res(n),uu(n),mgt(n)%mm(mglev))
-        call multifab_copy(res(n),temp_res(n),all=.true.)
-
-        if (do_diagnostics == 1 .and.  parallel_ioprocessor() ) &
-           print *,'DWN: RES AFTER  GSRB AT LEVEL ',n, norm_inf(temp_res(n))
-
-        ! Restrict FINE Res to COARSE Res
-        call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
-                            mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, ref_ratio(n-1,:))
-
-        ! Compute CRSE-FINE Res = Res - L(uu)
-        pdc = layout_get_pd(la_tower(n-1))
-        call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),&
-                                      soln(n-1),soln(n),pdc)
-
-        ! Copy u_hold = uu
-        if (n < nlevs) call multifab_copy(uu_hold(n),uu(n),all=.true.)
-
-        ! Set: uu = 0
-        call setval(uu(n),ZERO,all=.true.)
-
-     end do
-
-     ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! 
-
-     ! Coarsest AMR level
-     n = 1
-     mglev = mgt(n)%nlevels
-
-     if (nlevs == 1 .and. iter > 1) then
-        if (ml_converged(res, soln, fine_mask, bnorm, Anorm, eps) ) exit
-     end if
-
-     ! Relax ...
-     if (do_diagnostics == 1 .and.  parallel_ioprocessor() ) &
-        print *,'BOT: RES BEFORE GSRB AT LEVEL ',n, norm_inf(res(n))
-
-     call mg_tower_cycle(mgt(n), mgt(n)%cycle, mglev, mgt(n)%ss(mglev), &
-                         uu(n), res(n), mgt(n)%mm(mglev), mgt(n)%nu1, mgt(n)%nu2, &
-                         mgt(n)%gamma)
-
-     ! Add: Soln += uu
-     call saxpy(soln(n), ONE, uu(n))
-
-     ! Compute : Res = Res - Lap(uu)
-     call mg_defect(mgt(n)%ss(mglev),temp_res(n), &
-                    res(n),uu(n),mgt(n)%mm(mglev))
-     call multifab_copy(res(n),temp_res(n),all=.true.)
-
-     if (do_diagnostics == 1 .and.  parallel_ioprocessor() ) then
-        print *,'BOT: RES AFTER  GSRB AT LEVEL ',n, norm_inf(res(n))
-        if (n == nlevs) print *,' '
-     end if
-
-     ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! 
-
-     !   Back up the V-cycle
-     do n = 2, nlevs
-
-        pd = layout_get_pd(la_tower(n))
-        mglev = mgt(n)%nlevels
-
-        ! Interpolate uu from coarser level
-        if (iter == 1) call saxpy(uu(n-1),  ONE, soln_bcs(n-1))
-        call ml_prolongation(uu(n), uu(n-1), pd, ref_ratio(n-1,:))
-        if (iter == 1) call saxpy(uu(n-1), -ONE, soln_bcs(n-1))
-
-        ! Subtract: uu -= soln_bcs   
-        !     Must do this in order to remove interpolated soln_bcs...
-        if (iter == 1) call saxpy(uu(n),-ONE,soln_bcs(n))
-
-        ! Add: Soln += uu
-        call saxpy(soln(n), ONE, uu(n), .true.)
-
-        ! Add: uu_hold += uu
-        if (n < nlevs) call saxpy(uu_hold(n), ONE, uu(n), .true.)
-
-        ! Compute Res = Res - Lap(uu)
-        call mg_defect(mgt(n)%ss(mglev),temp_res(n),res(n),uu(n),mgt(n)%mm(mglev))
-        call multifab_copy(res(n),temp_res(n),all=.true.)
-
-        if ( do_diagnostics == 1 .and. parallel_ioprocessor() ) &
-           print *,'UP : RES BEFORE GSRB AT LEVEL ',n, norm_inf(res(n))
-
-        ! Set: uu = 0
-        call setval(uu(n),ZERO,all=.true.)
-
-        ! Relax ...
-        call mini_cycle(mgt(n), mgt(n)%cycle, mglev, mgt(n)%ss(mglev), &
-             uu(n), res(n), mgt(n)%mm(mglev), mgt(n)%nu1, mgt(n)%nu2, &
-             mgt(n)%gamma)
-
-        ! Add: soln += uu
-        call saxpy(soln(n), ONE,      uu(n), .true.)
-
-        ! Add: uu += uu_hold
-        if (n < nlevs) call saxpy(uu(n), ONE, uu_hold(n), .true.)
-
-        ! Compute Res = Rh - Lap(Soln)
-        call mg_defect(mgt(n)%ss(mglev),res(n),rh(n),soln(n),mgt(n)%mm(mglev))
-
-        if ( do_diagnostics == 1 .and. parallel_ioprocessor() ) then
-           print *,'UP : RES AFTER  GSRB AT LEVEL ',n, norm_inf(res(n))
-           if (n == nlevs) print *,' '
-        end if
-
-     end do
-
-!    Inject the solution to the coarser grids.
-     do n = nlevs,2,-1
-       mglev      = mgt(n)%nlevels
-       mglev_crse = mgt(n-1)%nlevels
-       call ml_restriction(soln(n-1), soln(n), mgt(n)%mm(mglev), &
-                           mgt(n-1)%mm(mglev_crse), mgt(n)%face_type, &
-                           ref_ratio(n-1,:), inject = .true.)
-     end do
-
-     do n = 1,nlevs
-        call multifab_fill_boundary(soln(n))
-     end do 
-
-     do n = 1,nlevs
-        mglev = mgt(n)%nlevels
-        call mg_defect(mgt(n)%ss(mglev),res(n),rh(n),soln(n),mgt(n)%mm(mglev))
-     end do
-
-     do n = nlevs,2,-1
-        mglev      = mgt(n  )%nlevels
-        mglev_crse = mgt(n-1)%nlevels
-        call ml_restriction(res(n-1), res(n), mgt(n)%mm(mglev),& 
-                            mgt(n-1)%mm(mglev_crse), &
-                            mgt(n  )%face_type, ref_ratio(n-1,:))
-        pdc = layout_get_pd(la_tower(n-1))
-        call crse_fine_residual_nodal(n,mgt,brs_flx(n),res(n-1),temp_res(n),&
-                                      soln(n-1),soln(n),pdc)
-     end do
-
-!    if ( mgt(nlevs)%verbose > 0 .and. parallel_IOProcessor() ) then
-        write(unit=*, fmt='(i3,": Ninf(defect) = ",g15.8)') iter, ml_norm_inf(res,fine_mask)
-!    end if
-
-  end do
-
-! Add: Soln += soln_bcs
-  do n = 1,nlevs
-     call saxpy(soln(n),ONE,soln_bcs(n))
-  end do
-
-  call fabio_ml_write(soln, ref_ratio(:,1), "soln_nodal")
-
-  if ( mgt(nlevs)%verbose > 0 .AND. parallel_IOProcessor() ) &
-     write(unit=*, fmt='("MG finished at ", i3, " iterations")') iter-1
+  call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_nodal")
 
   if ( parallel_IOProcessor() ) then
-     snrm(1) = ml_norm_l2(soln, fine_mask)
-     snrm(2) = ml_norm_inf(soln, fine_mask)
+     snrm(1) = ml_norm_l2(full_soln, fine_mask)
+     snrm(2) = ml_norm_inf(full_soln, fine_mask)
      print *, 'SOLUTION MAX NORM ', snrm(2)
      print *, 'SOLUTION L2 NORM ', snrm(1)
   end if
 
   do n = 1,nlevs
-     call multifab_destroy(uu(n))
-     call multifab_destroy(res(n))
-     call multifab_destroy(temp_res(n))
-     call multifab_destroy(uu_hold(n))
      call lmultifab_destroy(fine_mask(n))
-     if ( n > 1 ) then
-        call bndry_reg_destroy(brs_flx(n))
-     end if
   end do
 
-  deallocate(uu, uu_hold, res, temp_res)
-  deallocate(fine_mask, brs_flx)
+  deallocate(fine_mask)
 
    contains
-
-        subroutine crse_fine_residual_nodal(n,mgt,brs_flx,crse_res,temp_res, &
-                                            crse_soln,fine_soln,pdc)
-
-           integer        , intent(in   ) :: n
-           type(mg_tower) , intent(inout) :: mgt(:)
-           type(bndry_reg), intent(inout) :: brs_flx
-           type(multifab) , intent(inout) :: crse_res
-           type(multifab) , intent(inout) :: temp_res
-           type(multifab) , intent(inout) :: crse_soln
-           type(multifab) , intent(inout) :: fine_soln
-           type(box)      , intent(in   ) :: pdc
-
-           type(layout)   :: la
-           type(multifab) :: dummy_rhs
-           integer :: i,dm,mglev_crse,mglev_fine
-
-           mglev_crse = mgt(n-1)%nlevels
-           mglev_fine = mgt(n  )%nlevels
-           dm = temp_res%dim
-
-           la = multifab_get_layout(temp_res)
-           call multifab_build(dummy_rhs, la, 1, 1)
-           call setval(dummy_rhs,ZERO,all=.true.)
-
-!          Zero out the flux registers which will hold the fine contributions
-           call bndry_reg_setval(brs_flx, ZERO, all = .true.)
-
-!          Compute the fine contributions at faces, edges and corners.
-
-!          First compute a residual which only takes contributions from the
-!             grid on which it is calculated.
-           call grid_res(mgt(n),mglev_fine,mgt(n)%ss(mglev_fine),temp_res, &
-                         dummy_rhs,fine_soln,mgt(n)%mm(mglev_fine),mgt(n)%face_type)
-
-           do i = 1,dm
-              call ml_fine_contrib(brs_flx%bmf(i,0), &
-                                   temp_res,mgt(n)%mm(mglev_fine),ref_ratio(n-1,:),pdc,-i)
-              call ml_fine_contrib(brs_flx%bmf(i,1), &
-                                   temp_res,mgt(n)%mm(mglev_fine),ref_ratio(n-1,:),pdc,+i)
-           end do
-
-!          Compute the crse contributions at edges and corners and add to res(n-1).
-           do i = 1,dm
-              call ml_crse_contrib(crse_res, brs_flx%bmf(i,0), crse_soln, &
-                   mgt(n-1)%ss(mgt(n-1)%nlevels), &
-                   mgt(n-1)%mm(mglev_crse), &
-                   mgt(n  )%mm(mglev_fine), &
-                   pdc,ref_ratio(n-1,:), -i)
-              call ml_crse_contrib(crse_res, brs_flx%bmf(i,1), crse_soln, &
-                   mgt(n-1)%ss(mgt(n-1)%nlevels), &
-                   mgt(n-1)%mm(mglev_crse), &
-                   mgt(n  )%mm(mglev_fine), &
-                   pdc,ref_ratio(n-1,:), +i)
-           end do
-        end subroutine crse_fine_residual_nodal
 
         subroutine create_nodal_mask(n,mask,mm_crse,mm_fine,la_tower,ref_ratio)
 
