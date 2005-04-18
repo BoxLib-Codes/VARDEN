@@ -1,23 +1,11 @@
 module slope_module
 
   use bl_types
+  use bl_constants_module
   use bc_module
   use multifab_module
 
   implicit none
-
-  real (kind = dp_t), private, parameter :: ZERO  = 0.0_dp_t
-  real (kind = dp_t), private, parameter :: ONE   = 1.0_dp_t
-  real (kind = dp_t), private, parameter :: TWO   = 2.0_dp_t
-  real (kind = dp_t), private, parameter :: THREE = 3.0_dp_t
-  real (kind = dp_t), private, parameter :: FOUR  = 4.0_dp_t
-  real (kind = dp_t), private, parameter :: FIFTEEN  = 15.0_dp_t
-  real (kind = dp_t), private, parameter :: SIXTEEN  = 16.0_dp_t
-  real (kind = dp_t), private, parameter :: HALF  = 0.5_dp_t
-  real (kind = dp_t), private, parameter :: THIRD = 0.33333333333333333333333333_dp_t
-  real (kind = dp_t), private, parameter :: TWO3RD= 0.66666666666666666666666666_dp_t
-  real (kind = dp_t), private, parameter :: SIXTH = 0.16666666666666666666666666_dp_t
-  real (kind = dp_t), private, parameter :: TENTH = 0.1_dp_t
 
 contains
 

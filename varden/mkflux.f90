@@ -1,14 +1,11 @@
 module mkflux_module
 
   use bl_types
+  use bl_constants_module
   use multifab_module
   use slope_module
 
   implicit none
-
-  real (kind = dp_t), private, parameter :: ZERO  = 0.0_dp_t
-  real (kind = dp_t), private, parameter :: ONE   = 1.0_dp_t
-  real (kind = dp_t), private, parameter :: HALF  = 0.5_dp_t
 
 contains
 
