@@ -460,7 +460,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 
   type(mg_tower), allocatable :: mgt(:)
   type(multifab), allocatable :: coeffs(:),rh(:)
-  type(multifab), allocatable :: phi_orig(:)
 
   real(dp_t) :: bottom_solver_eps
   real(dp_t) :: eps
@@ -514,13 +513,13 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 ! Note: put this here for robustness
   max_iter = 100
 
-  allocate(phi_orig(nlevs))
-  do n = 1,nlevs
-     la = la_tower(n)
-     call multifab_build(phi_orig(n), la, 1, 1, phi(n)%nodal)
-     call multifab_copy(phi_orig(n),phi(n))
-     call setval(phi(n), 0.0_dp_t, all=.true.)
-  end do
+! allocate(phi_orig(nlevs))
+! do n = 1,nlevs
+!    la = la_tower(n)
+!    call multifab_build(phi_orig(n), la, 1, 1, phi(n)%nodal)
+!    call multifab_copy(phi_orig(n),phi(n))
+!    call setval(phi(n), 0.0_dp_t, all=.true.)
+! end do
 
   ns = 3**dm
 
@@ -606,7 +605,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 
   call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,divu_verbose)
 
-  call ml_nd_solve(la_tower,mgt,rh,phi,phi_orig,ref_ratio)
+  call ml_nd_solve(la_tower,mgt,rh,phi,ref_ratio)
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
