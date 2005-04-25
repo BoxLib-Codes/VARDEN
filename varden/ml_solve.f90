@@ -30,16 +30,16 @@ module ml_solve_module
 
 contains
 
-   subroutine ml_cc_solve(la_tower,mgt,rh,full_soln,fine_flx,bc,stencil_order,ref_ratio)
+   subroutine ml_cc_solve(mla,mgt,rh,full_soln,fine_flx,bc,stencil_order,ref_ratio)
 
-      type(layout  ), intent(inout) :: la_tower(:)
-      type(mg_tower), intent(inout) :: mgt(:)
-      type(multifab), intent(inout) :: rh(:)
-      type(multifab), intent(inout) :: full_soln(:)
-      type(flux_reg), intent(inout) :: fine_flx(2:)
-      integer       , intent(in   ) :: bc(:,:)
-      integer       , intent(in   ) :: stencil_order
-      integer       , intent(in   ) :: ref_ratio(:,:)
+      type(ml_layout), intent(inout) :: mla
+      type(mg_tower ), intent(inout) :: mgt(:)
+      type(multifab ), intent(inout) :: rh(:)
+      type(multifab ), intent(inout) :: full_soln(:)
+      type(flux_reg ), intent(inout) :: fine_flx(2:)
+      integer        , intent(in   ) :: bc(:,:)
+      integer        , intent(in   ) :: stencil_order
+      integer        , intent(in   ) :: ref_ratio(:,:)
 
       type(box     ) :: pd
       type(box     ) :: bx
@@ -51,50 +51,50 @@ contains
       integer                      :: mglev, mglev_crse, iter, it
       real(dp_t)                   :: eps
 
-      dm = layout_dim(la_tower(1))
-      nlevs = size(la_tower)
+      dm    = mla%dim
+      nlevs = mla%nlevel
 
-      do_diagnostics = 0
+      do_diagnostics = 1
       eps = 1.d-12
 
       allocate(fine_mask(nlevs))
       do n = nlevs, 1, -1
-        call lmultifab_build(fine_mask(n), la_tower(n), 1, 0)
+        call lmultifab_build(fine_mask(n), mla%la(n), 1, 0)
         call setval(fine_mask(n), val = .true., all = .true.)
       end do
       do n = nlevs-1, 1, -1
-        call copy(bac, get_boxarray(la_tower(n+1)))
+        call copy(bac, get_boxarray(mla%la(n+1)))
         call boxarray_coarsen(bac, ref_ratio(n,:))
         call setval(fine_mask(n), .false., bac)
         call destroy(bac)
       end do
 
 ! HACK HACK
-  do n = nlevs,1,-1
+! do n = nlevs,1,-1
 
-    call setval(rh(n),ZERO,all=.true.)
-    bx = get_ibox(rh(n),1)
-    bx%lo(2) = (bx%lo(2)+bx%hi(2))/2
-    bx%hi(2) = bx%lo(2)+1
+!   call setval(rh(n),ZERO,all=.true.)
+!   bx = get_ibox(rh(n),1)
+!   bx%lo(2) = (bx%lo(2)+bx%hi(2))/2
+!   bx%hi(2) = bx%lo(2)+1
 !   bx%lo(1) = (bx%lo(1)+bx%hi(1))/2
 !   bx%hi(1) = bx%lo(1)
-    rp => dataptr(rh(n),1,bx,1,1)
-    rp = -1.0
+!   rp => dataptr(rh(n),1,bx,1,1)
+!   rp = -1.0
 
-    call setval(full_soln(n),ZERO,all=.true.)
+!   call setval(full_soln(n),ZERO,all=.true.)
 !   if (n == 1) then
 !     bx = get_ibox(full_soln(n),1)
 !     bx%hi(2) = bx%lo(2)
 !     rp => dataptr(full_soln(n),1,bx,1,1)
 !     rp = 1.0
 !   end if
-  enddo
+! enddo
 ! END HACK
 
 
 ! ****************************************************************************
 
-      call ml_cc(la_tower,mgt,rh,full_soln,fine_mask,ref_ratio,do_diagnostics,eps,.true.)
+      call ml_cc(mla,mgt,rh,full_soln,fine_mask,ref_ratio,do_diagnostics,eps,.true.)
 
 ! ****************************************************************************
 
@@ -110,7 +110,7 @@ contains
        end do
     end do
   
-    call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_cc")
+!   call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_cc")
 
     do n = 1,nlevs
       call lmultifab_destroy(fine_mask(n))
@@ -119,9 +119,9 @@ contains
 
    end subroutine ml_cc_solve
 
-   subroutine ml_nd_solve(la_tower,mgt,rh,full_soln,ref_ratio)
+   subroutine ml_nd_solve(mla,mgt,rh,full_soln,ref_ratio)
 
-       type(layout)   , intent(inout) :: la_tower(:)
+       type(ml_layout), intent(inout) :: mla
        type(mg_tower) , intent(inout) :: mgt(:)
        type(multifab) , intent(inout) :: rh(:)
        type(multifab) , intent(inout) :: full_soln(:)
@@ -150,7 +150,7 @@ contains
        do_diagnostics = 0
        eps = 1.d-12
 
-       nlevs = size(la_tower)
+       nlevs = mla%nlevel
        dm = rh(nlevs)%dim
        allocate(nodal(dm), lo(dm), hi(dm))
        nodal = .true.
@@ -162,49 +162,42 @@ contains
 
        do n = nlevs, 1, -1
 
-          call lmultifab_build(fine_mask(n), la_tower(n), 1, 0, nodal)
+          call lmultifab_build(fine_mask(n), mla%la(n), 1, 0, nodal)
           if ( n < nlevs ) then
              call create_nodal_mask(n,fine_mask(n), &
                                     mgt(n  )%mm(mgt(n  )%nlevels), &
                                     mgt(n+1)%mm(mgt(n+1)%nlevels), &
-                                    la_tower,ref_ratio(n,:))
+                                    ref_ratio(n,:))
           else
              call setval(fine_mask(n), val = .true., all = .true.)
           endif
        end do
 
 ! HACK HACK 
-  do n = nlevs,1,-1
+! do n = nlevs,1,-1
 
-    call setval(rh(n),ZERO,all=.true.)
-    bx = get_ibox(rh(n),1)
-    bx%lo(2) = (bx%lo(2)+bx%hi(2))/2
-    bx%hi(2) = bx%lo(2)
+!   call setval(rh(n),ZERO,all=.true.)
+!   bx = get_ibox(rh(n),1)
+!   bx%lo(2) = (bx%lo(2)+bx%hi(2))/2
+!   bx%hi(2) = bx%lo(2)
 !   bx%lo(1) = (bx%lo(1)+bx%hi(1))/2
 !   bx%hi(1) = bx%lo(1)
-    rp => dataptr(rh(n),1,bx,1,1)
-    rp = -1.0
+!   rp => dataptr(rh(n),1,bx,1,1)
+!   rp = -1.0
 
-    call setval(full_soln(n),ZERO,all=.true.)
+!   call setval(full_soln(n),ZERO,all=.true.)
 !   if (n == 1) then
 !     bx = get_ibox(full_soln(n),1)
 !     bx%hi(2) = bx%lo(2)
 !     rp => dataptr(full_soln(n),1,bx,1,1)
 !     rp = 1.0
 !   end if
-  enddo
+! enddo
 ! END HACK 
 
-  call ml_nd(la_tower,mgt,rh,full_soln,fine_mask,ref_ratio,do_diagnostics,eps)
+  call ml_nd(mla,mgt,rh,full_soln,fine_mask,ref_ratio,do_diagnostics,eps)
 
-  call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_nodal")
-
-! if ( parallel_IOProcessor() ) then
-!    snrm(1) = ml_norm_l2(full_soln, fine_mask)
-!    snrm(2) = ml_norm_inf(full_soln, fine_mask)
-!    print *, 'SOLUTION MAX NORM ', snrm(2)
-!    print *, 'SOLUTION L2 NORM ', snrm(1)
-! end if
+! call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_nodal")
 
   do n = 1,nlevs
      call lmultifab_destroy(fine_mask(n))
@@ -214,17 +207,15 @@ contains
 
    contains
 
-        subroutine create_nodal_mask(n,mask,mm_crse,mm_fine,la_tower,ref_ratio)
+        subroutine create_nodal_mask(n,mask,mm_crse,mm_fine,ref_ratio)
 
         integer        , intent(in   ) :: n
         type(lmultifab), intent(inout) :: mask
         type(imultifab), intent(in   ) :: mm_crse
         type(imultifab), intent(in   ) :: mm_fine
-        type(layout   ), intent(in   ) :: la_tower(:)
         integer        , intent(in   ) :: ref_ratio(:)
   
-        type(box)      :: cbox,fbox
-
+        type(box)        :: cbox,fbox
         logical, pointer :: mkp(:,:,:,:)
         integer, pointer :: cmp(:,:,:,:)
         integer, pointer :: fmp(:,:,:,:)

@@ -9,6 +9,7 @@ module restart_module
   use fab_module
   use fabio_module
   use multifab_module
+  use ml_layout_module
   use checkpoint_module
   use parallel
 
@@ -16,40 +17,34 @@ module restart_module
 
 contains
 
-  subroutine do_restart(dm,nscal,ng_cell,restart_int,la_tower,uold,sold,gp,p,rrs,dx,time,dt)
+  subroutine do_restart(nscal,ng_cell,restart_int,mla,uold,sold,gp,p,dx,time,dt)
 
-    integer   , intent(in    ) :: dm,nscal,ng_cell,restart_int
-    real(dp_t), intent(   out) :: time,dt
-    integer   , pointer  :: rrs(:)
-    real(dp_t), pointer  :: dx(:,:)
-    type(multifab), pointer  :: uold(:),sold(:),gp(:),p(:)
-    type(layout)  , pointer  :: la_tower(:)
-    type(multifab), pointer        :: chkdata(:)
-    character(len=7)               :: sd_name
-    integer                        :: n_chk_comps
-    integer                        :: n,nlevs
-    integer                        :: ref_ratio(dm)
-    logical                        :: nodal(2)
+    integer          , intent(in    ) :: nscal,ng_cell,restart_int
+    real(dp_t)       , intent(   out) :: time,dt
+    real(dp_t)       , pointer        :: dx(:,:)
+    type(multifab)   , pointer        :: uold(:),sold(:),gp(:),p(:)
+    type(ml_layout)                   :: mla
+
+    type(ml_boxarray)                 :: mba
+    type(multifab)   , pointer        :: chkdata(:)
+    character(len=7)                  :: sd_name
+    integer          , pointer        :: rrs(:)
+    integer                           :: n,nlevs,dm
 
     write(unit=sd_name,fmt='("chk",i4.4)') restart_int
     print *,'Reading ',sd_name,' to get state data for restart'
-    n_chk_comps = 2*dm + nscal
 
-    call checkpoint_read(chkdata, p, sd_name, time, dt, nlevs, rrs, dx)
+    call checkpoint_read(mba, chkdata, p, sd_name, time, dt, nlevs, rrs, dx)
+    call ml_layout_build(mla,mba)
 
-    allocate(la_tower(nlevs))
-    call build(la_tower(1),get_boxarray(chkdata(1)))
-    ref_ratio = 2
-    do n = 2,nlevs
-      call layout_build_pn(la_tower(n),la_tower(n-1),get_boxarray(chkdata(n)),ref_ratio)
-    end do
+    dm = mba%dim
 
     allocate(uold(nlevs),sold(nlevs),gp(nlevs))
 
     do n = 1,nlevs
-     call multifab_build(   uold(n), la_tower(n),    dm, ng_cell)
-     call multifab_build(   sold(n), la_tower(n),    dm, ng_cell)
-     call multifab_build(     gp(n), la_tower(n),    dm,       1)
+     call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
+     call multifab_build(   sold(n), mla%la(n),    dm, ng_cell)
+     call multifab_build(     gp(n), mla%la(n),    dm,       1)
     end do
 
     do n = 1,nlevs

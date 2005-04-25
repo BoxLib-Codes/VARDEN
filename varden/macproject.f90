@@ -8,30 +8,29 @@ module macproject_module
   use multifab_fill_ghost_module
   use ml_restriction_module
   use flux_reg_module
+  use fabio_module
 
   implicit none
 
 contains 
 
-subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
-                      ref_ratio,verbose,mg_verbose)
+subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
-  integer       , intent(in   ) :: nlevs
-  type(layout)  , intent(inout) :: la_tower(:)
-  type(multifab), intent(inout) :: umac(:)
-  type(multifab), intent(inout) :: rho(:)
-  real(dp_t)    , intent(in   ) :: dx(:,:)
-  type(bc_tower), intent(in   ) :: the_bc_tower
-  integer       , intent(in   ) :: ref_ratio(:,:)
-  integer       , intent(in   ) :: verbose,mg_verbose
+  type(ml_layout), intent(inout) :: mla
+  type(multifab ), intent(inout) :: umac(:)
+  type(multifab ), intent(inout) :: rho(:)
+  real(dp_t)     , intent(in   ) :: dx(:,:)
+  type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: verbose,mg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
   type(flux_reg), pointer     :: fine_flx(:) => Null()
   integer                     :: dm,stencil_order,n
   integer                     :: ng,nc
-  integer                     :: nscal,bc_comp
+  integer                     :: nlevs,nscal,bc_comp
 
+  nlevs = mla%nlevel
   dm = umac(nlevs)%dim
   nscal = 2
   bc_comp = dm + nscal + 1
@@ -41,29 +40,29 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
   allocate(rh(nlevs), phi(nlevs), alpha(nlevs), beta(nlevs))
 
   do n = 1, nlevs
-     call multifab_build(   rh(n), la_tower(n),  1, 0)
-     call multifab_build(  phi(n), la_tower(n),  1, 1)
-     call multifab_build(alpha(n), la_tower(n),  1, 1)
-     call multifab_build( beta(n), la_tower(n), dm, 1)
+     call multifab_build(   rh(n), mla%la(n),  1, 0)
+     call multifab_build(  phi(n), mla%la(n),  1, 1)
+     call multifab_build(alpha(n), mla%la(n),  1, 1)
+     call multifab_build( beta(n), mla%la(n), dm, 1)
 
      call setval(alpha(n),ZERO,all=.true.)
      call setval(  phi(n),ZERO,all=.true.)
 
   end do
 
-  call divumac(nlevs,umac,rh,dx,ref_ratio,verbose)
+  call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose)
 
-  call mk_mac_coeffs(nlevs,la_tower,rho,beta,the_bc_tower)
+  call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call flux_reg_build(fine_flx(n),la_tower(n),layout_get_pd(la_tower(n)))
+     call flux_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
   end do
 
-  call mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
-                     the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
+  call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
+                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
 
-  call mkumac(nlevs,rh,umac,phi,beta,fine_flx,dx,the_bc_tower,ref_ratio,verbose)
+  call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,mla%mba%rr,verbose)
 
   do n = 1, nlevs
      call multifab_destroy(rh(n))
@@ -166,13 +165,13 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 
     end subroutine divumac_3d
 
-    subroutine mk_mac_coeffs(nlevs,la_tower,rho,beta,the_bc_tower)
+    subroutine mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
-      integer       , intent(in   ) :: nlevs
-      type(layout)  , intent(inout) :: la_tower(:)
-      type(multifab), intent(inout) :: rho(:)
-      type(multifab), intent(inout) :: beta(:)
-      type(bc_tower), intent(in   ) :: the_bc_tower
+      integer        , intent(in   ) :: nlevs
+      type(ml_layout), intent(inout) :: mla
+      type(multifab ), intent(inout) :: rho(:)
+      type(multifab ), intent(inout) :: beta(:)
+      type(bc_tower ), intent(in   ) :: the_bc_tower
  
       type(box )               :: fine_domain
       real(kind=dp_t), pointer :: bp(:,:,:,:) 
@@ -184,9 +183,9 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 
       ng_fill = 1
       do n = 2, nlevs
-         fine_domain = layout_get_pd(la_tower(n))
+         fine_domain = layout_get_pd(mla%la(n))
          call multifab_fill_ghost_cells(rho(n),rho(n-1),fine_domain, &
-                                        ng_fill,ref_ratio(n-1,:), &
+                                        ng_fill,mla%mba%rr(n-1,:), &
                                         the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                                         1,dm+1,1)
       end do
@@ -273,9 +272,8 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 
     end subroutine mk_mac_coeffs_3d
 
-    subroutine mkumac(nlevs,rh,umac,phi,beta,fine_flx,dx,the_bc_tower,ref_ratio,verbose)
+    subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,ref_ratio,verbose)
 
-      integer       , intent(in   ) :: nlevs
       type(multifab), intent(inout) :: umac(:)
       type(multifab), intent(inout) ::   rh(:)
       type(multifab), intent(in   ) ::  phi(:)
@@ -286,7 +284,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
       integer       , intent(in   ) :: ref_ratio(:,:)
       integer       , intent(in   ) :: verbose
 
-      integer :: i,dm
+      integer :: i,dm,nlevs
  
       type(bc_level)           :: bc
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
@@ -301,6 +299,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
       real(kind=dp_t), pointer :: hzp(:,:,:,:) 
       real(kind=dp_t)          :: rhmax
 
+      nlevs = size(umac,dim=1)
       dm = umac(nlevs)%dim
 
       do n = 1, nlevs
@@ -814,7 +813,7 @@ subroutine macproject(nlevs,la_tower,umac,rho,dx,the_bc_tower, &
 
 end subroutine macproject
 
-subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
+subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
                          the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
 
   use f2kcli
@@ -829,11 +828,10 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   use box_util_module
   use bl_IO_module
 
-  integer     ,intent(in   ) :: nlevs
-  type(layout),intent(inout) :: la_tower(:)
-  integer     ,intent(in   ) :: stencil_order
-  integer     ,intent(in   ) :: ref_ratio(:,:)
-  integer     ,intent(in   ) :: mg_verbose
+  type(ml_layout),intent(inout) :: mla
+  integer        ,intent(in   ) :: stencil_order
+  integer        ,intent(in   ) :: ref_ratio(:,:)
+  integer        ,intent(in   ) :: mg_verbose
 
   real(dp_t), intent(in) :: dx(:,:)
   type(bc_tower), intent(in) :: the_bc_tower
@@ -853,30 +851,26 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   type(imultifab) :: mm
   type(sparse) :: sparse_object
   type(mg_tower), allocatable :: mgt(:)
-  integer i, dm, ns
-
-  integer :: test
-  real(dp_t) :: snrm(2)
+  integer        :: i, dm, ns, nlevs
+  integer        :: test
+  real(dp_t)     :: snrm(2)
 
   ! MG solver defaults
   integer :: bottom_solver, bottom_max_iter
-  real(dp_t) :: bottom_solver_eps
-  real(dp_t) :: eps
-  integer :: max_iter
-  integer :: min_width
-  integer :: max_nlevel
-  integer :: verbose
-  integer :: n, nu1, nu2, gamma, cycle, solver, smoother
-  integer :: max_nlevel_in
-  real(dp_t) :: omega
-  logical :: nodal(rh(nlevs)%dim)
-
-  real(dp_t) ::  xa(rh(nlevs)%dim),  xb(rh(nlevs)%dim)
-  real(dp_t) :: pxa(rh(nlevs)%dim), pxb(rh(nlevs)%dim)
+  integer    :: max_iter
+  integer    :: min_width
+  integer    :: max_nlevel
+  integer    :: verbose
+  integer    :: n, nu1, nu2, gamma, cycle, solver, smoother
+  integer    :: max_nlevel_in
+  real(dp_t) :: eps,omega,bottom_solver_eps
+  real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
+  real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
   !! Defaults:
 
-  dm             = rh(nlevs)%dim
+  nlevs = mla%nlevel
+  dm    = mla%dim
 
   allocate(mgt(nlevs))
 
@@ -902,8 +896,6 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
   eps = 1.d-12
 
   bottom_solver = 0
-  
-  nodal = .false.
 
   if ( test /= 0 .AND. max_iter == mgt(nlevs)%max_iter ) &
      max_iter = 1000
@@ -924,9 +916,9 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
         end if
      end if
 
-     pd = layout_get_pd(la_tower(n))
+     pd = layout_get_pd(mla%la(n))
 
-     call mg_tower_build(mgt(n), la_tower(n), pd, &
+     call mg_tower_build(mgt(n), mla%la(n), pd, &
                          the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp), &
           dh = dx(n,:), &
           ns = ns, &
@@ -944,7 +936,7 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
           min_width = min_width, &
           eps = eps, &
           verbose = verbose, &
-          nodal = nodal)
+          nodal = rh(nlevs)%nodal)
 
   end do
 
@@ -954,7 +946,7 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
 
      allocate(coeffs(mgt(n)%nlevels))
 
-     la = la_tower(n)
+     la = mla%la(n)
      pd = layout_get_pd(la)
 
      call multifab_build(coeffs(mgt(n)%nlevels), la, 1+dm, 1)
@@ -995,7 +987,9 @@ subroutine mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
 
   end do
 
-  call ml_cc_solve(la_tower, mgt, rh, phi, fine_flx, &
+  call fabio_ml_write(rh,ref_ratio(:,1),"MACRHS")
+
+  call ml_cc_solve(mla, mgt, rh, phi, fine_flx, &
                    the_bc_tower%bc_tower_array(nlevs)%ell_bc_level_array(0,:,:,dm+3), &
                    stencil_order,ref_ratio)
 

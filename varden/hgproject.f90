@@ -10,6 +10,7 @@ module hgproject_module
   use stencil_module
   use ml_solve_module
   use ml_restriction_module
+  use fabio_module
 
   implicit none
 
@@ -23,36 +24,35 @@ module hgproject_module
 
 contains 
 
-subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                     ref_ratio,verbose,mg_verbose)
+subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
+                     verbose,mg_verbose)
 
-  integer       , intent(in   ) :: nlevs
-  type(layout)  , intent(inout) :: la_tower(:)
-  type(multifab), intent(inout) :: unew(:)
-  type(multifab), intent(inout) :: rhohalf(:)
-  type(multifab), intent(inout) :: gp(:)
-  type(multifab), intent(inout) :: p(:)
-  type(bc_tower), intent(in   ) :: the_bc_tower
-  integer       , intent(in   ) :: ref_ratio(:,:)
-  integer       , intent(in   ) :: verbose,mg_verbose
-  real(dp_t)    , intent(in   ) :: dx(:,:),dt
+  type(ml_layout), intent(inout) :: mla
+  type(multifab ), intent(inout) :: unew(:)
+  type(multifab ), intent(inout) :: rhohalf(:)
+  type(multifab ), intent(inout) :: gp(:)
+  type(multifab ), intent(inout) :: p(:)
+  type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: verbose,mg_verbose
+  real(dp_t)     , intent(in   ) :: dx(:,:),dt
 
 ! Local  
   type(multifab), allocatable :: phi(:),gphi(:)
   type(box)      :: pd,bx
   type(layout  ) :: la
-  integer        :: n,dm,ng,i,RHOCOMP
+  integer        :: n,nlevs,dm,ng,i,RHOCOMP
   integer        :: ng_for_fill
   real(dp_t)     :: nrm
 
-  dm = unew(nlevs)%dim
+  nlevs = mla%nlevel
+  dm    = mla%dim
   ng = unew(nlevs)%ng
 
   allocate(phi(nlevs), gphi(nlevs))
 
   do n = 1, nlevs
-     call multifab_build( phi(n), la_tower(n), 1, 1, nodal)
-     call multifab_build(gphi(n), la_tower(n), dm, 0) 
+     call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
+     call multifab_build(gphi(n), mla%la(n), dm, 0) 
      call multifab_copy(phi(n),p(n))
      call multifab_mult_mult_s(phi(n),dt,all=.true.)
   end do
@@ -71,8 +71,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
-  call hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower, &
-                    ref_ratio,verbose,mg_verbose)
+  call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
+                    verbose,mg_verbose)
 
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
@@ -81,8 +81,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   do n = nlevs,2,-1
-     call ml_cc_restriction(unew(n-1),unew(n),ref_ratio(n-1,:))
-     call ml_cc_restriction(  gp(n-1),  gp(n),ref_ratio(n-1,:))
+     call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
+     call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
   end do
 
   if (verbose .eq. 1) then
@@ -221,6 +221,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
       dm = unew%dim
 
+!     call print(unew,"UNEW BEFORE")
+
       do i = 1, unew%nboxes
          if ( multifab_remote(unew, i) ) cycle
          upn => dataptr(unew, i)
@@ -236,6 +238,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       end do
       call multifab_fill_boundary(unew)
       call multifab_fill_boundary(gp)
+
+!     call print(unew,"UNEW AFTER")
 
     end subroutine mkunew
 
@@ -423,8 +427,8 @@ subroutine hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 end subroutine hgproject
 
-subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
-                        ref_ratio,divu_verbose,mg_verbose)
+subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
+                        divu_verbose,mg_verbose)
   use BoxLib
   use omp_module
   use f2kcli
@@ -438,15 +442,13 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
   use box_util_module
   use bl_IO_module
 
-  integer       , intent(in   ) :: nlevs
-  type(layout)  , intent(inout) :: la_tower(:)
-  type(multifab), intent(inout) :: unew(:)
-  type(multifab), intent(in   ) :: rhohalf(:)
-  type(multifab), intent(inout) :: phi(:)
-  real(dp_t)    , intent(in)    :: dx(:,:)
-  type(bc_tower), intent(in   ) :: the_bc_tower
-  integer       , intent(in   ) :: ref_ratio(:,:)
-  integer       , intent(in   ) :: divu_verbose,mg_verbose
+  type(ml_layout), intent(inout) :: mla
+  type(multifab ), intent(inout) :: unew(:)
+  type(multifab ), intent(in   ) :: rhohalf(:)
+  type(multifab ), intent(inout) :: phi(:)
+  real(dp_t)     , intent(in)    :: dx(:,:)
+  type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: divu_verbose,mg_verbose
 !
 ! Local variables
 !
@@ -465,7 +467,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
   real(dp_t) :: eps
   real(dp_t) :: omega
 
-  integer :: i, dm, ns, test
+  integer :: i, dm, nlevs, ns, test
   integer :: bottom_solver, bottom_max_iter
   integer :: max_iter
   integer :: min_width
@@ -477,7 +479,8 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 
   !! Defaults:
 
-  dm                = unew(nlevs)%dim
+  dm    = mla%dim
+  nlevs = mla%nlevel
 
   allocate(mgt(nlevs))
 
@@ -513,14 +516,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 ! Note: put this here for robustness
   max_iter = 100
 
-! allocate(phi_orig(nlevs))
-! do n = 1,nlevs
-!    la = la_tower(n)
-!    call multifab_build(phi_orig(n), la, 1, 1, phi(n)%nodal)
-!    call multifab_copy(phi_orig(n),phi(n))
-!    call setval(phi(n), 0.0_dp_t, all=.true.)
-! end do
-
   ns = 3**dm
 
   do n = nlevs, 1, -1
@@ -528,18 +523,18 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
      if (n == 1) then
         max_nlevel_in = max_nlevel
      else
-        if ( all(ref_ratio(n-1,:) == 2) ) then
+        if ( all(mla%mba%rr(n-1,:) == 2) ) then
            max_nlevel_in = 1
-        else if ( all(ref_ratio(n-1,:) == 4) ) then
+        else if ( all(mla%mba%rr(n-1,:) == 4) ) then
            max_nlevel_in = 2
         else 
            call bl_error("HG_MULTIGRID: confused about ref_ratio")
         end if
      end if
 
-     pd = layout_get_pd(la_tower(n))
+     pd = layout_get_pd(mla%la(n))
 
-     call mg_tower_build(mgt(n), la_tower(n), pd, &
+     call mg_tower_build(mgt(n), mla%la(n), pd, &
                          the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,PRESS_COMP), &
           dh = dx(n,:), &
           ns = ns, &
@@ -565,7 +560,7 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 
      allocate(coeffs(mgt(n)%nlevels))
 
-     la = la_tower(n)
+     la = mla%la(n)
      pd = layout_get_pd(la)
 
      call multifab_build(coeffs(mgt(n)%nlevels), la, 1, 1)
@@ -600,12 +595,14 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 
   allocate(rh(nlevs))
   do n = 1, nlevs
-     call multifab_build(rh(n),la_tower(n),1,1,nodal)
+     call multifab_build(rh(n),mla%la(n),1,1,nodal)
   end do
 
-  call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,divu_verbose)
+  call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,mla%mba%rr,divu_verbose)
 
-  call ml_nd_solve(la_tower,mgt,rh,phi,ref_ratio)
+  call fabio_ml_write(rh,mla%mba%rr(:,1),"HGRHS")
+
+  call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr)
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
@@ -626,7 +623,6 @@ subroutine hg_multigrid(nlevs,la_tower,unew,rhohalf,phi,dx,the_bc_tower,&
 
   deallocate(mgt)
   deallocate(rh)
-! deallocate(ref_ratio)
 
 end subroutine hg_multigrid
 

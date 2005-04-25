@@ -93,12 +93,13 @@ contains
 !          u(i,j,2) = ONE * (x) * (ONE - x)
 
 !          Initial data for vortex-in-a-box
-!          spx = sin(Pi*x)
-!          spy = sin(Pi*y)
-!          cpx = cos(Pi*x)
-!          cpy = cos(Pi*y)
-!          u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
-!          u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
+           spx = sin(Pi*x)
+           spy = sin(Pi*y)
+           cpx = cos(Pi*x)
+           cpy = cos(Pi*y)
+           u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
+           u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
+!          u(i,j,2) = INLET_VY * FOUR*x*(ONE-x)
 
            s(i,j,1) = ONE
            r = sqrt((x-HALF)**2 + (y-HALF)**2)
@@ -107,12 +108,19 @@ contains
       enddo
 
 !     Impose inflow conditions if grid touches inflow boundary.
+!     do i = lo(1), hi(1)
+!       x = (float(i)+HALF) * dx(1) / prob_hi(1)
+!       u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY * FOUR*x*(ONE-x)
+!     end do
+
+!     Impose inflow conditions if grid touches inflow boundary.
 !     if (lo(2) .eq. 0) then
 !        u(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_VX
 !        u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY
 !        s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
 !        s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
 !        s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
+!        print *,'SETTING V TO ',INLET_VY
 !     end if
 
       if (size(s,dim=3).gt.2) then
@@ -183,10 +191,10 @@ contains
 
    end subroutine initdata_3d
 
-   subroutine impose_pressure_bcs(p,la_tower,mult)
+   subroutine impose_pressure_bcs(p,mla,mult)
 
      type(multifab ), intent(inout) :: p(:)
-     type(layout   ), intent(in   ) :: la_tower(:)
+     type(ml_layout), intent(in   ) :: mla
      real(kind=dp_t), intent(in   ) :: mult
  
      type(box)           :: bx,pd
@@ -195,7 +203,7 @@ contains
      nlevs = size(p,dim=1)
 
      do n = 1,nlevs
-        pd = layout_get_pd(la_tower(n))
+        pd = layout_get_pd(mla%la(n))
         do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
            bx = get_ibox(p(n),i)
            if (bx%lo(2) == pd%lo(2)) then

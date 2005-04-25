@@ -11,32 +11,31 @@ module viscous_module
 
 contains 
 
-subroutine visc_solve(nlevs,la_tower,unew,rho,dx,mu,the_bc_tower,ref_ratio,mg_verbose)
+subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose)
 
-  integer       , intent(in   ) :: nlevs
-  type(layout)  , intent(inout) :: la_tower(:)
-  type(multifab), intent(inout) :: unew(:)
-  type(multifab), intent(in   ) :: rho(:)
-  real(dp_t)    , intent(in   ) :: dx(:,:),mu
-  type(bc_tower), intent(in   ) :: the_bc_tower
-  integer       , intent(in   ) :: ref_ratio(:,:)
-  integer       , intent(in   ) :: mg_verbose
+  type(ml_layout), intent(inout) :: mla
+  type(multifab ), intent(inout) :: unew(:)
+  type(multifab ), intent(in   ) :: rho(:)
+  real(dp_t)     , intent(in   ) :: dx(:,:),mu
+  type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
   type(flux_reg), pointer     :: fine_flx(:) => Null()
-  integer  :: n,d,dm,stencil_order
-  integer  :: bc_comp
+  integer                     :: n,nlevs,d,dm,stencil_order
+  integer                     :: bc_comp
 
-  dm = rho(nlevs)%dim
+  nlevs = mla%nlevel
+  dm    = mla%dim
 
   allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
   do n = 1,nlevs
-     call multifab_build(   rh(n), la_tower(n),  1, 0)
-     call multifab_build(  phi(n), la_tower(n),  1, 1)
-     call multifab_build(alpha(n), la_tower(n),  1, 1)
-     call multifab_build( beta(n), la_tower(n), dm, 1)
+     call multifab_build(   rh(n), mla%la(n),  1, 0)
+     call multifab_build(  phi(n), mla%la(n),  1, 1)
+     call multifab_build(alpha(n), mla%la(n),  1, 1)
+     call multifab_build( beta(n), mla%la(n), dm, 1)
 
      call multifab_copy_c(alpha(n),1,rho(n),1,1)
      call setval(beta(n),mu,all=.true.)
@@ -54,7 +53,7 @@ subroutine visc_solve(nlevs,la_tower,unew,rho,dx,mu,the_bc_tower,ref_ratio,mg_ve
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call flux_reg_build(fine_flx(n),la_tower(n),layout_get_pd(la_tower(n)))
+     call flux_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
   end do
 
   do d = 1,dm
@@ -62,8 +61,8 @@ subroutine visc_solve(nlevs,la_tower,unew,rho,dx,mu,the_bc_tower,ref_ratio,mg_ve
         call mkrhs(rh(n),unew(n),rho(n),phi(n),d)
      end do
      bc_comp = d
-     call mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
-                        the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
+     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
+                        the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
      do n = 1,nlevs
         call multifab_copy_c(unew(n),d,phi(n),1,1)
      end do
@@ -165,33 +164,31 @@ subroutine visc_solve(nlevs,la_tower,unew,rho,dx,mu,the_bc_tower,ref_ratio,mg_ve
 
 end subroutine visc_solve
 
-subroutine diff_scalar_solve(nlevs,la_tower,snew,dx,mu,the_bc_tower,icomp,bc_comp,ref_ratio,mg_verbose)
+subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose)
 
-  integer       , intent(in   ) :: nlevs
-  type(layout)  , intent(inout) :: la_tower(:)
-  type(multifab), intent(inout) :: snew(:)
-  real(dp_t)    , intent(in   ) :: dx(:,:)
-  real(dp_t)    , intent(in   ) :: mu
-  type(bc_tower), intent(in   ) :: the_bc_tower
-  integer       , intent(in   ) :: icomp,bc_comp
-  integer       , intent(in   ) :: ref_ratio(:,:)
-  integer       , intent(in   ) :: mg_verbose
+  type(ml_layout), intent(inout) :: mla
+  type(multifab ), intent(inout) :: snew(:)
+  real(dp_t)     , intent(in   ) :: dx(:,:)
+  real(dp_t)     , intent(in   ) :: mu
+  type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: icomp,bc_comp
+  integer        , intent(in   ) :: mg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
   type(flux_reg), pointer     :: fine_flx(:) => Null()
-  type(layout) :: la
-  integer  :: n,dm,stencil_order
+  integer                     :: n,nlevs,dm,stencil_order
 
-  dm = snew(nlevs)%dim
+  nlevs = mla%nlevel
+  dm    = mla%dim
 
   allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
   do n = 1,nlevs
-     call multifab_build(   rh(n), la_tower(n),  1, 0)
-     call multifab_build(  phi(n), la_tower(n),  1, 1)
-     call multifab_build(alpha(n), la_tower(n),  1, 1)
-     call multifab_build( beta(n), la_tower(n), dm, 1)
+     call multifab_build(   rh(n), mla%la(n),  1, 0)
+     call multifab_build(  phi(n), mla%la(n),  1, 1)
+     call multifab_build(alpha(n), mla%la(n),  1, 1)
+     call multifab_build( beta(n), mla%la(n), dm, 1)
      call setval(alpha(n),ONE,all=.true.)
      call setval( beta(n), mu,all=.true.)
   end do
@@ -211,11 +208,11 @@ subroutine diff_scalar_solve(nlevs,la_tower,snew,dx,mu,the_bc_tower,icomp,bc_com
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call flux_reg_build(fine_flx(n),la_tower(n),layout_get_pd(la_tower(n)))
+     call flux_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
   end do
 
-  call mac_multigrid(nlevs,la_tower,rh,phi,fine_flx,alpha,beta,dx, &
-                     the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
+  call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
+                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
 
   do n = 1,nlevs
      call multifab_plus_plus_c(snew(n),icomp,phi(n),1,1)

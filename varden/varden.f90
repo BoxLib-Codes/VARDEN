@@ -43,7 +43,7 @@ subroutine varden()
   real(dp_t) :: time,dt,half_dt,dtold,dt_hold,dt_temp
   real(dp_t) :: visc_mu, pressure_inflow_val
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
-  integer    :: k,istep,ng_cell,ng_edge
+  integer    :: k,istep,ng_cell,ng_edge,ng_fill
   integer    :: i, d, n, nlevs, n_plot_comps, n_chk_comps, nscal
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step, edge_based
@@ -53,11 +53,9 @@ subroutine varden()
   real(dp_t) :: prob_hi_x,prob_hi_y,prob_hi_z
 
   integer     , allocatable :: domain_phys_bc(:,:)
-  integer     , pointer     :: rrs(:)
-  integer     , allocatable :: ref_ratio(:,:)
   real(dp_t)  , pointer     :: dx(:,:)
   real(dp_t)  , allocatable :: prob_hi(:)
-  type(layout), pointer     :: la_tower(:)
+  type(ml_layout)           :: mla
   type(box)   , allocatable :: domain_boxes(:)
 
   type(multifab), pointer ::       uold(:) => Null()
@@ -97,7 +95,7 @@ subroutine varden()
   logical :: nodal(2)
 
   type(layout)    :: la
-  type(box)       :: domain_box
+  type(box)       :: fine_domain,domain_box
   type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
@@ -342,9 +340,9 @@ subroutine varden()
 
   if (restart >= 0) then
 
-     call do_restart(dm,nscal,ng_cell,restart,la_tower,uold,sold,gp,p,rrs,dx,time,dt)
-     nlevs = size(uold)
-     domain_box = bbox(get_boxarray(la_tower(1)))
+     call do_restart(nscal,ng_cell,restart,mla,uold,sold,gp,p,dx,time,dt)
+     nlevs = mla%nlevel
+     domain_box = bbox(get_boxarray(mla%la(1)))
 
   else
 
@@ -354,21 +352,15 @@ subroutine varden()
        stop
      end if
      nlevs = mba%nlevel
-     allocate(la_tower(nlevs))
-     call build(la_tower(1), mba%bas(1))
-     allocate(ref_ratio(nlevs-1,dm))
-     do n = 2, nlevs
-        ref_ratio(n-1,:) = mba%rr(n-1,:)
-        call layout_build_pn(la_tower(n), la_tower(n-1), mba%bas(n), ref_ratio(n-1,:))
-     end do
+     call ml_layout_build(mla,mba)
      allocate(dx(nlevs,dm))
 
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
      do n = 1,nlevs
-        call multifab_build(   uold(n), la_tower(n),    dm, ng_cell)
-        call multifab_build(   sold(n), la_tower(n),    dm, ng_cell)
-        call multifab_build(     gp(n), la_tower(n),    dm,       1)
-        call multifab_build(      p(n), la_tower(n),     1,       1, nodal)
+        call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
+        call multifab_build(   sold(n), mla%la(n),    dm, ng_cell)
+        call multifab_build(     gp(n), mla%la(n),    dm,       1)
+        call multifab_build(      p(n), mla%la(n),     1,       1, nodal)
         call setval(uold(n),0.0_dp_t, all=.true.)
         call setval(sold(n),0.0_dp_t, all=.true.)
         call setval(  gp(n),0.0_dp_t, all=.true.)
@@ -388,20 +380,20 @@ subroutine varden()
   allocate(force(nlevs),scal_force(nlevs))
 
   do n = nlevs,1,-1
-     call multifab_build(   unew(n), la_tower(n),    dm, ng_cell)
-     call multifab_build(   snew(n), la_tower(n), nscal, ng_cell)
+     call multifab_build(   unew(n), mla%la(n),    dm, ng_cell)
+     call multifab_build(   snew(n), mla%la(n), nscal, ng_cell)
 
-     call multifab_build(scal_force(n), la_tower(n), nscal, 1)
-     call multifab_build(     force(n), la_tower(n),    dm, 1)
-     call multifab_build(   rhohalf(n), la_tower(n),     1, 1)
-     call multifab_build(      vort(n), la_tower(n),     1, 0)
+     call multifab_build(scal_force(n), mla%la(n), nscal, 1)
+     call multifab_build(     force(n), mla%la(n),    dm, 1)
+     call multifab_build(   rhohalf(n), mla%la(n),     1, 1)
+     call multifab_build(      vort(n), mla%la(n),     1, 0)
 
-     call multifab_build(   umac(n), la_tower(n),    dm, ng_edge)
-     call multifab_build( utrans(n), la_tower(n),    dm, ng_edge)
-     call multifab_build( uedgex(n), la_tower(n),    dm, 1)
-     call multifab_build( uedgey(n), la_tower(n),    dm, 1)
-     call multifab_build( sedgex(n), la_tower(n), nscal, 1)
-     call multifab_build( sedgey(n), la_tower(n), nscal, 1)
+     call multifab_build(   umac(n), mla%la(n),    dm, ng_edge)
+     call multifab_build( utrans(n), mla%la(n),    dm, ng_edge)
+     call multifab_build( uedgex(n), mla%la(n),    dm, 1)
+     call multifab_build( uedgey(n), mla%la(n),    dm, 1)
+     call multifab_build( sedgex(n), mla%la(n), nscal, 1)
+     call multifab_build( sedgey(n), mla%la(n), nscal, 1)
 
      call setval(  unew(n),ZERO, all=.true.)
      call setval(  snew(n),ZERO, all=.true.)
@@ -418,7 +410,7 @@ subroutine varden()
      call setval(scal_force(n),ZERO, all=.true.)
   end do
 
-  la = la_tower(1)
+  la = mla%la(1)
 
 
   prob_hi(1) = prob_hi_x
@@ -434,9 +426,6 @@ subroutine varden()
      do n = 2,nlevs
        dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
      end do
- 
-     allocate(rrs(nlevs-1))
-     if (nlevs > 1) rrs = 2
   end if
 
   if (verbose .eq. 1) print *,'PROBHI ',prob_hi(1),prob_hi(2)
@@ -454,7 +443,7 @@ subroutine varden()
 
   allocate(domain_boxes(nlevs))
   do n = 1,nlevs
-     domain_boxes(n) = layout_get_pd(la_tower(n))
+     domain_boxes(n) = layout_get_pd(mla%la(n))
   end do
 
 ! Put the bc values from the inputs file into domain_phys_bc
@@ -470,7 +459,7 @@ subroutine varden()
   end if
 
 ! Build the arrays for each grid from the domain_bc arrays.
-  call bc_tower_build( the_bc_tower,la_tower,domain_phys_bc,domain_boxes,nscal)
+  call bc_tower_build( the_bc_tower,mla,domain_phys_bc,domain_boxes,nscal)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now initialize the grid data, and do initial projection if restart < 0.
@@ -485,15 +474,15 @@ subroutine varden()
                       the_bc_tower%bc_tower_array(n),nscal)
      end do
      do n = nlevs,2,-1
-        call ml_cc_restriction(uold(n-1),uold(n),ref_ratio(n-1,:))
-        call ml_cc_restriction(sold(n-1),sold(n),ref_ratio(n-1,:))
+        call ml_cc_restriction(uold(n-1),uold(n),mba%rr(n-1,:))
+        call ml_cc_restriction(sold(n-1),sold(n),mba%rr(n-1,:))
      end do
 
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
-       call hgproject(nlevs,la_tower,uold,rhohalf,p,gp,dx,dt_temp, &
-                      the_bc_tower, ref_ratio, verbose, mg_verbose)
+       call hgproject(mla,uold,rhohalf,p,gp,dx,dt_temp, &
+                      the_bc_tower,verbose,mg_verbose)
        do n = 1,nlevs
           call setval( p(n)  ,0.0_dp_t, all=.true.)
           call setval(gp(n)  ,0.0_dp_t, all=.true.)
@@ -503,7 +492,7 @@ subroutine varden()
      if (bcy_lo == OUTLET) then
         pressure_inflow_val = .16
         print *,'IMPOSING INFLOW PRESSURE '
-        call impose_pressure_bcs(p,la_tower,pressure_inflow_val)
+        call impose_pressure_bcs(p,mla,pressure_inflow_val)
      end if
   endif
 
@@ -553,13 +542,13 @@ subroutine varden()
   allocate(plotdata(nlevs))
   n_plot_comps = 2*dm + nscal + 1
   do n = 1,nlevs
-     call multifab_build(plotdata(n), la_tower(n), n_plot_comps, 0)
+     call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
   end do
 
   allocate(chkdata(nlevs))
   n_chk_comps = 2*dm + nscal
   do n = 1,nlevs
-     call multifab_build(chkdata(n), la_tower(n), n_chk_comps, 0)
+     call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
   end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -570,6 +559,18 @@ subroutine varden()
      if (init_iter > 0) then
        if (verbose .eq. 1) print *,'DOING ',init_iter,' INITIAL ITERATIONS ' 
        do istep = 1,init_iter
+
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
+           call multifab_fill_ghost_cells(sold(n),sold(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,dm+1,nscal)
+        end do
 
         do n = 1,nlevs
            call advance_premac(uold(n),sold(n),&
@@ -582,8 +583,7 @@ subroutine varden()
                                verbose,mg_verbose)
         end do
 
-        call macproject(nlevs,la_tower,umac,sold,dx,the_bc_tower, &
-                        ref_ratio,verbose,mg_verbose)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose)
 
         do n = 1,nlevs
            call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
@@ -595,12 +595,20 @@ subroutine varden()
                                 diff_coef,verbose,mg_verbose)
         end do
 
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,dm+1,nscal)
+        end do
+
         if (diff_coef > ZERO) then
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(nlevs,la_tower,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,&
-                                 ref_ratio,mg_verbose)
+          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,&
+                                 mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -617,9 +625,17 @@ subroutine varden()
                                  visc_coef,verbose,mg_verbose)
         end do
 
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
+        end do
+
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(nlevs,la_tower,unew,rhohalf,dx,visc_mu,the_bc_tower,ref_ratio,mg_verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -627,8 +643,16 @@ subroutine varden()
         end do
 
 !       Project the new velocity field.
-        call hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower, ref_ratio, verbose, mg_verbose)
+        call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
+                       the_bc_tower,verbose,mg_verbose)
+
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
+        end do
 
         if (verbose .eq. 1) then
            do n = 1,nlevs
@@ -656,7 +680,7 @@ subroutine varden()
          call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
       end do
       write(unit=sd_name,fmt='("plt",i4.4)') istep
-      call fabio_ml_multifab_write_d(plotdata, rrs, sd_name, plot_names, &
+      call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
                                   domain_box, time, dx(1,:))
       last_plt_written = istep
 
@@ -669,7 +693,7 @@ subroutine varden()
       end do
       write(unit=sd_name,fmt='("chk",i4.4)') istep
 
-      call checkpoint_write(sd_name, chkdata, p, rrs, dx, time, dt)
+      call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt)
       last_chk_written = istep
  
   end if
@@ -714,8 +738,7 @@ subroutine varden()
                                visc_coef,diff_coef,verbose,mg_verbose)
         end do
 
-        call macproject(nlevs,la_tower,umac,sold,dx,the_bc_tower, &
-                        ref_ratio,verbose,mg_verbose)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose)
 
         do n = 1,nlevs
            call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
@@ -731,8 +754,8 @@ subroutine varden()
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(nlevs,la_tower,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
-                                 ref_ratio,mg_verbose)
+          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
+                                 mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -751,7 +774,7 @@ subroutine varden()
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(nlevs,la_tower,unew,rhohalf,dx,visc_mu,the_bc_tower,ref_ratio,mg_verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose)
         end if
 
         do n = 1,nlevs
@@ -759,8 +782,8 @@ subroutine varden()
         end do
 
 !       Project the new velocity field.
-        call hgproject(nlevs,la_tower,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,ref_ratio, verbose,mg_verbose)
+        call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
+                       the_bc_tower,verbose,mg_verbose)
 
         time = time + dt
 
@@ -791,7 +814,7 @@ subroutine varden()
                call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
             end do
             write(unit=sd_name,fmt='("plt",i4.4)') istep
-            call fabio_ml_multifab_write_d(plotdata, rrs, sd_name, plot_names, &
+            call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
                                            domain_box, time, dx(1,:))
             last_plt_written = istep
          end if
@@ -803,7 +826,7 @@ subroutine varden()
                call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
             end do
             write(unit=sd_name,fmt='("chk",i4.4)') istep
-            call checkpoint_write(sd_name, chkdata, p, rrs, dx, time, dt)
+            call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt)
             last_chk_written = istep
          end if
 
@@ -822,7 +845,7 @@ subroutine varden()
           call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
         end do
         write(unit=sd_name,fmt='("plt",i4.4)') max_step
-        call fabio_ml_multifab_write_d(plotdata, rrs, sd_name, plot_names, &
+        call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
                                       domain_box, time, dx(1,:))
        end if
 
@@ -834,7 +857,7 @@ subroutine varden()
           call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
         end do
         write(unit=sd_name,fmt='("chk",i4.4)') max_step
-        call checkpoint_write(sd_name, chkdata, p, rrs, dx, time, dt)
+        call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt)
        end if
 
   end if

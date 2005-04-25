@@ -100,6 +100,9 @@ contains
       call multifab_fill_boundary(uold)
       call multifab_fill_boundary(sold)
 
+      call print(uold,"UOLD")
+      call print(sold,"SOLD")
+
 !     Create force.
       visc_fac = ONE
       edge_based = 0

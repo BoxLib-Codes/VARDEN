@@ -94,17 +94,17 @@ contains
             do i = lo(1)-ng,hi(1)+ng
                s(i,lo(2)-ng:lo(2)-1) = ZERO
             end do
-            if (icomp.eq.1) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VX
-            if (icomp.eq.2) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VY
-            if (icomp.eq.3) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_DEN
-            if (icomp.eq.4) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_TRA
+!           if (icomp.eq.1) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VX
+!           if (icomp.eq.2) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VY
+!           if (icomp.eq.3) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_DEN
+!           if (icomp.eq.4) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_TRA
 
 !           How to do Poiseuille inflow.
 !           if (icomp.eq.2) then
 !              do i = lo(1)-ng,hi(1)+ng
 !                 x = (float(i)+0.5) * dx(1)
 !                 if (x .ge. 0.0 .and. x .le. 1) then
-!                    s(i,lo(2)-ng:lo(2)-1) = x * (ONE - x)
+!                    s(i,lo(2)-ng:lo(2)-1) = FOUR * x * (ONE - x)
 !                 else
 !                    s(i,lo(2)-ng:lo(2)-1) = ZERO
 !                 end if

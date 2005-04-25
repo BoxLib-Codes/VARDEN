@@ -1,7 +1,7 @@
 module define_bc_module
 
   use bl_types
-  use layout_module
+  use ml_layout_module
   use bc_module
 
   type bc_level
@@ -25,30 +25,30 @@ module define_bc_module
 
   contains
 
-  subroutine bc_tower_build(bct,la_tower,domain_bc,domain_box,nscal)
+  subroutine bc_tower_build(bct,mla,domain_bc,domain_box,nscal)
 
-    type(bc_tower), intent(  out) :: bct
-    type(layout)  , intent(in   ) :: la_tower(:)
-    integer       , intent(in   ) :: domain_bc(:,:)
-    type(box)     , intent(in   ) :: domain_box(:)
-    integer       , intent(in   ) :: nscal
+    type(bc_tower ), intent(  out) :: bct
+    type(ml_layout), intent(in   ) :: mla
+    integer        , intent(in   ) :: domain_bc(:,:)
+    type(box)      , intent(in   ) :: domain_box(:)
+    integer        , intent(in   ) :: nscal
 
     integer :: ngrids
     integer :: default_value
 
-    bct%nlevels = size(la_tower,dim=1)
-    bct%dim     = layout_dim(la_tower(1))
+    bct%nlevels = mla%nlevel
+    bct%dim     = mla%dim
 
     allocate(bct%bc_tower_array(bct%nlevels))
     do i = 1,bct%nlevels
-       ngrids = layout_nboxes(la_tower(i))
+       ngrids = layout_nboxes(mla%la(i))
        bct%bc_tower_array(i)%dim    = bct%dim
        bct%bc_tower_array(i)%ngrids = ngrids
        bct%bc_tower_array(i)%domain = domain_box(i)
 
        allocate(bct%bc_tower_array(i)%phys_bc_level_array(0:ngrids,bct%dim,2))
        default_value = INTERIOR
-       call phys_bc_level_build(bct%bc_tower_array(i)%phys_bc_level_array,la_tower(i), &
+       call phys_bc_level_build(bct%bc_tower_array(i)%phys_bc_level_array,mla%la(i), &
                                 domain_bc,default_value)
 
        allocate(bct%bc_tower_array(i)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
@@ -218,6 +218,12 @@ module define_bc_module
           ell_bc_level(n,d,i,dm+1) = BC_NEU   ! density
           ell_bc_level(n,d,i,dm+2) = BC_NEU   ! tracer
           ell_bc_level(n,d,i,dm+3) = BC_NEU   ! pressure
+       else if (phys_bc_level(n,d,i) == PERIODIC) then
+          ell_bc_level(n,d,i,1:dm) = BC_PER   ! tangential vel.
+          ell_bc_level(n,d,i,   d) = BC_PER   ! normal vel.
+          ell_bc_level(n,d,i,dm+1) = BC_PER   ! density
+          ell_bc_level(n,d,i,dm+2) = BC_PER   ! tracer
+          ell_bc_level(n,d,i,dm+3) = BC_PER   ! pressure
        end if
     end do
     end do
