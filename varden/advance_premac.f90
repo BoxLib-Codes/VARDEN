@@ -166,6 +166,8 @@ contains
          end select
       end do
 
+      call multifab_destroy(force)
+
    end subroutine advance_premac
 
 end module pre_advance_module
