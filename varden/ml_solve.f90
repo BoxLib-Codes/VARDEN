@@ -54,7 +54,7 @@ contains
       dm    = mla%dim
       nlevs = mla%nlevel
 
-      do_diagnostics = 1
+      do_diagnostics = 0
       eps = 1.d-12
 
       allocate(fine_mask(nlevs))
