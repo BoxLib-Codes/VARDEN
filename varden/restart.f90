@@ -43,7 +43,11 @@ contains
        call multifab_copy_c(sold(n),1,chkdata(n),1+  dm,nscal)
        call multifab_copy_c(  gp(n),1,chkdata(n),1+2*dm,dm)
        call multifab_copy_c(   p(n),1,  chk_p(n),1     ,1)
+       call multifab_destroy(chkdata(n))
+       call multifab_destroy(chk_p(n))
     end do
+
+    deallocate(chkdata,chk_p)
 
     ! Synchronize incoming data
     do n = 1,nlevs
