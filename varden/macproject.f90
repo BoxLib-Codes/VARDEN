@@ -987,8 +987,6 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
 
   end do
 
-! call fabio_ml_write(rh,ref_ratio(:,1),"MACRHS")
-
   call ml_cc_solve(mla, mgt, rh, phi, fine_flx, &
                    the_bc_tower%bc_tower_array(nlevs)%ell_bc_level_array(0,:,:,dm+3), &
                    stencil_order,ref_ratio)

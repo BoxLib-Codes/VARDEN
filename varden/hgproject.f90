@@ -600,8 +600,6 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
   call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,mla%mba%rr,divu_verbose)
 
-! call fabio_ml_write(rh,mla%mba%rr(:,1),"HGRHS")
-
   call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr)
 
   do n = nlevs,1,-1
