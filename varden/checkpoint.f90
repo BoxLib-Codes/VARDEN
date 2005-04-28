@@ -92,7 +92,6 @@ contains
     integer :: i, j, k, n
     character(len=128) :: header, sd_name
     integer :: nc, un, nl, dm
-    integer, allocatable ::  lo(:),  hi(:)
     integer :: idummy, rdummy
     type(box) :: lbbox
 
@@ -134,8 +133,9 @@ contains
     nl = nlevs
     nc = ncomp(mfs(1))
     dm = mfs(1)%dim
-    allocate(lo(dm),hi(dm))
     lbbox = bbox(get_boxarray(mfs(1)))
+
+    deallocate(dx,rrs)
 
   end subroutine checkpoint_read
 
