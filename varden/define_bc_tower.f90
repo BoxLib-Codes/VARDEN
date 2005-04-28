@@ -64,6 +64,21 @@ module define_bc_module
 
   end subroutine bc_tower_build
 
+  subroutine bc_tower_destroy(bct)
+
+    type(bc_tower), intent(inout) :: bct
+
+    integer :: i
+
+    do i = 1,bct%nlevels
+       deallocate(bct%bc_tower_array(i)%phys_bc_level_array)
+       deallocate(bct%bc_tower_array(i)%adv_bc_level_array)
+       deallocate(bct%bc_tower_array(i)%ell_bc_level_array)
+    end do
+    deallocate(bct%bc_tower_array)
+
+  end subroutine bc_tower_destroy
+
   subroutine phys_bc_level_build(phys_bc_level,la_level,domain_bc,default_value)
 
     integer     , intent(inout) :: phys_bc_level(0:,:,:)
