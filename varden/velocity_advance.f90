@@ -56,7 +56,7 @@ contains
       integer :: irz,velpred,edge_based
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,comp,dm,ng_cell,ng_edge,ng_rho
-      logical :: is_vel,is_conservative
+      logical :: is_vel,is_conservative(uold%dim)
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
 
@@ -170,7 +170,7 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              fp(:,:,1,:), unp(:,:,1,:), &
                              rp(:,:,1,1), &
-                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_conservative)
+                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_vel, is_conservative)
          end select
       end do
 

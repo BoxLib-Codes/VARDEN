@@ -55,7 +55,8 @@ contains
       integer :: nscal,velpred
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_edge,ng_rho
-      logical :: is_vel,is_conservative
+      logical :: is_vel
+      logical, allocatable :: is_conservative(:)
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
 
@@ -66,7 +67,8 @@ contains
       ng_edge = umac%ng
       dm      = uold%dim
 
-      nscal   = 2
+      nscal   = ncomp(sold)
+      allocate(is_conservative(nscal))
       is_vel = .false.
 
       call multifab_build(scal_force,ext_scal_force%la,nscal,1)
@@ -142,7 +144,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the scalars with conservative differencing.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      is_conservative = .true.
+      is_conservative(1) = .true.
+      is_conservative(2) = .false.
       do i = 1, sold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          sop => dataptr(sold, i)
@@ -160,7 +163,7 @@ contains
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
-                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_conservative)
+                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_vel, is_conservative)
               do n = 1,nscal
                 call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
@@ -174,6 +177,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+      deallocate(is_conservative)
       call multifab_destroy(scal_force)
 
    end subroutine scalar_advance
