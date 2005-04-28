@@ -44,7 +44,7 @@ contains
       integer :: slope_order = 4
       logical :: test
 
-      real(kind=dp_t) :: eps
+      real(kind=dp_t) :: abs_eps, eps, smax
 
       integer :: i,j,is,js,ie,je
 
@@ -64,7 +64,7 @@ contains
       call slopex_2d(s,slopex,lo,ng_cell,ncomp,adv_bc,slope_order)
       call slopey_2d(s,slopey,lo,ng_cell,ncomp,adv_bc,slope_order)
 
-      eps = 1.0e-8
+      abs_eps = 1.0e-8
 
       is = lo(1)
       ie = hi(1)
@@ -80,6 +80,15 @@ contains
 !     Loop for fluxes on x-edges.
 !
       do n = 1,ncomp
+
+       smax = abs(s(is,ie,n))
+       do j = js,je 
+         do i = is,ie 
+           smax = max(smax,abs(s(i,j,n)))
+         end do
+       end do
+       eps = abs_eps * smax
+
        do j = js,je 
         if (velpred .eq. 0 .or. n .eq. 1) then
         do i = is-1,ie+1 
@@ -316,6 +325,14 @@ contains
         endif
        enddo
       enddo
+
+      deallocate(s_l)
+      deallocate(s_r)
+      deallocate(s_b)
+      deallocate(s_t)
+
+      deallocate(slopex)
+      deallocate(slopey)
 
       end subroutine mkflux_2d
 
@@ -959,6 +976,17 @@ contains
         enddo
        endif
       enddo
+
+      deallocate(s_l)
+      deallocate(s_r)
+      deallocate(s_b)
+      deallocate(s_t)
+      deallocate(s_d)
+      deallocate(s_u)
+
+      deallocate(slopex)
+      deallocate(slopey)
+      deallocate(slopez)
 
       end subroutine mkflux_3d
 
