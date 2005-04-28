@@ -49,10 +49,12 @@ subroutine varden()
   integer    :: init_step, edge_based
   integer    :: iunit
   integer    :: comp,bc_comp
+  logical    :: pmask_x,pmask_y,pmask_z
 
   real(dp_t) :: prob_hi_x,prob_hi_y,prob_hi_z
 
   integer     , allocatable :: domain_phys_bc(:,:)
+  logical     , allocatable :: pmask(:)
   real(dp_t)  , pointer     :: dx(:,:)
   real(dp_t)  , allocatable :: prob_hi(:)
   type(ml_layout)           :: mla
@@ -95,7 +97,7 @@ subroutine varden()
   logical :: nodal(2)
 
   type(layout)    :: la
-  type(box)       :: fine_domain,domain_box
+  type(box)       :: fine_domain
   type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
@@ -126,6 +128,9 @@ subroutine varden()
   namelist /probin/ bcy_hi
   namelist /probin/ bcz_lo
   namelist /probin/ bcz_hi
+  namelist /probin/ pmask_x
+  namelist /probin/ pmask_y
+  namelist /probin/ pmask_z
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
 
@@ -145,6 +150,8 @@ subroutine varden()
   dm = 2
   nscal = 2
 
+  allocate(pmask(dm))
+
   do_initial_projection  = 1
 
   need_inputs = .true.
@@ -159,6 +166,8 @@ subroutine varden()
   bcx_hi = SLIP_WALL
   bcy_hi = SLIP_WALL
   bcz_hi = SLIP_WALL
+
+  pmask = .FALSE.
 
   call get_environment_variable('PROBIN', probin_env, status = ierr)
   if ( need_inputs .AND. ierr == 0 ) then
@@ -191,6 +200,10 @@ subroutine varden()
      close(unit=un)
      need_inputs = .false.
   end if
+
+  pmask(1) = pmask_x
+  if (dm > 1) pmask(2) = pmask_y
+  if (dm > 2) pmask(3) = pmask_z
 
   if ( .true. ) then
      do while ( farg <= narg )
@@ -277,6 +290,19 @@ subroutine varden()
            call get_command_argument(farg, value = fname)
            read(fname, *) bcz_hi
 
+        case ('--pmask_x')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) pmask(1)
+        case ('--pmask_y')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) pmask(2)
+        case ('--pmask_z')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) pmask(3)
+
         case ('--verbose')
            farg = farg + 1
            call get_command_argument(farg, value = fname)
@@ -338,36 +364,44 @@ subroutine varden()
 ! Initialize the arrays and read the restart data if restart >= 0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if (restart >= 0) then
 
-     call do_restart(nscal,ng_cell,restart,mla,uold,sold,gp,p,dx,time,dt)
-     nlevs = mla%nlevel
-     domain_box = bbox(get_boxarray(mla%la(1)))
-
-  else
-
-     call read_a_hgproj_grid(mba, test_set)
-     if (mba%dim .ne. dm) then
-       print *,'BOXARRAY DIM NOT CONSISTENT WITH SPECIFIED DIM '
-       stop
-     end if
-     nlevs = mba%nlevel
-     call ml_layout_build(mla,mba)
-     allocate(dx(nlevs,dm))
-
-     allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
-     do n = 1,nlevs
-        call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
-        call multifab_build(   sold(n), mla%la(n),    dm, ng_cell)
-        call multifab_build(     gp(n), mla%la(n),    dm,       1)
-        call multifab_build(      p(n), mla%la(n),     1,       1, nodal)
-        call setval(uold(n),0.0_dp_t, all=.true.)
-        call setval(sold(n),0.0_dp_t, all=.true.)
-        call setval(  gp(n),0.0_dp_t, all=.true.)
-        call setval(   p(n),0.0_dp_t, all=.true.)
-     end do
-
+  call read_a_hgproj_grid(mba, test_set)
+  if (mba%dim .ne. dm) then
+    print *,'BOXARRAY DIM NOT CONSISTENT WITH SPECIFIED DIM '
+    stop
   end if
+  nlevs = mba%nlevel
+  call ml_layout_build(mla,mba,pmask)
+
+! Define dx at the base level, then at refined levels.
+  allocate(dx(nlevs,dm))
+
+  prob_hi(1) = prob_hi_x
+  if (dm > 1) prob_hi(2) = prob_hi_y
+  if (dm > 2) prob_hi(3) = prob_hi_z
+
+  do i = 1,dm
+    dx(1,i) = prob_hi(i) / float(mba%pd(1)%hi(i)-mba%pd(1)%lo(i)+1)
+  end do
+  do n = 2,nlevs
+    dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
+  end do
+
+  allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
+
+  do n = 1,nlevs
+     call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
+     call multifab_build(   sold(n), mla%la(n),    dm, ng_cell)
+     call multifab_build(     gp(n), mla%la(n),    dm,       1)
+     call multifab_build(      p(n), mla%la(n),     1,       1, nodal)
+     call setval(uold(n),0.0_dp_t, all=.true.)
+     call setval(sold(n),0.0_dp_t, all=.true.)
+     call setval(  gp(n),0.0_dp_t, all=.true.)
+     call setval(   p(n),0.0_dp_t, all=.true.)
+  end do
+
+  if (restart >= 0) &
+     call fill_restart_data(nscal,ng_cell,restart,uold,sold,gp,p,dx,time,dt)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Initialize all remaining arrays
@@ -412,34 +446,11 @@ subroutine varden()
 
   la = mla%la(1)
 
-
-  prob_hi(1) = prob_hi_x
-  if (dm > 1) prob_hi(2) = prob_hi_y
-  if (dm > 2) prob_hi(3) = prob_hi_z
-
-  if (restart < 0) then
-!    Define dx at the base level, then at refined levels.
-     domain_box = mba%pd(1)
-     do i = 1,dm
-       dx(1,i) = prob_hi(i) / float(domain_box%hi(i)-domain_box%lo(i)+1)
-     end do
-     do n = 2,nlevs
-       dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
-     end do
-  end if
-
-  if (verbose .eq. 1) print *,'PROBHI ',prob_hi(1),prob_hi(2)
-  if (verbose .eq. 1) print *,' DX ',dx(1,1),dx(1,2)
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Allocate the arrays for the boundary conditions at the physical boundaries.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(domain_phys_bc(dm,2))
-! allocate(domain_press_bc(dm,2))
-! allocate(domain_norm_vel_bc(dm,2))
-! allocate(domain_tang_vel_bc(dm,2))
-! allocate(domain_scal_bc(dm,2))
 
   allocate(domain_boxes(nlevs))
   do n = 1,nlevs
@@ -457,6 +468,10 @@ subroutine varden()
      domain_phys_bc(3,1) = bcz_lo
      domain_phys_bc(3,2) = bcz_hi
   end if
+
+  do i = 1, dm
+     if ( pmask(i) ) domain_phys_bc(i,:) = BC_PER
+  end do
 
 ! Build the arrays for each grid from the domain_bc arrays.
   call bc_tower_build( the_bc_tower,mla,domain_phys_bc,domain_boxes,nscal)
@@ -533,7 +548,7 @@ subroutine varden()
 
   do n = 1,nlevs
      dt_hold = dt
-     call estdt(uold(n),sold(n),dx(n,:),cflfac,dtold,dt)
+     call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
      dt = min(dt_hold,dt)
   end do
 
@@ -681,7 +696,7 @@ subroutine varden()
       end do
       write(unit=sd_name,fmt='("plt",i4.4)') istep
       call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
-                                  domain_box, time, dx(1,:))
+                                     mba%pd(1), time, dx(1,:))
       last_plt_written = istep
 
 !     This writes a checkpoint file.
@@ -719,7 +734,7 @@ subroutine varden()
            end if
    
            dtold = dt
-           call estdt(uold(n),sold(n),dx(n,:),cflfac,dtold,dt)
+           call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
 
         end do
 
@@ -815,7 +830,7 @@ subroutine varden()
             end do
             write(unit=sd_name,fmt='("plt",i4.4)') istep
             call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
-                                           domain_box, time, dx(1,:))
+                                           mba%pd(1), time, dx(1,:))
             last_plt_written = istep
          end if
 
@@ -846,7 +861,7 @@ subroutine varden()
         end do
         write(unit=sd_name,fmt='("plt",i4.4)') max_step
         call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
-                                      domain_box, time, dx(1,:))
+                                       mba%pd(1), time, dx(1,:))
        end if
 
        if (last_chk_written .ne. max_step) then
