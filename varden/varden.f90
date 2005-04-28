@@ -101,10 +101,6 @@ subroutine varden()
   type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
-! type(bc_tower) :: press_bc_tower
-! type(bc_tower) ::  norm_bc_tower
-! type(bc_tower) ::  tang_bc_tower
-! type(bc_tower) ::  scal_bc_tower
 
   type(bc_level) ::  bc
 
@@ -891,12 +887,29 @@ subroutine varden()
      call multifab_destroy( p(n))
      call multifab_destroy(gp(n))
      call multifab_destroy(rhohalf(n))
+     call multifab_destroy(vort(n))
      call multifab_destroy(force(n))
      call multifab_destroy(scal_force(n))
      call multifab_destroy(plotdata(n))
      call multifab_destroy(chkdata(n))
   end do
 
+  deallocate(plot_names)
+  deallocate(pmask)
+  deallocate(prob_hi)
   deallocate(domain_phys_bc)
+  deallocate(domain_boxes)
+  deallocate(lo,hi)
+  deallocate(plotdata)
+  deallocate(chkdata)
+  deallocate(uold,sold,p,gp)
+  deallocate(dx)
+  deallocate(unew,snew)
+  deallocate(umac,utrans)
+  deallocate(uedgex,uedgey,sedgex,sedgey)
+  deallocate(rhohalf,vort)
+  deallocate(force,scal_force)
+
+  call bc_tower_destroy(the_bc_tower)
 
 end subroutine varden
