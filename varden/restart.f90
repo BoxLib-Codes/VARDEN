@@ -47,6 +47,9 @@ contains
        call multifab_destroy(chk_p(n))
     end do
 
+    call destroy(chkdata(1)%la)
+    call destroy(chk_p(1)%la)
+
     deallocate(chkdata,chk_p)
 
     ! Synchronize incoming data
