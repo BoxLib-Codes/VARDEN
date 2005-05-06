@@ -53,6 +53,7 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 !
       type(multifab) :: divu
+      real(dp_t)     :: mult
 
       integer :: nscal,velpred
       integer :: lo(uold%dim),hi(uold%dim)
@@ -111,13 +112,14 @@ contains
            ump  => dataptr(umac, i)
            select case (dm)
               case (2)
-                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,:),dx)
+                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,:),dx,umac%ng)
               case (3)
-                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,:),dx)
+                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,:),dx,umac%ng)
            end select
         end do
+        mult = -ONE
         do n = 1,nscal
-          if (is_conservative(n)) call modify_force(scal_force,n,s,n,divu,1,1,-1.0)
+          if (is_conservative(n)) call modify_force(scal_force,n,sold,n,divu,1,1,mult)
         end do
         call multifab_destroy(divu)
       end if
@@ -219,6 +221,7 @@ contains
     type(multifab), intent(inout) :: a
     type(multifab), intent(in   ) :: b
     type(multifab), intent(in   ) :: c
+    real(dp_t)    , intent(in   ) :: mult
     real(dp_t), pointer :: ap(:,:,:,:)
     real(dp_t), pointer :: bp(:,:,:,:)
     real(dp_t), pointer :: cp(:,:,:,:)
@@ -226,6 +229,7 @@ contains
     logical :: lall
     lall = .false.; if ( present(all) ) lall = all
     !$OMP PARALLEL DO PRIVATE(i,ap,bp)
+    print *,'MODIFYING COMPONENT ',targ
     do i = 1, a%nboxes
        if ( multifab_remote(a,i) ) cycle
        if ( lall ) then

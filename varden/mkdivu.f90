@@ -5,11 +5,12 @@ module mkdivu_module
 
 contains
 
-      subroutine mkdivu_2d(divu,umac,dx)
+      subroutine mkdivu_2d(divu,umac,dx,ng)
 
-      real(kind=dp_t), intent(in   ) :: umac(:,:,:)
+      real(kind=dp_t), intent(in   ) :: umac(1-ng:,1-ng:,:)
       real(kind=dp_t), intent(  out) :: divu(:,:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
+      integer        , intent(in   ) :: ng
 
       integer :: i,j
 
@@ -22,11 +23,13 @@ contains
 
       end subroutine mkdivu_2d
 
-      subroutine mkdivu_3d(divu,umac,dx)
+      subroutine mkdivu_3d(divu,umac,dx,ng)
 
-      real(kind=dp_t), intent(in   ) :: umac(:,:,:,:)
+      real(kind=dp_t), intent(in   ) :: umac(1-ng:,1-ng:,1-ng:,:)
       real(kind=dp_t), intent(  out) :: divu(:,:,:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
+      integer        , intent(in   ) :: ng
+
 
       integer :: i,j,k
 

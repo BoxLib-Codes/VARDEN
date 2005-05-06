@@ -10,14 +10,14 @@ module mkflux_module
 contains
 
       subroutine mkflux_2d(s,u,sedgex,sedgey,&
-                           uadv,utrans,force,lo,dx,dt,is_vel,is_cons, &
+                           uadv,utrans,force,lo,dx,dt,is_vel,is_cons,&
                            phys_bc,adv_bc,velpred,ng_cell,ng_edge)
 
       integer, intent(in) :: lo(2),ng_cell,ng_edge
 
       real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
       real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
-      real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
+      real(kind=dp_t), intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,:)
       real(kind=dp_t), intent(inout) :: sedgex(lo(1)- 1:,lo(2)- 1:,:)
       real(kind=dp_t), intent(inout) :: sedgey(lo(1)- 1:,lo(2)- 1:,:)
       real(kind=dp_t), intent(inout) ::   uadv(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
@@ -281,6 +281,7 @@ contains
             sedgey(i,j,n)=merge(s_b(j),s_t(j),savg.gt.ZERO)
             sedgey(i,j,n)=merge(savg,sedgey(i,j,n),test)
           enddo
+
         else
 
           do j = js, je+1 
@@ -325,6 +326,7 @@ contains
         endif
         endif
        enddo
+
       enddo
 
       deallocate(s_l)
@@ -348,7 +350,7 @@ contains
 
       real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:, :)
       real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:, :)
-      real(kind=dp_t),intent(in   ) ::  force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
+      real(kind=dp_t),intent(inout) ::  force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(inout) :: sedgex(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(inout) :: sedgey(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
       real(kind=dp_t),intent(inout) :: sedgez(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
@@ -420,6 +422,7 @@ contains
 
 !     loop for x fluxes
       do n = 1,ncomp
+
        if (velpred .eq. 0 .or. n .eq. 1) then
         do k = ks,ke 
         do j = js,je 
@@ -977,6 +980,7 @@ contains
         enddo
         enddo
        endif
+
       enddo
 
       deallocate(s_l)
