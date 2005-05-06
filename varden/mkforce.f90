@@ -75,7 +75,7 @@ contains
 
       end subroutine mkforce_3d
 
-      subroutine mkscalforce_2d(force,ext_force,s,ng,dx,bc,diff_coef,visc_fac)
+      subroutine mkscalforce_2d(force,ext_force,s,ng,dx,bc,diff_coef,diff_fac)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(  out) ::     force(0:,0:,:)
@@ -83,7 +83,7 @@ contains
       real(kind=dp_t), intent(in   ) ::         s(1-ng  :,1-ng  :,:)
       real(kind=dp_t), intent(in   ) ::        dx(:)
       integer        , intent(in   ) ::        bc(:,:,:) 
-      real(kind=dp_t), intent(in   ) :: diff_coef, visc_fac
+      real(kind=dp_t), intent(in   ) :: diff_coef, diff_fac
 
       real(kind=dp_t) :: diff(1:size(force,dim=1)-2,1:size(force,dim=2)-2)
       real(kind=dp_t) :: lapu
@@ -92,11 +92,11 @@ contains
       force = 0.0_dp_t
        diff = 0.0_dp_t
       do n = 1,size(s,dim=3)
-         if (n > 1 .and. diff_coef * visc_fac > 0.0_dp_t) &
+         if (n > 1 .and. diff_coef * diff_fac > 0.0_dp_t) &
             call laplac_2d(s(:,:,n),diff,dx,ng,bc(:,:,n))
          do j = 1,size(force,dim=2)-2
          do i = 1,size(force,dim=1)-2
-           lapu = diff_coef * visc_fac * diff(i,j)
+           lapu = diff_coef * diff_fac * diff(i,j)
            force(i,j,n) = ext_force(i,j,n) + lapu
          end do
          end do
@@ -104,7 +104,7 @@ contains
 
       end subroutine mkscalforce_2d
 
-      subroutine mkscalforce_3d(force,ext_force,s,ng,dx,bc,diff_coef,visc_fac)
+      subroutine mkscalforce_3d(force,ext_force,s,ng,dx,bc,diff_coef,diff_fac)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(  out) ::     force(0:,0:,0:,:)
@@ -112,7 +112,7 @@ contains
       real(kind=dp_t), intent(in   ) ::         s(1-ng  :,1-ng  :,1-ng  :,:)
       real(kind=dp_t), intent(in   ) ::        dx(:)
       integer        , intent(in   ) ::        bc(:,:,:) 
-      real(kind=dp_t), intent(in   ) :: diff_coef, visc_fac
+      real(kind=dp_t), intent(in   ) :: diff_coef, diff_fac
 
       real(kind=dp_t) :: diff(1:size(force,dim=1)-2,1:size(force,dim=2)-2,&
                               1:size(force,dim=3)-2)
@@ -123,12 +123,12 @@ contains
        diff = 0.0_dp_t
       do n = 1,size(s,dim=4)
          diff = 0.0_dp_t
-         if (n > 1 .and. diff_coef * visc_fac > 0.0_dp_t) &
+         if (n > 1 .and. diff_coef * diff_fac > 0.0_dp_t) &
             call laplac_3d(s(:,:,:,n),diff,dx,ng,bc(:,:,n))
          do k = 1,size(force,dim=3)-2
          do j = 1,size(force,dim=2)-2
          do i = 1,size(force,dim=1)-2
-           lapu = diff_coef * visc_fac * diff(i,j,k)
+           lapu = diff_coef * diff_fac * diff(i,j,k)
            force(i,j,k,n) = ext_force(i,j,k,n) + lapu
          end do
          end do
