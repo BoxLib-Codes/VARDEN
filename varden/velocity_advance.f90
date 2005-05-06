@@ -120,7 +120,7 @@ contains
               call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
-                             lo, dx, dt, is_vel, is_cons, &
+                             lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
                              velpred, ng_cell, ng_edge)
