@@ -862,7 +862,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
   integer    :: max_nlevel
   integer    :: verbose
   integer    :: n, nu1, nu2, gamma, cycle, solver, smoother
-  integer    :: max_nlevel_in
+  integer    :: max_nlevel_in,do_diagnostics
   real(dp_t) :: eps,omega,bottom_solver_eps
   real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
   real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
@@ -987,9 +987,14 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
 
   end do
 
+  if ( mg_verbose >=1 ) then
+    do_diagnostics = 1
+  else
+    do_diagnostics = 0
+  end if
   call ml_cc_solve(mla, mgt, rh, phi, fine_flx, &
                    the_bc_tower%bc_tower_array(nlevs)%ell_bc_level_array(0,:,:,dm+3), &
-                   stencil_order,ref_ratio)
+                   stencil_order,ref_ratio,do_diagnostics)
 
   do n = 1,nlevs
      call multifab_fill_boundary(phi(n))
