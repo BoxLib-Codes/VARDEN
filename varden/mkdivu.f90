@@ -30,11 +30,13 @@ contains
 
       integer :: i,j,k
 
+      do k = 1,size(divu,dim=3)
       do j = 1,size(divu,dim=2)
       do i = 1,size(divu,dim=1)
         divu(i,j,k) = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) &
-                     +(umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2)
-                     +(umac(i,j,k+1,3) - umac(i,j,k,2)) / dx(3)
+                     +(umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) &
+                     +(umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
+      end do
       end do
       end do
 
