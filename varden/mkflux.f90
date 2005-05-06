@@ -10,7 +10,7 @@ module mkflux_module
 contains
 
       subroutine mkflux_2d(s,u,sedgex,sedgey,&
-                           uadv,utrans,force,lo,dx,dt,is_vel, &
+                           uadv,utrans,force,lo,dx,dt,is_vel,is_cons, &
                            phys_bc,adv_bc,velpred,ng_cell,ng_edge)
 
       integer, intent(in) :: lo(2),ng_cell,ng_edge
@@ -28,6 +28,7 @@ contains
       integer        ,intent(in) :: phys_bc(:,:)
       integer        ,intent(in) ::  adv_bc(:,:,:)
       logical        ,intent(in) :: is_vel
+      logical        ,intent(in) :: is_cons(:)
 
       real(kind=dp_t), allocatable::  slopex(:,:,:),slopey(:,:,:)
       real(kind=dp_t), allocatable::  s_l(:),s_r(:),s_b(:),s_t(:)
@@ -337,7 +338,7 @@ contains
       end subroutine mkflux_2d
 
       subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,&
-                           uadv,utrans,force,lo,dx,dt,is_vel, &
+                           uadv,utrans,force,lo,dx,dt,is_vel,is_cons, &
                            phys_bc,adv_bc,velpred,ng_cell,ng_edge)
 
 
@@ -359,6 +360,7 @@ contains
       integer        ,intent(in) :: phys_bc(:,:)
       integer        ,intent(in) ::  adv_bc(:,:,:)
       logical        ,intent(in) :: is_vel
+      logical        ,intent(in) :: is_cons(:)
 
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)
       real(kind=dp_t), allocatable::  slopey(:,:,:,:)
