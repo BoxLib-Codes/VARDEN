@@ -20,7 +20,7 @@ contains
                              ext_force, &
                              dx,time,dt, &
                              the_bc_level, &
-                             visc_coef,diff_coef, &
+                             visc_coef,&
                              verbose,mg_verbose)
  
       type(multifab) , intent(inout) :: uold
@@ -33,7 +33,6 @@ contains
       real(kind=dp_t), intent(in   ) :: dx(:),time,dt
       type(bc_level) , intent(in   ) :: the_bc_level
       real(kind=dp_t), intent(in   ) :: visc_coef
-      real(kind=dp_t), intent(in   ) :: diff_coef
  
       integer        , intent(in   ) :: verbose, mg_verbose
  
@@ -61,13 +60,15 @@ contains
       integer :: velpred
       integer :: dm,ng_cell,ng_edge
       integer :: i,n,comp
-      logical :: is_conservative
+      logical :: is_conservative(uold%dim)
       logical :: is_vel
       real(kind=dp_t) :: visc_fac, visc_mu
 
       real(kind=dp_t) :: half_dt
 
       half_dt = HALF * dt
+
+      is_conservative = .false.
 
       ng_cell = uold%ng
       ng_edge = umac%ng
@@ -159,7 +160,7 @@ contains
               call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
-                             lo, dx, dt, is_vel, &
+                             lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,:), &
                              velpred, ng_cell, ng_edge)

@@ -590,7 +590,7 @@ subroutine varden()
                                force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
-                               visc_coef,diff_coef, &
+                               visc_coef,&
                                verbose,mg_verbose)
         end do
 
@@ -746,7 +746,7 @@ subroutine varden()
                                force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
-                               visc_coef,diff_coef,verbose,mg_verbose)
+                               visc_coef,verbose,mg_verbose)
         end do
 
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose)
