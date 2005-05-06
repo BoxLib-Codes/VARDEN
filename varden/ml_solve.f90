@@ -30,7 +30,7 @@ module ml_solve_module
 
 contains
 
-   subroutine ml_cc_solve(mla,mgt,rh,full_soln,fine_flx,bc,stencil_order,ref_ratio)
+   subroutine ml_cc_solve(mla,mgt,rh,full_soln,fine_flx,bc,stencil_order,ref_ratio,do_diagnostics)
 
       type(ml_layout), intent(inout) :: mla
       type(mg_tower ), intent(inout) :: mgt(:)
@@ -40,6 +40,7 @@ contains
       integer        , intent(in   ) :: bc(:,:)
       integer        , intent(in   ) :: stencil_order
       integer        , intent(in   ) :: ref_ratio(:,:)
+      integer        , intent(in   ) :: do_diagnostics
 
       type(box     ) :: pd
       type(box     ) :: bx
@@ -47,14 +48,13 @@ contains
       real(dp_t), pointer      :: rp(:,:,:,:)
 
       type(lmultifab), pointer     :: fine_mask(:) => Null()
-      integer                      :: i,dm,n,nlevs,do_diagnostics
+      integer                      :: i,dm,n,nlevs
       integer                      :: mglev, mglev_crse, iter, it
       real(dp_t)                   :: eps
 
       dm    = mla%dim
       nlevs = mla%nlevel
 
-      do_diagnostics = 0
       eps = 1.d-12
 
       allocate(fine_mask(nlevs))
@@ -119,13 +119,14 @@ contains
 
    end subroutine ml_cc_solve
 
-   subroutine ml_nd_solve(mla,mgt,rh,full_soln,ref_ratio)
+   subroutine ml_nd_solve(mla,mgt,rh,full_soln,ref_ratio,do_diagnostics)
 
        type(ml_layout), intent(inout) :: mla
        type(mg_tower) , intent(inout) :: mgt(:)
        type(multifab) , intent(inout) :: rh(:)
        type(multifab) , intent(inout) :: full_soln(:)
        integer        , intent(in   ) :: ref_ratio(:,:)
+       integer        , intent(in   ) :: do_diagnostics 
 
        type(lmultifab), pointer       :: fine_mask(:) => Null()
 
@@ -135,7 +136,6 @@ contains
 
        type(layout)             :: la
        integer                  :: i, n, dm, ns
-       integer                  :: do_diagnostics 
 
        integer, allocatable     :: lo(:), hi(:)
        logical, allocatable     :: nodal(:)
@@ -147,7 +147,6 @@ contains
        type(box)           :: bx
        real(dp_t), pointer :: ap(:,:,:,:)
 
-       do_diagnostics = 0
        eps = 1.d-12
 
        nlevs = mla%nlevel
