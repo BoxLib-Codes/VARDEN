@@ -4,6 +4,7 @@ module scalar_advance_module
   use multifab_module
   use viscous_module
   use mkflux_module
+  use mkdivu_module
   use mkforce_module
   use update_module
   use setbc_module
@@ -32,8 +33,6 @@ contains
 !
       real(kind=dp_t), intent(inout) :: dx(:),time,dt
       type(bc_level) , intent(in   ) :: the_bc_level
-!     integer        , intent(in   ) :: domain_scal_bc(:,:)
-!     type(bc_level) , intent(in   ) :: scal_bc
       real(kind=dp_t), intent(in   ) :: diff_coef
 ! 
       integer        , intent(in   ) :: verbose, mg_verbose
@@ -49,15 +48,18 @@ contains
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
       real(kind=dp_t), pointer::  rp(:,:,:,:) 
+      real(kind=dp_t), pointer::  dp(:,:,:,:) 
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 !
+      type(multifab) :: divu
+
       integer :: nscal,velpred
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_edge,ng_rho
-      logical :: is_vel
+      logical :: is_vel, make_divu
       logical, allocatable :: is_conservative(:)
-      real(kind=dp_t) :: visc_fac, visc_mu
+      real(kind=dp_t) :: visc_fac, diff_fac
       real(kind=dp_t) :: half_dt
 
       half_dt = HALF * dt
@@ -68,8 +70,11 @@ contains
       dm      = uold%dim
 
       nscal   = ncomp(sold)
+      is_vel  = .false.
+
       allocate(is_conservative(nscal))
-      is_vel = .false.
+      is_conservative(1) = .true.
+      is_conservative(2) = .false.
 
       call multifab_build(scal_force,ext_scal_force%la,nscal,1)
 
@@ -91,11 +96,38 @@ contains
                                   diff_coef, visc_fac)
          end select
       end do
+
+!     Make divu = div(umac) array if any of the scalars are conservatively advected
+      make_divu = .false.
+      do n = 1,nscal
+        if (is_conservative(n)) make_divu = .true.
+      end do
+
+      if (make_divu) then
+        call multifab_build(divu,umac%la,1,0)
+        do i = 1, umac%nboxes
+           if ( multifab_remote(umac, i) ) cycle
+            dp  => dataptr(divu, i)
+           ump  => dataptr(umac, i)
+           select case (dm)
+              case (2)
+                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,:),dx)
+              case (3)
+                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,:),dx)
+           end select
+        end do
+        do n = 1,nscal
+          if (is_conservative(n)) call modify_force(scal_force,n,s,n,divu,1,1,-1.0)
+        end do
+        call multifab_destroy(divu)
+      end if
+
       call multifab_fill_boundary(scal_force)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the edge states of scalar using the MAC velocity 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       velpred = 0
       do i = 1, sold%nboxes
          if ( multifab_remote(sold, i) ) cycle
@@ -113,7 +145,7 @@ contains
               call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
-                             lo, dx, dt, is_vel, &
+                             lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                              velpred, ng_cell, ng_edge)
@@ -124,7 +156,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create scalar force at time n+1/2.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      visc_fac = HALF
+      diff_fac = HALF
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
           fp => dataptr(scal_force, i)
@@ -136,7 +168,7 @@ contains
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
                                   ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, visc_fac)
+                                  diff_coef, diff_fac)
          end select
       end do
       call multifab_fill_boundary(scal_force)
@@ -144,8 +176,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the scalars with conservative differencing.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      is_conservative(1) = .true.
-      is_conservative(2) = .false.
       do i = 1, sold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          sop => dataptr(sold, i)
@@ -181,5 +211,35 @@ contains
       call multifab_destroy(scal_force)
 
    end subroutine scalar_advance
+
+  subroutine modify_force(a, targ, b, src_b, c, src_c, nc, mult, all)
+    integer, intent(in)           :: targ, src_b, src_c
+    integer, intent(in), optional :: nc
+    logical, intent(in), optional :: all
+    type(multifab), intent(inout) :: a
+    type(multifab), intent(in   ) :: b
+    type(multifab), intent(in   ) :: c
+    real(dp_t), pointer :: ap(:,:,:,:)
+    real(dp_t), pointer :: bp(:,:,:,:)
+    real(dp_t), pointer :: cp(:,:,:,:)
+    integer :: i
+    logical :: lall
+    lall = .false.; if ( present(all) ) lall = all
+    !$OMP PARALLEL DO PRIVATE(i,ap,bp)
+    do i = 1, a%nboxes
+       if ( multifab_remote(a,i) ) cycle
+       if ( lall ) then
+          ap => dataptr(a, i, targ, nc)
+          bp => dataptr(b, i, src_b, nc)
+          cp => dataptr(c, i, src_c, nc)
+       else
+          ap => dataptr(a, i, get_ibox(a, i), targ, nc)
+          bp => dataptr(b, i, get_ibox(b, i), src_b, nc)
+          cp => dataptr(c, i, get_ibox(c, i), src_c, nc)
+       end if
+       ap = ap + mult*bp*cp
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine modify_force
 
 end module scalar_advance_module
