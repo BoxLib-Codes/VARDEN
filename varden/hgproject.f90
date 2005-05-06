@@ -476,6 +476,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   integer :: n, ng, nc
   integer :: max_nlevel_in
   integer :: verbose
+  integer :: do_diagnostics
 
   !! Defaults:
 
@@ -600,7 +601,13 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
   call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,mla%mba%rr,divu_verbose)
 
-  call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr)
+  if ( mg_verbose >=1 ) then
+    do_diagnostics = 1
+  else
+    do_diagnostics = 0
+  end if
+
+  call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr,do_diagnostics)
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
