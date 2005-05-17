@@ -199,7 +199,7 @@ module update_module
              ugrads = ubar*(sedgex(i+1,j,k,n) - sedgex(i,j,k,n))/dx(1) + &
                       vbar*(sedgey(i,j+1,k,n) - sedgey(i,j,k,n))/dx(2) + &
                       wbar*(sedgez(i,j,k+1,n) - sedgez(i,j,k,n))/dx(3)
-             snew(i,j,k,1) = sold(i,j,k,1) - dt * ugrads + dt * force(i,j,k,1)
+             snew(i,j,k,n) = sold(i,j,k,n) - dt * ugrads + dt * force(i,j,k,n)
            enddo
            enddo
            enddo
