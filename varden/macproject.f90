@@ -71,6 +71,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
      call multifab_destroy(beta(n))
   end do
 
+  do n = 2,nlevs
+     call flux_reg_destroy(fine_flx(n))
+  end do
+  deallocate(fine_flx)
+
   deallocate(rh)
   deallocate(phi)
   deallocate(alpha)
