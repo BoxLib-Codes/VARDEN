@@ -36,12 +36,12 @@ subroutine varden()
   integer    :: plot_int, chk_int
   integer    :: verbose, mg_verbose
   integer    :: dm
-  real(dp_t) :: cflfac
+  real(dp_t) :: cflfac,init_shrink
   real(dp_t) :: visc_coef
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
   real(dp_t) :: time,dt,half_dt,dtold,dt_hold,dt_temp
-  real(dp_t) :: visc_mu, pressure_inflow_val
+  real(dp_t) :: visc_mu, pressure_inflow_val, grav
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: k,istep,ng_cell,ng_edge,ng_fill
   integer    :: i, d, n, nlevs, n_plot_comps, n_chk_comps, nscal
@@ -113,6 +113,7 @@ subroutine varden()
   namelist /probin/ chk_int
   namelist /probin/ init_iter
   namelist /probin/ cflfac
+  namelist /probin/ init_shrink
   namelist /probin/ visc_coef
   namelist /probin/ diff_coef
   namelist /probin/ test_set
@@ -143,8 +144,12 @@ subroutine varden()
   plot_int  = 0
   chk_int  = 0
 
+  init_shrink = 1.0
+
   dm = 2
   nscal = 2
+
+  grav = -1.9e10
 
   allocate(pmask(dm))
 
@@ -225,6 +230,11 @@ subroutine varden()
            farg = farg + 1
            call get_command_argument(farg, value = fname)
            read(fname, *) cflfac
+
+        case ('--init_shrink')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) init_shrink
 
         case ('--visc_coef')
            farg = farg + 1
@@ -436,7 +446,8 @@ subroutine varden()
  
      call setval(      vort(n),ZERO, all=.true.)
      call setval(   rhohalf(n),ONE, all=.true.)
-     call setval(     force(n),ZERO, all=.true.)
+     call setval(     force(n),ZERO, 1,dm-1,all=.true.)
+     call setval(     force(n),grav,dm,   1,all=.true.)
      call setval(scal_force(n),ZERO, all=.true.)
   end do
 
@@ -547,6 +558,7 @@ subroutine varden()
      call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
      dt = min(dt_hold,dt)
   end do
+  dt = dt * init_shrink
 
   half_dt = HALF * dt
 
@@ -724,19 +736,18 @@ subroutine varden()
            call multifab_fill_boundary(uold(n))
            call multifab_fill_boundary(sold(n))
 
-           if (verbose .eq. 1) then
-              print *,'MAX OF UOLD ', norm_inf(uold(n),1,1),' AT LEVEL ',n 
-              print *,'MAX OF VOLD ', norm_inf(uold(n),2,1),' AT LEVEL ',n
-           end if
+!          if (verbose .eq. 1) then
+!             print *,'MAX OF UOLD ', norm_inf(uold(n),1,1),' AT LEVEL ',n 
+!             print *,'MAX OF VOLD ', norm_inf(uold(n),2,1),' AT LEVEL ',n
+!          end if
    
            dtold = dt
-           call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
+           if (istep > 1) &
+             call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
 
         end do
 
         half_dt = HALF * dt
-
-        if (verbose .eq. 1) print *,'DOING TIME ADVANCE WITH DT = ',dt
 
         do n = 1,nlevs
 
