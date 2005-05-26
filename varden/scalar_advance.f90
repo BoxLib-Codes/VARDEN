@@ -176,7 +176,7 @@ contains
       call multifab_fill_boundary(scal_force)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     Update the scalars with conservative differencing.
+!     Update the scalars with conservative or convective differencing.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       do i = 1, sold%nboxes
          if ( multifab_remote(uold, i) ) cycle
@@ -229,7 +229,6 @@ contains
     logical :: lall
     lall = .false.; if ( present(all) ) lall = all
     !$OMP PARALLEL DO PRIVATE(i,ap,bp)
-    print *,'MODIFYING COMPONENT ',targ
     do i = 1, a%nboxes
        if ( multifab_remote(a,i) ) cycle
        if ( lall ) then
