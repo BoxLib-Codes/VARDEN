@@ -71,6 +71,10 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
+  do n = 1, nlevs
+     call setval(phi(n),ZERO,all=.true.)
+  end do
+
   call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
                     verbose,mg_verbose)
 
