@@ -390,7 +390,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(1,1) == BC_DIR) then
          do j = 0,ny-1
-            phi(-1,j) = -phi(0,j)
+            phi(-1,j) = -TWO*phi(0,j) + THIRD * phi(1,j)
          end do
       end if
       if (press_bc(1,2) == BC_NEU) then
@@ -399,7 +399,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(1,2) == BC_DIR) then
          do j = 0,ny-1
-            phi(nx,j) = -phi(nx-1,j)
+            phi(nx,j) = -TWO*phi(nx-1,j) + THIRD * phi(nx-2,j)
          end do
       end if
       if (press_bc(2,1) == BC_NEU) then
@@ -408,7 +408,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(2,1) == BC_DIR) then
          do i = 0,nx-1
-            phi(i,-1) = -phi(i,0)
+            phi(i,-1) = -TWO*phi(i,0) + THIRD * phi(i,1)
          end do
       end if
       if (press_bc(2,2) == BC_NEU) then
@@ -417,7 +417,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(2,2) == BC_DIR) then
          do i = 0,nx-1
-            phi(i,ny) = -phi(i,ny-1)
+            phi(i,ny) = -TWO*phi(i,ny-1) + THIRD * phi(i,ny-2)
          end do
       end if
 
@@ -471,7 +471,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(1,1) == BC_DIR) then
          do j = 0,ny-1
-            phi(-1,j) = -phi(0,j)
+            phi(-1,j) = -TWO*phi(0,j) + THIRD * phi(1,j)
          end do
       end if
       if (press_bc(1,2) == BC_NEU) then
@@ -480,7 +480,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(1,2) == BC_DIR) then
          do j = 0,ny-1
-            phi(nx,j) = -phi(nx-1,j)
+            phi(nx,j) = -TWO*phi(nx-1,j) + THIRD * phi(nx-2,j)
          end do
       end if
       if (press_bc(2,1) == BC_NEU) then
@@ -489,7 +489,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(2,1) == BC_DIR) then
          do i = 0,nx-1
-            phi(i,-1) = -phi(i,0)
+            phi(i,-1) = -TWO*phi(i,0) + THIRD * phi(i,1)
          end do
       end if
       if (press_bc(2,2) == BC_NEU) then
@@ -498,16 +498,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       else if (press_bc(2,2) == BC_DIR) then
          do i = 0,nx-1
-            phi(i,ny) = -phi(i,ny-1)
+            phi(i,ny) = -TWO*phi(i,ny-1) + THIRD * phi(i,ny-2)
          end do
       end if
-
-      do j = 0,ny-1
-      do i = 0,nx-1
-         rh(i,j) = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) + &
-                   (umac(i,j+1,2) - umac(i,j,2)) / dx(2)
-      end do
-      end do
 
       do j = 0,ny-1
          umac( 0,j,1) = umac( 0,j,1) + lo_x_flx(1,j) * dx(1)
@@ -562,7 +555,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(1,1) == BC_DIR) then
          do k = 0,nz-1
          do j = 0,ny-1
-            phi(-1,j,k) = -phi(0,j,k)
+            phi(-1,j,k) = -TWO*phi(0,j,k) + THIRD * phi(1,j,k)
          end do
          end do
       end if
@@ -575,7 +568,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(1,2) == BC_DIR) then
          do k = 0,nz-1
          do j = 0,ny-1
-            phi(nx,j,k) = -phi(nx-1,j,k)
+            phi(nx,j,k) = -TWO*phi(nx-1,j,k) + THIRD * phi(nx-2,j,k)
          end do
          end do
       end if
@@ -588,7 +581,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(2,1) == BC_DIR) then
          do k = 0,nz-1
          do i = 0,nx-1
-            phi(i,-1,k) = -phi(i,0,k)
+            phi(i,-1,k) = -TWO*phi(i,0,k) + THIRD * phi(i,1,k)
          end do
          end do
       end if
@@ -601,7 +594,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(2,2) == BC_DIR) then
          do k = 0,nz-1
          do i = 0,nx-1
-            phi(i,ny,k) = -phi(i,ny-1,k)
+            phi(i,ny,k) = -TWO*phi(i,ny-1,k) + THIRD * phi(i,ny-2,k)
          end do
          end do
       end if
@@ -614,7 +607,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(3,1) == BC_DIR) then
          do j = 0,ny-1
          do i = 0,nx-1
-            phi(i,j,-1) = -phi(i,j,0)
+            phi(i,j,-1) = -TWO*phi(i,j,0) + THIRD * phi(i,j,1)
          end do
          end do
       end if
@@ -627,7 +620,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(3,2) == BC_DIR) then
          do j = 0,ny-1
          do i = 0,nx-1
-            phi(i,j,nz) = -phi(i,j,nz-1)
+            phi(i,j,nz) = -TWO*phi(i,j,nz-1) + THIRD * phi(i,j,nz-2)
          end do
          end do
       end if
@@ -700,7 +693,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(1,1) == BC_DIR) then
          do k = 0,nz-1
          do j = 0,ny-1
-            phi(-1,j,k) = -phi(0,j,k)
+            phi(-1,j,k) = -TWO*phi(0,j,k) + THIRD * phi(1,j,k)
          end do
          end do
       end if
@@ -713,7 +706,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(1,2) == BC_DIR) then
          do k = 0,nz-1
          do j = 0,ny-1
-            phi(nx,j,k) = -phi(nx-1,j,k)
+            phi(nx,j,k) = -TWO*phi(nx-1,j,k) + THIRD * phi(nx-2,j,k)
          end do
          end do
       end if
@@ -726,7 +719,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(2,1) == BC_DIR) then
          do k = 0,nz-1
          do i = 0,nx-1
-            phi(i,-1,k) = -phi(i,0,k)
+            phi(i,-1,k) = -TWO*phi(i,0,k) + THIRD * phi(i,1,k)
          end do
          end do
       end if
@@ -739,7 +732,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(2,2) == BC_DIR) then
          do k = 0,nz-1
          do i = 0,nx-1
-            phi(i,ny,k) = -phi(i,ny-1,k)
+            phi(i,ny,k) = -TWO*phi(i,ny-1,k) + THIRD * phi(i,ny-2,k)
          end do
          end do
       end if
@@ -752,7 +745,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(3,1) == BC_DIR) then
          do j = 0,ny-1
          do i = 0,nx-1
-            phi(i,j,-1) = -phi(i,j,0)
+            phi(i,j,-1) = -TWO*phi(i,j,0) + THIRD * phi(i,j,1)
          end do
          end do
       end if
@@ -765,7 +758,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       else if (press_bc(3,2) == BC_DIR) then
          do j = 0,ny-1
          do i = 0,nx-1
-            phi(i,j,nz) = -phi(i,j,nz-1)
+            phi(i,j,nz) = -TWO*phi(i,j,nz-1) + THIRD * phi(i,j,nz-2)
          end do
          end do
       end if
