@@ -16,8 +16,8 @@ VPATH_LOCATIONS += $(FPARALLEL)/boxlib
 include $(FPARALLEL)/mg/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/mg
 
-include $(FPARALLEL)/varden/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/varden
+include $(FPARALLEL)/sarah_varden/GPackage.mak
+VPATH_LOCATIONS += $(FPARALLEL)/sarah_varden
 
 main.$(suf).exe: $(objects)
 	$(LINK.f90) -o main.$(suf).exe $(objects) $(libraries)

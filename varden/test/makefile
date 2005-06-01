@@ -10,7 +10,7 @@ sparskit_dir=$(TOP)\extern\SPARSKIT
 !INCLUDE $(sparskit_dir)\NPackage.mak
 lapack_dir=$(TOP)\extern\LAPACK
 !INCLUDE $(lapack_dir)\NPackage.mak
-varden_dir=$(TOP)\varden
+varden_dir=$(TOP)\sarah_varden
 !INCLUDE $(varden_dir)\NPackage.mak
 
 f90sources = $(f90sources) main.f90
