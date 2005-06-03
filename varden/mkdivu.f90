@@ -5,9 +5,10 @@ module mkdivu_module
 
 contains
 
-      subroutine mkdivu_2d(divu,umac,dx,ng)
+      subroutine mkdivu_2d(divu,umac,vmac,dx,ng)
 
-      real(kind=dp_t), intent(in   ) :: umac(1-ng:,1-ng:,:)
+      real(kind=dp_t), intent(in   ) :: umac(0:,0:)
+      real(kind=dp_t), intent(in   ) :: vmac(0:,0:)
       real(kind=dp_t), intent(  out) :: divu(:,:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
       integer        , intent(in   ) :: ng
@@ -16,16 +17,18 @@ contains
 
       do j = 1,size(divu,dim=2)
       do i = 1,size(divu,dim=1)
-        divu(i,j) = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) &
-                   +(umac(i,j+1,2) - umac(i,j,2)) / dx(2)
+        divu(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) &
+                   +(vmac(i,j+1) - vmac(i,j)) / dx(2)
       end do
       end do
 
       end subroutine mkdivu_2d
 
-      subroutine mkdivu_3d(divu,umac,dx,ng)
+      subroutine mkdivu_3d(divu,umac,vmac,wmac,dx,ng)
 
-      real(kind=dp_t), intent(in   ) :: umac(1-ng:,1-ng:,1-ng:,:)
+      real(kind=dp_t), intent(in   ) :: umac(0:,0:,0:)
+      real(kind=dp_t), intent(in   ) :: vmac(0:,0:,0:)
+      real(kind=dp_t), intent(in   ) :: wmac(0:,0:,0:)
       real(kind=dp_t), intent(  out) :: divu(:,:,:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
       integer        , intent(in   ) :: ng
@@ -36,9 +39,9 @@ contains
       do k = 1,size(divu,dim=3)
       do j = 1,size(divu,dim=2)
       do i = 1,size(divu,dim=1)
-        divu(i,j,k) = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) &
-                     +(umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) &
-                     +(umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
+        divu(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) &
+                     +(vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) &
+                     +(wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
       end do
       end do
       end do

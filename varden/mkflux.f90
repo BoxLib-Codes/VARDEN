@@ -9,19 +9,21 @@ module mkflux_module
 
 contains
 
-      subroutine mkflux_2d(s,u,sedgex,sedgey,&
-                           uadv,utrans,force,lo,dx,dt,is_vel,is_cons,&
-                           phys_bc,adv_bc,velpred,ng_cell,ng_edge)
+      subroutine mkflux_2d(s,u,sedgex,sedgey,uadv,vadv,utrans,vtrans,&
+                           force,lo,dx,dt,is_vel,is_cons,&
+                           phys_bc,adv_bc,velpred,ng)
 
-      integer, intent(in) :: lo(2),ng_cell,ng_edge
+      integer, intent(in) :: lo(2),ng
 
-      real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
-      real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
+      real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
+      real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
+      real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
+      real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
+      real(kind=dp_t), intent(inout) ::   uadv(lo(1)- 1:,lo(2)- 1:)
+      real(kind=dp_t), intent(inout) ::   vadv(lo(1)- 1:,lo(2)- 1:)
+      real(kind=dp_t), intent(in   ) :: utrans(lo(1)- 1:,lo(2)- 1:)
+      real(kind=dp_t), intent(in   ) :: vtrans(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,:)
-      real(kind=dp_t), intent(inout) :: sedgex(lo(1)- 1:,lo(2)- 1:,:)
-      real(kind=dp_t), intent(inout) :: sedgey(lo(1)- 1:,lo(2)- 1:,:)
-      real(kind=dp_t), intent(inout) ::   uadv(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
-      real(kind=dp_t), intent(in   ) :: utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) :: velpred
@@ -51,8 +53,8 @@ contains
 
       ncomp = size(s,dim=3)
 
-      hi(1) = lo(1) + size(s,dim=1) - (2*ng_cell+1)
-      hi(2) = lo(2) + size(s,dim=2) - (2*ng_cell+1)
+      hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
+      hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
 
       allocate(s_l(lo(1)-1:hi(1)+2))
       allocate(s_r(lo(1)-1:hi(1)+2))
@@ -62,8 +64,8 @@ contains
       allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
       allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-      call slopex_2d(s,slopex,lo,ng_cell,ncomp,adv_bc,slope_order)
-      call slopey_2d(s,slopey,lo,ng_cell,ncomp,adv_bc,slope_order)
+      call slopex_2d(s,slopex,lo,ng,ncomp,adv_bc,slope_order)
+      call slopey_2d(s,slopey,lo,ng,ncomp,adv_bc,slope_order)
 
       abs_eps = 1.0e-8
 
@@ -114,9 +116,9 @@ contains
             endif
           endif
 
-          splus = merge(spbot,sptop,utrans(i,j+1,2).gt.ZERO)
+          splus = merge(spbot,sptop,vtrans(i,j+1).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = merge(splus, savg, abs(utrans(i,j+1,2)) .gt. eps)
+          splus = merge(splus, savg, abs(vtrans(i,j+1)) .gt. eps)
 
           smtop = s(i,j  ,n) - (HALF + dth*u(i,j  ,2)/hy) * slopey(i,j  ,n)
 !    $            + dth * force(i,j  ,n)
@@ -138,12 +140,12 @@ contains
             endif
           endif
 
-          sminus = merge(smbot,smtop,utrans(i,j,2).gt.ZERO)
+          sminus = merge(smbot,smtop,vtrans(i,j).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = merge(sminus, savg, abs(utrans(i,j,2)) .gt. eps)
+          sminus = merge(sminus, savg, abs(vtrans(i,j)) .gt. eps)
 
           st = force(i,j,n) - &
-                HALF * (utrans(i,j,2)+utrans(i,j+1,2))*(splus - sminus) / hy
+                HALF * (vtrans(i,j)+vtrans(i,j+1))*(splus - sminus) / hy
 
           ubardth = dth*u(i,j,1)/hx
 
@@ -163,9 +165,9 @@ contains
            enddo
          else
            do i = is, ie+1 
-             sedgex(i,j,n)=merge(s_l(i),s_r(i),uadv(i,j,1).gt.ZERO)
+             sedgex(i,j,n)=merge(s_l(i),s_r(i),uadv(i,j).gt.ZERO)
              savg = HALF*(s_r(i) + s_l(i))
-             sedgex(i,j,n)=merge(savg,sedgex(i,j,n),abs(uadv(i,j,1)) .lt. eps)
+             sedgex(i,j,n)=merge(savg,sedgex(i,j,n),abs(uadv(i,j)) .lt. eps)
            enddo
          endif
 
@@ -198,7 +200,7 @@ contains
 
          if (velpred .eq. 1) then
            do i = is, ie+1 
-             uadv(i,j,1) = sedgex(i,j,1)
+             uadv(i,j) = sedgex(i,j,1)
            enddo
          endif
          endif
@@ -234,9 +236,9 @@ contains
             endif
           endif
 
-          splus = merge(splft,sprgt,utrans(i+1,j,1).gt.ZERO)
+          splus = merge(splft,sprgt,utrans(i+1,j).gt.ZERO)
           savg  = HALF * (splft + sprgt)
-          splus = merge(splus, savg, abs(utrans(i+1,j,1)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i+1,j)) .gt. eps)
 
           smrgt = s(i  ,j,n) - (HALF + dth*u(i  ,j,1)/hx) * slopex(i  ,j,n)
 !    $            + dth * force(i  ,j,n)
@@ -258,12 +260,12 @@ contains
             endif
           endif
 
-          sminus = merge(smlft,smrgt,utrans(i,j,1).gt.ZERO)
+          sminus = merge(smlft,smrgt,utrans(i,j).gt.ZERO)
           savg   = HALF * (smlft + smrgt)
-          sminus = merge(sminus, savg, abs(utrans(i,j,1)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j)) .gt. eps)
 
           st = force(i,j,n) - &
-               HALF * (utrans(i,j,1)+utrans(i+1,j,1))*(splus - sminus) / hx
+               HALF * (utrans(i,j)+utrans(i+1,j))*(splus - sminus) / hx
 
           vbardth = dth*u(i,j,2)/hy
 
@@ -285,9 +287,9 @@ contains
         else
 
           do j = js, je+1 
-            sedgey(i,j,n)=merge(s_b(j),s_t(j),uadv(i,j,2).gt.ZERO)
+            sedgey(i,j,n)=merge(s_b(j),s_t(j),vadv(i,j).gt.ZERO)
             savg = HALF*(s_b(j) + s_t(j))
-            sedgey(i,j,n)=merge(savg,sedgey(i,j,n),abs(uadv(i,j,2)) .lt. eps)
+            sedgey(i,j,n)=merge(savg,sedgey(i,j,n),abs(vadv(i,j)) .lt. eps)
           enddo
         endif
 
@@ -321,7 +323,7 @@ contains
 
         if (velpred .eq. 1) then
           do j = js, je+1 
-            uadv(i,j,2) = sedgey(i,j,2)
+            vadv(i,j) = sedgey(i,j,2)
           enddo
         endif
         endif
@@ -340,22 +342,27 @@ contains
       end subroutine mkflux_2d
 
       subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,&
-                           uadv,utrans,force,lo,dx,dt,is_vel,is_cons, &
-                           phys_bc,adv_bc,velpred,ng_cell,ng_edge)
+                           uadv,vadv,wadv,utrans,vtrans,wtrans, &
+                           force,lo,dx,dt,is_vel,is_cons, &
+                           phys_bc,adv_bc,velpred,ng)
 
 
       implicit none
 
-      integer, intent(in) :: lo(3),ng_cell,ng_edge
+      integer, intent(in) :: lo(:),ng
 
-      real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:, :)
-      real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:, :)
-      real(kind=dp_t),intent(inout) ::  force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
-      real(kind=dp_t),intent(inout) :: sedgex(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
-      real(kind=dp_t),intent(inout) :: sedgey(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
-      real(kind=dp_t),intent(inout) :: sedgez(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)
-      real(kind=dp_t),intent(inout) ::   uadv(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)
-      real(kind=dp_t),intent(in   ) :: utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)
+      real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
+      real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
+      real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::   uadv(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(inout) ::   vadv(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(inout) ::   wadv(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(in   ) :: utrans(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(in   ) :: vtrans(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(in   ) :: wtrans(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) :: velpred
@@ -383,9 +390,9 @@ contains
       integer :: slope_order = 4
       integer :: ncomp
 
-      hi(1) = lo(1) + size(s,dim=1) - (2*ng_cell+1)
-      hi(2) = lo(2) + size(s,dim=2) - (2*ng_cell+1)
-      hi(3) = lo(3) + size(s,dim=3) - (2*ng_cell+1)
+      hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
+      hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
+      hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
 
       allocate(s_l(lo(1)-1:hi(1)+2))
       allocate(s_r(lo(1)-1:hi(1)+2))
@@ -400,10 +407,10 @@ contains
 
       ncomp = size(s,dim=4)
       do k = lo(3),hi(3)
-         call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng_cell,ncomp,adv_bc,slope_order)
-         call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng_cell,ncomp,adv_bc,slope_order)
+         call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
+         call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
       end do
-      call slopez_3d(s,slopez,lo,ng_cell,ncomp,adv_bc,slope_order)
+      call slopez_3d(s,slopez,lo,ng,ncomp,adv_bc,slope_order)
 
       eps = 1.0e-8
 
@@ -452,9 +459,9 @@ contains
             endif
           endif
 
-          splus = merge(spbot,sptop,utrans(i,j+1,k,2).gt.ZERO)
+          splus = merge(spbot,sptop,vtrans(i,j+1,k).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = merge(splus, savg, abs(utrans(i,j+1,k,2)) .gt. eps)
+          splus = merge(splus, savg, abs(vtrans(i,j+1,k)) .gt. eps)
 
           smtop = s(i,j  ,k,n) - (HALF + dth*u(i,j  ,k,2)/hy)*slopey(i,j  ,k,n)
 !    $            + dth * force(i,j  ,k,n)
@@ -476,11 +483,11 @@ contains
             endif
           endif
 
-          sminus = merge(smbot,smtop,utrans(i,j,k,2).gt.ZERO)
+          sminus = merge(smbot,smtop,vtrans(i,j,k).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = merge(sminus, savg, abs(utrans(i,j,k,2)) .gt. eps)
+          sminus = merge(sminus, savg, abs(vtrans(i,j,k)) .gt. eps)
 
-          str =  HALF * (utrans(i,j,k,2)+utrans(i,j+1,k,2))*(splus - sminus) / hy
+          str =  HALF * (vtrans(i,j,k)+vtrans(i,j+1,k))*(splus - sminus) / hy
 
 !        ******************************************************************
 !        MAKE TRANSVERSE DERIVATIVES IN Z-DIRECTION
@@ -506,9 +513,9 @@ contains
             endif
           endif
 
-          splus = merge(spbot,sptop,utrans(i,j,k+1,3).gt.ZERO)
+          splus = merge(spbot,sptop,wtrans(i,j,k+1).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = merge(splus, savg, abs(utrans(i,j,k+1,3)) .gt. eps)
+          splus = merge(splus, savg, abs(wtrans(i,j,k+1)) .gt. eps)
 
           smtop = s(i,j,k  ,n) - (HALF + dth*u(i,j,k  ,3)/hz)*slopez(i,j,k  ,n)
 !    $            + dth * force(i,j,k  ,n)
@@ -530,11 +537,11 @@ contains
             endif
           endif
 
-          sminus = merge(smbot,smtop,utrans(i,j,k,3).gt.ZERO)
+          sminus = merge(smbot,smtop,wtrans(i,j,k).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = merge(sminus, savg, abs(utrans(i,j,k,3)) .gt. eps)
+          sminus = merge(sminus, savg, abs(wtrans(i,j,k)) .gt. eps)
 
-          str = str + HALF * (utrans(i,j,k,3)+utrans(i,j,k+1,3))* &
+          str = str + HALF * (wtrans(i,j,k)+wtrans(i,j,k+1))* &
                              (splus - sminus) / hz
 
 !        ******************************************************************
@@ -560,9 +567,9 @@ contains
           enddo
         else
           do i = is, ie+1 
-            sedgex(i,j,k,n)=merge(s_l(i),s_r(i),uadv(i,j,k,1).gt.ZERO)
+            sedgex(i,j,k,n)=merge(s_l(i),s_r(i),uadv(i,j,k).gt.ZERO)
             savg = HALF*(s_r(i) + s_l(i))
-            sedgex(i,j,k,n)=merge(savg,sedgex(i,j,k,n),abs(uadv(i,j,k,1)) .lt. eps)
+            sedgex(i,j,k,n)=merge(savg,sedgex(i,j,k,n),abs(uadv(i,j,k)) .lt. eps)
           enddo
         endif
 
@@ -596,7 +603,7 @@ contains
 
         if (velpred .eq. 1) then
           do i = is, ie+1 
-            uadv(i,j,k,1) = sedgex(i,j,k,1)
+            uadv(i,j,k) = sedgex(i,j,k,1)
           enddo
         endif
 
@@ -641,9 +648,9 @@ contains
             endif
           endif
 
-          splus = merge(splft,sprgt,utrans(i+1,j,k,1).gt.ZERO)
+          splus = merge(splft,sprgt,utrans(i+1,j,k).gt.ZERO)
           savg  = HALF * (splft + sprgt)
-          splus = merge(splus, savg, abs(utrans(i+1,j,k,1)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i+1,j,k)) .gt. eps)
 
           smrgt = s(i  ,j,k,n) - (HALF + dth*u(i  ,j,k,1)/hx)*slopex(i  ,j,k,n)
 !    $            + dth * force(i  ,j,k,n)
@@ -665,11 +672,11 @@ contains
             endif
           endif
  
-          sminus = merge(smlft,smrgt,utrans(i,j,k,1).gt.ZERO)
+          sminus = merge(smlft,smrgt,utrans(i,j,k).gt.ZERO)
           savg   = HALF * (smlft + smrgt)
-          sminus = merge(sminus, savg, abs(utrans(i,j,k,1)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k)) .gt. eps)
 
-          str    = HALF * (utrans(i,j,k,1)+utrans(i+1,j,k,1))*(splus - sminus) / hx
+          str    = HALF * (utrans(i,j,k)+utrans(i+1,j,k))*(splus - sminus) / hx
 
 !        ******************************************************************
 !        MAKE TRANSVERSE DERIVATIVES IN Z-DIRECTION
@@ -695,9 +702,9 @@ contains
             endif
           endif
 
-          splus = merge(spbot,sptop,utrans(i,j,k+1,3).gt.ZERO)
+          splus = merge(spbot,sptop,wtrans(i,j,k+1).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = merge(splus, savg, abs(utrans(i,j,k+1,3)) .gt. eps)
+          splus = merge(splus, savg, abs(wtrans(i,j,k+1)) .gt. eps)
 
           smtop = s(i,j,k  ,n) - (HALF + dth*u(i,j,k  ,3)/hz)*slopez(i,j,k  ,n)
 !    $            + dth * force(i,j,k  ,n)
@@ -719,11 +726,11 @@ contains
             endif
           endif
 
-          sminus = merge(smbot,smtop,utrans(i,j,k,3).gt.ZERO)
+          sminus = merge(smbot,smtop,wtrans(i,j,k).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = merge(sminus, savg, abs(utrans(i,j,k,3)) .gt. eps)
+          sminus = merge(sminus, savg, abs(wtrans(i,j,k)) .gt. eps)
 
-          str = str + HALF * (utrans(i,j,k,3)+utrans(i,j,k+1,3))*(splus - sminus) / hz
+          str = str + HALF * (wtrans(i,j,k)+wtrans(i,j,k+1))*(splus - sminus) / hz
 
 !        ******************************************************************
 !        MAKE TOP AND BOTTOM STATES
@@ -748,9 +755,9 @@ contains
           enddo
         else
           do j = js, je+1 
-            sedgey(i,j,k,n)=merge(s_b(j),s_t(j),uadv(i,j,k,2).gt.ZERO)
+            sedgey(i,j,k,n)=merge(s_b(j),s_t(j),vadv(i,j,k).gt.ZERO)
             savg = HALF*(s_t(j) + s_b(j))
-            sedgey(i,j,k,n)=merge(savg,sedgey(i,j,k,n),abs(uadv(i,j,k,2)) .lt. eps)
+            sedgey(i,j,k,n)=merge(savg,sedgey(i,j,k,n),abs(vadv(i,j,k)) .lt. eps)
           enddo
         endif
 
@@ -784,7 +791,7 @@ contains
 
         if (velpred .eq. 1) then
           do j = js, je+1 
-            uadv(i,j,k,2) = sedgey(i,j,k,2)
+            vadv(i,j,k) = sedgey(i,j,k,2)
           enddo
         endif
 
@@ -829,9 +836,9 @@ contains
             endif
           endif
 
-          splus = merge(splft,sprgt,utrans(i+1,j,k,1).gt.ZERO)
+          splus = merge(splft,sprgt,utrans(i+1,j,k).gt.ZERO)
           savg  = HALF * (splft + sprgt)
-          splus = merge(splus, savg, abs(utrans(i+1,j,k,1)) .gt. eps)
+          splus = merge(splus, savg, abs(utrans(i+1,j,k)) .gt. eps)
 
           smrgt = s(i  ,j,k,n) - (HALF + dth*u(i  ,j,k,1)/hx)*slopex(i  ,j,k,n)
 !    $            + dth * force(i  ,j,k,n)
@@ -853,11 +860,11 @@ contains
             endif
           endif
  
-          sminus = merge(smlft,smrgt,utrans(i,j,k,1).gt.ZERO)
+          sminus = merge(smlft,smrgt,utrans(i,j,k).gt.ZERO)
           savg   = HALF * (smlft + smrgt)
-          sminus = merge(sminus, savg, abs(utrans(i,j,k,1)) .gt. eps)
+          sminus = merge(sminus, savg, abs(utrans(i,j,k)) .gt. eps)
 
-          str = HALF * (utrans(i,j,k,1)+utrans(i+1,j,k,1))*(splus - sminus) / hx
+          str = HALF * (utrans(i,j,k)+utrans(i+1,j,k))*(splus - sminus) / hx
 
 !        ******************************************************************
 !        MAKE TRANSVERSE DERIVATIVES IN Y-DIRECTION
@@ -883,9 +890,9 @@ contains
             endif
           endif
 
-          splus = merge(spbot,sptop,utrans(i,j+1,k,2).gt.ZERO)
+          splus = merge(spbot,sptop,vtrans(i,j+1,k).gt.ZERO)
           savg  = HALF * (spbot + sptop)
-          splus = merge(splus, savg, abs(utrans(i,j+1,k,2)) .gt. eps)
+          splus = merge(splus, savg, abs(vtrans(i,j+1,k)) .gt. eps)
 
           smtop = s(i,j  ,k,n) - (HALF + dth*u(i,j  ,k,2)/hy)*slopey(i,j  ,k,n)
 !    $            + dth * force(i,j  ,k,n)
@@ -907,11 +914,11 @@ contains
             endif
           endif
 
-          sminus = merge(smbot,smtop,utrans(i,j,k,2).gt.ZERO)
+          sminus = merge(smbot,smtop,vtrans(i,j,k).gt.ZERO)
           savg   = HALF * (smbot + smtop)
-          sminus = merge(sminus, savg, abs(utrans(i,j,k,2)) .gt. eps)
+          sminus = merge(sminus, savg, abs(vtrans(i,j,k)) .gt. eps)
 
-          str =  str + HALF * (utrans(i,j,k,2)+utrans(i,j+1,k,2))*(splus - sminus) / hy
+          str =  str + HALF * (vtrans(i,j,k)+vtrans(i,j+1,k))*(splus - sminus) / hy
 
 !        ******************************************************************
 !        MAKE DOWN AND UP STATES
@@ -937,9 +944,9 @@ contains
           enddo
         else
           do k = ks, ke+1 
-            sedgez(i,j,k,n)=merge(s_d(k),s_u(k),uadv(i,j,k,3).gt.ZERO)
+            sedgez(i,j,k,n)=merge(s_d(k),s_u(k),wadv(i,j,k).gt.ZERO)
             savg = HALF*(s_d(k) + s_u(k))
-            sedgez(i,j,k,n)=merge(savg,sedgez(i,j,k,n),abs(uadv(i,j,k,3)) .lt. eps)
+            sedgez(i,j,k,n)=merge(savg,sedgez(i,j,k,n),abs(wadv(i,j,k)) .lt. eps)
           enddo
         endif
 
@@ -973,7 +980,7 @@ contains
 
         if (velpred .eq. 1) then
           do k = ks, ke+1 
-            uadv(i,j,k,3) = sedgez(i,j,k,3)
+            wadv(i,j,k) = sedgez(i,j,k,3)
           enddo
         endif
 

@@ -12,19 +12,18 @@ module velocity_advance_module
 contains
 
    subroutine velocity_advance(uold,unew,sold,rhohalf,&
-                              umac,uedgex,uedgey, &
-                              utrans,gp,p, &
-                              ext_force, &
-                              dx,time,dt, &
+                              umac,uedge,utrans,gp,p, &
+                              ext_force,dx,time,dt, &
                               the_bc_level, &
                               visc_coef,verbose,mg_verbose)
  
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
-      type(multifab) , intent(inout) :: umac
+      type(multifab) , intent(inout) :: umac(:)
+      type(multifab) , intent(inout) :: utrans(:)
+      type(multifab) , intent(inout) :: uedge(:)
       type(multifab) , intent(inout) :: unew
       type(multifab) , intent(inout) :: rhohalf
-      type(multifab) , intent(inout) :: uedgex,uedgey,utrans
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(inout) :: p
       type(multifab) , intent(inout) :: ext_force
@@ -40,7 +39,9 @@ contains
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: unp(:,:,:,:)
       real(kind=dp_t), pointer:: ump(:,:,:,:)
+      real(kind=dp_t), pointer:: vmp(:,:,:,:)
       real(kind=dp_t), pointer:: utp(:,:,:,:)
+      real(kind=dp_t), pointer:: vtp(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
@@ -55,7 +56,7 @@ contains
 !
       integer :: irz,velpred,edge_based
       integer :: lo(uold%dim),hi(uold%dim)
-      integer :: i,comp,dm,ng_cell,ng_edge,ng_rho
+      integer :: i,comp,dm,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold%dim)
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
@@ -64,7 +65,6 @@ contains
 
       ng_cell = uold%ng
       ng_rho  = rhohalf%ng
-      ng_edge = umac%ng
       dm      = uold%dim
 
       is_conservative = .false.
@@ -108,10 +108,12 @@ contains
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          uop  => dataptr(uold, i)
-         uepx => dataptr(uedgex, i)
-         uepy => dataptr(uedgey, i)
-         ump  => dataptr(umac, i)
-         utp  => dataptr(utrans, i)
+         uepx => dataptr(uedge(1), i)
+         uepy => dataptr(uedge(2), i)
+         ump  => dataptr(umac(1), i)
+         vmp  => dataptr(umac(2), i)
+         utp  => dataptr(utrans(1), i)
+         vtp  => dataptr(utrans(2), i)
           fp  => dataptr(force , i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
@@ -119,11 +121,12 @@ contains
             case (2)
               call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
                              uepx(:,:,1,:), uepy(:,:,1,:), &
-                             ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
+                             ump(:,:,1,1), vmp(:,:,1,1), &
+                             utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             velpred, ng_cell, ng_edge)
+                             velpred, ng_cell)
          end select
       end do
 
@@ -157,9 +160,10 @@ contains
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          uop => dataptr(uold, i)
-         ump => dataptr(umac, i)
-         uepx => dataptr(uedgex, i)
-         uepy => dataptr(uedgey, i)
+         ump => dataptr(umac(1), i)
+         vmp => dataptr(umac(2), i)
+         uepx => dataptr(uedge(1), i)
+         uepy => dataptr(uedge(2), i)
          unp => dataptr(unew, i)
           fp => dataptr(force, i)
           rp => dataptr(rhohalf, i)
@@ -167,11 +171,11 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call update_2d(uop(:,:,1,:), ump(:,:,1,:), &
+              call update_2d(uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              fp(:,:,1,:), unp(:,:,1,:), &
                              rp(:,:,1,1), &
-                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_vel, is_conservative)
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
          end select
       end do
 

@@ -17,7 +17,7 @@ contains
 subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
   type(ml_layout), intent(inout) :: mla
-  type(multifab ), intent(inout) :: umac(:)
+  type(multifab ), intent(inout) :: umac(:,:)
   type(multifab ), intent(inout) :: rho(:)
   real(dp_t)     , intent(in   ) :: dx(:,:)
   type(bc_tower ), intent(in   ) :: the_bc_tower
@@ -31,7 +31,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
   integer                     :: nlevs,nscal,bc_comp
 
   nlevs = mla%nlevel
-  dm = umac(nlevs)%dim
+  dm = umac(nlevs,1)%dim
   nscal = 2
   bc_comp = dm + nscal + 1
 
@@ -86,13 +86,15 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
     subroutine divumac(nlevs,umac,rh,dx,ref_ratio,verbose)
 
       integer        , intent(in   ) :: nlevs
-      type(multifab) , intent(inout) :: umac(:)
+      type(multifab) , intent(inout) :: umac(:,:)
       type(multifab) , intent(inout) :: rh(:)
       real(kind=dp_t), intent(in   ) :: dx(:,:)
       integer        , intent(in   ) :: ref_ratio(:,:)
       integer        , intent(in   ) :: verbose
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
+      real(kind=dp_t), pointer :: vmp(:,:,:,:) 
+      real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
       real(kind=dp_t)          :: rhmax
       integer :: i,dm
@@ -100,19 +102,24 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       dm = rh(nlevs)%dim
 
       do n = nlevs,2,-1
-        call ml_edge_restriction(umac(n),umac(n-1),ref_ratio(n-1,:))
+        do i = 1,dm
+          call ml_edge_restriction(umac(n,i),umac(n-1,i),ref_ratio(n-1,:),i)
+        end do
       end do
 
       do n = 1,nlevs
-         do i = 1, umac(n)%nboxes
-            if ( multifab_remote(umac(n), i) ) cycle
-            ump => dataptr(umac(n), i)
+         do i = 1, rh(n)%nboxes
+            if ( multifab_remote(rh(n), i) ) cycle
+            ump => dataptr(umac(n,1), i)
+            vmp => dataptr(umac(n,2), i)
             rhp => dataptr(rh(n)  , i)
             select case (dm)
                case (2)
-                 call divumac_2d(ump(:,:,1,:), rhp(:,:,1,1), dx(n,:))
+                 call divumac_2d(ump(:,:,1,1), vmp(:,:,1,1), &
+                                 rhp(:,:,1,1), dx(n,:))
                case (3)
-                 call divumac_3d(ump(:,:,:,:), rhp(:,:,:,1), dx(n,:))
+                 call divumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                 rhp(:,:,:,1), dx(n,:))
             end select
          end do
       end do
@@ -130,10 +137,10 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,rh,dx)
+    subroutine divumac_2d(umac,vmac,rh,dx)
 
-!     real(kind=dp_t), intent(in   ) :: umac(-2:,-2:,:)
-      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,:)
+      real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
@@ -141,17 +148,19 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do j = 0, size(rh,dim=2)-1
       do i = 0, size(rh,dim=1)-1
-         rh(i,j) = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) + &
-                   (umac(i,j+1,2) - umac(i,j,2)) / dx(2)
+         rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
+                   (vmac(i,j+1) - vmac(i,j)) / dx(2)
          rh(i,j) = -rh(i,j)
       end do
       end do
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,rh,dx)
+    subroutine divumac_3d(umac,vmac,wmac,rh,dx)
 
-      real(kind=dp_t), intent(in   ) :: umac(-2:,-2:,-2:,:)
+      real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: vmac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: wmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
@@ -160,9 +169,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do k = 0,size(rh,dim=3)-1
       do j = 0,size(rh,dim=2)-1
       do i = 0,size(rh,dim=1)-1
-         rh(i,j,k) = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) + &
-                     (umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) + &
-                     (umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
+         rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
+                     (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
+                     (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
          rh(i,j,k) = -rh(i,j,k)
       end do
       end do
@@ -279,7 +288,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
     subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,ref_ratio,verbose)
 
-      type(multifab), intent(inout) :: umac(:)
+      type(multifab), intent(inout) :: umac(:,:)
       type(multifab), intent(inout) ::   rh(:)
       type(multifab), intent(in   ) ::  phi(:)
       type(multifab), intent(in   ) :: beta(:)
@@ -293,6 +302,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
  
       type(bc_level)           :: bc
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
+      real(kind=dp_t), pointer :: vmp(:,:,:,:) 
+      real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer :: php(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
       real(kind=dp_t), pointer ::  bp(:,:,:,:) 
@@ -304,14 +315,15 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t), pointer :: hzp(:,:,:,:) 
       real(kind=dp_t)          :: rhmax
 
-      nlevs = size(umac,dim=1)
-      dm = umac(nlevs)%dim
+      nlevs = size(rh,dim=1)
+      dm = rh(nlevs)%dim
 
       do n = 1, nlevs
         bc = the_bc_tower%bc_tower_array(n)
-        do i = 1, umac(n)%nboxes
-          if ( multifab_remote(umac(n), i) ) cycle
-          ump => dataptr(umac(n), i)
+        do i = 1, rh(n)%nboxes
+          if ( multifab_remote(rh(n), i) ) cycle
+          ump => dataptr(umac(n,1), i)
+          vmp => dataptr(umac(n,2), i)
           rhp => dataptr(  rh(n), i)
           php => dataptr( phi(n), i)
            bp => dataptr(beta(n), i)
@@ -322,14 +334,17 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
                  hxp => dataptr(fine_flx(n)%bmf(1,1), i)
                  lyp => dataptr(fine_flx(n)%bmf(2,0), i)
                  hyp => dataptr(fine_flx(n)%bmf(2,1), i)
-                 call mkumac_2d(rhp(:,:,1,1),ump(:,:,1,:), php(:,:,1,1), bp(:,:,1,:), &
+                 call mkumac_2d(rhp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1), &
+                                php(:,:,1,1), bp(:,:,1,:), &
                                 lxp(:,:,1,1),hxp(:,:,1,1),lyp(:,:,1,1),hyp(:,:,1,1), &
                                 dx(n,:),bc%ell_bc_level_array(i,:,:,dm+3))
                else 
-                 call mkumac_2d_base(rhp(:,:,1,1),ump(:,:,1,:), php(:,:,1,1), bp(:,:,1,:), &
+                 call mkumac_2d_base(rhp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1), & 
+                                     php(:,:,1,1), bp(:,:,1,:), &
                                      dx(n,:),bc%ell_bc_level_array(i,:,:,dm+3))
                end if
              case (3)
+               wmp => dataptr(umac(n,3), i)
                if (n > 1) then
                  lxp => dataptr(fine_flx(n)%bmf(1,0), i)
                  hxp => dataptr(fine_flx(n)%bmf(1,1), i)
@@ -337,12 +352,14 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
                  hyp => dataptr(fine_flx(n)%bmf(2,1), i)
                  lzp => dataptr(fine_flx(n)%bmf(3,0), i)
                  hzp => dataptr(fine_flx(n)%bmf(3,1), i)
-                 call mkumac_3d(rhp(:,:,:,1),ump(:,:,:,:), php(:,:,:,1), bp(:,:,:,:), &
+                 call mkumac_3d(rhp(:,:,:,1),ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                php(:,:,:,1), bp(:,:,:,:), &
                                 lxp(:,:,:,1),hxp(:,:,:,1),lyp(:,:,:,1),hyp(:,:,:,1), &
                                 lzp(:,:,:,1),hzp(:,:,:,1),dx(n,:),&
                                 bc%ell_bc_level_array(i,:,:,dm+3))
                else
-                 call mkumac_3d_base(rhp(:,:,:,1),ump(:,:,:,:), php(:,:,:,1), bp(:,:,:,:), dx(n,:), &
+                 call mkumac_3d_base(rhp(:,:,:,1),ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),& 
+                                     php(:,:,:,1), bp(:,:,:,:), dx(n,:), &
                                      bc%ell_bc_level_array(i,:,:,dm+3))
                end if
           end select
@@ -350,7 +367,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       end do
 
       do n = nlevs,2,-1
-         call ml_edge_restriction(umac(n),umac(n-1),ref_ratio(n-1,:))
+        do i = 1,dm
+          call ml_edge_restriction(umac(n,i),umac(n-1,i),ref_ratio(n-1,:),i)
+        end do
       end do
 
       do n = nlevs,2,-1
@@ -369,10 +388,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
     end subroutine mkumac
 
-    subroutine mkumac_2d_base(rh,umac,phi,beta,dx,press_bc)
+    subroutine mkumac_2d_base(rh,umac,vmac,phi,beta,dx,press_bc)
 
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
-      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,:)
+      real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
       real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
@@ -381,8 +401,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t) :: gpx,gpy
       integer :: i,j,nx,ny
 
-      nx = size(umac,dim=1) - 4
-      ny = size(umac,dim=2) - 4
+      nx = size(phi,dim=1) - 2
+      ny = size(phi,dim=2) - 2
 
       if (press_bc(1,1) == BC_NEU) then
          do j = 0,ny-1
@@ -424,14 +444,14 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do j = 0,ny-1
          do i = 0,nx
             gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
-            umac(i,j,1) = umac(i,j,1) - beta(i,j,1)*gpx
+            umac(i,j) = umac(i,j) - beta(i,j,1)*gpx
          end do
       end do
 
       do i = 0,nx-1
          do j = 0,ny
             gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
-            umac(i,j,2) = umac(i,j,2) - beta(i,j,2)*gpy
+            vmac(i,j) = vmac(i,j) - beta(i,j,2)*gpy
          end do
       end do
 
@@ -439,19 +459,20 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       rh    = ZERO
       do j = 0,ny-1
       do i = 0,nx-1
-         rh(i,j) = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) + &
-                   (umac(i,j+1,2) - umac(i,j,2)) / dx(2)
+         rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
+                   (vmac(i,j+1) - vmac(i,j)) / dx(2)
       end do
       end do
 
     end subroutine mkumac_2d_base
 
-    subroutine mkumac_2d(rh,umac,phi,beta, &
+    subroutine mkumac_2d(rh,umac,vmac,phi,beta, &
                          lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
                          dx,press_bc)
 
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
-      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,:)
+      real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
       real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,:)
       real(kind=dp_t), intent(in   ) :: lo_x_flx(:,0:), lo_y_flx(0:,:)
@@ -462,8 +483,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t) :: gpx,gpy
       integer :: i,j,nx,ny
 
-      nx = size(umac,dim=1) - 4
-      ny = size(umac,dim=2) - 4
+      nx = size(phi,dim=1) - 2
+      ny = size(phi,dim=2) - 2
 
       if (press_bc(1,1) == BC_NEU) then
          do j = 0,ny-1
@@ -503,37 +524,39 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       end if
 
       do j = 0,ny-1
-         umac( 0,j,1) = umac( 0,j,1) + lo_x_flx(1,j) * dx(1)
-         umac(nx,j,1) = umac(nx,j,1) + hi_x_flx(1,j) * dx(1)
+         umac( 0,j) = umac( 0,j) + lo_x_flx(1,j) * dx(1)
+         umac(nx,j) = umac(nx,j) + hi_x_flx(1,j) * dx(1)
          do i = 1,nx-1
             gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
-            umac(i,j,1) = umac(i,j,1) - beta(i,j,1)*gpx
+            umac(i,j) = umac(i,j) - beta(i,j,1)*gpx
          end do
       end do
 
       do i = 0,nx-1
-         umac(i, 0,2) = umac(i, 0,2) + lo_y_flx(i,1) * dx(2)
-         umac(i,ny,2) = umac(i,ny,2) + hi_y_flx(i,1) * dx(2)
+         vmac(i, 0) = vmac(i, 0) + lo_y_flx(i,1) * dx(2)
+         vmac(i,ny) = vmac(i,ny) + hi_y_flx(i,1) * dx(2)
          do j = 1,ny-1
             gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
-            umac(i,j,2) = umac(i,j,2) - beta(i,j,2)*gpy
+            vmac(i,j) = vmac(i,j) - beta(i,j,2)*gpy
          end do
       end do
 
       rh    = ZERO
       do j = 0,ny-1
       do i = 0,nx-1
-         rh(i,j) = (umac(i+1,j,1) - umac(i,j,1)) / dx(1) + &
-                   (umac(i,j+1,2) - umac(i,j,2)) / dx(2)
+         rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
+                   (vmac(i,j+1) - vmac(i,j)) / dx(2)
       end do
       end do
 
     end subroutine mkumac_2d
 
-    subroutine mkumac_3d_base(rh,umac,phi,beta,dx,press_bc)
+    subroutine mkumac_3d_base(rh,umac,vmac,wmac,phi,beta,dx,press_bc)
 
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
-      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,-2:,:)
+      real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,-1:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
@@ -542,9 +565,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t) :: gpx,gpy,gpz
       integer :: i,j,k,nx,ny,nz
 
-      nx = size(umac,dim=1) - 4
-      ny = size(umac,dim=2) - 4
-      nz = size(umac,dim=3) - 4
+      nx = size(phi,dim=1) - 2
+      ny = size(phi,dim=2) - 2
+      nz = size(phi,dim=3) - 2
 
       if (press_bc(1,1) == BC_NEU) then
          do k = 0,nz-1
@@ -629,7 +652,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do j = 0,ny-1
       do i = 0,nx
          gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
-         umac(i,j,k,1) = umac(i,j,k,1) - beta(i,j,k,1)*gpx
+         umac(i,j,k) = umac(i,j,k) - beta(i,j,k,1)*gpx
       end do
       end do
       end do
@@ -638,7 +661,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do j = 0,ny
       do i = 0,nx-1
          gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
-         umac(i,j,k,2) = umac(i,j,k,2) - beta(i,j,k,2)*gpy
+         vmac(i,j,k) = vmac(i,j,k) - beta(i,j,k,2)*gpy
       end do
       end do
       end do
@@ -647,7 +670,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do j = 0,ny-1
       do i = 0,nx-1
          gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
-         umac(i,j,k,3) = umac(i,j,k,3) - beta(i,j,k,3)*gpz
+         wmac(i,j,k) = wmac(i,j,k) - beta(i,j,k,3)*gpz
       end do
       end do
       end do
@@ -656,20 +679,22 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do k = 0,nz-1
       do j = 0,ny-1
       do i = 0,nx-1
-         rh(i,j,k) = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) + &
-                     (umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) + &
-                     (umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
+         rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
+                     (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
+                     (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
       end do
       end do
       end do
 
     end subroutine mkumac_3d_base
 
-    subroutine mkumac_3d(rh,umac,phi,beta,lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
+    subroutine mkumac_3d(rh,umac,vmac,wmac,phi,beta,lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
                          lo_z_flx,hi_z_flx,dx,press_bc)
 
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
-      real(kind=dp_t), intent(inout) :: umac(-2:,-2:,-2:,:)
+      real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,-1:,:)
       real(kind=dp_t), intent(in   ) :: lo_x_flx(:,0:,0:), lo_y_flx(0:,:,0:), lo_z_flx(0:,0:,:)
@@ -680,9 +705,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t) :: gpx,gpy,gpz
       integer :: i,j,k,nx,ny,nz
 
-      nx = size(umac,dim=1) - 4
-      ny = size(umac,dim=2) - 4
-      nz = size(umac,dim=3) - 4
+      nx = size(phi,dim=1) - 2
+      ny = size(phi,dim=2) - 2
+      nz = size(phi,dim=3) - 2
 
       if (press_bc(1,1) == BC_NEU) then
          do k = 0,nz-1
@@ -765,33 +790,33 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do k = 0,nz-1
       do j = 0,ny-1
-         umac( 0,j,k,1) = umac( 0,j,k,1) - lo_x_flx(1,j,k)
-         umac(nx,j,k,1) = umac(nx,j,k,1) - hi_x_flx(1,j,k)
+         umac( 0,j,k) = umac( 0,j,k) - lo_x_flx(1,j,k)
+         umac(nx,j,k) = umac(nx,j,k) - hi_x_flx(1,j,k)
          do i = 1,nx-1
             gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
-            umac(i,j,k,1) = umac(i,j,k,1) - beta(i,j,k,1)*gpx
+            umac(i,j,k) = umac(i,j,k) - beta(i,j,k,1)*gpx
          end do
       end do
       end do
 
       do k = 0,nz-1
       do i = 0,nx-1
-         umac(i, 0,k,2) = umac(i, 0,k,2) - lo_y_flx(i,1,k)
-         umac(i,ny,k,2) = umac(i,ny,k,2) - hi_y_flx(i,1,k)
+         vmac(i, 0,k) = vmac(i, 0,k) - lo_y_flx(i,1,k)
+         vmac(i,ny,k) = vmac(i,ny,k) - hi_y_flx(i,1,k)
          do j = 1,ny-1
             gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
-            umac(i,j,k,2) = umac(i,j,k,2) - beta(i,j,k,2)*gpy
+            vmac(i,j,k) = vmac(i,j,k) - beta(i,j,k,2)*gpy
          end do
       end do
       end do
 
       do j = 0,ny-1
       do i = 0,nx-1
-         umac(i,j, 0,3) = umac(i,j, 0,3) - lo_z_flx(i,j,1)
-         umac(i,j,nz,3) = umac(i,j,nz,3) - hi_z_flx(i,j,1)
+         wmac(i,j, 0) = wmac(i,j, 0) - lo_z_flx(i,j,1)
+         wmac(i,j,nz) = wmac(i,j,nz) - hi_z_flx(i,j,1)
          do k = 1,nz-1
             gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
-            umac(i,j,k,3) = umac(i,j,k,3) - beta(i,j,k,3)*gpz
+            wmac(i,j,k) = wmac(i,j,k) - beta(i,j,k,3)*gpz
          end do
       end do
       end do
@@ -800,9 +825,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       do k = 0,nz-1
       do j = 0,ny-1
       do i = 0,nx-1
-         rh(i,j,k) = (umac(i+1,j,k,1) - umac(i,j,k,1)) / dx(1) + &
-                     (umac(i,j+1,k,2) - umac(i,j,k,2)) / dx(2) + &
-                     (umac(i,j,k+1,3) - umac(i,j,k,3)) / dx(3)
+         rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
+                     (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
+                     (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
       end do
       end do
       end do

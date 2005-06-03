@@ -60,6 +60,7 @@ subroutine varden()
   type(ml_layout)           :: mla
   type(box)   , allocatable :: domain_boxes(:)
 
+  ! Cell-based quantities
   type(multifab), pointer ::       uold(:) => Null()
   type(multifab), pointer ::       sold(:) => Null()
   type(multifab), pointer ::         gp(:) => Null()
@@ -73,12 +74,11 @@ subroutine varden()
   type(multifab), pointer ::   plotdata(:) => Null()
   type(multifab), pointer ::    chkdata(:) => Null()
 
-  type(multifab), pointer ::       umac(:) => Null()
-  type(multifab), pointer ::     uedgex(:) => Null()
-  type(multifab), pointer ::     uedgey(:) => Null()
-  type(multifab), pointer ::     sedgex(:) => Null()
-  type(multifab), pointer ::     sedgey(:) => Null()
-  type(multifab), pointer ::     utrans(:) => Null()
+  ! Edge-based quantities
+  type(multifab), pointer ::     umac(:,:) => Null()
+  type(multifab), pointer ::   utrans(:,:) => Null()
+  type(multifab), pointer ::    uedge(:,:) => Null()
+  type(multifab), pointer ::    sedge(:,:) => Null()
 
   real(kind=dp_t), pointer :: uop(:,:,:,:)
   real(kind=dp_t), pointer :: sop(:,:,:,:)
@@ -95,6 +95,7 @@ subroutine varden()
   logical :: lexist
   logical :: need_inputs
   logical :: nodal(2)
+  logical :: umac_nodal_flag(2)
 
   type(layout)    :: la
   type(box)       :: fine_domain
@@ -149,7 +150,8 @@ subroutine varden()
   dm = 2
   nscal = 2
 
-  grav = -1.9e10
+! grav = -9.8
+  grav = 0.0
 
   allocate(pmask(dm))
 
@@ -414,8 +416,8 @@ subroutine varden()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(unew(nlevs),snew(nlevs))
-  allocate(umac(nlevs),utrans(nlevs))
-  allocate(uedgex(nlevs),uedgey(nlevs),sedgex(nlevs),sedgey(nlevs))
+  allocate(umac(nlevs,dm),utrans(nlevs,dm))
+  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
   allocate(rhohalf(nlevs),vort(nlevs))
   allocate(force(nlevs),scal_force(nlevs))
 
@@ -428,21 +430,23 @@ subroutine varden()
      call multifab_build(   rhohalf(n), mla%la(n),     1, 1)
      call multifab_build(      vort(n), mla%la(n),     1, 0)
 
-     call multifab_build(   umac(n), mla%la(n),    dm, ng_edge)
-     call multifab_build( utrans(n), mla%la(n),    dm, ng_edge)
-     call multifab_build( uedgex(n), mla%la(n),    dm, 1)
-     call multifab_build( uedgey(n), mla%la(n),    dm, 1)
-     call multifab_build( sedgex(n), mla%la(n), nscal, 1)
-     call multifab_build( sedgey(n), mla%la(n), nscal, 1)
+     do i = 1,dm
+       umac_nodal_flag = .false.
+       umac_nodal_flag(i) = .true.
+       call multifab_build(  umac(n,i), mla%la(n),    1, 1, nodal = umac_nodal_flag)
+       call multifab_build(utrans(n,i), mla%la(n),    1, 1, nodal = umac_nodal_flag)
+       call multifab_build( uedge(n,i), mla%la(n),   dm, 0, nodal = umac_nodal_flag)
+       call multifab_build( sedge(n,i), mla%la(n),nscal, 0, nodal = umac_nodal_flag)
+     end do
 
      call setval(  unew(n),ZERO, all=.true.)
      call setval(  snew(n),ZERO, all=.true.)
-     call setval(  umac(n),ZERO, all=.true.)
-     call setval(uedgex(n),ZERO, all=.true.)
-     call setval(uedgey(n),ZERO, all=.true.)
-     call setval(sedgex(n),ZERO, all=.true.)
-     call setval(sedgey(n),ZERO, all=.true.)
-     call setval(utrans(n),ZERO, all=.true.)
+     do i = 1,dm
+       call setval(  umac(n,i),ZERO, all=.true.)
+       call setval(utrans(n,i),ZERO, all=.true.)
+       call setval( uedge(n,i),ZERO, all=.true.)
+       call setval( sedge(n,i),ZERO, all=.true.)
+     end do
  
      call setval(      vort(n),ZERO, all=.true.)
      call setval(   rhohalf(n),ONE, all=.true.)
@@ -597,9 +601,8 @@ subroutine varden()
 
         do n = 1,nlevs
            call advance_premac(uold(n),sold(n),&
-                               umac(n),uedgex(n),uedgey(n),&
-                               utrans(n),gp(n),p(n), &
-                               force(n), &
+                               umac(n,:),uedge(n,:),utrans(n,:),& 
+                               gp(n),p(n),force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
                                visc_coef,&
@@ -610,8 +613,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
-                                umac(n),sedgex(n),sedgey(n),&
-                                utrans(n), &
+                                umac(n,:),sedge(n,:),utrans(n,:), &
                                 scal_force(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
@@ -640,8 +642,8 @@ subroutine varden()
 
         do n = 1,nlevs
            call velocity_advance(uold(n),unew(n),sold(n),rhohalf(n),&
-                                 umac(n),uedgex(n),uedgey(n),&
-                                 utrans(n),gp(n),p(n), &
+                                 umac(n,:),uedge(n,:), &
+                                 utrans(n,:),gp(n),p(n), &
                                  force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
@@ -752,8 +754,8 @@ subroutine varden()
         do n = 1,nlevs
 
            call advance_premac(uold(n),sold(n),&
-                               umac(n),uedgex(n),uedgey(n),&
-                               utrans(n),gp(n),p(n), &
+                               umac(n,:),uedge(n,:), &
+                               utrans(n,:),gp(n),p(n), &
                                force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
@@ -764,8 +766,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
-                                umac(n),sedgex(n),sedgey(n),&
-                                utrans(n), &
+                                umac(n,:),sedge(n,:),utrans(n,:),&
                                 scal_force(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
@@ -786,9 +787,8 @@ subroutine varden()
 
         do n = 1,nlevs
            call velocity_advance(uold(n),unew(n),sold(n),rhohalf(n),&
-                                 umac(n),uedgex(n),uedgey(n),&
-                                 utrans(n),gp(n),p(n), &
-                                 force(n), &
+                                 umac(n,:),uedge(n,:),utrans(n,:),&
+                                 gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
                                  visc_coef,verbose,mg_verbose)
@@ -889,12 +889,12 @@ subroutine varden()
      call multifab_destroy(unew(n))
      call multifab_destroy(sold(n))
      call multifab_destroy(snew(n))
-     call multifab_destroy(umac(n))
-     call multifab_destroy(utrans(n))
-     call multifab_destroy(uedgex(n))
-     call multifab_destroy(uedgey(n))
-     call multifab_destroy(sedgex(n))
-     call multifab_destroy(sedgey(n))
+     do i = 1,dm
+       call multifab_destroy(umac(n,i))
+       call multifab_destroy(utrans(n,i))
+       call multifab_destroy(uedge(n,i))
+       call multifab_destroy(sedge(n,i))
+     end do
      call multifab_destroy( p(n))
      call multifab_destroy(gp(n))
      call multifab_destroy(rhohalf(n))
@@ -917,7 +917,7 @@ subroutine varden()
   deallocate(dx)
   deallocate(unew,snew)
   deallocate(umac,utrans)
-  deallocate(uedgex,uedgey,sedgex,sedgey)
+  deallocate(uedge,sedge)
   deallocate(rhohalf,vort)
   deallocate(force,scal_force)
 

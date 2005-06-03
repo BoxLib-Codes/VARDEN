@@ -9,13 +9,14 @@ module mkutrans_module
 
 contains
 
-      subroutine mkutrans_2d(vel,utrans,force,lo,dx,dt,ng_cell,ng_edge,adv_bc,phys_bc)
+      subroutine mkutrans_2d(vel,utrans,vtrans,force,lo,dx,dt,ng_cell,adv_bc,phys_bc)
 
-      integer, intent(in) :: lo(2),ng_cell,ng_edge
+      integer, intent(in) :: lo(2),ng_cell
 
       real(kind=dp_t), intent(in   ) ::     vel(lo(1)-ng_cell:,lo(2)-ng_cell:,:)
-      real(kind=dp_t), intent(in   ) ::   force(lo(1)-      1:,lo(2)-      1:,:)
-      real(kind=dp_t), intent(inout) ::  utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,:)
+      real(kind=dp_t), intent(inout) ::  utrans(lo(1)-1:,lo(2)-1:)
+      real(kind=dp_t), intent(inout) ::  vtrans(lo(1)-1:,lo(2)-1:)
+      real(kind=dp_t), intent(in   ) ::   force(lo(1)-1:,lo(2)-1:,:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) ::  adv_bc(:,:,:)
@@ -80,10 +81,10 @@ contains
           ulft = merge(ZERO     ,ulft,i.eq.ie+1 .and. &
                        (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL))
 
-          utrans(i,j,1) = merge(ulft,urgt,(ulft+urgt).gt.ZERO)
+          utrans(i,j) = merge(ulft,urgt,(ulft+urgt).gt.ZERO)
           test = ( (ulft .le. ZERO  .and.  urgt .ge. ZERO)  .or.  &
                    (abs(ulft+urgt) .lt. eps) )
-          utrans(i,j,1) = merge(ZERO,utrans(i,j,1),test)
+          utrans(i,j) = merge(ZERO,utrans(i,j),test)
 
         enddo
       enddo
@@ -111,22 +112,24 @@ contains
           vbot = merge(ZERO     ,vbot,j.eq.je+1 .and. &
                        (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL))
 
-          utrans(i,j,2)=merge(vbot,vtop,(vbot+vtop).gt.ZERO)
+          vtrans(i,j)=merge(vbot,vtop,(vbot+vtop).gt.ZERO)
           test = ( (vbot .le. ZERO  .and.  vtop .ge. ZERO)  .or.  &
                    (abs(vbot+vtop) .lt. eps))
-          utrans(i,j,2) = merge(ZERO,utrans(i,j,2),test)
+          vtrans(i,j) = merge(ZERO,vtrans(i,j),test)
         enddo
       enddo
 
       end subroutine mkutrans_2d
 
-      subroutine mkutrans_3d(vel,utrans,force,lo,dx,dt,ng_cell,ng_edge,adv_bc,phys_bc)
+      subroutine mkutrans_3d(vel,utrans,vtrans,wtrans,force,lo,dx,dt,ng_cell,adv_bc,phys_bc)
 
-      integer, intent(in) :: lo(3),ng_cell,ng_edge
+      integer, intent(in) :: lo(3),ng_cell
 
       real(kind=dp_t), intent(in   ) ::    vel(lo(1)-ng_cell:,lo(2)-ng_cell:,lo(3)-ng_cell:,:)
       real(kind=dp_t), intent(in   ) ::  force(lo(1)-      1:,lo(2)-      1:,lo(3)-      1:,:)
-      real(kind=dp_t), intent(inout) :: utrans(lo(1)-ng_edge:,lo(2)-ng_edge:,lo(3)-ng_edge:,:)
+      real(kind=dp_t), intent(inout) :: utrans(lo(1)-      1:,lo(2)-      1:,lo(3)-      1:)
+      real(kind=dp_t), intent(inout) :: vtrans(lo(1)-      1:,lo(2)-      1:,lo(3)-      1:)
+      real(kind=dp_t), intent(inout) :: wtrans(lo(1)-      1:,lo(2)-      1:,lo(3)-      1:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) ::  adv_bc(:,:,:)
@@ -200,10 +203,10 @@ contains
           ulft = merge(ZERO           ,ulft,i.eq.ie+1 .and. &
                        (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL))
 
-          utrans(i,j,k,1) = merge(ulft,urgt,(ulft+urgt).gt.ZERO)
+          utrans(i,j,k) = merge(ulft,urgt,(ulft+urgt).gt.ZERO)
           test=( (ulft .le. ZERO  .and.  urgt .ge. ZERO)  .or. &
                 (abs(ulft+urgt) .lt. eps) )
-          utrans(i,j,k,1) = merge(ZERO,utrans(i,j,k,1),test)
+          utrans(i,j,k) = merge(ZERO,utrans(i,j,k),test)
 
         enddo
         enddo
@@ -233,10 +236,10 @@ contains
           vbot = merge(ZERO           ,vbot,j.eq.je+1 .and. &
                        (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL))
 
-          utrans(i,j,k,2)=merge(vbot,vtop,(vbot+vtop).gt.ZERO)
+          vtrans(i,j,k)=merge(vbot,vtop,(vbot+vtop).gt.ZERO)
           test = ( (vbot .le. ZERO  .and.  vtop .ge. ZERO)  .or. &
                    (abs(vbot+vtop) .lt. eps))
-          utrans(i,j,k,2) = merge(ZERO,utrans(i,j,k,2),test)
+          vtrans(i,j,k) = merge(ZERO,vtrans(i,j,k),test)
 
         enddo
         enddo
@@ -266,10 +269,10 @@ contains
           wbot = merge(ZERO           ,wbot,k.eq.ke+1 .and. &
                        (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL))
 
-          utrans(i,j,k,3)=merge(wbot,wtop,(wbot+wtop).gt.ZERO)
+          wtrans(i,j,k)=merge(wbot,wtop,(wbot+wtop).gt.ZERO)
           test = ( (wbot .le. ZERO  .and.  wtop .ge. ZERO)  .or. &
                    (abs(wbot+wtop) .lt. eps))
-          utrans(i,j,k,3) = merge(ZERO,utrans(i,j,k,3),test)
+          wtrans(i,j,k) = merge(ZERO,wtrans(i,j,k),test)
 
         enddo
         enddo

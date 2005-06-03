@@ -14,8 +14,7 @@ module scalar_advance_module
 contains
 
    subroutine scalar_advance (uold,sold,snew,rhohalf,&
-                              umac,sedgex,sedgey, &
-                              utrans, &
+                              umac,sedge,utrans, &
                               ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
@@ -26,9 +25,9 @@ contains
       type(multifab) , intent(inout) :: sold
       type(multifab) , intent(inout) :: snew
       type(multifab) , intent(inout) :: rhohalf
-      type(multifab) , intent(inout) :: umac
-      type(multifab) , intent(inout) :: sedgex,sedgey
-      type(multifab) , intent(inout) :: utrans
+      type(multifab) , intent(inout) :: umac(:)
+      type(multifab) , intent(inout) :: sedge(:)
+      type(multifab) , intent(inout) :: utrans(:)
       type(multifab) , intent(inout) :: ext_scal_force
 !
       real(kind=dp_t), intent(inout) :: dx(:),time,dt
@@ -41,7 +40,10 @@ contains
 ! 
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: ump(:,:,:,:)
+      real(kind=dp_t), pointer:: vmp(:,:,:,:)
+      real(kind=dp_t), pointer:: wmp(:,:,:,:)
       real(kind=dp_t), pointer:: utp(:,:,:,:)
+      real(kind=dp_t), pointer:: vtp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
 !
@@ -57,7 +59,7 @@ contains
 
       integer :: nscal,velpred
       integer :: lo(uold%dim),hi(uold%dim)
-      integer :: i,n,comp,dm,ng_cell,ng_edge,ng_rho
+      integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel, make_divu
       logical, allocatable :: is_conservative(:)
       real(kind=dp_t) :: visc_fac, diff_fac
@@ -67,7 +69,6 @@ contains
 
       ng_cell = uold%ng
       ng_rho  = rhohalf%ng
-      ng_edge = umac%ng
       dm      = uold%dim
 
       nscal   = ncomp(sold)
@@ -105,16 +106,20 @@ contains
       end do
 
       if (make_divu) then
-        call multifab_build(divu,umac%la,1,0)
-        do i = 1, umac%nboxes
-           if ( multifab_remote(umac, i) ) cycle
+        call multifab_build(divu,umac(1)%la,1,0)
+        do i = 1, divu%nboxes
+           if ( multifab_remote(divu, i) ) cycle
             dp  => dataptr(divu, i)
-           ump  => dataptr(umac, i)
+           ump  => dataptr(umac(1), i)
+           vmp  => dataptr(umac(2), i)
            select case (dm)
               case (2)
-                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,:),dx,umac%ng)
+                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1), &
+                               dx,umac(1)%ng)
               case (3)
-                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,:),dx,umac%ng)
+                wmp  => dataptr(umac(3), i)
+                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1), &
+                                  dx,umac(1)%ng)
            end select
         end do
         mult = -ONE
@@ -135,10 +140,12 @@ contains
          if ( multifab_remote(sold, i) ) cycle
          sop  => dataptr(sold, i)
          uop  => dataptr(uold, i)
-         sepx => dataptr(sedgex, i)
-         sepy => dataptr(sedgey, i)
-         ump  => dataptr(umac, i)
-         utp  => dataptr(utrans, i)
+         sepx => dataptr(sedge(1), i)
+         sepy => dataptr(sedge(2), i)
+         ump  => dataptr(umac(1), i)
+         vmp  => dataptr(umac(2), i)
+         utp  => dataptr(utrans(1), i)
+         vtp  => dataptr(utrans(2), i)
           fp  => dataptr(scal_force , i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
@@ -146,11 +153,12 @@ contains
             case (2)
               call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
-                             ump(:,:,1,:), utp(:,:,1,:), fp(:,:,1,:), &
+                             ump(:,:,1,1), vmp(:,:,1,1), &
+                             utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
                              lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                             velpred, ng_cell, ng_edge)
+                             velpred, ng_cell)
             case (3)
          end select
       end do
@@ -181,9 +189,10 @@ contains
       do i = 1, sold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          sop => dataptr(sold, i)
-         ump => dataptr(umac, i)
-         sepx => dataptr(sedgex, i)
-         sepy => dataptr(sedgey, i)
+         ump => dataptr(umac(1), i)
+         vmp => dataptr(umac(2), i)
+         sepx => dataptr(sedge(1), i)
+         sepy => dataptr(sedge(2), i)
          snp => dataptr(snew, i)
           rp => dataptr(rhohalf, i)
           fp => dataptr(scal_force , i)
@@ -191,11 +200,11 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call update_2d(sop(:,:,1,:), ump(:,:,1,:), &
+              call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
-                             lo, hi, ng_cell, ng_edge, dx, time, dt, is_vel, is_conservative)
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
               do n = 1,nscal
                 call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
