@@ -118,22 +118,20 @@ contains
 
             slx(is-1,j,iv) = zero
 
-            if (is.ne.0 .or. iv.gt.1) then
-              del = -sixteen/fifteen*s(is-1,j,iv) + half*s(is,j,iv) + &
-                              two3rd*s(is+1,j,iv) - tenth*s(is+2,j,iv)
-              dmin = two*(s(is  ,j,iv)-s(is-1,j,iv))
-              dpls = two*(s(is+1,j,iv)-s(is  ,j,iv))
-              slim = min(abs(dpls), abs(dmin))
-              slim = merge(slim, zero, dpls*dmin.gt.ZERO)
-              sflag = sign(one,del)
-              slx(is,j,iv)= sflag*min(slim,abs(del))
+            del = -sixteen/fifteen*s(is-1,j,iv) + half*s(is,j,iv) + &
+                            two3rd*s(is+1,j,iv) - tenth*s(is+2,j,iv)
+            dmin = two*(s(is  ,j,iv)-s(is-1,j,iv))
+            dpls = two*(s(is+1,j,iv)-s(is  ,j,iv))
+            slim = min(abs(dpls), abs(dmin))
+            slim = merge(slim, zero, dpls*dmin.gt.ZERO)
+            sflag = sign(one,del)
+            slx(is,j,iv)= sflag*min(slim,abs(del))
 
-!             Recalculate the slope at is+1 using the revised dxscr(is,fromm)
-              dxscr(is,fromm) = slx(is,j,iv)
-              ds = two * two3rd * dxscr(is+1,cen) - &
-                   sixth * (dxscr(is+2,fromm) + dxscr(is,fromm))
-              slx(is+1,j,iv) = dxscr(is+1,flag)*min(abs(ds),dxscr(is+1,lim))
-            endif
+!           Recalculate the slope at is+1 using the revised dxscr(is,fromm)
+            dxscr(is,fromm) = slx(is,j,iv)
+            ds = two * two3rd * dxscr(is+1,cen) - &
+                 sixth * (dxscr(is+2,fromm) + dxscr(is,fromm))
+            slx(is+1,j,iv) = dxscr(is+1,flag)*min(abs(ds),dxscr(is+1,lim))
 
           endif
 
