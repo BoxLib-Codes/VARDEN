@@ -19,14 +19,17 @@ contains
 
 !     Local variables
       integer         :: i,j,hi(2)
-      real(kind=dp_t) :: x
+      real(kind=dp_t) :: x,dir_val
 
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
       hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
 
+      if (icomp .eq. 1 .or. icomp .eq. 2) dir_val = ZERO
+      if (icomp .eq. 3 .or. icomp .eq. 4) dir_val = ONE
+
       if (bc(1,1) .eq. EXT_DIR) then
             do j = lo(2)-1,hi(2)+1
-               s(lo(1)-ng:lo(1)-1,j) = ZERO
+               s(lo(1)-ng:lo(1)-1,j) = dir_val
             end do
       else if (bc(1,1) .eq. FOEXTRAP) then
             do j = lo(2)-1,hi(2)+1
@@ -59,7 +62,7 @@ contains
 
       if (bc(1,2) .eq. EXT_DIR) then
             do j = lo(2)-1,hi(2)+1
-               s(hi(1)+1:hi(1)+ng,j) = ZERO
+               s(hi(1)+1:hi(1)+ng,j) = dir_val
             end do
       else if (bc(1,2) .eq. FOEXTRAP) then
             do j = lo(2)-1,hi(2)+1
@@ -92,7 +95,7 @@ contains
 
       if (bc(2,1) .eq. EXT_DIR) then
             do i = lo(1)-ng,hi(1)+ng
-               s(i,lo(2)-ng:lo(2)-1) = ZERO
+               s(i,lo(2)-ng:lo(2)-1) = dir_val
             end do
 !           if (icomp.eq.1) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VX
 !           if (icomp.eq.2) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VY
@@ -142,7 +145,7 @@ contains
 
       if (bc(2,2) .eq. EXT_DIR) then
             do i = lo(1)-ng,hi(1)+ng
-               s(i,hi(2)+1:hi(2)+ng) = ZERO
+               s(i,hi(2)+1:hi(2)+ng) = dir_val
             end do
       else if (bc(2,2) .eq. FOEXTRAP) then
             do i = lo(1)-ng,hi(1)+ng
