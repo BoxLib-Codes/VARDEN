@@ -103,7 +103,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do n = nlevs,2,-1
         do i = 1,dm
-          call ml_edge_restriction(umac(n,i),umac(n-1,i),ref_ratio(n-1,:),i)
+          call ml_edge_restriction(umac(n-1,i),umac(n,i),ref_ratio(n-1,:),i)
         end do
       end do
 
@@ -144,15 +144,19 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
-      integer :: i,j
+      integer :: i,j,nx,ny
+      real(kind=dp_t) :: rh_sum
 
+      rh_sum = ZERO
       do j = 0, size(rh,dim=2)-1
       do i = 0, size(rh,dim=1)-1
          rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
                    (vmac(i,j+1) - vmac(i,j)) / dx(2)
          rh(i,j) = -rh(i,j)
+         rh_sum = rh_sum + rh(i,j)
       end do
       end do
+      print *,'RH_SUM ',rh_sum*dx(1)*dx(2)
 
     end subroutine divumac_2d
 
@@ -324,7 +328,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
           if ( multifab_remote(rh(n), i) ) cycle
           ump => dataptr(umac(n,1), i)
           vmp => dataptr(umac(n,2), i)
-          rhp => dataptr(  rh(n), i)
           php => dataptr( phi(n), i)
            bp => dataptr(beta(n), i)
           select case (dm)
@@ -334,12 +337,12 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
                  hxp => dataptr(fine_flx(n)%bmf(1,1), i)
                  lyp => dataptr(fine_flx(n)%bmf(2,0), i)
                  hyp => dataptr(fine_flx(n)%bmf(2,1), i)
-                 call mkumac_2d(rhp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1), &
+                 call mkumac_2d(ump(:,:,1,1),vmp(:,:,1,1), &
                                 php(:,:,1,1), bp(:,:,1,:), &
                                 lxp(:,:,1,1),hxp(:,:,1,1),lyp(:,:,1,1),hyp(:,:,1,1), &
                                 dx(n,:),bc%ell_bc_level_array(i,:,:,dm+3))
                else 
-                 call mkumac_2d_base(rhp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1), & 
+                 call mkumac_2d_base(ump(:,:,1,1),vmp(:,:,1,1), & 
                                      php(:,:,1,1), bp(:,:,1,:), &
                                      dx(n,:),bc%ell_bc_level_array(i,:,:,dm+3))
                end if
@@ -352,13 +355,13 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
                  hyp => dataptr(fine_flx(n)%bmf(2,1), i)
                  lzp => dataptr(fine_flx(n)%bmf(3,0), i)
                  hzp => dataptr(fine_flx(n)%bmf(3,1), i)
-                 call mkumac_3d(rhp(:,:,:,1),ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                 call mkumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                 php(:,:,:,1), bp(:,:,:,:), &
                                 lxp(:,:,:,1),hxp(:,:,:,1),lyp(:,:,:,1),hyp(:,:,:,1), &
                                 lzp(:,:,:,1),hzp(:,:,:,1),dx(n,:),&
                                 bc%ell_bc_level_array(i,:,:,dm+3))
                else
-                 call mkumac_3d_base(rhp(:,:,:,1),ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),& 
+                 call mkumac_3d_base(ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),& 
                                      php(:,:,:,1), bp(:,:,:,:), dx(n,:), &
                                      bc%ell_bc_level_array(i,:,:,dm+3))
                end if
@@ -368,9 +371,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do n = nlevs,2,-1
         do i = 1,dm
-          call ml_edge_restriction(umac(n,i),umac(n-1,i),ref_ratio(n-1,:),i)
+          call ml_edge_restriction(umac(n-1,i),umac(n,i),ref_ratio(n-1,:),i)
         end do
       end do
+
+      call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose)
 
       do n = nlevs,2,-1
          call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n-1,:))
@@ -388,9 +393,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
     end subroutine mkumac
 
-    subroutine mkumac_2d_base(rh,umac,vmac,phi,beta,dx,press_bc)
+    subroutine mkumac_2d_base(umac,vmac,phi,beta,dx,press_bc)
 
-      real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
@@ -455,22 +459,12 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       end do
 
-!     This is just a test
-      rh    = ZERO
-      do j = 0,ny-1
-      do i = 0,nx-1
-         rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
-                   (vmac(i,j+1) - vmac(i,j)) / dx(2)
-      end do
-      end do
-
     end subroutine mkumac_2d_base
 
-    subroutine mkumac_2d(rh,umac,vmac,phi,beta, &
+    subroutine mkumac_2d(umac,vmac,phi,beta, &
                          lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
                          dx,press_bc)
 
-      real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
@@ -524,7 +518,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       end if
 
       do j = 0,ny-1
-         umac( 0,j) = umac( 0,j) + lo_x_flx(1,j) * dx(1)
+         umac( 0,j) = umac( 0,j) - lo_x_flx(1,j) * dx(1)
          umac(nx,j) = umac(nx,j) + hi_x_flx(1,j) * dx(1)
          do i = 1,nx-1
             gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
@@ -532,8 +526,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       end do
 
+
       do i = 0,nx-1
-         vmac(i, 0) = vmac(i, 0) + lo_y_flx(i,1) * dx(2)
+         vmac(i, 0) = vmac(i, 0) - lo_y_flx(i,1) * dx(2)
          vmac(i,ny) = vmac(i,ny) + hi_y_flx(i,1) * dx(2)
          do j = 1,ny-1
             gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
@@ -541,19 +536,10 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          end do
       end do
 
-      rh    = ZERO
-      do j = 0,ny-1
-      do i = 0,nx-1
-         rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
-                   (vmac(i,j+1) - vmac(i,j)) / dx(2)
-      end do
-      end do
-
     end subroutine mkumac_2d
 
-    subroutine mkumac_3d_base(rh,umac,vmac,wmac,phi,beta,dx,press_bc)
+    subroutine mkumac_3d_base(umac,vmac,wmac,phi,beta,dx,press_bc)
 
-      real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
@@ -675,23 +661,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       end do
       end do
 
-!     This is just a test
-      do k = 0,nz-1
-      do j = 0,ny-1
-      do i = 0,nx-1
-         rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
-                     (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
-                     (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
-      end do
-      end do
-      end do
-
     end subroutine mkumac_3d_base
 
-    subroutine mkumac_3d(rh,umac,vmac,wmac,phi,beta,lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
+    subroutine mkumac_3d(umac,vmac,wmac,phi,beta,lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
                          lo_z_flx,hi_z_flx,dx,press_bc)
 
-      real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
@@ -818,17 +792,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
             gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
             wmac(i,j,k) = wmac(i,j,k) - beta(i,j,k,3)*gpz
          end do
-      end do
-      end do
-
-!     This is just a test
-      do k = 0,nz-1
-      do j = 0,ny-1
-      do i = 0,nx-1
-         rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
-                     (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
-                     (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
-      end do
       end do
       end do
 
