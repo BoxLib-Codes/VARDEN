@@ -173,10 +173,10 @@ contains
                    do n = 1,nc
                       call setbc_3d(cp(:,:,:,n),interior_lo,1,local_bc(:,:,n),dx,bc_comp+n-1)
                    end do
-                   call lin_cc_interp_3d(fp(:,:,:,:), cp(:,:,:,:), ir, local_bc, &
+                   call lin_cc_interp_3d(fp(:,:,:,:), lo_f, cp(:,:,:,:), lo_c, ir, local_bc, &
                                          fvcx, fvcx_lo, fvcy, fvcy_lo, fvcz, fvcz_lo, &
                                          cvcx, cvcx_lo, cvcy, cvcy_lo, cvcz, cvcz_lo, &
-                                         lim_slope, lin_limit)
+                                         cslope_lo, cslope_hi, lim_slope, lin_limit)
                 end select
    
                 deallocate(cp)
