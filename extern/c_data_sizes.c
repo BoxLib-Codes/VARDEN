@@ -13,5 +13,6 @@ main()
     printf( "sizeof(int)         = %ld\n", sizeof(int));
     printf( "sizeof(short)       = %ld\n", sizeof(short));
     printf( "sizeof(char)        = %ld\n", sizeof(char));
+    printf( "sizeof(void*)       = %ld\n", sizeof(void*));
     return(0);
 }
