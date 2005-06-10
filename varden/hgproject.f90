@@ -225,8 +225,6 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
       dm = unew%dim
 
-!     call print(unew,"UNEW BEFORE")
-
       do i = 1, unew%nboxes
          if ( multifab_remote(unew, i) ) cycle
          upn => dataptr(unew, i)
@@ -242,8 +240,6 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       end do
       call multifab_fill_boundary(unew)
       call multifab_fill_boundary(gp)
-
-!     call print(unew,"UNEW AFTER")
 
     end subroutine mkunew
 
@@ -610,6 +606,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   else
     do_diagnostics = 0
   end if
+
+! call fabio_ml_write(rh, mla%mba%rr(:,1), "rh_nodal")
 
   call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr,do_diagnostics)
 
@@ -1284,13 +1282,13 @@ end subroutine hg_multigrid
 
       end do
 
-      do j = lor(2),lor(2)+size(rh,dim=2)-1
-      do i = lor(1),lor(1)+size(rh,dim=1)-1
-         rh(i,j) = rh(i,j) * vol_frac(i,j)
-      end do
-      end do
-
     end if
+
+!   do j = lor(2),lor(2)+size(rh,dim=2)-1
+!   do i = lor(1),lor(1)+size(rh,dim=1)-1
+!      rh(i,j) = rh(i,j) * vol_frac(i,j)
+!   end do
+!   end do
 
   end subroutine ml_interface_2d_divu
 
