@@ -18,12 +18,14 @@ contains
       real(kind=dp_t), pointer:: gpp(:,:,:,:),  fp(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
       real(kind=dp_t) :: dt_hold
-      integer         :: i,nx
+      real(kind=dp_t) :: dtchange
+      integer         :: i
 
       ng = u%ng
       dm = u%dim
 
-      dt_hold = 1.d20
+      dtchange = 1.1d0
+      dt_hold  = 1.d20
 
       do i = 1, u%nboxes
          if ( multifab_remote(u, i) ) cycle
@@ -36,18 +38,23 @@ contains
          select case (dm)
             case (2)
               call estdt_2d(uop(:,:,1,:), sop(:,:,1,1), gpp(:,:,1,:), fp(:,:,1,:),&
-                            lo, hi, ng, dx, cflfac, dtold, dt)
+                            lo, hi, ng, dx, dt)
             case (3)
               call estdt_3d(uop(:,:,:,:), sop(:,:,:,1), gpp(:,:,:,:), fp(:,:,:,:),&
-                            lo, hi, ng, dx, cflfac, dtold, dt)
+                            lo, hi, ng, dx, dt)
          end select
-         dt = min(dt_hold,dt)
-         nx = hi(1)-lo(1)+1
+         dt_hold = min(dt_hold,dt)
       end do
+
+      dt = dt_hold
+
+      dt = dt * cflfac
+
+      if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
 
    end subroutine estdt
 
-   subroutine estdt_2d (u,s,gp,force,lo,hi,ng,dx,cflfac,dtold,dt)
+   subroutine estdt_2d (u,s,gp,force,lo,hi,ng,dx,dt)
 
       implicit none
 
@@ -57,18 +64,14 @@ contains
       real (kind = dp_t), intent(in ) ::    gp(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(in ) :: force(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(in ) :: dx(:)
-      real (kind = dp_t), intent(in ) :: cflfac
-      real (kind = dp_t), intent(in ) :: dtold
       real (kind = dp_t), intent(out) :: dt
 
 !     Local variables
       real (kind = dp_t)  spdx,spdy
       real (kind = dp_t)  pforcex,pforcey
-      real (kind = dp_t)  dtchange
       real (kind = dp_t)  eps
       integer :: i, j
 
-      dtchange = 1.1d0
       eps = 1.0e-8
 
       spdx  = 0.0D0 
@@ -103,13 +106,9 @@ contains
         dt = min(dt,sqrt(2.0D0 *dx(2)/pforcey))
       endif
 
-      dt = dt * cflfac
-
-      if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
-
    end subroutine estdt_2d
 
-   subroutine estdt_3d (u,s,gp,force,lo,hi,ng,dx,cflfac,dtold,dt)
+   subroutine estdt_3d (u,s,gp,force,lo,hi,ng,dx,dt)
 
       implicit none
 
@@ -119,18 +118,14 @@ contains
       real (kind = dp_t), intent(in ) ::    gp(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(in ) :: force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(in ) :: dx(:)
-      real (kind = dp_t), intent(in ) :: cflfac
-      real (kind = dp_t), intent(in ) :: dtold
       real (kind = dp_t), intent(out) :: dt
 
 !     Local variables
       real (kind = dp_t)  spdx,spdy
       real (kind = dp_t)  pforcex,pforcey,pforcez
-      real (kind = dp_t)  dtchange
       real (kind = dp_t)  eps
       integer :: i, j, k
 
-      dtchange = 1.1d0
       eps = 1.0e-8
 
       spdx  = 0.0D0 
@@ -168,13 +163,9 @@ contains
         dt = min(dt,sqrt(2.0D0 *dx(2)/pforcey))
       endif
 
-!     if (pforcez .gt. eps) then
-!       dt = min(dt,sqrt(2.0D0 *dx(3)/pforcez))
-!     endif
-
-      dt = dt * cflfac
-
-      if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
+      if (pforcez .gt. eps) then
+        dt = min(dt,sqrt(2.0D0 *dx(3)/pforcez))
+      endif
 
    end subroutine estdt_3d
 
