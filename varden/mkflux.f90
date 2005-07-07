@@ -47,7 +47,7 @@ contains
       integer :: slope_order = 4
       logical :: test
 
-      real(kind=dp_t) :: abs_eps, eps, smax
+      real(kind=dp_t) :: abs_eps, eps, umax
 
       integer :: i,j,is,js,ie,je
 
@@ -79,18 +79,41 @@ contains
       hx = dx(1)
       hy = dx(2)
 
+      if (velpred .eq. 1) then
+
+        umax = abs(utrans(is,ie))
+        do j = js,je
+           do i = is,ie+1
+             umax = max(umax,abs(utrans(i,j)))
+           end do
+        end do
+        do j = js,je+1
+           do i = is,ie
+             umax = max(umax,abs(vtrans(i,j)))
+           end do
+        end do
+
+      else 
+
+        umax = abs(uadv(is,ie))
+        do j = js,je
+           do i = is,ie+1
+             umax = max(umax,abs(uadv(i,j)))
+           end do
+        end do
+        do j = js,je+1
+           do i = is,ie
+             umax = max(umax,abs(vadv(i,j)))
+           end do
+        end do
+      end if
+
+      eps = abs_eps * umax
+
 !
 !     Loop for fluxes on x-edges.
 !
       do n = 1,ncomp
-
-       smax = abs(s(is,ie,n))
-       do j = js,je 
-         do i = is,ie 
-           smax = max(smax,abs(s(i,j,n)))
-         end do
-       end do
-       eps = abs_eps * smax
 
        do j = js,je 
         if (velpred .eq. 0 .or. n .eq. 1) then
@@ -383,7 +406,7 @@ contains
       real(kind=dp_t) sptop,spbot,smtop,smbot,splft,sprgt,smlft,smrgt
       logical test
 
-      real(kind=dp_t) :: eps
+      real(kind=dp_t) :: abs_eps,eps,umax
 
       integer :: hi(3)
       integer :: i,j,k,is,js,ks,ie,je,ke,n
@@ -412,7 +435,7 @@ contains
       end do
       call slopez_3d(s,slopez,lo,ng,ncomp,adv_bc,slope_order)
 
-      eps = 1.0e-8
+      abs_eps = 1.0e-8
 
       is = lo(1)
       ie = hi(1)
@@ -426,6 +449,30 @@ contains
       hx = dx(1)
       hy = dx(2)
       hz = dx(3)
+
+      umax = abs(uadv(is,js,ks,1))
+      do k = ks,ke
+      do j = js,je
+      do i = is,ie+1
+        umax = max(umax,abs(uadv(i,j,k,1)))
+      end do
+      end do
+      end do
+      do k = ks,ke
+      do j = js,je+1
+      do i = is,ie
+        umax = max(umax,abs(uadv(i,j,k,2)))
+      end do
+      end do
+      end do
+      do k = ks,ke+1
+      do j = js,je
+      do i = is,ie
+        umax = max(umax,abs(uadv(i,j,k,3)))
+      end do
+      end do
+      end do
+      eps = abs_eps * umax
 
 !     loop for x fluxes
       do n = 1,ncomp
