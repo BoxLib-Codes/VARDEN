@@ -18,19 +18,17 @@ module restart_module
 
 contains
 
-  subroutine fill_restart_data(nscal,ng_cell,restart_int,uold,sold,gp,p,dx,time,dt)
+  subroutine fill_restart_data(nscal,ng_cell,restart_int,uold,sold,gp,p,time,dt)
 
     integer          , intent(in    ) :: nscal,ng_cell,restart_int
     real(dp_t)       , intent(   out) :: time,dt
-    real(dp_t)       , pointer        :: dx(:,:)
-    type(multifab)   , pointer        :: uold(:),sold(:),gp(:),p(:)
+    type(multifab)   , intent(   out) :: uold(:),sold(:),gp(:),p(:)
 
     type(multifab)   , pointer        :: chkdata(:)
     type(multifab)   , pointer        :: chk_p(:)
     character(len=7)                  :: sd_name
     integer          , pointer        :: rrs(:)
     integer                           :: n,nlevs,dm
-
 
     write(unit=sd_name,fmt='("chk",i4.4)') restart_int
     print *,'Reading ',sd_name,' to get state data for restart'
