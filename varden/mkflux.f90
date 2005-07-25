@@ -50,7 +50,7 @@ contains
       real(kind=dp_t) :: abs_eps, eps, umax
 
       integer :: i,j,is,js,ie,je
-
+ 
       ncomp = size(s,dim=3)
 
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
@@ -81,7 +81,7 @@ contains
 
       if (velpred .eq. 1) then
 
-        umax = abs(utrans(is,ie))
+        umax = abs(utrans(is,js))
         do j = js,je
            do i = is,ie+1
              umax = max(umax,abs(utrans(i,j)))
@@ -450,25 +450,25 @@ contains
       hy = dx(2)
       hz = dx(3)
 
-      umax = abs(uadv(is,js,ks,1))
+      umax = abs(uadv(is,js,ks))
       do k = ks,ke
       do j = js,je
       do i = is,ie+1
-        umax = max(umax,abs(uadv(i,j,k,1)))
+        umax = max(umax,abs(uadv(i,j,k)))
       end do
       end do
       end do
       do k = ks,ke
       do j = js,je+1
       do i = is,ie
-        umax = max(umax,abs(uadv(i,j,k,2)))
+        umax = max(umax,abs(vadv(i,j,k)))
       end do
       end do
       end do
       do k = ks,ke+1
       do j = js,je
       do i = is,ie
-        umax = max(umax,abs(uadv(i,j,k,3)))
+        umax = max(umax,abs(wadv(i,j,k)))
       end do
       end do
       end do
