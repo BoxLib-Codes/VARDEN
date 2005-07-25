@@ -95,7 +95,7 @@ contains
 
       else 
 
-        umax = abs(uadv(is,ie))
+        umax = abs(uadv(is,js))
         do j = js,je
            do i = is,ie+1
              umax = max(umax,abs(uadv(i,j)))
@@ -450,28 +450,58 @@ contains
       hy = dx(2)
       hz = dx(3)
 
-      umax = abs(uadv(is,js,ks))
-      do k = ks,ke
-      do j = js,je
-      do i = is,ie+1
-        umax = max(umax,abs(uadv(i,j,k)))
-      end do
-      end do
-      end do
-      do k = ks,ke
-      do j = js,je+1
-      do i = is,ie
-        umax = max(umax,abs(vadv(i,j,k)))
-      end do
-      end do
-      end do
-      do k = ks,ke+1
-      do j = js,je
-      do i = is,ie
-        umax = max(umax,abs(wadv(i,j,k)))
-      end do
-      end do
-      end do
+      if (velpred .eq. 1) then
+
+        umax = abs(utrans(is,js,ks))
+        do k = ks,ke
+        do j = js,je
+        do i = is,ie+1
+          umax = max(umax,abs(utrans(i,j,k)))
+        end do
+        end do
+        end do
+        do k = ks,ke
+        do j = js,je+1
+        do i = is,ie
+          umax = max(umax,abs(vtrans(i,j,k)))
+        end do
+        end do
+        end do
+        do k = ks,ke+1
+        do j = js,je
+        do i = is,ie
+          umax = max(umax,abs(wtrans(i,j,k)))
+        end do
+        end do
+        end do
+
+      else
+
+        umax = abs(uadv(is,js,ks))
+        do k = ks,ke
+        do j = js,je
+        do i = is,ie+1
+          umax = max(umax,abs(uadv(i,j,k)))
+        end do
+        end do
+        end do
+        do k = ks,ke
+        do j = js,je+1
+        do i = is,ie
+          umax = max(umax,abs(vadv(i,j,k)))
+        end do
+        end do
+        end do
+        do k = ks,ke+1
+        do j = js,je
+        do i = is,ie
+          umax = max(umax,abs(wadv(i,j,k)))
+        end do
+        end do
+        end do
+
+      end if
+
       eps = abs_eps * umax
 
 !     loop for x fluxes
