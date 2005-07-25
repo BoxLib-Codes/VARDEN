@@ -43,7 +43,7 @@ subroutine varden()
   real(dp_t) :: time,dt,half_dt,dtold,dt_hold,dt_temp
   real(dp_t) :: visc_mu, pressure_inflow_val, grav
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
-  integer    :: k,istep,ng_cell,ng_edge,ng_fill
+  integer    :: k,istep,ng_cell,ng_grow
   integer    :: i, d, n, nlevs, n_plot_comps, n_chk_comps, nscal
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step, edge_based
@@ -134,8 +134,8 @@ subroutine varden()
 
   nodal = .true.
 
-  ng_edge = 2
   ng_cell = 3
+  ng_grow = 1
 
   narg = command_argument_count()
 
@@ -597,6 +597,10 @@ subroutine varden()
                                           ng_cell,mla%mba%rr(n-1,:), &
                                           the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                                           1,dm+1,nscal)
+           call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
+                                          ng_grow,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
         end do
 
         do n = 1,nlevs
@@ -733,10 +737,27 @@ subroutine varden()
 
      do istep = init_step,max_step
 
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
+           call multifab_fill_ghost_cells(sold(n),sold(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,dm+1,nscal)
+           call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
+                                          ng_grow,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
+        end do
+
         do n = 1,nlevs
 
            call multifab_fill_boundary(uold(n))
            call multifab_fill_boundary(sold(n))
+           call multifab_fill_boundary(gp(n))
 
 !          if (verbose .eq. 1) then
 !             print *,'MAX OF UOLD ', norm_inf(uold(n),1,1),' AT LEVEL ',n 
@@ -792,6 +813,14 @@ subroutine varden()
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
                                  visc_coef,verbose,mg_verbose)
+        end do
+
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
         end do
 
         if (visc_coef > ZERO) then
