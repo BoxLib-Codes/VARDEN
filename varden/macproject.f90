@@ -118,6 +118,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
                  call divumac_2d(ump(:,:,1,1), vmp(:,:,1,1), &
                                  rhp(:,:,1,1), dx(n,:))
                case (3)
+                 wmp => dataptr(umac(n,3), i)
                  call divumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                  rhp(:,:,:,1), dx(n,:))
             end select
