@@ -611,6 +611,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
   call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr,do_diagnostics)
 
+! call fabio_ml_write(phi, mla%mba%rr(:,1), "soln_nodal")
+
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
   end do
