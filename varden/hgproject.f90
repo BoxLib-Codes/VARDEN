@@ -1206,7 +1206,7 @@ end subroutine hg_multigrid
           crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
           vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
         else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-          crse_flux =      ( uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
+          crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
           vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
         else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
           crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
