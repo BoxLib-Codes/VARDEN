@@ -27,6 +27,7 @@ subroutine varden()
   use checkpoint_module
   use restart_module
   use fillpatch_module
+  use cluster_module
 
   implicit none
 
@@ -104,7 +105,7 @@ subroutine varden()
 
   type(layout)    :: la
   type(box)       :: fine_domain
-  type(ml_boxarray) :: mba,mba_new
+  type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
 
@@ -276,7 +277,7 @@ subroutine varden()
   call make_temps(mla)
 
   if (restart >= 0) &
-     call fill_restart_data(nscal,ng_cell,restart,uold,sold,gp,p,time,dt)
+     call fill_restart_data(restart,uold,sold,gp,p,time,dt)
 
   la = mla%la(1)
 
@@ -426,9 +427,12 @@ subroutine varden()
 
      do istep = init_step,max_step
 
-        if (regrid_int > 0 .and. mod(istep,regrid_int) .eq. 0) then
+        if (regrid_int > 0 .and. mod(istep-1,regrid_int) .eq. 0) then
           call delete_temps()
-          call make_new_grids()
+          call make_new_grids(sold(1))
+
+          call print(mla_new%la(1),"NEW LAYOUT BASE")
+          call print(mla_new%la(2),"NEW LAYOUT TOP")
 
           call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg,force_rg,sforce_rg)
 
@@ -646,20 +650,26 @@ subroutine varden()
 
   contains
 
-    subroutine make_new_grids()
+    subroutine make_new_grids(rho_crse)
 
+       type(multifab), intent(in   ) :: rho_crse
+
+       type(ml_boxarray) :: mba_new
+       type(boxarray) :: ba_new
        type(boxarray) :: ba_loc
        type(box     ) :: bx_loc
        integer        :: lo_bx(2),hi_bx(2)
 
-       if (istep .eq. 2) then
-         test_set = "gr0_2d_2"
-       else if (istep .eq. 4) then
-         test_set = "gr0_2d_4"
-       else if (istep .eq. 6) then
-         test_set = "gr0_2d_6"
-       end if
-       call read_a_hgproj_grid(mba_new, test_set)
+       integer        :: dim
+
+!      if (istep .eq. 2) then
+!        test_set = "gr0_2d_2"
+!      else if (istep .eq. 4) then
+!        test_set = "gr0_2d_4"
+!      else if (istep .eq. 6) then
+!        test_set = "gr0_2d_6"
+!      end if
+!      call read_a_hgproj_grid(mba_new, test_set)
 
 !      lo_bx = 16
 !      hi_bx = 32
@@ -668,9 +678,90 @@ subroutine varden()
 !      ba_loc = mba_new%bas(2)
 !      call ml_layout_rebuild(mla_new,mla,ba_loc)
 
-       call ml_layout_build(mla_new,mba_new)
+       call make_boxes(rho_crse,ba_new)
+
+       dim = rho_crse%dim
+       call ml_boxarray_build_n(mba_new,2,dim)
+       mba_new%bas(1) = mba%bas(1)
+       mba_new%bas(2) = ba_new
+
+       call ml_layout_build(mla_new,mba_new,pmask)
 
     end subroutine make_new_grids
+
+    subroutine make_boxes(rho_crse,ba_new)
+
+      type(multifab), intent(in   ) :: rho_crse
+      type(boxarray), intent(  out) :: ba_new
+
+      type(list_box)               :: boxes
+      type(list_box_node), pointer :: bn
+      type(lmultifab) :: tagboxes
+
+      real(kind = dp_t), pointer :: sp(:,:,:,:)
+      logical          , pointer :: tp(:,:,:,:)
+
+      real(kind = dp_t) :: overall_eff, min_eff
+      integer           :: i, j, k, dm
+      integer           :: minwidth,buf_wid
+
+      dm = rho_crse%dim
+
+      call lmultifab_build(tagboxes,rho_crse%la,1,0)
+
+      do i = 1, rho_crse%nboxes
+        if ( multifab_remote(rho_crse, i) ) cycle
+        sp => dataptr(rho_crse, i)
+        tp => dataptr(tagboxes, i)
+        select case (dm)
+          case (2)
+             call tag_boxes(tp(:,:,1,1),sp(:,:,1,1), ng_cell)
+          end select
+      end do
+
+      minwidth = 1
+      buf_wid = 1
+      min_eff = .7
+
+      call cls_3d_mf(boxes, tagboxes, minwidth, buf_wid, min_eff, overall_eff)
+
+      print *, 'number of boxes ', size(boxes)
+      bn => begin(boxes)
+      do while ( associated(bn) )
+         call print(value(bn))
+         bn => next(bn)
+      end do
+      print *, 'overall_eff', overall_eff
+
+      call copy(ba_new,boxes)
+
+      call destroy(tagboxes)
+
+    end subroutine make_boxes
+
+    subroutine tag_boxes(tagbox,rho_crse,ng)
+
+      integer          , intent(in   ) :: ng
+      logical          , intent(  out) :: tagbox(0:,0:)
+      real(kind = dp_t), intent(in   ) :: rho_crse(-ng:,-ng:)
+
+      integer :: i,j,nx,ny
+
+      nx = size(rho_crse,dim=1) - 2*ng
+      ny = size(rho_crse,dim=2) - 2*ng
+
+      tagbox = .false.
+
+      do j = 0, ny-1
+         do i = 0, nx-1
+            if (rho_crse(i,j) .gt. 0.999 .and. rho_crse(i,j) .lt. 1.022) then
+               tagbox(i,j) = .true.
+               print *,'TAGGING ',i,j
+            end if
+         end do
+      end do
+
+    end subroutine tag_boxes
 
     subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc,force_loc,sforce_loc)
   

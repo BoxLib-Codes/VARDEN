@@ -18,23 +18,24 @@ module restart_module
 
 contains
 
-  subroutine fill_restart_data(nscal,ng_cell,restart_int,uold,sold,gp,p,time,dt)
+  subroutine fill_restart_data(restart_int,uold,sold,gp,p,time,dt)
 
-    integer          , intent(in    ) :: nscal,ng_cell,restart_int
-    real(dp_t)       , intent(   out) :: time,dt
-    type(multifab)   , intent(   out) :: uold(:),sold(:),gp(:),p(:)
+    integer          , intent(in   ) :: restart_int
+    real(dp_t)       , intent(  out) :: time,dt
+    type(multifab)   , intent(inout) :: uold(:),sold(:),gp(:),p(:)
 
     type(multifab)   , pointer        :: chkdata(:)
     type(multifab)   , pointer        :: chk_p(:)
     character(len=7)                  :: sd_name
     integer          , pointer        :: rrs(:)
-    integer                           :: n,nlevs,dm
+    integer                           :: n,nlevs,dm,nscal
 
     write(unit=sd_name,fmt='("chk",i4.4)') restart_int
     print *,'Reading ',sd_name,' to get state data for restart'
     call checkpoint_read(chkdata, chk_p, sd_name, time, dt, nlevs)
 
     dm = chkdata(1)%dim
+    nscal = ncomp(sold(1))
 
     do n = 1,nlevs
        call multifab_copy_c(uold(n),1,chkdata(n),1     ,dm)
