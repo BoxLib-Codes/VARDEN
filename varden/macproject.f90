@@ -127,7 +127,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       rhmax = norm_inf(rh(nlevs))
       do n = nlevs,2,-1
-         call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n-1,:))
+         call ml_cc_restriction(rh(n-1),rh(n),ref_ratio(n-1,:))
          rhmax = max(rhmax,norm_inf(rh(n-1)))
       end do
 
@@ -379,7 +379,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose)
 
       do n = nlevs,2,-1
-         call ml_cc_restriction(rh(n),rh(n-1),ref_ratio(n-1,:))
+         call ml_cc_restriction(rh(n-1),rh(n),ref_ratio(n-1,:))
       end do
 
       rhmax = ZERO
