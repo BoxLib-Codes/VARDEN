@@ -955,7 +955,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
      end if
 
      pxa = ZERO
-     pxa = ZERO
+     pxb = ZERO
      do i = mgt(n)%nlevels, 1, -1
         pdv = layout_boxarray(mgt(n)%ss(i)%la)
         call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
