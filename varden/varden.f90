@@ -72,15 +72,14 @@ subroutine varden()
   type(multifab), allocatable ::    force(:)
   type(multifab), allocatable ::   sforce(:)
   type(multifab), allocatable :: plotdata(:)
-  type(multifab), allocatable ::  chkdata(:)
+  type(multifab), pointer     ::  chkdata(:)
+  type(multifab), pointer     ::    chk_p(:)
 
   ! Regridding quantities
   type(multifab), allocatable ::   uold_rg(:)
   type(multifab), allocatable ::   sold_rg(:)
   type(multifab), allocatable ::     gp_rg(:)
   type(multifab), allocatable ::      p_rg(:)
-  type(multifab), allocatable ::  force_rg(:)
-  type(multifab), allocatable :: sforce_rg(:)
 
   ! Edge-based quantities
   type(multifab), allocatable ::   umac(:,:)
@@ -180,7 +179,6 @@ subroutine varden()
   bcz_hi = SLIP_WALL
 
   pmask = .FALSE.
-
   call get_environment_variable('PROBIN', probin_env, status = ierr)
   if ( need_inputs .AND. ierr == 0 ) then
      un = unit_new()
@@ -239,13 +237,53 @@ subroutine varden()
 ! Initialize the arrays and read the restart data if restart >= 0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  call read_a_hgproj_grid(mba, test_set)
-  if (mba%dim .ne. dm) then
-    print *,'BOXARRAY DIM NOT CONSISTENT WITH SPECIFIED DIM '
-    stop
+  if (restart >= 0) then
+     call fill_restart_data(restart,mba,chkdata,chk_p,time,dt)
+     call ml_layout_build(mla,mba,pmask)
+     nlevs = mba%nlevel
+     allocate(uold(nlevs),sold(nlevs),gp(nlevs),p(nlevs))
+     do n = 1,nlevs
+       call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
+       call multifab_build(   sold(n), mla%la(n), nscal, ng_cell)
+       call multifab_build(     gp(n), mla%la(n),    dm,  1)
+       call multifab_build(      p(n), mla%la(n),     1,  1, nodal)
+     end do
+    do n = 1,nlevs
+       call multifab_copy_c(uold(n),1,chkdata(n),1         ,dm)
+       call multifab_copy_c(sold(n),1,chkdata(n),1+dm      ,nscal)
+       call multifab_copy_c(  gp(n),1,chkdata(n),1+dm+nscal,dm)
+       call multifab_copy_c(   p(n),1,  chk_p(n),1         ,1)
+       call multifab_destroy(chkdata(n))
+       call multifab_destroy(chk_p(n))
+    end do
+    deallocate(chkdata,chk_p)
+  else
+     call read_a_hgproj_grid(mba, test_set)
+     call ml_layout_build(mla,mba,pmask)
+     nlevs = mla%nlevel
+     allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
+     call make_new_state(mla,uold,sold,gp,p)
   end if
-  nlevs = mba%nlevel
-  call ml_layout_build(mla,mba,pmask)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Allocate state and temp variables
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  allocate(force(nlevs),sforce(nlevs))
+  allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
+
+  allocate(unew(nlevs),snew(nlevs))
+  allocate(umac(nlevs,dm),utrans(nlevs,dm))
+  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
+  allocate(rhohalf(nlevs),vort(nlevs))
+
+  allocate(plotdata(nlevs),chkdata(nlevs))
+
+  call make_temps(mla)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Initialize dx, prob_hi, lo, hi
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! Define dx at the base level, then at refined levels.
   allocate(dx(nlevs,dm))
@@ -263,24 +301,6 @@ subroutine varden()
   end do
 
   allocate(lo(dm),hi(dm))
-
-  allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
-  allocate(force(nlevs),sforce(nlevs))
-  allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
-  allocate(force_rg(nlevs),sforce_rg(nlevs))
-
-  allocate(unew(nlevs),snew(nlevs))
-  allocate(umac(nlevs,dm),utrans(nlevs,dm))
-  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
-  allocate(rhohalf(nlevs),vort(nlevs))
-
-  allocate(plotdata(nlevs),chkdata(nlevs))
-
-  call make_new_state(mla,uold,sold,gp,p,force,sforce)
-  call make_temps(mla)
-
-  if (restart >= 0) &
-     call fill_restart_data(restart,uold,sold,gp,p,time,dt)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Allocate the arrays for the boundary conditions at the physical boundaries.
@@ -333,14 +353,14 @@ subroutine varden()
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Regrid before starting (or restarting) the calculation
+! Regrid before starting the calculation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if (nlevs > 1 .and. regrid_int > 0) then
+  if (restart < 0 .and. nlevs > 1 .and. regrid_int > 0) then
 
    call delete_temps()
    call make_new_grids(sold(1),dx(1,1),regrid_int)
-   call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg,force_rg,sforce_rg)
+   call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
 
    ! Build the arrays for each grid from the domain_bc arrays.
    call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
@@ -360,15 +380,15 @@ subroutine varden()
 
      do n = 2, nlevs
         fine_domain = layout_get_pd(mla_new%la(n))
-        call fillpatch(uold_rg(n),uold_rg(n-1),fine_domain, &
+        call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
                        ng_cell,mla_new%mba%rr(n-1,:), &
                        the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                        1,1,dm)
-        call fillpatch(sold_rg(n),sold_rg(n-1),fine_domain, &
+        call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
                        ng_cell,mla_new%mba%rr(n-1,:), &
                        the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                        1,dm+1,nscal)
-        call fillpatch(gp_rg(n),gp_rg(n-1),fine_domain, &
+        call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
                        ng_grow,mla_new%mba%rr(n-1,:), &
                        the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                        1,1,dm)
@@ -379,8 +399,6 @@ subroutine varden()
        call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
        call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
        call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
-       call multifab_copy_c( force_rg(n),1, force(n),1,   dm)
-       call multifab_copy_c(sforce_rg(n),1,sforce(n),1,nscal)
      end do
 
      do n = 1,nlevs
@@ -409,21 +427,19 @@ subroutine varden()
 
    end if
 
-   call delete_state(uold,sold,gp,p,force,sforce)
+   call delete_state(uold,sold,gp,p)
 
      uold = uold_rg
      sold = sold_rg
        gp =   gp_rg
         p =    p_rg
-    force = force_rg
-   sforce = sforce_rg
 
    call make_temps(mla_new)
 
    call destroy(mla)
    mla = mla_new
 
-  endif
+  end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Do the initial projection
@@ -541,19 +557,19 @@ subroutine varden()
           ! Build the arrays for each grid from the domain_bc arrays.
           call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
 
-          call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg,force_rg,sforce_rg)
+          call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
 
           do n = 2, nlevs
              fine_domain = layout_get_pd(mla_new%la(n))
-             call fillpatch(uold_rg(n),uold_rg(n-1),fine_domain, &
+             call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
                             ng_cell,mla_new%mba%rr(n-1,:), &
                             the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                             1,1,dm)
-             call fillpatch(sold_rg(n),sold_rg(n-1),fine_domain, &
+             call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
                             ng_cell,mla_new%mba%rr(n-1,:), &
                             the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                             1,dm+1,nscal)
-             call fillpatch(gp_rg(n),gp_rg(n-1),fine_domain, &
+             call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
                             ng_grow,mla_new%mba%rr(n-1,:), &
                             the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
                             1,1,dm)
@@ -564,18 +580,14 @@ subroutine varden()
             call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
             call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
             call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
-            call multifab_copy_c( force_rg(n),1, force(n),1,   dm)
-            call multifab_copy_c(sforce_rg(n),1,sforce(n),1,nscal)
           end do
 
-          call delete_state(uold,sold,gp,p,force,sforce)
+          call delete_state(uold,sold,gp,p)
 
             uold = uold_rg
             sold = sold_rg
               gp =   gp_rg
                p =    p_rg
-           force = force_rg
-          sforce = sforce_rg
 
           do n = 1,nlevs
              bc = the_bc_tower%bc_tower_array(n)
@@ -640,8 +652,7 @@ subroutine varden()
 
         if (verbose .eq. 1) then
            do n = 1,nlevs
-              write(6,1001) norm_inf(uold(n),1,1),n,time
-              write(6,1002) norm_inf(uold(n),2,1),n,time
+              write(6,1001) n,time,norm_inf(uold(n),1,1),norm_inf(uold(n),2,1)
            end do
            print *,' '
         end if
@@ -722,8 +733,7 @@ subroutine varden()
 
         if (verbose .eq. 1) then
            do n = 1,nlevs
-              write(6,1003) norm_inf(unew(n),1,1),n,time
-              write(6,1004) norm_inf(unew(n),2,1),n,time
+              write(6,1002) n,time,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
            end do
            print *,' '
         end if
@@ -748,17 +758,15 @@ subroutine varden()
      end do
 
 1000   format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
-1001   format('MAX OF UOLD ',e15.9,1x,' AT LEVEL ',i4,' AND TIME = ',f14.10)
-1002   format('MAX OF VOLD ',e15.9,1x,' AT LEVEL ',i4,' AND TIME = ',f14.10)
-1003   format('MAX OF UNEW ',e15.9,1x,' AT LEVEL ',i4,' AND TIME = ',f14.10)
-1004   format('MAX OF VNEW ',e15.9,1x,' AT LEVEL ',i4,' AND TIME = ',f14.10)
+1001   format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
+1002   format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
        if (last_plt_written .ne. max_step) call write_plotfile(max_step)
        if (last_chk_written .ne. max_step) call write_checkfile(max_step)
 
   end if
 
-  call delete_state(uold   ,sold   ,gp   ,p   ,force   ,sforce   )
+  call delete_state(uold,sold,gp,p)
 
   call delete_temps()
 
@@ -779,22 +787,6 @@ subroutine varden()
        integer        :: lo_bx(2),hi_bx(2)
 
        integer        :: dim
-
-!      if (istep .eq. 2) then
-!        test_set = "gr0_2d_2"
-!      else if (istep .eq. 4) then
-!        test_set = "gr0_2d_4"
-!      else if (istep .eq. 6) then
-!        test_set = "gr0_2d_6"
-!      end if
-!      call read_a_hgproj_grid(mba_new, test_set)
-
-!      lo_bx = 16
-!      hi_bx = 32
-!      bx_loc = make_box(lo_bx,hi_bx)
-!      call build(ba_loc,bx_loc)
-!      ba_loc = mba_new%bas(2)
-!      call ml_layout_rebuild(mla_new,mla,ba_loc)
 
        call make_boxes(rho_crse,ba_new,dx_crse,buf_wid)
        call boxarray_refine(ba_new,mla%mba%rr(1,:))
@@ -842,18 +834,10 @@ subroutine varden()
           end select
       end do
 
-      minwidth = 1
+      minwidth = 2
       min_eff = .7
 
-      call cls_2d_mf(boxes, tagboxes, minwidth, buf_wid, min_eff)
-
-      print *, 'number of boxes ', size(boxes)
-      bn => begin(boxes)
-      do while ( associated(bn) )
-         call print(value(bn))
-         bn => next(bn)
-      end do
-
+      call cls_2d_mf(boxes, tagboxes, minwidth, buf_wid, min_eff, layout_get_pd(mla%la(1)))
       call copy(ba_new,boxes)
 
       call destroy(tagboxes)
@@ -867,17 +851,15 @@ subroutine varden()
       real(kind = dp_t), intent(in   ) :: rho_crse(lo(1)-ng:,lo(2)-ng:)
       real(kind = dp_t), intent(in   ) :: dx_crse
 
-      integer :: i,j,nx,ny,istart
+      integer :: i,j,nx,ny
 
       nx = size(tagbox,dim=1)
       ny = size(tagbox,dim=2)
 
       tagbox = .false.
- 
-      istart = vol_init_L / dx_crse
 
       do j = lo(2),lo(2)+ny-1
-         do i = max(istart,lo(1)),lo(1)+nx-1
+         do i = lo(1),lo(1)+nx-1
             if (rho_crse(i,j) .gt. 0.9995 .and. rho_crse(i,j) .lt. 1.0215) then
                tagbox(i,j) = .true.
             end if
@@ -886,27 +868,21 @@ subroutine varden()
 
     end subroutine tag_boxes
 
-    subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc,force_loc,sforce_loc)
+    subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc)
   
      type(ml_layout),intent(in   ) :: mla_loc
      type(multifab ),intent(inout) :: uold_loc(:),sold_loc(:),gp_loc(:),p_loc(:)
-     type(multifab ),intent(inout) :: force_loc(:),sforce_loc(:)
 
      do n = 1,nlevs
         call multifab_build(   uold_loc(n), mla_loc%la(n),    dm, ng_cell)
         call multifab_build(   sold_loc(n), mla_loc%la(n), nscal, ng_cell)
         call multifab_build(     gp_loc(n), mla_loc%la(n),    dm,       1)
         call multifab_build(      p_loc(n), mla_loc%la(n),     1,       1, nodal)
-        call multifab_build( sforce_loc(n), mla_loc%la(n), nscal, 1)
-        call multifab_build(  force_loc(n), mla_loc%la(n),    dm, 1)
 
         call setval(  uold_loc(n),ZERO, all=.true.)
         call setval(  sold_loc(n),ZERO, all=.true.)
         call setval(    gp_loc(n),ZERO, all=.true.)
         call setval(     p_loc(n),ZERO, all=.true.)
-        call setval( force_loc(n),ZERO, 1,dm-1,all=.true.)
-        call setval( force_loc(n),grav,dm,   1,all=.true.)
-        call setval(sforce_loc(n),ZERO, all=.true.)
      end do
 
     end subroutine make_new_state
@@ -923,11 +899,16 @@ subroutine varden()
         call multifab_build(   snew(n), mla_loc%la(n), nscal, ng_cell)
         call multifab_build(rhohalf(n), mla_loc%la(n),     1, 1)
         call multifab_build(   vort(n), mla_loc%la(n),     1, 0)
+        call multifab_build(  force(n), mla_loc%la(n),    dm, 1)
+        call multifab_build( sforce(n), mla_loc%la(n), nscal, 1)
 
-        call setval(  unew(n),ZERO, all=.true.)
-        call setval(  snew(n),ZERO, all=.true.)
+        call setval(   unew(n),ZERO, all=.true.)
+        call setval(   snew(n),ZERO, all=.true.)
         call setval(   vort(n),ZERO, all=.true.)
         call setval(rhohalf(n),ONE, all=.true.)
+        call setval(  force(n),ZERO, 1,dm-1,all=.true.)
+        call setval(  force(n),grav,dm,   1,all=.true.)
+        call setval( sforce(n),ZERO, all=.true.)
    
         do i = 1,dm
           umac_nodal_flag = .false.
@@ -962,6 +943,8 @@ subroutine varden()
       do n = 1,nlevs
          call multifab_destroy(unew(n))
          call multifab_destroy(snew(n))
+         call multifab_destroy(force(n))
+         call multifab_destroy(sforce(n))
          do i = 1,dm
            call multifab_destroy(umac(n,i))
            call multifab_destroy(utrans(n,i))
@@ -976,17 +959,15 @@ subroutine varden()
 
     end subroutine delete_temps
 
-    subroutine delete_state(u,s,gp,p,f,sf)
+    subroutine delete_state(u,s,gp,p)
 
-      type(multifab), intent(inout) :: u(:),s(:),p(:),gp(:),f(:),sf(:)
+      type(multifab), intent(inout) :: u(:),s(:),p(:),gp(:)
 
       do n = 1,size(u)
          call multifab_destroy( u(n))
          call multifab_destroy( s(n))
          call multifab_destroy( p(n))
          call multifab_destroy(gp(n))
-         call multifab_destroy( f(n))
-         call multifab_destroy(sf(n))
       end do
 
     end subroutine delete_state
@@ -1088,16 +1069,14 @@ subroutine varden()
 
         if (verbose .eq. 1) then
            do n = 1,nlevs
-              write(6,1001) norm_inf(unew(n),1,1),n,istep
-              write(6,1002) norm_inf(unew(n),2,1),n,istep
+              write(6,1003) n,istep,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
            end do
            print *,' '
         end if
 
        end do
 
-1001   format('MAX OF UNEW ',e15.9,1x,' AT LEVEL ',i4,' AFTER ITER = ',i4)
-1002   format('MAX OF VNEW ',e15.9,1x,' AT LEVEL ',i4,' AFTER ITER = ',i4)
+1003   format('LEVEL: ',i3,' ITER: ',i3,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
     end subroutine initial_iters
 

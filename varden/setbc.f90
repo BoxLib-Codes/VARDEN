@@ -31,6 +31,10 @@ contains
             do j = lo(2)-1,hi(2)+1
                s(lo(1)-ng:lo(1)-1,j) = dir_val
             end do
+!           if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VX
+!           if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VY
+!           if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_DEN
+!           if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_TRA
       else if (bc(1,1) .eq. FOEXTRAP) then
             do j = lo(2)-1,hi(2)+1
                s(lo(1)-ng:lo(1)-1,j) = s(lo(1),j)

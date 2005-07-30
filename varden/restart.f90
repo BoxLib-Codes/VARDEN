@@ -18,48 +18,33 @@ module restart_module
 
 contains
 
-  subroutine fill_restart_data(restart_int,uold,sold,gp,p,time,dt)
+  subroutine fill_restart_data(restart_int,mba,chkdata,chk_p,time,dt)
 
     integer          , intent(in   ) :: restart_int
     real(dp_t)       , intent(  out) :: time,dt
-    type(multifab)   , intent(inout) :: uold(:),sold(:),gp(:),p(:)
+    type(ml_boxarray), intent(  out) :: mba
 
     type(multifab)   , pointer        :: chkdata(:)
     type(multifab)   , pointer        :: chk_p(:)
     character(len=7)                  :: sd_name
-    integer          , pointer        :: rrs(:)
-    integer                           :: n,nlevs,dm,nscal
+    integer                           :: n,nlevs,dm
 
     write(unit=sd_name,fmt='("chk",i4.4)') restart_int
     print *,'Reading ',sd_name,' to get state data for restart'
     call checkpoint_read(chkdata, chk_p, sd_name, time, dt, nlevs)
 
     dm = chkdata(1)%dim
-    nscal = ncomp(sold(1))
 
+    call build(mba,nlevs,dm)
+    mba%pd(1) =  bbox(get_boxarray(chkdata(1)))
+    do n = 2,nlevs
+      mba%pd(n) = refine(mba%pd(n-1),2)
+      mba%rr(n-1,:) = 2
+    end do
     do n = 1,nlevs
-       call multifab_copy_c(uold(n),1,chkdata(n),1     ,dm)
-       call multifab_copy_c(sold(n),1,chkdata(n),1+  dm,nscal)
-       call multifab_copy_c(  gp(n),1,chkdata(n),1+2*dm,dm)
-       call multifab_copy_c(   p(n),1,  chk_p(n),1     ,1)
-       call multifab_destroy(chkdata(n))
-       call multifab_destroy(chk_p(n))
+      call boxarray_build_copy(mba%bas(n), get_boxarray(chkdata(n))) 
     end do
 
-    do n = 1,nlevs
-       call destroy(chkdata(n)%la)
-       call destroy(chk_p(n)%la)
-    end do
-
-    deallocate(chkdata,chk_p)
-
-    ! Synchronize incoming data
-    do n = 1,nlevs
-       call multifab_fill_boundary(uold(n))
-       call multifab_fill_boundary(sold(n))
-       call multifab_fill_boundary(  gp(n))
-       call multifab_fill_boundary(   p(n))
-    end do
 
   end subroutine fill_restart_data
 
