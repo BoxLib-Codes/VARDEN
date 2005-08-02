@@ -93,7 +93,7 @@ subroutine varden()
 
   character(len=128) :: fname
   character(len=128) :: probin_env
-  character(len=128) :: test_set
+  character(len=128) :: fixed_grids
   character(len=7) :: sd_name
   character(len=20), allocatable :: plot_names(:)
   integer :: un, ierr
@@ -124,7 +124,7 @@ subroutine varden()
   namelist /probin/ init_shrink
   namelist /probin/ visc_coef
   namelist /probin/ diff_coef
-  namelist /probin/ test_set
+  namelist /probin/ fixed_grids
   namelist /probin/ restart
   namelist /probin/ do_initial_projection
   namelist /probin/ bcx_lo
@@ -166,7 +166,7 @@ subroutine varden()
   do_initial_projection  = 1
 
   need_inputs = .true.
-  test_set = ''
+  fixed_grids = ''
   restart  = -1
   last_plt_written = -1
   last_chk_written = -1
@@ -257,10 +257,16 @@ subroutine varden()
        call multifab_destroy(chk_p(n))
     end do
     deallocate(chkdata,chk_p)
-  else
-     call read_a_hgproj_grid(mba, test_set)
+  else if (fixed_grid != '') then
+     call read_a_hgproj_grid(mba, fixed_grids)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mla%nlevel
+     allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
+     call make_new_state(mla,uold,sold,gp,p)
+  else 
+     nlevs = max_lev
+!    NEED TO BUILD AN MBA HERE
+     call ml_layout_build(mla,mba,pmask)
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
      call make_new_state(mla,uold,sold,gp,p)
   end if
@@ -504,8 +510,8 @@ subroutine varden()
 
   dtold = dt
 
+  dt_hold = dt
   do n = 1,nlevs
-     dt_hold = dt
      call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
      dt = min(dt_hold,dt)
   end do
@@ -636,13 +642,13 @@ subroutine varden()
                                           1,1,dm)
         end do
 
+        dtold = dt
         do n = 1,nlevs
 
            call multifab_fill_boundary(uold(n))
            call multifab_fill_boundary(sold(n))
            call multifab_fill_boundary(gp(n))
 
-           dtold = dt
            if (istep > 1) &
              call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
 
@@ -1231,9 +1237,9 @@ subroutine varden()
            call get_command_argument(farg, value = fname)
            read(fname, *) mg_verbose
 
-        case ('--test_set')
+        case ('--fixed_grids')
            farg = farg + 1
-           call get_command_argument(farg, value = test_set)
+           call get_command_argument(farg, value = fixed_grids)
 
         case ('--restart')
            farg = farg + 1
