@@ -847,7 +847,6 @@ subroutine varden()
       real(dp_t)    , intent(in   ) :: dx_crse
       integer       , intent(in   ) :: buf_wid
 
-      type(boxarray)               :: boxes
       type(list_box_node), pointer :: bn
       type(lmultifab) :: tagboxes
 
@@ -880,8 +879,7 @@ subroutine varden()
       minwidth = 2
       min_eff = .7
 
-      call cluster(boxes, tagboxes, minwidth, buf_wid, min_eff)
-      call copy(ba_new,boxes)
+      call cluster(ba_new, tagboxes, minwidth, buf_wid, min_eff)
 
       call destroy(tagboxes)
 
