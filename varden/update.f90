@@ -32,7 +32,6 @@ module update_module
       real (kind = dp_t) ubar,vbar
       real (kind = dp_t) ugradu,ugradv,ugrads
       real (kind = dp_t) :: divsu
-!     real (kind = dp_t) :: u_symm, v_symm, u_symm_max, v_symm_max
       real (kind = dp_t) :: smin,smax,umin,umax,vmin,vmax
 
       if (.not. is_vel) then
@@ -114,19 +113,6 @@ module update_module
          enddo
          print *,'MIN/MAX OF UNEW ',umin,umax
          print *,'MIN/MAX OF VNEW ',vmin,vmax
-
-!        u_symm_max = -1.e20
-!        v_symm_max = -1.e20
-!        do j = lo(2), hi(2)
-!          do i = lo(1), hi(1)/2
-!            u_symm = snew(i,j,1) + snew(hi(1)-i,j,1)
-!            u_symm_max = max(u_symm_max, abs(u_symm))
-!            v_symm = snew(i,j,2) - snew(hi(1)-i,j,2)
-!            v_symm_max = max(v_symm_max, abs(v_symm))
-!          end do
-!        end do
-!        print *,'USYMM MAX ',u_symm_max
-!        print *,'VSYMM MAX ',v_symm_max
 
     end if
 

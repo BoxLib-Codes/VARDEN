@@ -27,7 +27,7 @@ subroutine varden()
   use checkpoint_module
   use restart_module
   use fillpatch_module
-  use cluster2d_module
+  use cluster_module
 
   implicit none
 
@@ -35,7 +35,7 @@ subroutine varden()
   integer    :: max_step,init_iter
   integer    :: plot_int, chk_int, regrid_int
   integer    :: verbose, mg_verbose
-  integer    :: dm
+  integer    :: dim_in,dm
   real(dp_t) :: cflfac,init_shrink
   real(dp_t) :: visc_coef
   real(dp_t) :: diff_coef
@@ -55,6 +55,7 @@ subroutine varden()
 
   integer     , allocatable :: domain_phys_bc(:,:)
   logical     , allocatable :: pmask(:)
+  logical     , allocatable :: nodal(:)
   real(dp_t)  , allocatable :: dx(:,:)
   real(dp_t)  , allocatable :: prob_hi(:)
   type(ml_layout)           :: mla,mla_new
@@ -101,7 +102,6 @@ subroutine varden()
   integer :: do_initial_projection
   logical :: lexist
   logical :: need_inputs
-  logical :: nodal(2)
 
   type(layout)    :: la
   type(box)       :: fine_domain
@@ -111,6 +111,7 @@ subroutine varden()
 
   type(bc_level) ::  bc
 
+  namelist /probin/ dim_in
   namelist /probin/ stop_time
   namelist /probin/ prob_hi_x
   namelist /probin/ prob_hi_y
@@ -139,8 +140,6 @@ subroutine varden()
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
 
-  nodal = .true.
-
   ng_cell = 3
   ng_grow = 1
 
@@ -154,14 +153,10 @@ subroutine varden()
   chk_int  = 0
 
   init_shrink = 1.0
-
-  dm = 2
   nscal = 2
 
 ! grav = -9.8
   grav = 0.0
-
-  allocate(pmask(dm))
 
   do_initial_projection  = 1
 
@@ -211,11 +206,17 @@ subroutine varden()
      need_inputs = .false.
   end if
 
+  call read_command_line()
+
+  dm = dim_in
+
+  allocate(pmask(dm))
   pmask(1) = pmask_x
   if (dm > 1) pmask(2) = pmask_y
   if (dm > 2) pmask(3) = pmask_z
 
-  call read_command_line()
+  allocate(nodal(dm))
+  nodal = .true.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Set up plot_names for writing plot files.
@@ -257,18 +258,18 @@ subroutine varden()
        call multifab_destroy(chk_p(n))
     end do
     deallocate(chkdata,chk_p)
-  else if (fixed_grid != '') then
+  else if (fixed_grids /= '') then
      call read_a_hgproj_grid(mba, fixed_grids)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mla%nlevel
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
      call make_new_state(mla,uold,sold,gp,p)
-  else 
-     nlevs = max_lev
+! else 
+!    nlevs = max_lev
 !    NEED TO BUILD AN MBA HERE
-     call ml_layout_build(mla,mba,pmask)
-     allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
-     call make_new_state(mla,uold,sold,gp,p)
+!    call ml_layout_build(mla,mba,pmask)
+!    allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
+!    call make_new_state(mla,uold,sold,gp,p)
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -427,6 +428,17 @@ subroutine varden()
                                bc%adv_bc_level_array(i,:,:,dm+d), &
                                dx(n,:),dm+d)
                end do
+             case (3) 
+               do d = 1,dm
+                 call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,d), &
+                               dx(n,:),d)
+               end do 
+               do d = 1,nscal
+                 call setbc_3d(sop(:,:,:,d), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,dm+d), &
+                               dx(n,:),dm+d)
+               end do
             end select
         end do
      end do
@@ -493,6 +505,17 @@ subroutine varden()
             end do
             do d = 1,nscal
               call setbc_2d(sop(:,:,1,d), lo, ng_cell, &
+                            bc%adv_bc_level_array(i,:,:,dm+d), &
+                            dx(n,:),dm+d)
+            end do
+          case (3)
+            do d = 1,dm
+              call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
+                            bc%adv_bc_level_array(i,:,:,d), &
+                            dx(n,:),d)
+            end do
+            do d = 1,nscal
+              call setbc_3d(sop(:,:,:,d), lo, ng_cell, &
                             bc%adv_bc_level_array(i,:,:,dm+d), &
                             dx(n,:),dm+d)
             end do
@@ -612,6 +635,17 @@ subroutine varden()
                     end do 
                     do d = 1,nscal
                       call setbc_2d(sop(:,:,1,d), lo, ng_cell, &
+                                    bc%adv_bc_level_array(i,:,:,dm+d), &
+                                    dx(n,:),dm+d)
+                    end do
+                  case (3) 
+                    do d = 1,dm
+                      call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
+                                    bc%adv_bc_level_array(i,:,:,d), &
+                                    dx(n,:),d)
+                    end do 
+                    do d = 1,nscal
+                      call setbc_3d(sop(:,:,:,d), lo, ng_cell, &
                                     bc%adv_bc_level_array(i,:,:,dm+d), &
                                     dx(n,:),dm+d)
                     end do
@@ -790,7 +824,6 @@ subroutine varden()
        type(boxarray) :: ba_new
        type(boxarray) :: ba_loc
        type(box     ) :: bx_loc
-       integer        :: lo_bx(2),hi_bx(2)
 
        integer        :: dim
 
@@ -814,7 +847,7 @@ subroutine varden()
       real(dp_t)    , intent(in   ) :: dx_crse
       integer       , intent(in   ) :: buf_wid
 
-      type(list_box)               :: boxes
+      type(boxarray)               :: boxes
       type(list_box_node), pointer :: bn
       type(lmultifab) :: tagboxes
 
@@ -822,10 +855,12 @@ subroutine varden()
       logical          , pointer :: tp(:,:,:,:)
 
       real(kind = dp_t) :: min_eff
-      integer           :: i, j, k, dm, lo(2)
+      integer           :: i, j, k, dm
+      integer, allocatable  :: lo(:)
       integer           :: minwidth
 
       dm = rho_crse%dim
+      allocate(lo(dm))
 
       call lmultifab_build(tagboxes,rho_crse%la,1,0)
 
@@ -836,21 +871,23 @@ subroutine varden()
         lo =  lwb(get_box(tagboxes, i))
         select case (dm)
           case (2)
-             call tag_boxes(tp(:,:,1,1),sp(:,:,1,1),lo,ng_cell, dx_crse)
+             call tag_boxes_2d(tp(:,:,1,1),sp(:,:,1,1),lo,ng_cell,dx_crse)
+          case (3)
+             call tag_boxes_3d(tp(:,:,:,1),sp(:,:,:,1),lo,ng_cell,dx_crse)
           end select
       end do
 
       minwidth = 2
       min_eff = .7
 
-      call cls_2d_mf(boxes, tagboxes, minwidth, buf_wid, min_eff, layout_get_pd(mla%la(1)))
+      call cluster(boxes, tagboxes, minwidth, buf_wid, min_eff)
       call copy(ba_new,boxes)
 
       call destroy(tagboxes)
 
     end subroutine make_boxes
 
-    subroutine tag_boxes(tagbox,rho_crse,lo,ng,dx_crse)
+    subroutine tag_boxes_2d(tagbox,rho_crse,lo,ng,dx_crse)
 
       integer          , intent(in   ) :: lo(:),ng
       logical          , intent(  out) :: tagbox(lo(1):,lo(2):)
@@ -872,7 +909,34 @@ subroutine varden()
          end do
       end do
 
-    end subroutine tag_boxes
+    end subroutine tag_boxes_2d
+
+    subroutine tag_boxes_3d(tagbox,rho_crse,lo,ng,dx_crse)
+
+      integer          , intent(in   ) :: lo(:),ng
+      logical          , intent(  out) :: tagbox(lo(1):,lo(2):,lo(3):)
+      real(kind = dp_t), intent(in   ) :: rho_crse(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)
+      real(kind = dp_t), intent(in   ) :: dx_crse
+
+      integer :: i,j,k,nx,ny,nz
+
+      nx = size(tagbox,dim=1)
+      ny = size(tagbox,dim=2)
+      nz = size(tagbox,dim=3)
+
+      tagbox = .false.
+
+      do k = lo(3),lo(3)+nz-1
+      do j = lo(2),lo(2)+ny-1
+      do i = lo(1),lo(1)+nx-1
+         if (rho_crse(i,j,k) .gt. 0.9995 .and. rho_crse(i,j,k) .lt. 1.0215) then
+            tagbox(i,j,k) = .true.
+         end if
+      end do
+      end do
+      end do
+
+    end subroutine tag_boxes_3d
 
     subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc)
   
@@ -898,7 +962,9 @@ subroutine varden()
      type(ml_layout),intent(in   ) :: mla_loc
 
      ! Local variables
-     logical :: umac_nodal_flag(2)
+     logical, allocatable :: umac_nodal_flag(:)
+
+     allocate(umac_nodal_flag(mla_loc%dim))
 
      do n = nlevs,1,-1
         call multifab_build(   unew(n), mla_loc%la(n),    dm, ng_cell)
@@ -1123,6 +1189,11 @@ subroutine varden()
      do while ( farg <= narg )
         call get_command_argument(farg, value = fname)
         select case (fname)
+
+        case ('--dim_in')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) dim_in
 
         case ('--prob_hi_x')
            farg = farg + 1
