@@ -2,6 +2,7 @@ f90sources += advance_premac.f90
 f90sources += checkpoint.f90
 f90sources += define_bc_tower.f90
 f90sources += estdt.f90
+f90sources += fillpatch.f90
 f90sources += hgproject.f90
 f90sources += initdata.f90
 f90sources += inlet_bc.f90
