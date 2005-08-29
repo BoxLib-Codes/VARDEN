@@ -1,15 +1,20 @@
 &PROBIN
+ dimension = 2
  test_set = "gr0_2d"
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 2
+ max_step  = 0
+ init_iter = 2
+
  plot_int  = 10
  chk_int   = 50
- init_iter = 2
+
  stop_time = 1.0
  cflfac = 0.9
+
+ visc_coef = 0.01
  visc_coef = 0.0
  diff_coef = 0.0
 
@@ -17,11 +22,14 @@
  bcx_hi = 14
  bcy_lo = 14
  bcy_hi = 14
- bcz_lo = 14
- bcz_hi = 14
- verbose = 1
- mg_verbose = 0
 
- restart = 1
+ pmask_x = F
+ pmask_y = F
+
+ verbose = 0
+ verbose = 1
+ mg_verbose = 4
+
+!restart = 1
 do_initial_projection = 1
 /
