@@ -152,7 +152,7 @@ contains
 
       hi(1) = lo(1) + size(vel,dim=1) - (2*ng_cell+1)
       hi(2) = lo(2) + size(vel,dim=2) - (2*ng_cell+1)
-      hi(3) = lo(3) + size(vel,dim=2) - (2*ng_cell+1)
+      hi(3) = lo(3) + size(vel,dim=3) - (2*ng_cell+1)
  
       is = lo(1)
       js = lo(2)
