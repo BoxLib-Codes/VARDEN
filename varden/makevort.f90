@@ -34,8 +34,8 @@ contains
             case (2)
               call makevort_2d(vp(:,:,1,1),up(:,:,1,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
             case (3)
-              print *,'3d not implemented'
-              stop
+               call makevort_3d(vp(:,:,:,1),up(:,:,:,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
+               call bl_warn('3d vorticitiy not implemented')
          end select
       end do
 
@@ -104,5 +104,20 @@ contains
       end if
 
    end subroutine makevort_2d
+
+   subroutine makevort_3d (vort,u,lo,hi,ng,dx,bc)
+
+      implicit none
+
+      integer, intent(in) :: lo(:), hi(:), ng
+      real (kind = dp_t), intent(  out) :: vort(lo(1):,lo(2):,lo(3):)
+      real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)
+      real (kind = dp_t), intent(in   ) :: dx(:)
+      integer           , intent(in   ) :: bc(:,:)
+
+      vort = 0.0_dp_t
+
+   end subroutine makevort_3d
+
 
 end module vort_module
