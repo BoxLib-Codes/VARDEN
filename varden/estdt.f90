@@ -88,7 +88,7 @@ contains
         enddo
       enddo
 
-      if (spdx.lt.eps .and. spdy.lt.eps) then
+      if (spdx < eps .and. spdy < eps) then
 
         dt = min(dx(1),dx(2))
 
@@ -98,11 +98,11 @@ contains
 
       endif
 
-      if (pforcex .gt. eps) then
+      if (pforcex > eps) then
         dt = min(dt,sqrt(2.0D0 *dx(1)/pforcex))
       endif
 
-      if (pforcey .gt. eps) then
+      if (pforcey > eps) then
         dt = min(dt,sqrt(2.0D0 *dx(2)/pforcey))
       endif
 
@@ -121,7 +121,7 @@ contains
       real (kind = dp_t), intent(out) :: dt
 
 !     Local variables
-      real (kind = dp_t)  spdx,spdy
+      real (kind = dp_t)  spdx,spdy,spdz
       real (kind = dp_t)  pforcex,pforcey,pforcez
       real (kind = dp_t)  eps
       integer :: i, j, k
@@ -130,6 +130,7 @@ contains
 
       spdx  = 0.0D0 
       spdy  = 0.0D0 
+      spdz  = 0.0D0
       pforcex = 0.0D0 
       pforcey = 0.0D0 
       pforcez = 0.0D0 
@@ -139,31 +140,33 @@ contains
         do i = lo(1), hi(1)
           spdx    = max(spdx ,abs(u(i,j,k,1))/dx(1))
           spdy    = max(spdy ,abs(u(i,j,k,2))/dx(2))
+          spdz    = max(spdz ,abs(u(i,j,k,3))/dx(3))
           pforcex = max(pforcex,abs(gp(i,j,k,1)/s(i,j,k)-force(i,j,k,1)))
           pforcey = max(pforcey,abs(gp(i,j,k,2)/s(i,j,k)-force(i,j,k,2)))
+          pforcez = max(pforcez,abs(gp(i,j,k,3)/s(i,j,k)-force(i,j,k,3)))
         enddo
       enddo
       enddo
 
-      if (spdx.lt.eps .and. spdy.lt.eps) then
+      if (spdx < eps .and. spdy < eps .and. spdz < eps) then
 
-        dt = min(dx(1),dx(2))
+        dt = min(dx(1),dx(2),dx(3))
 
       else
 
-        dt = 1.0D0  / max(spdx,spdy)
+        dt = 1.0D0  / max(spdx,spdy,spdz)
 
       endif
 
-      if (pforcex .gt. eps) then
+      if (pforcex > eps) then
         dt = min(dt,sqrt(2.0D0 *dx(1)/pforcex))
       endif
 
-      if (pforcey .gt. eps) then
+      if (pforcey > eps) then
         dt = min(dt,sqrt(2.0D0 *dx(2)/pforcey))
       endif
 
-      if (pforcez .gt. eps) then
+      if (pforcez > eps) then
         dt = min(dt,sqrt(2.0D0 *dx(3)/pforcez))
       endif
 

@@ -44,6 +44,7 @@ contains
       real(kind=dp_t), pointer:: wmp(:,:,:,:)
       real(kind=dp_t), pointer:: utp(:,:,:,:)
       real(kind=dp_t), pointer:: vtp(:,:,:,:)
+      real(kind=dp_t), pointer:: wtp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
 !
@@ -53,6 +54,7 @@ contains
       real(kind=dp_t), pointer::  dp(:,:,:,:) 
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
+      real(kind=dp_t), pointer:: sepz(:,:,:,:)
 !
       type(multifab) :: divu
       real(dp_t)     :: mult
@@ -94,6 +96,10 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
+                                  ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                  diff_coef, visc_fac)
+            case (3)
+              call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
                                   ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                   diff_coef, visc_fac)
          end select
@@ -160,6 +166,17 @@ contains
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                              velpred, ng_cell)
             case (3)
+               sepz => dataptr(sedge(3), i)
+               wmp  => dataptr(umac(3), i)
+               wtp  => dataptr(utrans(3), i)
+              call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
+                             sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                             ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                             utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
+                             lo, dx, dt, is_vel, is_conservative, &
+                             the_bc_level%phys_bc_level_array(i,:,:), &
+                             the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                             velpred, ng_cell)
          end select
       end do
 
@@ -177,6 +194,10 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
+                                  ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                  diff_coef, diff_fac)
+            case (3)
+              call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
                                   ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                   diff_coef, diff_fac)
          end select
@@ -210,6 +231,20 @@ contains
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
               end do
               call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
+                            the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
+            case (3)
+               wmp => dataptr(umac(3), i)
+               sepz => dataptr(sedge(3), i)
+              call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                             sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                             fp(:,:,:,:) , snp(:,:,:,:), &
+                             rp(:,:,:,1) , &
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
+              do n = 1,nscal
+                call setbc_3d(snp(:,:,:,n), lo, ng_cell, &
+                              the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
+              end do
+              call setbc_3d(rp(:,:,:,1), lo, ng_rho, &
                             the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
          end select
       end do

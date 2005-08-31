@@ -40,13 +40,16 @@ contains
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: ump(:,:,:,:)
       real(kind=dp_t), pointer:: vmp(:,:,:,:)
+      real(kind=dp_t), pointer:: wmp(:,:,:,:)
       real(kind=dp_t), pointer:: utp(:,:,:,:)
       real(kind=dp_t), pointer:: vtp(:,:,:,:)
+      real(kind=dp_t), pointer:: wtp(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
       real(kind=dp_t), pointer:: uepx(:,:,:,:)
       real(kind=dp_t), pointer:: uepy(:,:,:,:)
+      real(kind=dp_t), pointer:: uepz(:,:,:,:)
 !
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
@@ -121,6 +124,12 @@ contains
                               ng_cell, ng_cell, dx, &
                               the_bc_level%ell_bc_level_array(i,:,:,:), &
                               visc_coef, visc_fac)
+            case (3)
+              call mkforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
+                              gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
+                              ng_cell, ng_cell, dx, &
+                              the_bc_level%ell_bc_level_array(i,:,:,:), &
+                              visc_coef, visc_fac)
          end select
       end do
       call multifab_fill_boundary(force)
@@ -138,6 +147,13 @@ contains
             case (2)
               call mkutrans_2d(uop(:,:,1,:), utp(:,:,1,1), vtp(:,:,1,1), &
                                fp(:,:,1,:), &
+                               lo,dx,dt,ng_cell,&
+                               the_bc_level%adv_bc_level_array(i,:,:,:), &
+                               the_bc_level%phys_bc_level_array(i,:,:))
+            case (3)
+               wtp => dataptr(utrans(3), i)
+              call mkutrans_3d(uop(:,:,:,:), utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), &
+                               fp(:,:,:,:), &
                                lo,dx,dt,ng_cell,&
                                the_bc_level%adv_bc_level_array(i,:,:,:), &
                                the_bc_level%phys_bc_level_array(i,:,:))
@@ -165,6 +181,18 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,1),  vmp(:,:,1,1), &
                              utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
+                             lo, dx, dt, is_vel, is_conservative, &
+                             the_bc_level%phys_bc_level_array(i,:,:), &
+                             the_bc_level%adv_bc_level_array(i,:,:,:), &
+                             velpred, ng_cell)
+            case (3)
+               uepz => dataptr(uedge(3), i)
+               wmp  => dataptr(umac(3), i)
+               wtp  => dataptr(utrans(3), i)
+              call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
+                             uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                             ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
+                             utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
                              lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,:), &
