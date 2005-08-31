@@ -14,18 +14,10 @@ module hgproject_module
 
   implicit none
 
-! FOR 2-D ONLY
-  integer, private, parameter :: PRESS_COMP = 5
-  logical, private, parameter :: nodal(2) = .true.
-
-! FOR 3-D ONLY
-! integer, private, parameter :: PRESS_COMP = 6
-! logical, private, parameter :: nodal(3) = .true.
-
 contains 
 
 subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                     verbose,mg_verbose)
+                     verbose,mg_verbose,press_comp)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: unew(:)
@@ -35,6 +27,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(bc_tower ), intent(in   ) :: the_bc_tower
   integer        , intent(in   ) :: verbose,mg_verbose
   real(dp_t)     , intent(in   ) :: dx(:,:),dt
+  integer        , intent(in   ) :: press_comp
 
 ! Local  
   type(multifab), allocatable :: phi(:),gphi(:)
@@ -42,6 +35,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(layout  ) :: la
   integer        :: n,nlevs,dm,ng,i,RHOCOMP
   integer        :: ng_for_fill
+  logical, allocatable :: nodal(:)
   real(dp_t)     :: nrm
 
   nlevs = mla%nlevel
@@ -49,6 +43,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   ng = unew(nlevs)%ng
 
   allocate(phi(nlevs), gphi(nlevs))
+  allocate(nodal(dm))
+  nodal = .true.
 
   do n = 1, nlevs
      call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
@@ -76,7 +72,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                    verbose,mg_verbose)
+                    verbose,mg_verbose,press_comp)
 
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
@@ -406,11 +402,20 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: gphi( 0:, 0:, 0:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dt
-      integer :: nx,ny,nz
+      integer :: nx,ny,nz,i,j,k
 
       nx = size(gphi,dim=1)-1
       ny = size(gphi,dim=2)-1
       nz = size(gphi,dim=3)-1
+
+      do k = 0,nz
+      do j = 0,ny
+      do i = 0,nx
+         if (abs(gphi(i,j,k,3)) .gt. 1.e-8) &
+           print *,'GPZ ',i,j,k,gphi(i,j,k,3),rhohalf(i,j,k)
+      end do
+      end do
+      end do
 
 !     Subtract off the density-weighted gradient.
       unew(0:nx,0:ny,0:nz,1) = &
@@ -428,7 +433,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 end subroutine hgproject
 
 subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
-                        divu_verbose,mg_verbose)
+                        divu_verbose,mg_verbose,press_comp)
   use BoxLib
   use omp_module
   use f2kcli
@@ -449,6 +454,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   real(dp_t)     , intent(in)    :: dx(:,:)
   type(bc_tower ), intent(in   ) :: the_bc_tower
   integer        , intent(in   ) :: divu_verbose,mg_verbose
+  integer        , intent(in   ) :: press_comp
 !
 ! Local variables
 !
@@ -478,10 +484,15 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   integer :: verbose
   integer :: do_diagnostics
 
+  logical, allocatable :: nodal(:)
+
   !! Defaults:
 
   dm    = mla%dim
   nlevs = mla%nlevel
+
+  allocate(nodal(dm))
+  nodal = .true.
 
   allocate(mgt(nlevs))
 
@@ -536,7 +547,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      pd = layout_get_pd(mla%la(n))
 
      call mg_tower_build(mgt(n), mla%la(n), pd, &
-                         the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,PRESS_COMP), &
+          the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
           dh = dx(n,:), &
           ns = ns, &
           smoother = smoother, &
@@ -599,7 +610,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      call multifab_build(rh(n),mla%la(n),1,1,nodal)
   end do
 
-  call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,mla%mba%rr,divu_verbose)
+  call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,mla%mba%rr,divu_verbose,press_comp,nodal)
 
   if ( mg_verbose >=1 ) then
     do_diagnostics = 1
@@ -712,7 +723,7 @@ end subroutine hg_multigrid
 
 !   ********************************************************************************************* !
 
-    subroutine divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,verbose)
+    subroutine divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,verbose,press_comp,nodal)
 
       integer        , intent(in   ) :: nlevs
       type(mg_tower) , intent(inout) :: mgt(:)
@@ -722,6 +733,8 @@ end subroutine hg_multigrid
       type(bc_tower) , intent(in   ) :: the_bc_tower
       integer        , intent(in   ) :: ref_ratio(:,:)
       integer        , intent(in   ) :: verbose
+      integer        , intent(in   ) :: press_comp
+      logical        , intent(in   ) :: nodal(:)
 
       type(bc_level) :: bc
 
@@ -757,11 +770,11 @@ end subroutine hg_multigrid
                case (2)
                  call divu_2d(unp(:,:,1,:), rhp(:,:,1,1), &
                                mp(:,:,1,1),  dx(n,:),  &
-                              bc%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+                              bc%ell_bc_level_array(i,:,:,press_comp), ng)
                case (3)
                  call divu_3d(unp(:,:,:,:), rhp(:,:,:,1), &
                                mp(:,:,:,1),  dx(n,:), &
-                              bc%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+                              bc%ell_bc_level_array(i,:,:,press_comp), ng)
             rhmax = max(rhmax,local_max)
 !           rhsum = rhsum + local_sum
             end select
@@ -775,7 +788,7 @@ end subroutine hg_multigrid
          pdc = layout_get_pd(la_crse)
          call bndry_reg_build(brs_flx,la_fine,ref_ratio(n-1,:),pdc,nodal=nodal)
          bc = the_bc_tower%bc_tower_array(n)
-         call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n-1,:),mgt(n))
+         call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n-1,:),mgt(n),press_comp)
          call bndry_reg_destroy(brs_flx)
       end do
 
@@ -800,20 +813,25 @@ end subroutine hg_multigrid
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
 
-      integer :: i,j,nx,ny
+      integer         :: i,j,nx,ny
+      real(kind=dp_t) :: vol
+
       nx = size(rh,dim=1) - 3
       ny = size(rh,dim=2) - 3
 
       rh = ZERO
 
+      vol = dx(1) * dx(2)
+
       do j = 0,ny
       do i = 0,nx
-         if (.not. bc_dirichlet(mm(i,j),1,0)) &
-           rh(i,j) = HALF * (u(i  ,j,1) + u(i  ,j-1,1) &
-                            -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
-                     HALF * (u(i,j  ,2) + u(i-1,j  ,2) &
-                            -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
-           rh(i,j) = rh(i,j) * dx(1) * dx(2)
+         if (.not. bc_dirichlet(mm(i,j),1,0)) then
+           rh(i,j) = (u(i  ,j,1) + u(i  ,j-1,1) &
+                     -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
+                     (u(i,j  ,2) + u(i-1,j  ,2) &
+                     -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
+           rh(i,j) = HALF * rh(i,j) * vol
+         end if
       end do
       end do
 
@@ -835,13 +853,16 @@ end subroutine hg_multigrid
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
 
-      integer :: i,j,k,nx,ny,nz
+      integer         :: i,j,k,nx,ny,nz
+      real(kind=dp_t) :: vol
 
       nx = size(rh,dim=1) - ng
       ny = size(rh,dim=2) - ng
       nz = size(rh,dim=3) - ng
 
       rh = ZERO
+
+      vol = dx(1) * dx(2) * dx(3)
 
       do k = 0,nz
       do j = 0,ny
@@ -859,18 +880,11 @@ end subroutine hg_multigrid
                        +u(i,j-1,k  ,3) + u(i-1,j-1,k  ,3) &
                        -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
                        -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
-           rh(i,j,k) = FOURTH*rh(i,j,k) * (dx(1)*dx(2)*dx(3))
+           rh(i,j,k) = FOURTH * rh(i,j,k) * vol
          end if
       end do
       end do
       end do
-
-      if (press_bc(1,1) == BC_DIR) rh( 0,:,:) = ZERO
-      if (press_bc(1,2) == BC_DIR) rh(nx,:,:) = ZERO
-      if (press_bc(2,1) == BC_DIR) rh(:, 0,:) = ZERO
-      if (press_bc(2,2) == BC_DIR) rh(:,ny,:) = ZERO
-      if (press_bc(3,1) == BC_DIR) rh(:,:, 0) = ZERO
-      if (press_bc(3,2) == BC_DIR) rh(:,:,nz) = ZERO
 
       if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
       if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
@@ -883,16 +897,17 @@ end subroutine hg_multigrid
 
 !   ********************************************************************************************* !
 
-    subroutine crse_fine_divu(n_fine,nlevs,rh_crse,u,brs_flx,dx,bc_fine,ref_ratio,mgt)
+    subroutine crse_fine_divu(n_fine,nlevs,rh_crse,u,brs_flx,dx,bc_fine,ref_ratio,mgt,press_comp)
 
       integer        , intent(in   ) :: n_fine,nlevs
-      type(multifab) , intent(inout) :: u(:)
       type(multifab) , intent(inout) :: rh_crse
+      type(multifab) , intent(inout) :: u(:)
+      type(bndry_reg), intent(inout) :: brs_flx
       real(dp_t)     , intent(in   ) :: dx(:,:)
       type(bc_level) , intent(in   ) :: bc_fine
       integer        , intent(in   ) :: ref_ratio(:)
       type(mg_tower) , intent(inout) :: mgt
-      type(bndry_reg), intent(inout) :: brs_flx
+      integer        , intent(in   ) :: press_comp
 
       real(kind=dp_t), pointer :: unp(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
@@ -903,11 +918,14 @@ end subroutine hg_multigrid
       type(     box) :: pdc
       integer :: i,dm,n_crse,ng
       integer :: mglev_fine
+      logical, allocatable :: nodal(:)
 
       dm = u(n_fine)%dim
       n_crse = n_fine-1
 
       ng = u(nlevs)%ng
+      allocate(nodal(dm))
+      nodal = .true.
 
       la_crse = u(n_crse)%la
       la_fine = u(n_fine)%la
@@ -930,10 +948,10 @@ end subroutine hg_multigrid
           select case (dm)
              case (2)
                call grid_divu_2d(unp(:,:,1,:), rhp(:,:,1,1), dx(n_fine,:), &
-                                 bc_fine%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+                                 bc_fine%ell_bc_level_array(i,:,:,press_comp), ng)
              case (3)
                call grid_divu_3d(unp(:,:,:,:), rhp(:,:,:,1), dx(n_fine,:), &
-                                 bc_fine%ell_bc_level_array(i,:,:,PRESS_COMP), ng)
+                                 bc_fine%ell_bc_level_array(i,:,:,press_comp), ng)
           end select
       end do
 

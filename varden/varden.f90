@@ -50,6 +50,7 @@ subroutine varden()
   integer    :: iunit
   integer    :: comp,bc_comp
   logical    :: pmask_x,pmask_y,pmask_z
+  integer    :: press_comp
 
   real(dp_t) :: prob_hi_x,prob_hi_y,prob_hi_z
 
@@ -209,6 +210,7 @@ subroutine varden()
   call read_command_line()
 
   dm = dim_in
+  press_comp = dm + nscal + 1
 
   allocate(pmask(dm))
   pmask(1) = pmask_x
@@ -469,7 +471,7 @@ subroutine varden()
 !       in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
        call hgproject(mla,uold,rhohalf,p,gp,dx,dt_temp, &
-                      the_bc_tower,verbose,mg_verbose)
+                      the_bc_tower,verbose,mg_verbose,press_comp)
        do n = 1,nlevs
           call setval( p(n)  ,0.0_dp_t, all=.true.)
           call setval(gp(n)  ,0.0_dp_t, all=.true.)
@@ -767,7 +769,7 @@ subroutine varden()
 
 !       Project the new velocity field.
         call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose)
+                       the_bc_tower,verbose,mg_verbose,press_comp)
 
         time = time + dt
 
@@ -1134,7 +1136,7 @@ subroutine varden()
 
 !       Project the new velocity field.
         call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose)
+                       the_bc_tower,verbose,mg_verbose,press_comp)
 
 
         if (verbose .eq. 1) then
