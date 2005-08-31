@@ -1,0 +1,39 @@
+&PROBIN
+ dim_in = 3
+ fixed_grids = "gr0_3d"
+
+ prob_hi_x = 1.0
+ prob_hi_y = 1.0
+ prob_hi_z = 1.0
+
+ max_step  = 0
+ init_iter = 0
+
+ plot_int  = 10
+ chk_int   = 50
+
+ stop_time = 1.0
+ cflfac = 0.9
+
+ visc_coef = 0.01
+ visc_coef = 0.0
+ diff_coef = 0.0
+
+ bcx_lo = -1
+ bcx_hi = -1
+ bcy_lo = -1
+ bcy_hi = -1
+ bcz_lo = 14
+ bcz_hi = 14
+
+ pmask_x = T
+ pmask_y = T
+ pmask_z = F
+
+ verbose = 0
+ verbose = 1
+ mg_verbose = 0
+
+!restart = 1
+do_initial_projection = 1
+/
