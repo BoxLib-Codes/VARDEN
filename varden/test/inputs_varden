@@ -1,11 +1,11 @@
 &PROBIN
- dimension = 2
- test_set = "gr0_2d"
+ dim_in = 2
+ fixed_grids = "gr0_2d"
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 0
+ max_step  = 4
  init_iter = 2
 
  plot_int  = 10
@@ -28,7 +28,7 @@
 
  verbose = 0
  verbose = 1
- mg_verbose = 4
+ mg_verbose = 0
 
 !restart = 1
 do_initial_projection = 1
