@@ -7,11 +7,11 @@ module estdt_module
 
 contains
 
-   subroutine estdt (u,s,gp,force,dx,cflfac,dtold,dt)
+   subroutine estdt (u, s, gp, force, dx, cflfac, dtold, dt)
 
       type(multifab) , intent( in) :: u,s,gp,force
       real(kind=dp_t), intent( in) :: dx(:)
-      real(kind=dp_t), intent( in) :: cflfac,dtold
+      real(kind=dp_t), intent( in) :: cflfac, dtold
       real(kind=dp_t), intent(out) :: dt
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
@@ -55,8 +55,6 @@ contains
    end subroutine estdt
 
    subroutine estdt_2d (u,s,gp,force,lo,hi,ng,dx,dt)
-
-      implicit none
 
       integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(in ) ::     u(lo(1)-ng:,lo(2)-ng:,:)  
@@ -110,8 +108,6 @@ contains
 
    subroutine estdt_3d (u,s,gp,force,lo,hi,ng,dx,dt)
 
-      implicit none
-
       integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(in ) ::     u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(in ) ::     s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)  
@@ -159,15 +155,15 @@ contains
       endif
 
       if (pforcex > eps) then
-        dt = min(dt,sqrt(2.0D0 *dx(1)/pforcex))
+        dt = min(dt,sqrt(2.0D0*dx(1)/pforcex))
       endif
 
       if (pforcey > eps) then
-        dt = min(dt,sqrt(2.0D0 *dx(2)/pforcey))
+        dt = min(dt,sqrt(2.0D0*dx(2)/pforcey))
       endif
 
       if (pforcez > eps) then
-        dt = min(dt,sqrt(2.0D0 *dx(3)/pforcez))
+        dt = min(dt,sqrt(2.0D0*dx(3)/pforcez))
       endif
 
    end subroutine estdt_3d
