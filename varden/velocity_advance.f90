@@ -139,7 +139,7 @@ contains
             case (3)
                uepz => dataptr(uedge(3), i)
                wmp  => dataptr(umac(3), i)
-               wtp  => dataptr(utrans(2), i)
+               wtp  => dataptr(utrans(3), i)
                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
