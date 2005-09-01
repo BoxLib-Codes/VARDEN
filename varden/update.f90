@@ -244,8 +244,8 @@ module update_module
          do i = lo(1), hi(1)
              umax = max(umax,snew(i,j,k,1))
              umin = min(umin,snew(i,j,k,1))
-             vmax = max(umax,snew(i,j,k,2))
-             vmin = min(umin,snew(i,j,k,2))
+             vmax = max(vmax,snew(i,j,k,2))
+             vmin = min(vmin,snew(i,j,k,2))
              wmax = max(wmax,snew(i,j,k,3))
              wmin = min(wmin,snew(i,j,k,3))
          enddo
