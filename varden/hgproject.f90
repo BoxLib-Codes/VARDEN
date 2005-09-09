@@ -408,15 +408,6 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       ny = size(gphi,dim=2)-1
       nz = size(gphi,dim=3)-1
 
-      do k = 0,nz
-      do j = 0,ny
-      do i = 0,nx
-         if (abs(gphi(i,j,k,3)) .gt. 1.e-8) &
-           print *,'GPZ ',i,j,k,gphi(i,j,k,3),rhohalf(i,j,k)
-      end do
-      end do
-      end do
-
 !     Subtract off the density-weighted gradient.
       unew(0:nx,0:ny,0:nz,1) = &
           unew(0:nx,0:ny,0:nz,1) - gphi(0:nx,0:ny,0:nz,1)/rhohalf(0:nx,0:ny,0:nz) 
@@ -1025,6 +1016,7 @@ end subroutine hg_multigrid
       integer        , intent(in   ) :: press_bc(:,:)
 
       integer :: i,j,k,nx,ny,nz
+      real(kind=dp_t) :: rh_sum
 
       nx = size(rh,dim=1) - ng
       ny = size(rh,dim=2) - ng
@@ -1037,6 +1029,7 @@ end subroutine hg_multigrid
       u(:,:,-1,:) = ZERO
       u(:,:,nz,:) = ZERO
 
+      rh_sum = ZERO
       do k = 0,nz
       do j = 0,ny
       do i = 0,nx
@@ -1053,9 +1046,11 @@ end subroutine hg_multigrid
                      -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
                      -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
          rh(i,j,k) = FOURTH*rh(i,j,k) * (dx(1)*dx(2)*dx(3))
+         rh_sum = rh_sum + rh(i,j,k)
       end do
       end do
       end do
+      print *,'RHSUM ',rh_sum
 
       if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
       if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
