@@ -765,8 +765,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do k = 0,nz-1
       do j = 0,ny-1
-         umac( 0,j,k) = umac( 0,j,k) - lo_x_flx(1,j,k)
-         umac(nx,j,k) = umac(nx,j,k) - hi_x_flx(1,j,k)
+         umac( 0,j,k) = umac( 0,j,k) - lo_x_flx(1,j,k) * dx(1)
+         umac(nx,j,k) = umac(nx,j,k) - hi_x_flx(1,j,k) * dx(1)
          do i = 1,nx-1
             gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
             umac(i,j,k) = umac(i,j,k) - beta(i,j,k,1)*gpx
@@ -776,8 +776,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do k = 0,nz-1
       do i = 0,nx-1
-         vmac(i, 0,k) = vmac(i, 0,k) - lo_y_flx(i,1,k)
-         vmac(i,ny,k) = vmac(i,ny,k) - hi_y_flx(i,1,k)
+         vmac(i, 0,k) = vmac(i, 0,k) - lo_y_flx(i,1,k) * dx(2)
+         vmac(i,ny,k) = vmac(i,ny,k) - hi_y_flx(i,1,k) * dx(2)
          do j = 1,ny-1
             gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
             vmac(i,j,k) = vmac(i,j,k) - beta(i,j,k,2)*gpy
@@ -787,8 +787,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
       do j = 0,ny-1
       do i = 0,nx-1
-         wmac(i,j, 0) = wmac(i,j, 0) - lo_z_flx(i,j,1)
-         wmac(i,j,nz) = wmac(i,j,nz) - hi_z_flx(i,j,1)
+         wmac(i,j, 0) = wmac(i,j, 0) - lo_z_flx(i,j,1) * dx(3)
+         wmac(i,j,nz) = wmac(i,j,nz) - hi_z_flx(i,j,1) * dx(3)
          do k = 1,nz-1
             gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
             wmac(i,j,k) = wmac(i,j,k) - beta(i,j,k,3)*gpz
