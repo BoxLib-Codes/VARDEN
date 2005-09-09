@@ -904,7 +904,6 @@ end subroutine hg_multigrid
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
 
       type(multifab) :: temp_rhs
-      type(multifab) :: vol_frac
       type(  layout) :: la_crse,la_fine
       type(     box) :: pdc
       integer :: i,dm,n_crse,ng
@@ -922,7 +921,6 @@ end subroutine hg_multigrid
       la_fine = u(n_fine)%la
 
       call multifab_build(temp_rhs, la_fine, 1, 1, nodal)
-      call multifab_build(vol_frac, la_crse, 1, 1, nodal)
       call setval(temp_rhs, ZERO, 1, all=.true.)
 
 !     Zero out the flux registers which will hold the fine contributions
@@ -957,15 +955,16 @@ end subroutine hg_multigrid
       end do
 
 !     Compute the crse contributions at edges and corners and add to rh(n-1).
-      call setval(vol_frac,ONE,all=.true.)
       do i = 1,dm
-         call ml_crse_divu_contrib(rh_crse, vol_frac, brs_flx%bmf(i,0), u(n_crse), &
+         call ml_crse_divu_contrib(rh_crse, brs_flx%bmf(i,0), u(n_crse), &
                                    mgt%mm(mglev_fine), dx(n_fine-1,:), &
                                    pdc,ref_ratio, -i)
-         call ml_crse_divu_contrib(rh_crse, vol_frac, brs_flx%bmf(i,1), u(n_crse), &
+         call ml_crse_divu_contrib(rh_crse, brs_flx%bmf(i,1), u(n_crse), &
                                    mgt%mm(mglev_fine), dx(n_fine-1,:),  &
                                    pdc,ref_ratio, +i)
       end do
+      print *,'RH CRSE '
+      call print(rh_crse)
 
     end subroutine crse_fine_divu
 
@@ -1063,9 +1062,8 @@ end subroutine hg_multigrid
 
 !   ********************************************************************************************* !
 
-    subroutine ml_crse_divu_contrib(rh, vol, flux, u, mm, dx, crse_domain, ir, side)
+    subroutine ml_crse_divu_contrib(rh, flux, u, mm, dx, crse_domain, ir, side)
      type(multifab), intent(inout) :: rh
-     type(multifab), intent(inout) :: vol
      type(multifab), intent(inout) :: flux
      type(multifab), intent(in   ) :: u
      type(imultifab),intent(in   ) :: mm
@@ -1087,7 +1085,6 @@ end subroutine hg_multigrid
 
      integer :: dm
      real(kind=dp_t), pointer :: rp(:,:,:,:)
-     real(kind=dp_t), pointer :: vp(:,:,:,:)
      real(kind=dp_t), pointer :: fp(:,:,:,:)
      real(kind=dp_t), pointer :: up(:,:,:,:)
      integer,         pointer :: mp(:,:,:,:)
@@ -1128,23 +1125,20 @@ end subroutine hg_multigrid
 
            up => dataptr(u  ,j)
            rp => dataptr(rh ,j)
-           vp => dataptr(vol,j)
 
            select case (dm)
            case (2)
                call ml_interface_2d_divu(rp(:,:,1,1), lor, &
-                                         vp(:,:,1,1), &
                                          fp(:,:,1,1), lof, hif, &
                                          up(:,:,1,:), lou, &
                                          mp(:,:,1,1), lom, &
                                          lo, hi, ir, side, dx)
-!          case (3)
-!              call ml_interface_3d_divu(rp(:,:,:,1), lor, &
-!                                        vp(:,:,:,1), &
-!                                        fp(:,:,:,1), lof, hif, &
-!                                        up(:,:,:,:), lou, &
-!                                        mp(:,:,:,1), lom, &
-!                                        lo, hi, ir, side, dx)
+           case (3)
+               call ml_interface_3d_divu(rp(:,:,:,1), lor, &
+                                         fp(:,:,:,1), lof, hif, &
+                                         up(:,:,:,:), lou, &
+                                         mp(:,:,:,1), lom, &
+                                         lo, hi, ir, side, dx)
            end select
          end if
        end do
@@ -1153,7 +1147,7 @@ end subroutine hg_multigrid
 
 !   ********************************************************************************************* !
 
-    subroutine ml_interface_2d_divu(rh, lor, vol_frac, fine_flux, lof, hif, uc, loc, &
+    subroutine ml_interface_2d_divu(rh, lor, fine_flux, lof, hif, uc, loc, &
                                     mm, lom, lo, hi, ir, side, dx)
     integer, intent(in) :: lor(:)
     integer, intent(in) :: loc(:)
@@ -1161,7 +1155,6 @@ end subroutine hg_multigrid
     integer, intent(in) :: lof(:), hif(:)
     integer, intent(in) :: lo(:), hi(:)
     real (kind = dp_t), intent(inout) ::        rh(lor(1):,lor(2):)
-    real (kind = dp_t), intent(inout) ::  vol_frac(lor(1):,lor(2):)
     real (kind = dp_t), intent(in   ) :: fine_flux(lof(1):,lof(2):)
     real (kind = dp_t), intent(in   ) ::        uc(loc(1):,loc(2):,:)
     integer           , intent(in   ) ::        mm(lom(1):,lom(2):)
@@ -1186,26 +1179,21 @@ end subroutine hg_multigrid
 
       do j = lo(2),hi(2)
 
-        if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-          crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
-        else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-          crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
-        else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-          crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
-        else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-          crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
-        else
-          crse_flux = (HALF*(uc(i,j,1) + uc(i,j-1,1))/dx(1) &
-                      +HALF*(uc(i,j,2) - uc(i,j-1,2))/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
-        end if
-
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+          if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+            crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
+          else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+            crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
+          else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+            crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
+          else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+            crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
+          else
+            crse_flux = (HALF*(uc(i,j,1) + uc(i,j-1,1))/dx(1) &
+                        +HALF*(uc(i,j,2) - uc(i,j-1,2))/dx(2))
+          end if
+
+          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
         end if
 
       end do
@@ -1215,26 +1203,21 @@ end subroutine hg_multigrid
 
       do j = lo(2),hi(2)
 
-        if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-          crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
-        else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-          crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
-        else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-          crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(1)))
-        else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-          crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
-        else
-          crse_flux = (HALF*(-uc(i-1,j,1)-uc(i-1,j-1,1))/dx(1)  &
-                      +HALF*( uc(i-1,j,2)-uc(i-1,j-1,2))/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(1)))
-        end if
-
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+          if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+            crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
+          else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
+            crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
+          else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+            crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
+          else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
+            crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
+          else
+            crse_flux = (HALF*(-uc(i-1,j,1)-uc(i-1,j-1,1))/dx(1)  &
+                        +HALF*( uc(i-1,j,2)-uc(i-1,j-1,2))/dx(2))
+          end if
+
+          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
         end if
 
       end do
@@ -1244,26 +1227,22 @@ end subroutine hg_multigrid
 
       do i = lo(1),hi(1)
 
-        if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-          crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
-        else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-          crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
-        else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-          crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
-        else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-          crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
-        else
-          crse_flux = (HALF*(uc(i,j,1)-uc(i-1,j,1))/dx(1)  &
-                      +HALF*(uc(i,j,2)+uc(i-1,j,2))/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
-        end if
-
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+
+          if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+            crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
+          else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+            crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
+          else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+            crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
+          else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+            crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
+          else
+            crse_flux = (HALF*(uc(i,j,1)-uc(i-1,j,1))/dx(1)  &
+                        +HALF*(uc(i,j,2)+uc(i-1,j,2))/dx(2))
+          end if
+
+          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
         end if
 
       end do
@@ -1273,38 +1252,526 @@ end subroutine hg_multigrid
 
       do i = lo(1),hi(1)
 
-        if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-          crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
-        else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-          crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
-        else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-          crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - FOURTH*(ONE-ONE/dble(ir(2)))
-        else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-          crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
-        else
-          crse_flux = (HALF*( uc(i,j-1,1)-uc(i-1,j-1,1))/dx(1) &
-                      +HALF*(-uc(i,j-1,2)-uc(i-1,j-1,2))/dx(2)) * vol
-          vol_frac(i,j) = vol_frac(i,j) - HALF*(ONE-ONE/dble(ir(2)))
-        end if
-
         if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-           rh(i,j) = rh(i,j) - crse_flux + fine_flux(i,j)
+
+          if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+            crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
+          else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
+            crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
+          else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+            crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
+          else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
+            crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
+          else
+            crse_flux = (HALF*( uc(i,j-1,1)-uc(i-1,j-1,1))/dx(1) &
+                        +HALF*(-uc(i,j-1,2)-uc(i-1,j-1,2))/dx(2))
+          end if
+
+          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
         end if
 
       end do
 
     end if
 
-!   do j = lor(2),lor(2)+size(rh,dim=2)-1
-!   do i = lor(1),lor(1)+size(rh,dim=1)-1
-!      rh(i,j) = rh(i,j) * vol_frac(i,j)
-!   end do
-!   end do
-
   end subroutine ml_interface_2d_divu
+
+!   ********************************************************************************************* !
+
+    subroutine ml_interface_3d_divu(rh, lor, fine_flux, lof, hif, uc, loc, &
+                                    mm, lom, lo, hi, ir, side, dx)
+    integer, intent(in) :: lor(:)
+    integer, intent(in) :: loc(:)
+    integer, intent(in) :: lom(:)
+    integer, intent(in) :: lof(:), hif(:)
+    integer, intent(in) :: lo(:), hi(:)
+    real (kind = dp_t), intent(inout) ::        rh(lor(1):,lor(2):,lor(3):)
+    real (kind = dp_t), intent(in   ) :: fine_flux(lof(1):,lof(2):,lof(3):)
+    real (kind = dp_t), intent(in   ) ::        uc(loc(1):,loc(2):,loc(3):,:)
+    integer           , intent(in   ) ::        mm(lom(1):,lom(2):,lom(3):)
+    integer           , intent(in   ) :: ir(:)
+    integer           , intent(in   ) :: side
+    real(kind=dp_t)   , intent(in   ) :: dx(:)
+
+    integer :: i, j, k, ii, jj, kk, ifac
+    logical :: lo_i_dir,lo_j_dir,lo_k_dir,hi_i_dir,hi_j_dir,hi_k_dir
+    logical :: lo_i_neu,lo_j_neu,lo_k_neu,hi_i_neu,hi_j_neu,hi_k_neu
+    real (kind = dp_t) :: crse_flux,vol
+
+    ii = lo(1)
+    jj = lo(2)
+    kk = lo(3)
+
+!   NOTE: THESE STENCILS ONLY WORK FOR DX == DY == DZ.
+
+!   NOTE: MM IS ON THE FINE GRID, NOT THE CRSE
+
+    vol = dx(1)*dx(2)*dx(3)
+
+!   Lo/Hi i side
+    if (( side == -1) .or. (side == 1) ) then
+ 
+      if (side == -1) then
+        i    = ii
+        ifac = 1
+      else
+        i    = ii-1
+        ifac = -1
+      end if
+
+      do k = lo(3),hi(3)
+      do j = lo(2),hi(2)
+
+        if (bc_dirichlet(mm(ir(1)*ii,ir(2)*j,ir(3)*k),1,0)) then
+
+          lo_j_dir = ( (j == lof(2)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,-1) ) 
+          hi_j_dir = ( (j == hif(2)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,+1) ) 
+          lo_j_neu = ( (j == lof(2)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,-1) ) 
+          hi_j_neu = ( (j == hif(2)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,+1) ) 
+          lo_k_dir = ( (k == lof(3)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,-1) ) 
+          hi_k_dir = ( (k == hif(3)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,+1) ) 
+          lo_k_neu = ( (k == lof(3)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,-1) ) 
+          hi_k_neu = ( (k == hif(3)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,+1) ) 
+
+          if (lo_j_dir) then 
+            if (lo_k_dir) then
+               crse_flux = (uc(i,j,k  ,1) )/dx(1) * ifac &
+                         + (uc(i,j,k  ,2) )/dx(2) &
+                         + (uc(i,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+               crse_flux = .375d0*(uc(i,j,k  ,1) )/dx(1) * ifac &
+                         + .375d0*(uc(i,j,k  ,2) )/dx(2) &
+                         + .375d0*(uc(i,j,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+               crse_flux = (uc(i,j,k-1,1) )/dx(1) * ifac &
+                         + (uc(i,j,k-1,2) )/dx(2) &
+                         - (uc(i,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+               crse_flux = .375d0*(uc(i,j,k-1,1) )/dx(1) * ifac &
+                         + .375d0*(uc(i,j,k-1,2) )/dx(2) &
+                         - .375d0*(uc(i,j,k-1,3) )/dx(3)
+            else 
+               crse_flux = .1875d0*(uc(i,j,k  ,1) + uc(i,j,k-1,1) )/dx(1) * ifac &
+                         + .1875d0*(uc(i,j,k  ,2) + uc(i,j,k-1,2) )/dx(2) &
+                         + .1875d0*(uc(i,j,k  ,3) - uc(i,j,k-1,3) )/dx(3)
+            end if
+
+          else if (lo_j_neu) then
+            if (lo_k_dir) then
+              crse_flux = .375d0*(uc(i,j,k  ,1) )/dx(1) * ifac &
+                        + .375d0*(uc(i,j,k  ,2) )/dx(2) &
+                        + .375d0*(uc(i,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+              crse_flux = (uc(i,j,k  ,1) )/dx(1) * ifac &
+                        + (uc(i,j,k  ,2) )/dx(2) &
+                        + (uc(i,j,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+              crse_flux = .375d0*(uc(i,j,k-1,1) )/dx(1) * ifac &
+                        + .375d0*(uc(i,j,k-1,2) )/dx(2) &
+                        - .375d0*(uc(i,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+              crse_flux = uc(i,j,k-1,1) / dx(1) * ifac &
+                        + uc(i,j,k-1,2) / dx(2) &
+                        - uc(i,j,k-1,3) / dx(3)
+            else 
+              crse_flux = HALF*(uc(i,j,k  ,1) + uc(i,j,k-1,1) )/dx(1) * ifac &
+                        + HALF*(uc(i,j,k  ,2) + uc(i,j,k-1,2) )/dx(2) &
+                        + HALF*(uc(i,j,k  ,3) - uc(i,j,k-1,3) )/dx(3)
+            end if
+
+
+          else if (hi_j_dir) then
+            if (lo_k_dir) then
+               crse_flux = (uc(i,j-1,k  ,1) )/dx(1) * ifac &
+                         - (uc(i,j-1,k  ,2) )/dx(2) &
+                         + (uc(i,j-1,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+               crse_flux = .375d0*(uc(i,j-1,k  ,1) )/dx(1) * ifac &
+                         - .375d0*(uc(i,j-1,k  ,2) )/dx(2) &
+                         + .375d0*(uc(i,j-1,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+               crse_flux = (uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                         - (uc(i,j-1,k-1,2) )/dx(2) &
+                         - (uc(i,j-1,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+               crse_flux = .375d0*(uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                         - .375d0*(uc(i,j-1,k-1,2) )/dx(2) &
+                         - .375d0*(uc(i,j-1,k-1,3) )/dx(3)
+            else 
+               crse_flux = .1875d0*(uc(i,j-1,k  ,1) + uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                          -.1875d0*(uc(i,j-1,k  ,2) - uc(i,j-1,k-1,2) )/dx(2) &
+                          +.1875d0*(uc(i,j-1,k  ,3) - uc(i,j-1,k-1,3) )/dx(3)
+            end if
+
+          else if (hi_j_neu) then
+            if (lo_k_dir) then
+               crse_flux = .375d0*(uc(i,j-1,k  ,1) )/dx(1) * ifac &
+                         - .375d0*(uc(i,j-1,k  ,2) )/dx(2) &
+                         + .375d0*(uc(i,j-1,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+               crse_flux = uc(i,j-1,k  ,1) / dx(1) * ifac &
+                         - uc(i,j-1,k  ,2) / dx(2) &
+                         + uc(i,j-1,k  ,3) / dx(3)
+            else if (hi_k_dir) then
+               crse_flux = .375d0*(uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                         - .375d0*(uc(i,j-1,k-1,2) )/dx(2) &
+                         - .375d0*(uc(i,j-1,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+               crse_flux = uc(i,j-1,k-1,1) / dx(1) * ifac &
+                         - uc(i,j-1,k-1,2) / dx(2) &
+                         - uc(i,j-1,k-1,3) / dx(3)
+            else 
+               crse_flux = HALF*(uc(i,j-1,k  ,1) + uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                          -HALF*(uc(i,j-1,k  ,2) - uc(i,j-1,k-1,2) )/dx(2) &
+                          +HALF*(uc(i,j-1,k  ,3) - uc(i,j-1,k-1,3) )/dx(3)
+            end if
+
+          else
+            if (lo_k_dir) then
+              crse_flux = .1875d0*(uc(i,j,k  ,1) + uc(i,j-1,k  ,1) )/dx(1) * ifac &
+                        + .1875d0*(uc(i,j,k  ,2) - uc(i,j-1,k  ,2) )/dx(2) &
+                        + .1875d0*(uc(i,j,k  ,3) + uc(i,j-1,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+              crse_flux = HALF*(uc(i,j,k  ,1) + uc(i,j-1,k  ,1) )/dx(1) * ifac &
+                        + HALF*(uc(i,j,k  ,2) - uc(i,j-1,k  ,2) )/dx(2) &
+                        + HALF*(uc(i,j,k  ,3) + uc(i,j-1,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+              crse_flux = .1875d0*(uc(i,j,k-1,1) + uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                        + .1875d0*(uc(i,j,k-1,2) - uc(i,j-1,k-1,2) )/dx(2) &
+                        - .1875d0*(uc(i,j,k-1,3) - uc(i,j-1,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+              crse_flux = HALF*(uc(i,j,k-1,1) + uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                        + HALF*(uc(i,j,k-1,2) - uc(i,j-1,k-1,2) )/dx(2) &
+                        - HALF*(uc(i,j,k-1,3) - uc(i,j-1,k-1,3) )/dx(3)
+            else
+              crse_flux = FOURTH*(uc(i,j,k  ,1) + uc(i,j-1,k  ,1) &
+                                 +uc(i,j,k-1,1) + uc(i,j-1,k-1,1) )/dx(1) * ifac &
+                        + FOURTH*(uc(i,j,k  ,2) - uc(i,j-1,k  ,2) &
+                                 +uc(i,j,k-1,2) - uc(i,j-1,k-1,2) )/dx(2) &
+                        + FOURTH*(uc(i,j,k  ,3) + uc(i,j-1,k  ,3) &
+                                 -uc(i,j,k-1,3) - uc(i,j-1,k-1,3) )/dx(3)
+            end if
+          end if
+  
+          if (vol*crse_flux .ne. fine_flux(ii,j,k)) then
+            print *, 'C F ',ii,j,k,vol*crse_flux,fine_flux(ii,j,k)
+          end if
+          rh(ii,j,k) = rh(ii,j,k) - vol*crse_flux + fine_flux(ii,j,k)
+        end if
+
+      end do
+      end do
+
+!   Lo/Hi j side
+    else if (( side == -2) .or. (side == 2) ) then
+ 
+      if (side == -2) then
+        j    = jj
+        ifac = 1
+      else
+        j    = jj-1
+        ifac = -1
+      end if
+
+      do k = lo(3),hi(3)
+      do i = lo(1),hi(1)
+
+        if (bc_dirichlet(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,0)) then
+
+          lo_i_dir = ( (i == lof(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,-1) ) 
+          hi_i_dir = ( (i == hif(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,+1) ) 
+          lo_i_neu = ( (i == lof(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,-1) ) 
+          hi_i_neu = ( (i == hif(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,+1) ) 
+          lo_k_dir = ( (k == lof(3)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,-1) ) 
+          hi_k_dir = ( (k == hif(3)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,+1) ) 
+          lo_k_neu = ( (k == lof(3)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,-1) ) 
+          hi_k_neu = ( (k == hif(3)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,+1) ) 
+
+          if (lo_i_dir) then 
+            if (lo_k_dir) then
+               crse_flux = (uc(i,j,k  ,1) )/dx(1) &
+                         + (uc(i,j,k  ,2) )/dx(2) * ifac &
+                         + (uc(i,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+               crse_flux = .375d0*(uc(i,j,k  ,1) )/dx(1) &
+                         + .375d0*(uc(i,j,k  ,2) )/dx(2) * ifac &
+                         + .375d0*(uc(i,j,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+               crse_flux = (uc(i,j,k-1,1) )/dx(1) &
+                         + (uc(i,j,k-1,2) )/dx(2) * ifac &
+                         - (uc(i,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+               crse_flux = .375d0*(uc(i,j,k-1,1) )/dx(1) &
+                         + .375d0*(uc(i,j,k-1,2) )/dx(2) * ifac &
+                         - .375d0*(uc(i,j,k-1,3) )/dx(3)
+            else 
+               crse_flux = .1875d0*(uc(i,j,k  ,1) + uc(i,j,k-1,1) )/dx(1) &
+                         + .1875d0*(uc(i,j,k  ,2) + uc(i,j,k-1,2) )/dx(2) * ifac &
+                         + .1875d0*(uc(i,j,k  ,3) - uc(i,j,k-1,3) )/dx(3)
+            end if
+
+          else if (lo_i_neu) then
+            if (lo_k_dir) then
+              crse_flux = .375d0*(uc(i,j,k  ,1) )/dx(1) &
+                        + .375d0*(uc(i,j,k  ,2) )/dx(2) * ifac &
+                        + .375d0*(uc(i,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+              crse_flux = (uc(i,j,k  ,1) )/dx(1) &
+                        + (uc(i,j,k  ,2) )/dx(2) * ifac &
+                        + (uc(i,j,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+              crse_flux = .375d0*(uc(i,j,k-1,1) )/dx(1) &
+                        + .375d0*(uc(i,j,k-1,2) )/dx(2) * ifac &
+                        - .375d0*(uc(i,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+              crse_flux = uc(i,j,k-1,1) / dx(1) &
+                        + uc(i,j,k-1,2) / dx(2) * ifac &
+                        - uc(i,j,k-1,3) / dx(3)
+            else 
+              crse_flux = HALF*(uc(i,j,k  ,1) + uc(i,j,k-1,1) )/dx(1) &
+                        + HALF*(uc(i,j,k  ,2) + uc(i,j,k-1,2) )/dx(2) * ifac &
+                        + HALF*(uc(i,j,k  ,3) - uc(i,j,k-1,3) )/dx(3)
+            end if
+
+
+          else if (hi_i_dir) then
+            if (lo_k_dir) then
+               crse_flux = -(uc(i-1,j,k  ,1) )/dx(1) &
+                           +(uc(i-1,j,k  ,2) )/dx(2) * ifac &
+                           +(uc(i-1,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+               crse_flux = -.375d0*(uc(i-1,j,k  ,1) )/dx(1) &
+                           +.375d0*(uc(i-1,j,k  ,2) )/dx(2) * ifac &
+                           +.375d0*(uc(i-1,j,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+               crse_flux = -(uc(i-1,j,k-1,1) )/dx(1) &
+                           +(uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                           -(uc(i-1,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+               crse_flux = -.375d0*(uc(i-1,j,k-1,1) )/dx(1) &
+                           +.375d0*(uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                           -.375d0*(uc(i-1,j,k-1,3) )/dx(3)
+            else 
+               crse_flux = -.1875d0*(uc(i-1,j,k  ,1) + uc(i-1,j,k-1,1) )/dx(1) &
+                           +.1875d0*(uc(i-1,j,k  ,2) + uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                           +.1875d0*(uc(i-1,j,k  ,3) - uc(i-1,j,k-1,3) )/dx(3)
+            end if
+
+          else if (hi_i_neu) then
+            if (lo_k_dir) then
+               crse_flux = -.375d0*(uc(i-1,j,k  ,1) )/dx(1) &
+                           +.375d0*(uc(i-1,j,k  ,2) )/dx(2) * ifac &
+                           +.375d0*(uc(i-1,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+               crse_flux = -uc(i-1,j,k  ,1) / dx(1) &
+                           +uc(i-1,j,k  ,2) / dx(2) * ifac &
+                           +uc(i-1,j,k  ,3) / dx(3)
+            else if (hi_k_dir) then
+               crse_flux = -.375d0*(uc(i-1,j,k-1,1) )/dx(1) &
+                           +.375d0*(uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                           -.375d0*(uc(i-1,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+               crse_flux = -uc(i-1,j,k-1,1) / dx(1) &
+                           +uc(i-1,j,k-1,2) / dx(2) * ifac &
+                           -uc(i-1,j,k-1,3) / dx(3)
+            else 
+               crse_flux = -HALF*(uc(i-1,j,k  ,1) + uc(i-1,j,k-1,1) )/dx(1) &
+                           +HALF*(uc(i-1,j,k  ,2) + uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                           +HALF*(uc(i-1,j,k  ,3) - uc(i-1,j,k-1,3) )/dx(3)
+            end if
+
+          else
+            if (lo_k_dir) then
+              crse_flux = .1875d0*(uc(i,j,k  ,1) - uc(i-1,j,k  ,1) )/dx(1) &
+                        + .1875d0*(uc(i,j,k  ,2) + uc(i-1,j,k  ,2) )/dx(2) * ifac &
+                        + .1875d0*(uc(i,j,k  ,3) + uc(i-1,j,k  ,3) )/dx(3)
+            else if (lo_k_neu) then
+              crse_flux = HALF*(uc(i,j,k  ,1) - uc(i-1,j,k  ,1) )/dx(1) &
+                        + HALF*(uc(i,j,k  ,2) + uc(i-1,j,k  ,2) )/dx(2) * ifac &
+                        + HALF*(uc(i,j,k  ,3) + uc(i-1,j,k  ,3) )/dx(3)
+            else if (hi_k_dir) then
+              crse_flux = .1875d0*(uc(i,j,k-1,1) - uc(i-1,j,k-1,1) )/dx(1) &
+                         +.1875d0*(uc(i,j,k-1,2) + uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                         -.1875d0*(uc(i,j,k-1,3) - uc(i-1,j,k-1,3) )/dx(3)
+            else if (hi_k_neu) then
+              crse_flux = HALF*(uc(i,j,k-1,1) - uc(i-1,j,k-1,1) )/dx(1) &
+                        + HALF*(uc(i,j,k-1,2) + uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                        - HALF*(uc(i,j,k-1,3) - uc(i-1,j,k-1,3) )/dx(3)
+            else
+              crse_flux = FOURTH*(uc(i,j,k  ,1) - uc(i-1,j,k  ,1) &
+                                 +uc(i,j,k-1,1) - uc(i-1,j,k-1,1) )/dx(1) &
+                        + FOURTH*(uc(i,j,k  ,2) + uc(i-1,j,k  ,2) &
+                                 +uc(i,j,k-1,2) + uc(i-1,j,k-1,2) )/dx(2) * ifac &
+                        + FOURTH*(uc(i,j,k  ,3) + uc(i-1,j,k  ,3) &
+                                 -uc(i,j,k-1,3) - uc(i-1,j,k-1,3) )/dx(3)
+            end if
+          end if
+  
+          if (vol*crse_flux .ne. fine_flux(i,jj,k)) then
+            print *, 'C F ',i,jj,k,vol*crse_flux,fine_flux(i,jj,k)
+          end if
+          rh(i,jj,k) = rh(i,jj,k) - vol*crse_flux + fine_flux(i,jj,k)
+        end if
+
+      end do
+      end do
+
+!   Lo/Hi k side
+    else if (( side == -3) .or. (side == 3) ) then
+ 
+      if (side == -3) then
+        k    = kk
+        ifac = 1
+      else
+        k    = kk-1
+        ifac = -1
+      end if
+
+      do j = lo(2),hi(2)
+      do i = lo(1),hi(1)
+
+        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,0)) then
+
+          lo_i_dir = ( (i == lof(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,-1) ) 
+          hi_i_dir = ( (i == hif(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,+1) ) 
+          lo_i_neu = ( (i == lof(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,-1) ) 
+          hi_i_neu = ( (i == hif(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,+1) ) 
+          lo_j_dir = ( (j == lof(2)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,-1) ) 
+          hi_j_dir = ( (j == hif(2)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,+1) ) 
+          lo_j_neu = ( (j == lof(2)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,-1) ) 
+          hi_j_neu = ( (j == hif(2)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,+1) ) 
+
+          if (lo_i_dir) then 
+            if (lo_j_dir) then
+               crse_flux = (uc(i,j,k  ,1) )/dx(1) &
+                         + (uc(i,j,k  ,2) )/dx(2) &
+                         + (uc(i,j,k  ,3) )/dx(3) * ifac
+            else if (lo_j_neu) then
+               crse_flux = .375d0*(uc(i,j,k  ,1) )/dx(1) &
+                         + .375d0*(uc(i,j,k  ,2) )/dx(2) &
+                         + .375d0*(uc(i,j,k  ,3) )/dx(3) * ifac
+            else if (hi_j_dir) then
+               crse_flux = (uc(i,j-1,k,1) )/dx(1) &
+                         - (uc(i,j-1,k,2) )/dx(2) &
+                         + (uc(i,j-1,k,3) )/dx(3) * ifac
+            else if (hi_j_neu) then
+               crse_flux = .375d0*(uc(i,j-1,k,1) )/dx(1) &
+                         - .375d0*(uc(i,j-1,k,2) )/dx(2) &
+                         + .375d0*(uc(i,j-1,k,3) )/dx(3) * ifac
+            else 
+               crse_flux = .1875d0*(uc(i,j,k  ,1) + uc(i,j-1,k,1) )/dx(1) &
+                         + .1875d0*(uc(i,j,k  ,2) - uc(i,j-1,k,2) )/dx(2) &
+                         + .1875d0*(uc(i,j,k  ,3) + uc(i,j-1,k,3) )/dx(3) * ifac
+            end if
+
+          else if (lo_i_neu) then
+            if (lo_j_dir) then
+              crse_flux = .375d0*(uc(i,j,k  ,1) )/dx(1) &
+                        + .375d0*(uc(i,j,k  ,2) )/dx(2) &
+                        + .375d0*(uc(i,j,k  ,3) )/dx(3) * ifac
+            else if (lo_j_neu) then
+              crse_flux = (uc(i,j,k  ,1) )/dx(1) &
+                        + (uc(i,j,k  ,2) )/dx(2) &
+                        + (uc(i,j,k  ,3) )/dx(3) * ifac
+            else if (hi_j_dir) then
+              crse_flux = .375d0*(uc(i,j-1,k,1) )/dx(1) &
+                        - .375d0*(uc(i,j-1,k,2) )/dx(2) &
+                        + .375d0*(uc(i,j-1,k,3) )/dx(3) * ifac
+            else if (hi_j_neu) then
+              crse_flux = uc(i,j-1,k,1) / dx(1) &
+                        - uc(i,j-1,k,2) / dx(2) &
+                        + uc(i,j-1,k,3) / dx(3) * ifac
+            else 
+              crse_flux = HALF*(uc(i,j,k  ,1) + uc(i,j-1,k,1) )/dx(1) &
+                        + HALF*(uc(i,j,k  ,2) - uc(i,j-1,k,2) )/dx(2) &
+                        + HALF*(uc(i,j,k  ,3) + uc(i,j-1,k,3) )/dx(3) * ifac
+            end if
+
+
+          else if (hi_i_dir) then
+            if (lo_j_dir) then
+               crse_flux = -(uc(i-1,j,k  ,1) )/dx(1) &
+                           +(uc(i-1,j,k  ,2) )/dx(2) &
+                           +(uc(i-1,j,k  ,3) )/dx(3) * ifac
+            else if (lo_j_neu) then
+               crse_flux = -.375d0*(uc(i-1,j,k  ,1) )/dx(1) &
+                           +.375d0*(uc(i-1,j,k  ,2) )/dx(2) &
+                           +.375d0*(uc(i-1,j,k  ,3) )/dx(3) * ifac
+            else if (hi_j_dir) then
+               crse_flux = -(uc(i-1,j-1,k,1) )/dx(1) &
+                           -(uc(i-1,j-1,k,2) )/dx(2) &
+                           +(uc(i-1,j-1,k,3) )/dx(3) * ifac
+            else if (hi_j_neu) then
+               crse_flux = -.375d0*(uc(i-1,j-1,k,1) )/dx(1) &
+                           -.375d0*(uc(i-1,j-1,k,2) )/dx(2) &
+                           +.375d0*(uc(i-1,j-1,k,3) )/dx(3) * ifac
+            else 
+               crse_flux = -.1875d0*(uc(i-1,j,k  ,1) + uc(i-1,j-1,k,1) )/dx(1) &
+                           +.1875d0*(uc(i-1,j,k  ,2) - uc(i-1,j-1,k,2) )/dx(2) &
+                           +.1875d0*(uc(i-1,j,k  ,3) + uc(i-1,j-1,k,3) )/dx(3) * ifac
+            end if
+
+          else if (hi_i_neu) then
+            if (lo_j_dir) then
+               crse_flux = -.375d0*(uc(i-1,j,k  ,1) )/dx(1) &
+                           +.375d0*(uc(i-1,j,k  ,2) )/dx(2) &
+                           +.375d0*(uc(i-1,j,k  ,3) )/dx(3) * ifac
+            else if (lo_j_neu) then
+               crse_flux = -uc(i-1,j,k  ,1) / dx(1) &
+                           +uc(i-1,j,k  ,2) / dx(2) &
+                           +uc(i-1,j,k  ,3) / dx(3) * ifac
+            else if (hi_j_dir) then
+               crse_flux = -.375d0*(uc(i-1,j-1,k,1) )/dx(1) &
+                           -.375d0*(uc(i-1,j-1,k,2) )/dx(2) &
+                           +.375d0*(uc(i-1,j-1,k,3) )/dx(3) * ifac
+            else if (hi_j_neu) then
+               crse_flux = -uc(i-1,j-1,k,1) / dx(1) &
+                           -uc(i-1,j-1,k,2) / dx(2) &
+                           +uc(i-1,j-1,k,3) / dx(3) * ifac
+            else 
+               crse_flux = -HALF*(uc(i-1,j,k  ,1) + uc(i-1,j-1,k,1) )/dx(1) &
+                           +HALF*(uc(i-1,j,k  ,2) - uc(i-1,j-1,k,2) )/dx(2) &
+                           +HALF*(uc(i-1,j,k  ,3) + uc(i-1,j-1,k,3) )/dx(3) * ifac
+            end if
+
+          else
+            if (lo_j_dir) then
+              crse_flux = .1875d0*(uc(i,j,k  ,1) - uc(i-1,j,k  ,1) )/dx(1) &
+                        + .1875d0*(uc(i,j,k  ,2) + uc(i-1,j,k  ,2) )/dx(2) &
+                        + .1875d0*(uc(i,j,k  ,3) + uc(i-1,j,k  ,3) )/dx(3) * ifac
+            else if (lo_j_neu) then
+              crse_flux = HALF*(uc(i,j,k  ,1) - uc(i-1,j,k  ,1) )/dx(1) &
+                        + HALF*(uc(i,j,k  ,2) + uc(i-1,j,k  ,2) )/dx(2) &
+                        + HALF*(uc(i,j,k  ,3) + uc(i-1,j,k  ,3) )/dx(3) * ifac
+            else if (hi_j_dir) then
+              crse_flux = .1875d0*(uc(i,j-1,k,1) - uc(i-1,j-1,k,1) )/dx(1) &
+                         -.1875d0*(uc(i,j-1,k,2) - uc(i-1,j-1,k,2) )/dx(2) &
+                         +.1875d0*(uc(i,j-1,k,3) + uc(i-1,j-1,k,3) )/dx(3) * ifac
+            else if (hi_j_neu) then
+              crse_flux = HALF*(uc(i,j-1,k,1) - uc(i-1,j-1,k,1) )/dx(1) &
+                        - HALF*(uc(i,j-1,k,2) - uc(i-1,j-1,k,2) )/dx(2) &
+                        + HALF*(uc(i,j-1,k,3) + uc(i-1,j-1,k,3) )/dx(3) * ifac
+            else
+              crse_flux = FOURTH*(uc(i,j  ,k,1) - uc(i-1,j  ,k,1) &
+                                 +uc(i,j-1,k,1) - uc(i-1,j-1,k,1) )/dx(1) &
+                        + FOURTH*(uc(i,j  ,k,2) + uc(i-1,j  ,k,2) &
+                                 -uc(i,j-1,k,2) - uc(i-1,j-1,k,2) )/dx(2) &
+                        + FOURTH*(uc(i,j  ,k,3) + uc(i-1,j  ,k,3) &
+                                 +uc(i,j-1,k,3) + uc(i-1,j-1,k,3) )/dx(3) * ifac
+            end if
+          end if
+  
+          if (vol*crse_flux .ne. fine_flux(i,j,kk)) then
+            print *, 'C F ',i,j,kk,vol*crse_flux,fine_flux(i,j,kk)
+          end if
+          rh(i,j,kk) = rh(i,j,kk) - vol*crse_flux + fine_flux(i,j,kk)
+        end if
+
+      end do
+      end do
+
+    end if
+
+  end subroutine ml_interface_3d_divu
 
 end module hgproject_module
