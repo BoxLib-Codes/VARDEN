@@ -24,12 +24,11 @@ contains
 
     type(box) :: fbox,fstrip,cstrip
     type(box) :: crse_domain
-    integer   :: i,j,n,d,dm
+    integer   :: i,j,k,n,d,dm
     integer   :: iface,ishift
     integer   :: lo(4),hi(4),lo_f(3),lo_c(3),hi_f(3),hi_c(3),interior_lo(4)
     integer   :: fvcx_lo,fvcy_lo,fvcz_lo
     integer   :: cvcx_lo,cvcy_lo,cvcz_lo
-    integer   :: cslope_lo(2),cslope_hi(2)
     logical   :: lim_slope, lin_limit
 
     real(kind=dp_t), allocatable :: cp(:,:,:,:)
@@ -41,10 +40,14 @@ contains
 
     integer         :: ii,jj
     integer         :: ng_of_crse
-    real(kind=dp_t) :: dx(2)
-    dx = ONE
+    integer        , allocatable :: cslope_lo(:),cslope_hi(:)
+    real(kind=dp_t), allocatable :: dx(:)
 
     dm = fine%dim
+    allocate(dx(dm))
+    dx = ONE
+
+    allocate(cslope_lo(dm),cslope_hi(dm))
 
     lo    = 1
     hi    = 1
@@ -104,24 +107,6 @@ contains
 
                 lo_f(1:dm) = lwb(fstrip)
                 hi_f(1:dm) = upb(fstrip)
-                allocate(fp(lo_f(1):hi_f(1),lo_f(2):hi_f(2),lo(3):hi(3),lo(4):hi(4)))
-                allocate(fvcx(lo_f(1):hi_f(1)+1))
-                do j = lo_f(1),hi_f(1)+1
-                   fvcx(j) = dble(j)
-                end do
-
-                if (dm > 1) then
-                   allocate(fvcy(lo_f(2):hi_f(2)+1))
-                   do j = lo_f(2),hi_f(2)+1
-                      fvcy(j) = dble(j) 
-                   end do
-                end if
-                if (dm > 2) then
-                   allocate(fvcz(lo_f(3):hi_f(3)+1))
-                   do j = lo_f(3),hi_f(3)+1
-                      fvcy(j) = dble(j) 
-                   end do
-                end if
 
 !               Note : these are deliberately done *before* cstrip is grown.
                 cslope_lo(1:dm) = lwb(cstrip)
@@ -131,24 +116,48 @@ contains
 
                 lo_c(1:dm) = lwb(cstrip)
                 hi_c(1:dm) = upb(cstrip)
-                allocate(cp(lo_c(1):hi_c(1),lo_c(2):hi_c(2),lo_c(3):hi_c(3),lo(4):hi(4)))
+
+                allocate(fvcx(lo_f(1):hi_f(1)+1))
+                do j = lo_f(1),hi_f(1)+1
+                   fvcx(j) = dble(j)
+                end do
+
                 allocate(cvcx(lo_c(1):hi_c(1)+1))
                 do j = lo_c(1),hi_c(1)+1
                    cvcx(j) = dble(j) * TWO
                 end do
+
                 if (dm > 1) then
-                   allocate(cvcy(lo_c(2):hi_c(2)+1))
-                   do j = lo_c(2),hi_c(2)+1
-                      cvcy(j) = dble(j) * TWO
-                   end do
+
+                  allocate(fvcy(lo_f(2):hi_f(2)+1))
+                  do j = lo_f(2),hi_f(2)+1
+                     fvcy(j) = dble(j) 
+                  end do
+
+                  allocate(cvcy(lo_c(2):hi_c(2)+1))
+                  do j = lo_c(2),hi_c(2)+1
+                     cvcy(j) = dble(j) * TWO
+                  end do
+
                 end if
+
                 if (dm > 2) then
-                   allocate(cvcz(lo_c(3):hi_c(3)+1))
-                   do j = lo_c(3),hi_c(3)+1
-                      cvcz(j) = dble(j) * TWO
-                   end do
+
+                  allocate(fvcz(lo_f(3):hi_f(3)+1))
+                  do k = lo_f(3),hi_f(3)+1
+                     fvcz(k) = dble(k) 
+                  end do
+
+                  allocate(cvcz(lo_c(3):hi_c(3)+1))
+                  do j = lo_c(3),hi_c(3)+1
+                     cvcz(j) = dble(j) * TWO
+                  end do
+
                 end if
- 
+
+                allocate(fp(lo_f(1):hi_f(1),lo_f(2):hi_f(2),lo_f(3):hi_f(3),lo(4):hi(4)))
+                allocate(cp(lo_c(1):hi_c(1),lo_c(2):hi_c(2),lo_c(3):hi_c(3),lo(4):hi(4)))
+
                 call multifab_fab_copy(cp,lo_c,1,crse,icomp,nc)
 
 !               Note: these calls assume that the crse array is one larger than
@@ -173,6 +182,14 @@ contains
                    do n = 1,nc
                       call setbc_3d(cp(:,:,:,n),interior_lo,1,local_bc(:,:,n),dx,bc_comp+n-1)
                    end do
+
+                   fvcx_lo = lo_f(1)
+                   fvcy_lo = lo_f(2)
+                   fvcz_lo = lo_f(3)
+                   cvcx_lo = lo_c(1)
+                   cvcy_lo = lo_c(2)
+                   cvcz_lo = lo_c(3)
+
                    call lin_cc_interp_3d(fp(:,:,:,:), lo_f, cp(:,:,:,:), lo_c, ir, local_bc, &
                                          fvcx, fvcx_lo, fvcy, fvcy_lo, fvcz, fvcz_lo, &
                                          cvcx, cvcx_lo, cvcy, cvcy_lo, cvcz, cvcz_lo, &
