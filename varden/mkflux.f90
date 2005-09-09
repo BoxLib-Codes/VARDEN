@@ -429,7 +429,7 @@ contains
       allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
 
       ncomp = size(s,dim=4)
-      do k = lo(3),hi(3)
+      do k = lo(3)-1,hi(3)+1
          call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
          call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
       end do
