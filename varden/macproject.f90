@@ -186,14 +186,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       end do
       end do
       end do
-      nz = size(rh,dim=3)-1
-      do j = 0,size(rh,dim=2)-1
-      do i = 0,size(rh,dim=1)-1
-        do k = 0,nz-1
-          if (abs(rh(i,j,k)-rh(i,j,nz)).gt.1.e-8) print *,'BAD RH ',i,j,k,rh(i,j,k),rh(i,j,nz)
-        end do
-      end do
-      end do
 
     end subroutine divumac_3d
 
