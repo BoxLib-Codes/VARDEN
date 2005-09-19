@@ -402,7 +402,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: gphi( 0:, 0:, 0:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dt
+
       integer :: nx,ny,nz,i,j,k
+      real(kind=dp_t) :: umax,umin,vmax,vmin,wmax,wmin
 
       nx = size(gphi,dim=1)-1
       ny = size(gphi,dim=2)-1
@@ -418,6 +420,28 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
       gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
+
+      umax = unew(0,0,0,1)
+      umin = unew(0,0,0,1)
+      vmax = unew(0,0,0,2)
+      vmin = unew(0,0,0,2) 
+      wmax = unew(0,0,0,3) 
+      wmin = unew(0,0,0,3) 
+      do k = 0,nz
+      do j = 0,ny
+      do i = 0,nx
+          umax = max(umax,unew(i,j,k,1))
+          umin = min(umin,unew(i,j,k,1))
+          vmax = max(vmax,unew(i,j,k,2))
+          vmin = min(vmin,unew(i,j,k,2))
+          wmax = max(wmax,unew(i,j,k,3))
+          wmin = min(wmin,unew(i,j,k,3))
+      enddo
+      enddo
+      enddo
+      print *,'AFTER PROJ: MIN/MAX OF UNEW ',umin,umax
+      print *,'AFTER PROJ: MIN/MAX OF VNEW ',vmin,vmax
+      print *,'AFTER PROJ: MIN/MAX OF WNEW ',wmin,wmax
 
     end subroutine mkunew_3d
 
