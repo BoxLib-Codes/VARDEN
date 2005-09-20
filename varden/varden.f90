@@ -803,8 +803,10 @@ subroutine varden()
 1001   format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
 1002   format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
-       if (last_plt_written .ne. max_step) call write_plotfile(max_step)
-       if (last_chk_written .ne. max_step) call write_checkfile(max_step)
+       if (istep > max_step) istep = istep-1
+
+       if (last_plt_written .ne. max_step) call write_plotfile(istep)
+       if (last_chk_written .ne. max_step) call write_checkfile(istep)
 
   end if
 
