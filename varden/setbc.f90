@@ -31,8 +31,8 @@ contains
             do j = lo(2)-1,hi(2)+1
                s(lo(1)-ng:lo(1)-1,j) = dir_val
             end do
-!           if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VX
-!           if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VY
+            if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VX
+            if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VY
 !           if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_DEN
 !           if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_TRA
       else if (bc(1,1) .eq. FOEXTRAP) then
@@ -203,6 +203,7 @@ contains
                s(lo(1)-ng:lo(1)-1,j,k) = ZERO
             end do
             end do
+            if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1) = INLET_VX
          else if (bc(1,1) .eq. FOEXTRAP) then
             do k = lo(3)-1,hi(3)+1
             do j = lo(2)-1,hi(2)+1
@@ -289,6 +290,7 @@ contains
                s(i,lo(2)-ng:lo(2)-1,k) = ZERO
             end do
             end do
+            if (icomp.eq.2) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1,lo(3)-1:hi(3)+1) = INLET_VY
          else if (bc(2,1) .eq. FOEXTRAP .or. bc(2,1) .eq. REFLECT_EVEN) then
             do k = lo(3)-1,hi(3)+1
             do i = lo(1)-ng,hi(1)+ng
@@ -375,6 +377,7 @@ contains
                s(i,j,lo(3)-ng:lo(3)-1) = ZERO
             end do
             end do
+            if (icomp.eq.3) s(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-ng:lo(3)-1) = INLET_VZ
          else if (bc(3,1) .eq. FOEXTRAP .or. bc(3,1) .eq. REFLECT_EVEN) then
             do j = lo(2)-ng,hi(2)+ng
             do i = lo(1)-ng,hi(1)+ng
