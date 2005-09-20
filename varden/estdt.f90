@@ -51,6 +51,7 @@ contains
       dt = dt * cflfac
 
       if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
+      print *,'Computing dt to be ... ',dt
 
    end subroutine estdt
 
