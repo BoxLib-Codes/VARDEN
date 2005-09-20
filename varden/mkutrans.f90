@@ -173,7 +173,7 @@ contains
       allocate(vely(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
       allocate(velz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
 
-      do k = lo(3),hi(3)
+      do k = lo(3)-1,hi(3)+1
          call slopex_2d(vel(:,:,k,:),velx(:,:,k,:),lo,ng_cell,3,adv_bc,slope_order)
          call slopey_2d(vel(:,:,k,:),vely(:,:,k,:),lo,ng_cell,3,adv_bc,slope_order)
       end do
@@ -207,7 +207,6 @@ contains
           test=( (ulft .le. ZERO  .and.  urgt .ge. ZERO)  .or. &
                 (abs(ulft+urgt) .lt. eps) )
           utrans(i,j,k) = merge(ZERO,utrans(i,j,k),test)
-
         enddo
         enddo
       enddo
