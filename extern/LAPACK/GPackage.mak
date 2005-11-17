@@ -55,6 +55,9 @@ fsources += ilaenv.f
 fsources += lsame.f
 fsources += xerbla.f
 
+fsources += dtrtri.f
+fsources += dtrti2.f
+
 fsources += ddot.f
 fsources += daxpy.f
 fsources += dnrm2.f
