@@ -540,7 +540,8 @@ subroutine varden()
      call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
      dt = min(dt_hold,dt)
   end do
-  dt = dt * init_shrink
+  if (restart < 0) dt = dt * init_shrink
+  if (time+dt > stop_time) dt = min(dt, stop_time - time)
 
   half_dt = HALF * dt
 
@@ -577,7 +578,7 @@ subroutine varden()
 ! Begin the real integration.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if (max_step >= init_step) then
+  if (max_step >= init_step .and. time < stop_time) then
 
      do istep = init_step,max_step
 
@@ -685,8 +686,10 @@ subroutine varden()
            call multifab_fill_boundary(sold(n))
            call multifab_fill_boundary(gp(n))
 
-           if (istep > 1) &
+           if (istep > 1) then
              call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
+             if (time+dt > stop_time) dt = stop_time - time
+           end if
 
         end do
 
@@ -797,16 +800,19 @@ subroutine varden()
            last_chk_written = istep
         end if
 
+        if (time >= stop_time) goto 999
+
      end do
+
+ 999   continue
+       if (istep > max_step) istep = max_step
 
 1000   format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
 1001   format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
 1002   format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
-       if (istep > max_step) istep = istep-1
-
-       if (last_plt_written .ne. max_step) call write_plotfile(istep)
-       if (last_chk_written .ne. max_step) call write_checkfile(istep)
+       if (last_plt_written .ne. istep) call write_plotfile(istep)
+       if (last_chk_written .ne. istep) call write_checkfile(istep)
 
   end if
 
