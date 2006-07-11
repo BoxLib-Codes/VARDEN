@@ -7,7 +7,7 @@ module macproject_module
   use stencil_module
   use multifab_fill_ghost_module
   use ml_restriction_module
-  use flux_reg_module
+  use bndry_reg_module
   use fabio_module
 
   implicit none
@@ -25,7 +25,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-  type(flux_reg), pointer     :: fine_flx(:) => Null()
+  type(bndry_reg), pointer    :: fine_flx(:) => Null()
   integer                     :: dm,stencil_order,n
   integer                     :: ng,nc
   integer                     :: nlevs,nscal,bc_comp
@@ -56,7 +56,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call flux_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
+     call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
+                               mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
   end do
 
   call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
@@ -72,7 +73,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
   end do
 
   do n = 2,nlevs
-     call flux_reg_destroy(fine_flx(n))
+     call bndry_reg_destroy(fine_flx(n))
   end do
   deallocate(fine_flx)
 
@@ -302,7 +303,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       type(multifab), intent(inout) ::   rh(:)
       type(multifab), intent(in   ) ::  phi(:)
       type(multifab), intent(in   ) :: beta(:)
-      type(flux_reg), intent(in   ) :: fine_flx(2:)
+      type(bndry_reg),intent(in   ) :: fine_flx(2:)
       real(dp_t)    , intent(in   ) :: dx(:,:)
       type(bc_tower), intent(in   ) :: the_bc_tower
       integer       , intent(in   ) :: ref_ratio(:,:)
@@ -835,9 +836,9 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
 
   type(multifab), allocatable :: coeffs(:)
 
-  type(multifab), intent(in   ) :: alpha(:), beta(:)
-  type(multifab), intent(inout) ::    rh(:),  phi(:)
-  type(flux_reg), intent(inout) :: fine_flx(2:)
+  type(multifab) , intent(in   ) :: alpha(:), beta(:)
+  type(multifab) , intent(inout) ::    rh(:),  phi(:)
+  type(bndry_reg), intent(inout) :: fine_flx(2:)
 
   type( multifab) :: ss
   type(imultifab) :: mm

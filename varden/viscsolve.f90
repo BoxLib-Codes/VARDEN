@@ -22,7 +22,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose)
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-  type(flux_reg), pointer     :: fine_flx(:) => Null()
+  type(bndry_reg), pointer    :: fine_flx(:) => Null()
   integer                     :: n,nlevs,d,dm,stencil_order
   integer                     :: bc_comp
 
@@ -53,7 +53,8 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose)
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call flux_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
+     call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
+                               mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
   end do
 
   do d = 1,dm
@@ -176,7 +177,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-  type(flux_reg), pointer     :: fine_flx(:) => Null()
+  type(bndry_reg), pointer    :: fine_flx(:) => Null()
   integer                     :: n,nlevs,dm,stencil_order
 
   nlevs = mla%nlevel
@@ -197,7 +198,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   print *,'... begin diffusive solve  ... '
 
   do n = 1,nlevs
-    print *,'BEFORE: MAX OF S AT LEVEL ',n,norm_inf(snew(n),1,1,all=.true.)
+    print *,'BEFORE: MAX OF S AT LEVEL ',n,norm_inf(snew(n),icomp,1,all=.true.)
   end do
 
   do n = 1,nlevs
@@ -208,18 +209,20 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call flux_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
+     call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
+                               mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
   end do
 
   call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
                      the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
 
   do n = 1,nlevs
-     call multifab_plus_plus_c(snew(n),icomp,phi(n),1,1)
+!    call multifab_plus_plus_c(snew(n),icomp,phi(n),1,1)
+     call multifab_copy_c(snew(n),icomp,phi(n),1,1)
   end do
 
   do n = 1,nlevs
-    print *,'AFTER: MAX OF S AT LEVEL ',n,norm_inf(snew(n),1,1,all=.true.)
+    print *,'AFTER: MAX OF S AT LEVEL ',n,norm_inf(snew(n),icomp,1,all=.true.)
   end do
 
   print *,' '

@@ -38,6 +38,10 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   logical, allocatable :: nodal(:)
   real(dp_t)     :: nrm
 
+  integer        :: stencil_type
+
+  stencil_type = ST_DENSE
+
   nlevs = mla%nlevel
   dm    = mla%dim
   ng = unew(nlevs)%ng
@@ -72,7 +76,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                    verbose,mg_verbose,press_comp)
+                    verbose,mg_verbose,press_comp,stencil_type)
 
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
@@ -448,7 +452,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 end subroutine hgproject
 
 subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
-                        divu_verbose,mg_verbose,press_comp)
+                        divu_verbose,mg_verbose,press_comp,stencil_type)
   use BoxLib
   use omp_module
   use f2kcli
@@ -470,6 +474,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   type(bc_tower ), intent(in   ) :: the_bc_tower
   integer        , intent(in   ) :: divu_verbose,mg_verbose
   integer        , intent(in   ) :: press_comp
+  integer        , intent(in   ) :: stencil_type
 !
 ! Local variables
 !
@@ -483,6 +488,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
   type(mg_tower), allocatable :: mgt(:)
   type(multifab), allocatable :: coeffs(:),rh(:)
+  type(multifab), allocatable :: one_sided_ss(:)
 
   real(dp_t) :: bottom_solver_eps
   real(dp_t) :: eps
@@ -510,6 +516,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   nodal = .true.
 
   allocate(mgt(nlevs))
+  allocate(one_sided_ss(2:nlevs))
 
   test           = 0
 
@@ -543,7 +550,27 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 ! Note: put this here for robustness
   max_iter = 100
 
-  ns = 3**dm
+  if (stencil_type .eq. ST_DENSE) then
+     if (dm .eq. 3) then
+       i = mgt(nlevs)%nlevels
+       if ( (mgt(nlevs)%dh(1,i) .eq. mgt(nlevs)%dh(2,i)) .and. &
+            (mgt(nlevs)%dh(1,i) .eq. mgt(nlevs)%dh(3,i)) ) then
+         ns = 21
+       else
+         ns = 27
+       end if
+     else if (dm .eq. 2) then
+       ns = 9
+     end if
+     if ( parallel_ioprocessor() ) print *,'SETTING UP DENSE STENCIL WITH NS = ',ns
+  else
+    ns = 2*dm+1
+    do n = nlevs, 2, -1
+      la = mla%la(n)
+      call multifab_build(one_sided_ss(n), la, ns, 0, nodal)
+      call setval(one_sided_ss(n), ZERO,all=.true.)
+    end do
+  end if
 
   do n = nlevs, 1, -1
 
@@ -568,6 +595,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           smoother = smoother, &
           nu1 = nu1, &
           nu2 = nu2, &
+!         nu1 = 1000, &
+!         nu2 = 1000, &
           gamma = gamma, &
           cycle = cycle, &
           omega = omega, &
@@ -578,7 +607,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           max_nlevel = max_nlevel_in, &
           min_width = min_width, &
           eps = eps, &
-          verbose = verbose, &
+          verbose = mg_verbose, &
           nodal = nodal)
 
   end do
@@ -609,9 +638,17 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
         call stencil_fill_nodal(mgt(n)%ss(i), coeffs(i), &
              mgt(n)%dh(:,i)             , &
              mgt(nlevs)%dh(:,mgt(nlevs)%nlevels), &
-             mgt(n)%mm(i), mgt(n)%face_type)
+             mgt(n)%mm(i), mgt(n)%face_type,stencil_type)
         pd  = coarsen(pd,2)
      end do
+
+     if (stencil_type .eq. ST_CROSS .and. n .gt. 1) then
+        i = mgt(n)%nlevels
+        call stencil_fill_one_sided(one_sided_ss(n), coeffs(i), &
+                                    mgt(n    )%dh(:,i), &
+                                    mgt(nlevs)%dh(:,mgt(nlevs)%nlevels), &
+                                    mgt(n)%mm(i), mgt(n)%face_type, stencil_type)
+     end if
 
      do i = mgt(n)%nlevels, 1, -1
         call multifab_destroy(coeffs(i))
@@ -635,9 +672,9 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
 ! call fabio_ml_write(rh, mla%mba%rr(:,1), "rh_nodal")
 
-  call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr,do_diagnostics)
+  call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics)
 
-! call fabio_ml_write(phi, mla%mba%rr(:,1), "soln_nodal")
+  call fabio_ml_write(phi, mla%mba%rr(:,1), "soln_nodal")
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
@@ -801,7 +838,8 @@ end subroutine hg_multigrid
          la_crse = unew(n-1)%la
          la_fine = unew(n  )%la
          pdc = layout_get_pd(la_crse)
-         call bndry_reg_build(brs_flx,la_fine,ref_ratio(n-1,:),pdc,nodal=nodal)
+         call bndry_reg_rr_build_1(brs_flx,la_fine,la_crse, &
+                                   ref_ratio(n-1,:),pdc,nodal=nodal)
          bc = the_bc_tower%bc_tower_array(n)
          call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n-1,:),mgt(n),press_comp)
          call bndry_reg_destroy(brs_flx)

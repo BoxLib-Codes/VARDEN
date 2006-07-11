@@ -472,12 +472,12 @@ subroutine varden()
      if (do_initial_projection > 0) then
        call hgproject(mla,uold,rhohalf,p,gp,dx,dt_temp, &
                       the_bc_tower,verbose,mg_verbose,press_comp)
-       do n = 1,nlevs
-          call setval( p(n)  ,0.0_dp_t, all=.true.)
-          call setval(gp(n)  ,0.0_dp_t, all=.true.)
-       end do
+!      do n = 1,nlevs
+!         call setval( p(n)  ,0.0_dp_t, all=.true.)
+!         call setval(gp(n)  ,0.0_dp_t, all=.true.)
+!      end do
      end if
-
+ 
      if (bcy_lo == OUTLET) then
         pressure_inflow_val = .16
         print *,'IMPOSING INFLOW PRESSURE '

@@ -22,7 +22,6 @@ module ml_solve_module
    use ml_interface_stencil_module
    use ml_util_module
    use bndry_reg_module
-   use flux_reg_module
    use ml_cc_module
    use ml_nd_module
  
@@ -36,7 +35,7 @@ contains
       type(mg_tower ), intent(inout) :: mgt(:)
       type(multifab ), intent(inout) :: rh(:)
       type(multifab ), intent(inout) :: full_soln(:)
-      type(flux_reg ), intent(inout) :: fine_flx(2:)
+      type(bndry_reg), intent(inout) :: fine_flx(2:)
       integer        , intent(in   ) :: bc(:,:)
       integer        , intent(in   ) :: stencil_order
       integer        , intent(in   ) :: ref_ratio(:,:)
@@ -119,12 +118,13 @@ contains
 
    end subroutine ml_cc_solve
 
-   subroutine ml_nd_solve(mla,mgt,rh,full_soln,ref_ratio,do_diagnostics)
+   subroutine ml_nd_solve(mla,mgt,rh,full_soln,one_sided_ss,ref_ratio,do_diagnostics)
 
        type(ml_layout), intent(inout) :: mla
        type(mg_tower) , intent(inout) :: mgt(:)
        type(multifab) , intent(inout) :: rh(:)
        type(multifab) , intent(inout) :: full_soln(:)
+       type(multifab) , intent(in   ) :: one_sided_ss(2:)
        integer        , intent(in   ) :: ref_ratio(:,:)
        integer        , intent(in   ) :: do_diagnostics 
 
@@ -194,7 +194,7 @@ contains
 ! enddo
 ! END HACK 
 
-  call ml_nd(mla,mgt,rh,full_soln,fine_mask,ref_ratio,do_diagnostics,eps)
+  call ml_nd(mla,mgt,rh,full_soln,fine_mask,one_sided_ss,ref_ratio,do_diagnostics,eps)
 
 ! call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_nodal")
 
@@ -307,38 +307,38 @@ contains
 
    end subroutine ml_nd_solve
 
-  function ml_converged(res, sol, mask, bnorm, Anorm, eps) result(r)
-     logical :: r
-     type(multifab), intent(in) :: res(:), sol(:)
-     type(lmultifab), intent(in) :: mask(:)
-     real(dp_t), intent(in) :: Anorm, eps, bnorm
-     real(dp_t) :: ni_res, ni_sol
-     ni_res = ml_norm_inf(res, mask)
-     ni_sol = ml_norm_inf(sol, mask)
-     r =  ni_res <= eps*(Anorm*ni_sol + bnorm) .or. &
-          ni_res <= spacing(Anorm)
-  end function ml_converged
+! function ml_converged(res, sol, mask, bnorm, Anorm, eps) result(r)
+!    logical :: r
+!    type(multifab), intent(in) :: res(:), sol(:)
+!    type(lmultifab), intent(in) :: mask(:)
+!    real(dp_t), intent(in) :: Anorm, eps, bnorm
+!    real(dp_t) :: ni_res, ni_sol
+!    ni_res = ml_norm_inf(res, mask)
+!    ni_sol = ml_norm_inf(sol, mask)
+!    r =  ni_res <= eps*(Anorm*ni_sol + bnorm) .or. &
+!         ni_res <= spacing(Anorm)
+! end function ml_converged
 
-  function ml_norm_inf(rr, mask) result(r)
-     real(dp_t)  :: r
-     type(multifab), intent(in) :: rr(:)
-     type(lmultifab), intent(in) :: mask(:)
-     integer :: n
-     r = 0
-     do n = 1, size(rr)
-        r = max(norm_inf(rr(n),mask(n)), r)
-        end do
-  end function ml_norm_inf
+! function ml_norm_inf(rr, mask) result(r)
+!    real(dp_t)  :: r
+!    type(multifab), intent(in) :: rr(:)
+!    type(lmultifab), intent(in) :: mask(:)
+!    integer :: n
+!    r = 0
+!    do n = 1, size(rr)
+!       r = max(norm_inf(rr(n),mask(n)), r)
+!       end do
+! end function ml_norm_inf
 
-  function ml_norm_l2(rr, mask) result(r)
-     real(dp_t)  :: r
-     type(multifab), intent(in) :: rr(:)
-     type(lmultifab), intent(in) :: mask(:)
-     integer :: n
-     r = 0
-     do n = 1, size(rr)
-        r = max(norm_l2(rr(n),mask(n)), r)
-     end do
-  end function ml_norm_l2
+! function ml_norm_l2(rr, mask) result(r)
+!    real(dp_t)  :: r
+!    type(multifab), intent(in) :: rr(:)
+!    type(lmultifab), intent(in) :: mask(:)
+!    integer :: n
+!    r = 0
+!    do n = 1, size(rr)
+!       r = max(norm_l2(rr(n),mask(n)), r)
+!    end do
+! end function ml_norm_l2
 
 end module ml_solve_module

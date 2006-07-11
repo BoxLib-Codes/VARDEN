@@ -70,42 +70,85 @@ contains
       real (kind = dp_t), intent(in ) :: prob_hi(:)
 
 !     Local variables
-      integer :: i, j, n
+      integer :: i, j, n, jhalf
       real (kind = dp_t) :: x,y,r,cpx,cpy,spx,spy,Pi
       real (kind = dp_t) :: velfact
-      real (kind = dp_t) :: ro
+      real (kind = dp_t) :: ro,r_pert
 
       Pi = 4.0_dp_t*atan(1.0) 
       velfact = 1.0_dp_t
 
 !     ro is the density of air
       ro = 1.2e-3
+ 
+      r_pert = .025
 
       u = ZERO
       s = ZERO
 
-      do j = lo(2), hi(2)
-        y = (float(j)+HALF) * dx(2) / prob_hi(2)
+      jhalf = (lo(2)+hi(2))/2
+
+      if (.false.) then
+ 
+        do j = lo(2), hi(2)
+!       y = (float(j)+HALF) * dx(2) / prob_hi(2)
+        y = (float(j)+HALF) * dx(2) 
         do i = lo(1), hi(1)
-           x = (float(i)+HALF) * dx(1) / prob_hi(1)
+!          x = (float(i)+HALF) * dx(1) / prob_hi(1)
+           x = (float(i)+HALF) * dx(1)
 
 !          Initial data for Poiseuille flow.
 !          u(i,j,2) = ONE * (x) * (ONE - x)
 
 !          Initial data for vortex-in-a-box
-           spx = sin(Pi*x)
-           spy = sin(Pi*y)
-           cpx = cos(Pi*x)
-           cpy = cos(Pi*y)
-           u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
-           u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
-!          u(i,j,2) = INLET_VY * FOUR*x*(ONE-x)
+!          if (x .le. 0.5) then
+!            spx = sin(Pi*x)
+!            cpx = cos(Pi*x)
+!          else 
+!            spx =  sin(Pi*(1.0-x))
+!            cpx = -cos(Pi*(1.0-x))
+!          end if
+!          if (y .le. 0.5) then
+!            spy = sin(Pi*y)
+!            cpy = cos(Pi*y)
+!          else 
+!            spy =  sin(Pi*(1.0-y))
+!            cpy = -cos(Pi*(1.0-y))
+!          end if
+
+!          spx = sin(Pi*x)
+!          spy = sin(Pi*y)
+!          cpx = cos(Pi*x)
+!          cpy = cos(Pi*y)
+
+!          u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
+!          u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
+
+!          u(i,j,1) = tanh(30.0_dp_T*(0.25_dp_t - abs(y-0.5_dp_t)))
+!          u(i,j,2) = 0.05d0 * sin(2.0_dp_t*Pi*x)
+
+           u(i,j,1) = sin(y)
+           u(i,j,2) = cos(x)
 
            s(i,j,1) = ONE
            r = sqrt((x-HALF)**2 + (y-HALF)**2)
            s(i,j,2) = merge(1.2_dp_t,ONE,r .lt. 0.15)
+
         enddo
       enddo
+
+      else
+
+        u = ZERO
+        s = ONE
+        do j = lo(2), hi(2)
+        do i = lo(1), hi(1)
+           x = (float(i)+HALF) * dx(1)
+           if (x.lt.0.50) u(i,j,1) = ONE
+        enddo
+        enddo
+
+      end if
 
 !     Impose inflow conditions if grid touches inflow boundary.
 !     do i = lo(1), hi(1)
@@ -114,14 +157,14 @@ contains
 !     end do
 
 !     Impose inflow conditions if grid touches inflow boundary.
-!     if (lo(2) .eq. 0) then
-!        u(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_VX
-!        u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY
-!        s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
-!        s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
-!        s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
+      if (lo(2) .eq. 0) then
+         u(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_VX
+         u(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_VY
+         s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
+         s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
+         s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
 !        print *,'SETTING V TO ',INLET_VY
-!     end if
+      end if
 
       if (size(s,dim=3).gt.2) then
         do n = 3, size(s,dim=3)
@@ -151,7 +194,10 @@ contains
     
 !     Local variables
       integer :: i, j, k, n
-      real (kind = dp_t) :: x,y,cpx,cpy,spx,spy,Pi
+      integer :: imid,jmid,kmid
+      real (kind = dp_t) :: Pi
+      real (kind = dp_t) :: x,y,z
+      real (kind = dp_t) :: cpx,cpy,cpz,spx,spy,spz
       real (kind = dp_t) :: velfact
 
       Pi = 4.0_dp_t*atan(1.0)
@@ -161,10 +207,28 @@ contains
       s = ZERO
 
       do k = lo(3), hi(3)
-      do j = lo(2), hi(2)
+       z = (float(k)+HALF) * dx(3) / prob_hi(3)
+       do j = lo(2), hi(2)
         y = (float(j)+HALF) * dx(2) / prob_hi(2)
         do i = lo(1)-ng, hi(1)+ng
          x = (float(i)+HALF) * dx(1) / prob_hi(1)
+
+!        spy = sin(Pi*y)
+!        spz = sin(Pi*z)
+!        cpy = cos(Pi*y)
+!        cpz = cos(Pi*z)
+!        u(i,j,k,2) =  TWO*velfact*spz*cpz*spy*spy
+!        u(i,j,k,3) = -TWO*velfact*spy*cpy*spz*spz
+!        u(i,j,k,1) = ZERO
+
+!        spz = sin(Pi*z)
+!        spx = sin(Pi*x)
+!        cpz = cos(Pi*z)
+!        cpx = cos(Pi*x)
+!        u(i,j,k,3) =  TWO*velfact*spx*cpx*spz*spz
+!        u(i,j,k,1) = -TWO*velfact*spz*cpz*spx*spx
+!        u(i,j,k,2) = ZERO
+
          spx = sin(Pi*x)
          spy = sin(Pi*y)
          cpx = cos(Pi*x)
@@ -172,6 +236,7 @@ contains
          u(i,j,k,1) =  TWO*velfact*spy*cpy*spx*spx
          u(i,j,k,2) = -TWO*velfact*spx*cpx*spy*spy
          u(i,j,k,3) = ZERO
+
          s(i,j,k,1) = ONE
       enddo
       enddo
@@ -188,6 +253,12 @@ contains
         end do
         end do
       end if
+
+!     imid = (lo(1)+hi(1))/2+1
+!     jmid = (lo(2)+hi(2))/2+1
+!     kmid = (lo(3)+hi(3))/2+1
+!     u(imid  ,jmid  ,kmid  ,:) =  ONE
+!     u(imid-1,jmid-1,kmid-1,:) = -ONE
 
    end subroutine initdata_3d
 
