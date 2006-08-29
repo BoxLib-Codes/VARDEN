@@ -11,14 +11,14 @@ module viscous_module
 
 contains 
 
-subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose)
+subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: unew(:)
   type(multifab ), intent(in   ) :: rho(:)
   real(dp_t)     , intent(in   ) :: dx(:,:),mu
   type(bc_tower ), intent(in   ) :: the_bc_tower
-  integer        , intent(in   ) :: mg_verbose
+  integer        , intent(in   ) :: mg_verbose,cg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
@@ -63,7 +63,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose)
      end do
      bc_comp = d
      call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                        the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
+                        the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
      do n = 1,nlevs
         call multifab_copy_c(unew(n),d,phi(n),1,1)
      end do
@@ -165,7 +165,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose)
 
 end subroutine visc_solve
 
-subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose)
+subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose,cg_verbose)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: snew(:)
@@ -173,7 +173,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   real(dp_t)     , intent(in   ) :: mu
   type(bc_tower ), intent(in   ) :: the_bc_tower
   integer        , intent(in   ) :: icomp,bc_comp
-  integer        , intent(in   ) :: mg_verbose
+  integer        , intent(in   ) :: mg_verbose, cg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
@@ -214,7 +214,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   end do
 
   call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
+                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
 
   do n = 1,nlevs
 !    call multifab_plus_plus_c(snew(n),icomp,phi(n),1,1)

@@ -13,13 +13,13 @@ module scalar_advance_module
 
 contains
 
-   subroutine scalar_advance (uold,sold,snew,rhohalf,&
+   subroutine scalar_advance (lev,uold,sold,snew,rhohalf,&
                               umac,sedge,utrans, &
                               ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
                               diff_coef,&
-                              verbose,mg_verbose)
+                              verbose)
  
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -34,7 +34,7 @@ contains
       type(bc_level) , intent(in   ) :: the_bc_level
       real(kind=dp_t), intent(in   ) :: diff_coef
 ! 
-      integer        , intent(in   ) :: verbose, mg_verbose
+      integer        , intent(in   ) :: lev,verbose
 ! 
       type(multifab) :: force,scal_force
 ! 
@@ -221,11 +221,11 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+              call update_2d(lev,sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
               do n = 1,nscal
                 call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
@@ -235,11 +235,11 @@ contains
             case (3)
                wmp => dataptr(umac(3), i)
                sepz => dataptr(sedge(3), i)
-              call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+              call update_3d(lev,sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              fp(:,:,:,:) , snp(:,:,:,:), &
                              rp(:,:,:,1) , &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
               do n = 1,nscal
                 call setbc_3d(snp(:,:,:,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)

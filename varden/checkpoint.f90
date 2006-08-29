@@ -15,12 +15,13 @@ module checkpoint_module
 
 contains
 
-  subroutine checkpoint_write(dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in)
+  subroutine checkpoint_write(dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in, verbose)
     type(multifab), intent(in) :: mfs(:), mfs_nodal(:)
     integer        , intent(in) :: rrs(:,:)
     real(kind=dp_t), intent(in) :: dx(:,:)
     character(len=*), intent(in) :: dirname
     real(kind=dp_t), intent(in) :: time_in, dt_in
+    integer        , intent(in) :: verbose
     integer :: i, j, k, n
     character(len=128) :: header, sd_name, sd_name_nodal
     integer :: nc, un, nl, dm
@@ -45,9 +46,11 @@ contains
     write(unit=sd_name_nodal, fmt='(a,"/Pressure")') trim(dirname)
     call fabio_ml_multifab_write_d(mfs_nodal, rrs(:,1), sd_name_nodal)
 
-    print *,'Writing    state to checkpoint file ',trim(sd_name)
-    print *,'Writing pressure to checkpoint file ',trim(sd_name_nodal)
-    print *,' '
+    if (parallel_IOProcessor() .and. verbose .ge. 1) then
+      print *,'Writing    state to checkpoint file ',trim(sd_name)
+      print *,'Writing pressure to checkpoint file ',trim(sd_name_nodal)
+      print *,' '
+    end if
     
     nl = size(mfs)
     nc = ncomp(mfs(1))

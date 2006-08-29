@@ -9,12 +9,12 @@ module update_module
 
   contains
 
-   subroutine update_2d (sold,umac,vmac,sedgex,sedgey,force,snew,rhohalf, &
-                         lo,hi,ng,dx,time,dt,is_vel,is_cons)
+   subroutine update_2d (lev,sold,umac,vmac,sedgex,sedgey,force,snew,rhohalf, &
+                         lo,hi,ng,dx,time,dt,is_vel,is_cons,verbose)
 
       implicit none
 
-      integer, intent(in) :: lo(:), hi(:), ng
+      integer           , intent(in   ) :: lev, lo(:), hi(:), ng
       real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:)  
@@ -27,6 +27,7 @@ module update_module
       real (kind = dp_t), intent(in   ) :: time,dt
       logical           , intent(in   ) :: is_vel
       logical           , intent(in   ) :: is_cons(:)
+      integer           , intent(in   ) :: verbose
 
       integer :: i, j, n
       real (kind = dp_t) ubar,vbar
@@ -57,7 +58,9 @@ module update_module
              smin = min(smin,snew(i,j,n))
            enddo
            enddo
-           print *,'MIN/MAX OF RHO ',smin,smax
+           if (parallel_IOProcessor() .and. verbose .ge. 1) then
+             write(6,1001) lev,smin,smax
+           end if
         else
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
@@ -76,7 +79,9 @@ module update_module
              smin = min(smin,snew(i,j,n))
            enddo
            enddo
-           print *,'MIN/MAX OF TEMP ',smin,smax
+           if (parallel_IOProcessor() .and. verbose .ge. 1) then
+             write(6,1002) lev,smin,smax
+           end if
          end if
       end do
 
@@ -99,31 +104,39 @@ module update_module
 
            enddo
          enddo
-         umax = snew(lo(1),lo(2),1) 
-         umin = snew(lo(1),lo(2),1) 
-         vmax = snew(lo(1),lo(2),2) 
-         vmin = snew(lo(1),lo(2),2) 
-         do j = lo(2), hi(2)
-           do i = lo(1), hi(1)
-             umax = max(umax,snew(i,j,1))
-             umin = min(umin,snew(i,j,1))
-             vmax = max(vmax,snew(i,j,2))
-             vmin = min(vmin,snew(i,j,2))
+         if (parallel_IOProcessor() .and. verbose .ge. 1) then
+           umax = snew(lo(1),lo(2),1) 
+           umin = snew(lo(1),lo(2),1) 
+           vmax = snew(lo(1),lo(2),2) 
+           vmin = snew(lo(1),lo(2),2) 
+           do j = lo(2), hi(2)
+             do i = lo(1), hi(1)
+               umax = max(umax,snew(i,j,1))
+               umin = min(umin,snew(i,j,1))
+               vmax = max(vmax,snew(i,j,2))
+               vmin = min(vmin,snew(i,j,2))
+             enddo
            enddo
-         enddo
-         print *,'MIN/MAX OF UNEW ',umin,umax
-         print *,'MIN/MAX OF VNEW ',vmin,vmax
+           write(6,1003) lev,umin,umax
+           write(6,1004) lev,vmin,vmax
+         end if
 
     end if
 
+1000  format(' ')
+1001  format('LEVEL',i2,' RHO  MIN/MAX ',e15.8,2x,e15.8)
+1002  format('LEVEL',i2,' TEMP MIN/MAX ',e15.8,2x,e15.8)
+1003  format('LEVEL',i2,' UNEW MIN/MAX ',e15.8,2x,e15.8)
+1004  format('LEVEL',i2,' VNEW MIN/MAX ',e15.8,2x,e15.8)
+
    end subroutine update_2d
 
-   subroutine update_3d (sold,umac,vmac,wmac,sedgex,sedgey,sedgez,force,snew,rhohalf, &
-                         lo,hi,ng,dx,time,dt,is_vel,is_cons)
+   subroutine update_3d (lev,sold,umac,vmac,wmac,sedgex,sedgey,sedgez,force,snew,rhohalf, &
+                         lo,hi,ng,dx,time,dt,is_vel,is_cons,verbose)
 
       implicit none
 
-      integer, intent(in) :: lo(:), hi(:), ng
+      integer           , intent(in   ) :: lev, lo(:), hi(:), ng
       real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
@@ -138,6 +151,7 @@ module update_module
       real (kind = dp_t), intent(in   ) :: time,dt
       logical           , intent(in   ) :: is_vel
       logical           , intent(in   ) :: is_cons(:)
+      integer           , intent(in   ) :: verbose
 
 !     Local variables
       integer :: i, j, k, n
@@ -176,7 +190,9 @@ module update_module
            enddo
            enddo
            enddo
-           print *,'MIN/MAX OF RHO ',smin,smax
+           if (parallel_IOProcessor() .and. verbose .ge. 1) then
+             write(6,1001) lev,smin,smax
+           end if
          else 
 
            do k = lo(3), hi(3)
@@ -202,7 +218,9 @@ module update_module
            enddo
            enddo
            enddo
-           print *,'MIN/MAX OF TEMP ',smin,smax
+           if (parallel_IOProcessor() .and. verbose .ge. 1) then
+             write(6,1002) lev,smin,smax
+           end if
          end if
        enddo
 
@@ -233,29 +251,39 @@ module update_module
          enddo
          enddo
          enddo
-         umax = snew(lo(1),lo(2),lo(3),1) 
-         umin = snew(lo(1),lo(2),lo(3),1) 
-         vmax = snew(lo(1),lo(2),lo(3),2) 
-         vmin = snew(lo(1),lo(2),lo(3),2) 
-         wmax = snew(lo(1),lo(2),lo(3),3) 
-         wmin = snew(lo(1),lo(2),lo(3),3) 
-         do k = lo(3), hi(3)
-         do j = lo(2), hi(2)
-         do i = lo(1), hi(1)
-             umax = max(umax,snew(i,j,k,1))
-             umin = min(umin,snew(i,j,k,1))
-             vmax = max(vmax,snew(i,j,k,2))
-             vmin = min(vmin,snew(i,j,k,2))
-             wmax = max(wmax,snew(i,j,k,3))
-             wmin = min(wmin,snew(i,j,k,3))
-         enddo
-         enddo
-         enddo
-         print *,'MIN/MAX OF UNEW ',umin,umax
-         print *,'MIN/MAX OF VNEW ',vmin,vmax
-         print *,'MIN/MAX OF WNEW ',wmin,wmax
+
+         if (parallel_IOProcessor() .and. verbose .ge. 1) then
+           umax = snew(lo(1),lo(2),lo(3),1) 
+           umin = snew(lo(1),lo(2),lo(3),1) 
+           vmax = snew(lo(1),lo(2),lo(3),2) 
+           vmin = snew(lo(1),lo(2),lo(3),2) 
+           wmax = snew(lo(1),lo(2),lo(3),3) 
+           wmin = snew(lo(1),lo(2),lo(3),3) 
+           do k = lo(3), hi(3)
+           do j = lo(2), hi(2)
+           do i = lo(1), hi(1)
+               umax = max(umax,snew(i,j,k,1))
+               umin = min(umin,snew(i,j,k,1))
+               vmax = max(vmax,snew(i,j,k,2))
+               vmin = min(vmin,snew(i,j,k,2))
+               wmax = max(wmax,snew(i,j,k,3))
+               wmin = min(wmin,snew(i,j,k,3))
+           enddo
+           enddo
+           enddo
+           write(6,1003) lev,umin,umax
+           write(6,1004) lev,vmin,vmax
+           write(6,1005) lev,wmin,wmax
+        end if
 
       end if
+
+1000  format(' ')
+1001  format('LEVEL',i2,' RHO  MIN/MAX ',e15.8,2x,e15.8)
+1002  format('LEVEL',i2,' TEMP MIN/MAX ',e15.8,2x,e15.8)
+1003  format('LEVEL',i2,' UNEW MIN/MAX ',e15.8,2x,e15.8)
+1004  format('LEVEL',i2,' VNEW MIN/MAX ',e15.8,2x,e15.8)
+1005  format('LEVEL',i2,' WNEW MIN/MAX ',e15.8,2x,e15.8)
 
    end subroutine update_3d
 

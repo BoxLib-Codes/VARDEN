@@ -11,11 +11,11 @@ module velocity_advance_module
 
 contains
 
-   subroutine velocity_advance(uold,unew,sold,rhohalf,&
-                              umac,uedge,utrans,gp,p, &
-                              ext_force,dx,time,dt, &
-                              the_bc_level, &
-                              visc_coef,verbose,mg_verbose)
+   subroutine velocity_advance(lev,uold,unew,sold,rhohalf,&
+                               umac,uedge,utrans,gp,p, &
+                               ext_force,dx,time,dt, &
+                               the_bc_level, &
+                               visc_coef,verbose)
  
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -32,7 +32,7 @@ contains
       type(bc_level) , intent(in   ) :: the_bc_level
       real(kind=dp_t), intent(in   ) :: visc_coef
  
-      integer        , intent(in   ) :: verbose, mg_verbose
+      integer        , intent(in   ) :: lev,verbose
  
       type(multifab) :: force
  
@@ -198,19 +198,19 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call update_2d(uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+              call update_2d(lev,uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              fp(:,:,1,:), unp(:,:,1,:), &
                              rp(:,:,1,1), &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
             case (3)
                wmp => dataptr(umac(3), i)
                uepz => dataptr(uedge(3), i)
-              call update_3d(uop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+              call update_3d(lev,uop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              fp(:,:,:,:), unp(:,:,:,:), &
                              rp(:,:,:,1), &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative)
+                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
          end select
       end do
 

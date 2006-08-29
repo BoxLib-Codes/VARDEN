@@ -7,12 +7,13 @@ module estdt_module
 
 contains
 
-   subroutine estdt (u, s, gp, force, dx, cflfac, dtold, dt)
+   subroutine estdt (lev,u, s, gp, force, dx, cflfac, dtold, dt, verbose)
 
       type(multifab) , intent( in) :: u,s,gp,force
       real(kind=dp_t), intent( in) :: dx(:)
       real(kind=dp_t), intent( in) :: cflfac, dtold
       real(kind=dp_t), intent(out) :: dt
+      integer        , intent( in) :: lev,verbose 
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:),  fp(:,:,:,:)
@@ -51,7 +52,11 @@ contains
       dt = dt * cflfac
 
       if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
-      print *,'Computing dt to be ... ',dt
+
+      if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        write(6,1000) lev,dt
+      end if
+1000  format("Computing dt at level ",i2," to be ... ",e15.8)
 
    end subroutine estdt
 

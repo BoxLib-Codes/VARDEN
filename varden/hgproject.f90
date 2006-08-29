@@ -6,7 +6,7 @@ module hgproject_module
   use define_bc_module
   use multifab_module
   use boxarray_module
-  use init_module
+  use nodal_divu_module
   use stencil_module
   use ml_solve_module
   use ml_restriction_module
@@ -17,17 +17,18 @@ module hgproject_module
 contains 
 
 subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                     verbose,mg_verbose,press_comp)
+                     verbose,mg_verbose,cg_verbose,press_comp)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: unew(:)
   type(multifab ), intent(inout) :: rhohalf(:)
   type(multifab ), intent(inout) :: gp(:)
   type(multifab ), intent(inout) :: p(:)
-  type(bc_tower ), intent(in   ) :: the_bc_tower
-  integer        , intent(in   ) :: verbose,mg_verbose
   real(dp_t)     , intent(in   ) :: dx(:,:),dt
+  type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
   integer        , intent(in   ) :: press_comp
+  logical, allocatable :: nodal(:)
 
 ! Local  
   type(multifab), allocatable :: phi(:),gphi(:)
@@ -35,19 +36,18 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(layout  ) :: la
   integer        :: n,nlevs,dm,ng,i,RHOCOMP
   integer        :: ng_for_fill
-  logical, allocatable :: nodal(:)
   real(dp_t)     :: nrm
 
   integer        :: stencil_type
 
   stencil_type = ST_DENSE
+! stencil_type = ST_CROSS
 
   nlevs = mla%nlevel
   dm    = mla%dim
   ng = unew(nlevs)%ng
 
-  allocate(phi(nlevs), gphi(nlevs))
-  allocate(nodal(dm))
+  allocate(phi(nlevs), gphi(nlevs), nodal(dm))
   nodal = .true.
 
   do n = 1, nlevs
@@ -60,7 +60,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1, nlevs
   end do
 
-  if (verbose .eq. 1) then
+  if (parallel_IOProcessor() .and. verbose .ge. 1) then
      print *,' '
      nrm = ZERO
      do n = 1, nlevs
@@ -76,12 +76,12 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                    verbose,mg_verbose,press_comp,stencil_type)
+                    verbose,mg_verbose,cg_verbose,press_comp,stencil_type)
 
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
      call mk_p(   p(n),phi(n),dt)
-     call mkunew(unew(n),gp(n),gphi(n),rhohalf(n),ng,dt)
+     call mkunew(n,unew(n),gp(n),gphi(n),rhohalf(n),ng,dt,verbose)
   end do
 
   do n = nlevs,2,-1
@@ -89,7 +89,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
      call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
   end do
 
-  if (verbose .eq. 1) then
+  if (parallel_IOProcessor() .and. verbose .ge. 1) then
      nrm = ZERO
      do n = 1, nlevs
         nrm = max(nrm,norm_inf(unew(n)))
@@ -112,8 +112,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: unew(:)
-      type(multifab) , intent(inout) :: gp(:)
       type(multifab) , intent(in   ) :: rhohalf(:)
+      type(multifab) , intent(inout) :: gp(:)
       real(kind=dp_t), intent(in   ) :: dt
       type(bc_tower) , intent(in   ) :: the_bc_tower
  
@@ -122,6 +122,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), pointer :: unp(:,:,:,:) 
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
+      real(kind=dp_t), pointer ::  dp(:,:,:,:) 
 
       integer :: i,n,dm,ng
 
@@ -132,9 +133,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
          bc = the_bc_tower%bc_tower_array(n)
          do i = 1, unew(n)%nboxes
             if ( multifab_remote(unew(n), i) ) cycle
-            unp => dataptr(unew(n)   , i)
-            gpp => dataptr(gp(n)     , i)
-             rp => dataptr(rhohalf(n), i)
+            unp => dataptr(unew(n)     , i)
+            gpp => dataptr(gp(n)       , i)
+             rp => dataptr(  rhohalf(n), i)
             select case (dm)
                case (2)
                  call create_uvec_2d(unp(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), dt, &
@@ -208,13 +209,13 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew(unew,gp,gphi,rhohalf,ng,dt)
+    subroutine mkunew(lev,unew,gp,gphi,rhohalf,ng,dt,verbose)
 
       type(multifab) , intent(inout) :: unew
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(in   ) :: gphi
       type(multifab) , intent(in   ) :: rhohalf
-      integer        , intent(in   ) :: ng
+      integer        , intent(in   ) :: lev, ng, verbose
       real(kind=dp_t), intent(in   ) :: dt 
       integer :: i,dm
  
@@ -233,9 +234,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
          rp  => dataptr(rhohalf, i)
          select case (dm)
             case (2)
-              call mkunew_2d(upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt)
+              call mkunew_2d(lev, upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt,verbose)
             case (3)
-              call mkunew_3d(upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt)
+              call mkunew_3d(lev, upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt,verbose)
          end select
       end do
       call multifab_fill_boundary(unew)
@@ -249,11 +250,12 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::       u(-ng:,-ng:,:)
-      real(kind=dp_t), intent(inout) ::      gp( -1:, -1:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf( -1:, -1:)
+      real(kind=dp_t), intent(inout) ::      gp( -1:, -1:,:)
       real(kind=dp_t), intent(in   ) :: dt
       integer        , intent(in   ) :: phys_bc(:,:)
 
+      real(kind=dp_t) :: rh_sum
       integer :: i,j,nx,ny
       nx = size(gp,dim=1) - 2
       ny = size(gp,dim=2) - 2
@@ -374,15 +376,18 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_2d(unew,gp,gphi,rhohalf,ng,dt)
+    subroutine mkunew_2d(lev,unew,gp,gphi,rhohalf,ng,dt,verbose)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) :: unew(-ng:,-ng:,:)
-      real(kind=dp_t), intent(inout) ::      gp(-1:,-1:,:)
-      real(kind=dp_t), intent(in   ) ::    gphi(0:,0:,:)
-      real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:)
+      real(kind=dp_t), intent(inout) ::      unew(-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::        gp( -1:, -1:,:)
+      real(kind=dp_t), intent(in   ) ::      gphi(  0:,  0:,:)
+      real(kind=dp_t), intent(in   ) ::   rhohalf( -1:, -1:)
       real(kind=dp_t), intent(in   ) :: dt
-      integer :: i,j,nx,ny
+      integer        , intent(in   ) :: lev,verbose
+
+      integer         :: i,j,nx,ny
+      real(kind=dp_t) :: umax,umin,vmax,vmin
 
       nx = size(gphi,dim=1)-1
       ny = size(gphi,dim=2)-1
@@ -391,14 +396,36 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       unew(0:nx,0:ny,1) = unew(0:nx,0:ny,1) - gphi(0:nx,0:ny,1)/rhohalf(0:nx,0:ny) 
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
+      if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        umax = unew(0,0,1)
+        umin = unew(0,0,1)
+        vmax = unew(0,0,2)
+        vmin = unew(0,0,2)
+        do j = 0,ny
+        do i = 0,nx
+            umax = max(umax,unew(i,j,1))
+            umin = min(umin,unew(i,j,1))
+            vmax = max(vmax,unew(i,j,2))
+            vmin = min(vmin,unew(i,j,2))
+        enddo
+        enddo
+        write(6,1000)
+        write(6,1001) lev, umin, umax
+        write(6,1002) lev, vmin, vmax
+      end if
+
 !     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
       gp(0:nx,0:ny,:) = (ONE/dt) * gphi(0:nx,0:ny,:)
+
+1000  format(' ')
+1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
+1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
 
     end subroutine mkunew_2d
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_3d(unew,gp,gphi,rhohalf,ng,dt)
+    subroutine mkunew_3d(lev,unew,gp,gphi,rhohalf,ng,dt,verbose)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) :: unew(-ng:,-ng:,-ng:,:)
@@ -406,8 +433,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: gphi( 0:, 0:, 0:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dt
+      integer        , intent(in   ) :: lev,verbose
 
-      integer :: nx,ny,nz,i,j,k
+      integer         :: i,j,k,nx,ny,nz
       real(kind=dp_t) :: umax,umin,vmax,vmin,wmax,wmin
 
       nx = size(gphi,dim=1)-1
@@ -425,34 +453,43 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 !     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
       gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
 
-      umax = unew(0,0,0,1)
-      umin = unew(0,0,0,1)
-      vmax = unew(0,0,0,2)
-      vmin = unew(0,0,0,2) 
-      wmax = unew(0,0,0,3) 
-      wmin = unew(0,0,0,3) 
-      do k = 0,nz
-      do j = 0,ny
-      do i = 0,nx
-          umax = max(umax,unew(i,j,k,1))
-          umin = min(umin,unew(i,j,k,1))
-          vmax = max(vmax,unew(i,j,k,2))
-          vmin = min(vmin,unew(i,j,k,2))
-          wmax = max(wmax,unew(i,j,k,3))
-          wmin = min(wmin,unew(i,j,k,3))
-      enddo
-      enddo
-      enddo
-      print *,'AFTER PROJ: MIN/MAX OF UNEW ',umin,umax
-      print *,'AFTER PROJ: MIN/MAX OF VNEW ',vmin,vmax
-      print *,'AFTER PROJ: MIN/MAX OF WNEW ',wmin,wmax
+      if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        umax = unew(0,0,0,1)
+        umin = unew(0,0,0,1)
+        vmax = unew(0,0,0,2)
+        vmin = unew(0,0,0,2)
+        wmax = unew(0,0,0,3)
+        wmin = unew(0,0,0,3)
+        do k = 0,nz
+        do j = 0,ny
+        do i = 0,nx
+            umax = max(umax,unew(i,j,k,1))
+            umin = min(umin,unew(i,j,k,1))
+            vmax = max(vmax,unew(i,j,k,2))
+            vmin = min(vmin,unew(i,j,k,2))
+            wmax = max(wmax,unew(i,j,k,3))
+            wmin = min(wmin,unew(i,j,k,3))
+        enddo
+        enddo
+        enddo
+        if (lev .eq. 1) write(6,1000)
+        write(6,1001) lev, umin, umax
+        write(6,1002) lev, vmin, vmax
+        write(6,1003) lev, wmin, wmax
+        if (lev .gt. 1) write(6,1000)
+      end if
+
+1000  format(' ')
+1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
+1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
+1003  format('LEVEL',i2,' WNEW AFTER PROJ ',e15.8,2x,e15.8)
 
     end subroutine mkunew_3d
 
 end subroutine hgproject
 
 subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
-                        divu_verbose,mg_verbose,press_comp,stencil_type)
+                        divu_verbose,mg_verbose,cg_verbose,press_comp,stencil_type)
   use BoxLib
   use omp_module
   use f2kcli
@@ -472,7 +509,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   type(multifab ), intent(inout) :: phi(:)
   real(dp_t)     , intent(in)    :: dx(:,:)
   type(bc_tower ), intent(in   ) :: the_bc_tower
-  integer        , intent(in   ) :: divu_verbose,mg_verbose
+  integer        , intent(in   ) :: divu_verbose,mg_verbose,cg_verbose
   integer        , intent(in   ) :: press_comp
   integer        , intent(in   ) :: stencil_type
 !
@@ -494,7 +531,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   real(dp_t) :: eps
   real(dp_t) :: omega
 
-  integer :: i, dm, nlevs, ns, test
+  integer :: i, dm, nlevs, ns
   integer :: bottom_solver, bottom_max_iter
   integer :: max_iter
   integer :: min_width
@@ -504,7 +541,6 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   integer :: max_nlevel_in
   integer :: verbose
   integer :: do_diagnostics
-
   logical, allocatable :: nodal(:)
 
   !! Defaults:
@@ -512,20 +548,15 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   dm    = mla%dim
   nlevs = mla%nlevel
 
-  allocate(nodal(dm))
-  nodal = .true.
-
-  allocate(mgt(nlevs))
+  allocate(mgt(nlevs), nodal(dm))
   allocate(one_sided_ss(2:nlevs))
-
-  test           = 0
+  nodal = .true.
 
   ng                = mgt(nlevs)%ng
   nc                = mgt(nlevs)%nc
   max_nlevel        = mgt(nlevs)%max_nlevel
   max_iter          = mgt(nlevs)%max_iter
   eps               = mgt(nlevs)%eps
-  solver            = mgt(nlevs)%solver
   smoother          = mgt(nlevs)%smoother
   nu1               = mgt(nlevs)%nu1
   nu2               = mgt(nlevs)%nu2
@@ -538,14 +569,12 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   min_width         = mgt(nlevs)%min_width
   verbose           = mgt(nlevs)%verbose
 
+  verbose = mg_verbose
+
 ! Note: put this here to minimize asymmetries - ASA
   eps = 1.d-14
 
   bottom_solver = 2
-
-  if ( test /= 0 .AND. max_iter == mgt(nlevs)%max_iter ) then
-     max_iter = 1000
-  end if
 
 ! Note: put this here for robustness
   max_iter = 100
@@ -553,8 +582,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   if (stencil_type .eq. ST_DENSE) then
      if (dm .eq. 3) then
        i = mgt(nlevs)%nlevels
-       if ( (mgt(nlevs)%dh(1,i) .eq. mgt(nlevs)%dh(2,i)) .and. &
-            (mgt(nlevs)%dh(1,i) .eq. mgt(nlevs)%dh(3,i)) ) then
+       if ( (dx(nlevs,1) .eq. dx(nlevs,2)) .and. &
+            (dx(nlevs,1) .eq. dx(nlevs,3)) ) then
          ns = 21
        else
          ns = 27
@@ -562,7 +591,6 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      else if (dm .eq. 2) then
        ns = 9
      end if
-     if ( parallel_ioprocessor() ) print *,'SETTING UP DENSE STENCIL WITH NS = ',ns
   else
     ns = 2*dm+1
     do n = nlevs, 2, -1
@@ -589,14 +617,13 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      pd = layout_get_pd(mla%la(n))
 
      call mg_tower_build(mgt(n), mla%la(n), pd, &
-          the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
+                         the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
           dh = dx(n,:), &
           ns = ns, &
           smoother = smoother, &
-          nu1 = nu1, &
+!         nu1 = nu1, &
+          nu1 = 1000, &
           nu2 = nu2, &
-!         nu1 = 1000, &
-!         nu2 = 1000, &
           gamma = gamma, &
           cycle = cycle, &
           omega = omega, &
@@ -607,7 +634,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           max_nlevel = max_nlevel_in, &
           min_width = min_width, &
           eps = eps, &
-          verbose = mg_verbose, &
+          verbose = verbose, &
+          cg_verbose = cg_verbose, &
           nodal = nodal)
 
   end do
@@ -637,17 +665,14 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
         pdv = layout_boxarray(mgt(n)%ss(i)%la)
         call stencil_fill_nodal(mgt(n)%ss(i), coeffs(i), &
              mgt(n)%dh(:,i)             , &
-             mgt(nlevs)%dh(:,mgt(nlevs)%nlevels), &
              mgt(n)%mm(i), mgt(n)%face_type,stencil_type)
         pd  = coarsen(pd,2)
      end do
-
      if (stencil_type .eq. ST_CROSS .and. n .gt. 1) then
         i = mgt(n)%nlevels
         call stencil_fill_one_sided(one_sided_ss(n), coeffs(i), &
                                     mgt(n    )%dh(:,i), &
-                                    mgt(nlevs)%dh(:,mgt(nlevs)%nlevels), &
-                                    mgt(n)%mm(i), mgt(n)%face_type, stencil_type)
+                                    mgt(n)%mm(i), mgt(n)%face_type)
      end if
 
      do i = mgt(n)%nlevels, 1, -1
@@ -662,31 +687,19 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      call multifab_build(rh(n),mla%la(n),1,1,nodal)
   end do
 
-  call divu(nlevs,mgt,unew,rh,dx,the_bc_tower,mla%mba%rr,divu_verbose,press_comp,nodal)
+  call divu(nlevs,mgt,unew,rh,mla%mba%rr,divu_verbose,nodal)
 
-  if ( mg_verbose >=1 ) then
+  if ( mg_verbose >= 3 ) then
     do_diagnostics = 1
   else
     do_diagnostics = 0
   end if
 
-! call fabio_ml_write(rh, mla%mba%rr(:,1), "rh_nodal")
-
   call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics)
-
-  call fabio_ml_write(phi, mla%mba%rr(:,1), "soln_nodal")
 
   do n = nlevs,1,-1
      call multifab_fill_boundary(phi(n))
   end do
-
-  if ( test == 3 ) then
-     call sparse_destroy(sparse_object)
-  end if
-  if ( test > 0 ) then
-     call destroy(ss)
-     call destroy(mm)
-  end if
 
   do n = 1, nlevs
      call mg_tower_destroy(mgt(n))
@@ -741,9 +754,9 @@ end subroutine hg_multigrid
       ny = size(coeffs,dim=2) - 2
 
       do j = 1,ny
-      do i = 1,nx
-         coeffs(i,j) = -ONE / rho(i,j)
-      end do
+        do i = 1,nx
+           coeffs(i,j) = ONE / rho(i,j)
+        end do
       end do
 
     end subroutine mkcoeffs_2d
@@ -766,7 +779,7 @@ end subroutine hg_multigrid
       do k = 1,nz
       do j = 1,ny
       do i = 1,nx
-         coeffs(i,j,k) = -ONE / rho(i,j,k)
+         coeffs(i,j,k) = ONE / rho(i,j,k)
       end do
       end do
       end do
@@ -774,921 +787,5 @@ end subroutine hg_multigrid
     end subroutine mkcoeffs_3d
 
 !   ********************************************************************************************* !
-
-    subroutine divu(nlevs,mgt,unew,rh,dx,the_bc_tower,ref_ratio,verbose,press_comp,nodal)
-
-      integer        , intent(in   ) :: nlevs
-      type(mg_tower) , intent(inout) :: mgt(:)
-      type(multifab) , intent(inout) :: unew(:)
-      type(multifab) , intent(inout) :: rh(:)
-      real(kind=dp_t), intent(in   ) :: dx(:,:)
-      type(bc_tower) , intent(in   ) :: the_bc_tower
-      integer        , intent(in   ) :: ref_ratio(:,:)
-      integer        , intent(in   ) :: verbose
-      integer        , intent(in   ) :: press_comp
-      logical        , intent(in   ) :: nodal(:)
-
-      type(bc_level) :: bc
-
-      real(kind=dp_t), pointer :: unp(:,:,:,:) 
-      real(kind=dp_t), pointer :: rhp(:,:,:,:) 
-      integer        , pointer ::  mp(:,:,:,:) 
-
-      integer :: i,n,dm,ng
-      integer :: mglev_fine,lom(rh(nlevs)%dim)
-      real(kind=dp_t) :: rhmax,rhsum
-      real(kind=dp_t) :: local_max,local_sum
-      type(      box) :: mbox
-      type(      box) :: pdc
-      type(   layout) :: la_crse,la_fine
-      type(bndry_reg) :: brs_flx
-
-      dm = unew(nlevs)%dim
-      ng = unew(nlevs)%ng
-
-!     rhsum = ZERO
-
-!     Create the regular single-level divergence.
-      do n = 1, nlevs
-         mglev_fine = mgt(n)%nlevels
-         bc = the_bc_tower%bc_tower_array(n)
-         call multifab_fill_boundary(unew(n))
-         do i = 1, unew(n)%nboxes
-            if ( multifab_remote(unew(n), i) ) cycle
-            unp => dataptr(unew(n), i)
-            rhp => dataptr(rh(n)  , i)
-            mp   => dataptr(mgt(n)%mm(mglev_fine),i)
-            select case (dm)
-               case (2)
-                 call divu_2d(unp(:,:,1,:), rhp(:,:,1,1), &
-                               mp(:,:,1,1),  dx(n,:),  &
-                              bc%ell_bc_level_array(i,:,:,press_comp), ng)
-               case (3)
-                 call divu_3d(unp(:,:,:,:), rhp(:,:,:,1), &
-                               mp(:,:,:,1),  dx(n,:), &
-                              bc%ell_bc_level_array(i,:,:,press_comp), ng)
-            rhmax = max(rhmax,local_max)
-!           rhsum = rhsum + local_sum
-            end select
-         end do
-      end do
-
-!     Modify the divu above at coarse-fine interfaces.
-      do n = nlevs,2,-1
-         la_crse = unew(n-1)%la
-         la_fine = unew(n  )%la
-         pdc = layout_get_pd(la_crse)
-         call bndry_reg_rr_build_1(brs_flx,la_fine,la_crse, &
-                                   ref_ratio(n-1,:),pdc,nodal=nodal)
-         bc = the_bc_tower%bc_tower_array(n)
-         call crse_fine_divu(n,nlevs,rh(n-1),unew,brs_flx,dx,bc,ref_ratio(n-1,:),mgt(n),press_comp)
-         call bndry_reg_destroy(brs_flx)
-      end do
-
-      rhmax = ZERO
-      do n = 1,nlevs
-        rhmax = max(rhmax,norm_inf(rh(n)))
-      end do
-
-!     if (verbose .eq. 1) print *,'... hgproject: divu max/sum ',rhmax,rhsum
-      if (verbose .eq. 1) print *,'... hgproject: divu max ',rhmax
-
-    end subroutine divu
-
-!   ********************************************************************************************* !
-
-    subroutine divu_2d(u,rh,mm,dx,press_bc,ng)
-
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
-      real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
-      integer        , intent(inout) :: mm(0:,0:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
-      integer        , intent(in   ) :: press_bc(:,:)
-
-      integer         :: i,j,nx,ny
-      real(kind=dp_t) :: vol
-
-      nx = size(rh,dim=1) - 3
-      ny = size(rh,dim=2) - 3
-
-      rh = ZERO
-
-      vol = dx(1) * dx(2)
-
-      do j = 0,ny
-      do i = 0,nx
-         if (.not. bc_dirichlet(mm(i,j),1,0)) then
-           rh(i,j) = (u(i  ,j,1) + u(i  ,j-1,1) &
-                     -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
-                     (u(i,j  ,2) + u(i-1,j  ,2) &
-                     -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
-           rh(i,j) = HALF * rh(i,j) * vol
-         end if
-      end do
-      end do
-
-      if (press_bc(1,1) == BC_NEU) rh( 0,:) = TWO*rh( 0,:)
-      if (press_bc(1,2) == BC_NEU) rh(nx,:) = TWO*rh(nx,:)
-      if (press_bc(2,1) == BC_NEU) rh(:, 0) = TWO*rh(:, 0)
-      if (press_bc(2,2) == BC_NEU) rh(:,ny) = TWO*rh(:,ny)
-
-    end subroutine divu_2d
-
-!   ********************************************************************************************* !
-
-    subroutine divu_3d(u,rh,mm,dx,press_bc,ng)
-
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
-      real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
-      integer        , intent(inout) :: mm(0:,0:,0:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
-      integer        , intent(in   ) :: press_bc(:,:)
-
-      integer         :: i,j,k,nx,ny,nz
-      real(kind=dp_t) :: vol
-
-      nx = size(rh,dim=1) - ng
-      ny = size(rh,dim=2) - ng
-      nz = size(rh,dim=3) - ng
-
-      rh = ZERO
-
-      vol = dx(1) * dx(2) * dx(3)
-
-      do k = 0,nz
-      do j = 0,ny
-      do i = 0,nx
-         if (.not. bc_dirichlet(mm(i,j,k),1,0)) then
-           rh(i,j,k) = (u(i  ,j,k  ,1) + u(i  ,j-1,k  ,1) &
-                       +u(i  ,j,k-1,1) + u(i  ,j-1,k-1,1) &
-                       -u(i-1,j,k  ,1) - u(i-1,j-1,k  ,1) &
-                       -u(i-1,j,k-1,1) - u(i-1,j-1,k-1,1)) / dx(1) + &
-                       (u(i,j  ,k  ,2) + u(i-1,j  ,k  ,2) &
-                       +u(i,j  ,k-1,2) + u(i-1,j  ,k-1,2) &
-                       -u(i,j-1,k  ,2) - u(i-1,j-1,k  ,2) &
-                       -u(i,j-1,k-1,2) - u(i-1,j-1,k-1,2)) / dx(2) + &
-                       (u(i,j  ,k  ,3) + u(i-1,j  ,k  ,3) &
-                       +u(i,j-1,k  ,3) + u(i-1,j-1,k  ,3) &
-                       -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
-                       -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
-           rh(i,j,k) = FOURTH * rh(i,j,k) * vol
-         end if
-      end do
-      end do
-      end do
-
-      if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
-      if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
-      if (press_bc(2,1) == BC_NEU) rh(:, 0,:) = TWO*rh(:, 0,:)
-      if (press_bc(2,2) == BC_NEU) rh(:,ny,:) = TWO*rh(:,ny,:)
-      if (press_bc(3,1) == BC_NEU) rh(:,:, 0) = TWO*rh(:,:, 0)
-      if (press_bc(3,2) == BC_NEU) rh(:,:,nz) = TWO*rh(:,:,nz)
-
-    end subroutine divu_3d
-
-!   ********************************************************************************************* !
-
-    subroutine crse_fine_divu(n_fine,nlevs,rh_crse,u,brs_flx,dx,bc_fine,ref_ratio,mgt,press_comp)
-
-      integer        , intent(in   ) :: n_fine,nlevs
-      type(multifab) , intent(inout) :: rh_crse
-      type(multifab) , intent(inout) :: u(:)
-      type(bndry_reg), intent(inout) :: brs_flx
-      real(dp_t)     , intent(in   ) :: dx(:,:)
-      type(bc_level) , intent(in   ) :: bc_fine
-      integer        , intent(in   ) :: ref_ratio(:)
-      type(mg_tower) , intent(inout) :: mgt
-      integer        , intent(in   ) :: press_comp
-
-      real(kind=dp_t), pointer :: unp(:,:,:,:) 
-      real(kind=dp_t), pointer :: rhp(:,:,:,:) 
-
-      type(multifab) :: temp_rhs
-      type(  layout) :: la_crse,la_fine
-      type(     box) :: pdc
-      integer :: i,dm,n_crse,ng
-      integer :: mglev_fine
-      logical, allocatable :: nodal(:)
-
-      dm = u(n_fine)%dim
-      n_crse = n_fine-1
-
-      ng = u(nlevs)%ng
-      allocate(nodal(dm))
-      nodal = .true.
-
-      la_crse = u(n_crse)%la
-      la_fine = u(n_fine)%la
-
-      call multifab_build(temp_rhs, la_fine, 1, 1, nodal)
-      call setval(temp_rhs, ZERO, 1, all=.true.)
-
-!     Zero out the flux registers which will hold the fine contributions
-      call bndry_reg_setval(brs_flx, ZERO, all = .true.)
-
-!     Compute the fine contributions at faces, edges and corners.
-
-!     First compute a residual which only takes contributions from the
-!        grid on which it is calculated.
-       do i = 1, u(n_fine)%nboxes
-          if ( multifab_remote(u(n_fine), i) ) cycle
-          unp => dataptr(u(n_fine), i)
-          rhp => dataptr( temp_rhs, i)
-          select case (dm)
-             case (2)
-               call grid_divu_2d(unp(:,:,1,:), rhp(:,:,1,1), dx(n_fine,:), &
-                                 bc_fine%ell_bc_level_array(i,:,:,press_comp), ng)
-             case (3)
-               call grid_divu_3d(unp(:,:,:,:), rhp(:,:,:,1), dx(n_fine,:), &
-                                 bc_fine%ell_bc_level_array(i,:,:,press_comp), ng)
-          end select
-      end do
-
-      pdc = layout_get_pd(la_crse)
-      mglev_fine = mgt%nlevels
-
-      do i = 1,dm
-         call ml_fine_contrib(brs_flx%bmf(i,0), &
-                              temp_rhs,mgt%mm(mglev_fine),ref_ratio,pdc,-i)
-         call ml_fine_contrib(brs_flx%bmf(i,1), &
-                              temp_rhs,mgt%mm(mglev_fine),ref_ratio,pdc,+i)
-      end do
-
-!     Compute the crse contributions at edges and corners and add to rh(n-1).
-      do i = 1,dm
-         call ml_crse_divu_contrib(rh_crse, brs_flx%bmf(i,0), u(n_crse), &
-                                   mgt%mm(mglev_fine), dx(n_fine-1,:), &
-                                   pdc,ref_ratio, -i)
-         call ml_crse_divu_contrib(rh_crse, brs_flx%bmf(i,1), u(n_crse), &
-                                   mgt%mm(mglev_fine), dx(n_fine-1,:),  &
-                                   pdc,ref_ratio, +i)
-      end do
-
-    end subroutine crse_fine_divu
-
-!   ********************************************************************************************* !
-
-    subroutine grid_divu_2d(u,rh,dx,press_bc,ng)
-
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,1:)
-      real(kind=dp_t), intent(inout) :: rh(-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
-      integer        , intent(in   ) :: press_bc(:,:)
-
-      integer :: i,j,nx,ny
-      nx = size(rh,dim=1) - 3
-      ny = size(rh,dim=2) - 3
-
-      u(-1,:,:) = ZERO
-      u(nx,:,:) = ZERO
-      u(:,-1,:) = ZERO
-      u(:,ny,:) = ZERO
-
-      do j = 0,ny
-      do i = 0,nx
-         rh(i,j) = HALF * (u(i  ,j,1) + u(i  ,j-1,1) &
-                          -u(i-1,j,1) - u(i-1,j-1,1)) / dx(1) + &
-                   HALF * (u(i,j  ,2) + u(i-1,j  ,2) &
-                          -u(i,j-1,2) - u(i-1,j-1,2)) / dx(2)
-         rh(i,j) = rh(i,j) * dx(1) * dx(2)
-      end do
-      end do
-
-      if (press_bc(1,1) == BC_NEU) rh( 0,:) = TWO*rh( 0,:)
-      if (press_bc(1,2) == BC_NEU) rh(nx,:) = TWO*rh(nx,:)
-      if (press_bc(2,1) == BC_NEU) rh(:, 0) = TWO*rh(:, 0)
-      if (press_bc(2,2) == BC_NEU) rh(:,ny) = TWO*rh(:,ny)
-
-    end subroutine grid_divu_2d
-
-!   ********************************************************************************************* !
-
-    subroutine grid_divu_3d(u,rh,dx,press_bc,ng)
-
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::  u(-ng:,-ng:,-ng:,1:)
-      real(kind=dp_t), intent(inout) :: rh(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: dx(:)
-      integer        , intent(in   ) :: press_bc(:,:)
-
-      integer :: i,j,k,nx,ny,nz
-      real(kind=dp_t) :: rh_sum
-
-      nx = size(rh,dim=1) - ng
-      ny = size(rh,dim=2) - ng
-      nz = size(rh,dim=3) - ng
-
-      u(-1,:,:,:) = ZERO
-      u(nx,:,:,:) = ZERO
-      u(:,-1,:,:) = ZERO
-      u(:,ny,:,:) = ZERO
-      u(:,:,-1,:) = ZERO
-      u(:,:,nz,:) = ZERO
-
-      rh_sum = ZERO
-      do k = 0,nz
-      do j = 0,ny
-      do i = 0,nx
-         rh(i,j,k) = (u(i  ,j,k  ,1) + u(i  ,j-1,k  ,1) &
-                     +u(i  ,j,k-1,1) + u(i  ,j-1,k-1,1) &
-                     -u(i-1,j,k  ,1) - u(i-1,j-1,k  ,1) &
-                     -u(i-1,j,k-1,1) - u(i-1,j-1,k-1,1)) / dx(1) + &
-                     (u(i,j  ,k  ,2) + u(i-1,j  ,k  ,2) &
-                     +u(i,j  ,k-1,2) + u(i-1,j  ,k-1,2) &
-                     -u(i,j-1,k  ,2) - u(i-1,j-1,k  ,2) &
-                     -u(i,j-1,k-1,2) - u(i-1,j-1,k-1,2)) / dx(2) + &
-                     (u(i,j  ,k  ,3) + u(i-1,j  ,k  ,3) &
-                     +u(i,j-1,k  ,3) + u(i-1,j-1,k  ,3) &
-                     -u(i,j  ,k-1,3) - u(i-1,j  ,k-1,3) &
-                     -u(i,j-1,k-1,3) - u(i-1,j-1,k-1,3)) / dx(3)
-         rh(i,j,k) = FOURTH*rh(i,j,k) * (dx(1)*dx(2)*dx(3))
-         rh_sum = rh_sum + rh(i,j,k)
-      end do
-      end do
-      end do
-      print *,'RHSUM ',rh_sum
-
-      if (press_bc(1,1) == BC_NEU) rh( 0,:,:) = TWO*rh( 0,:,:)
-      if (press_bc(1,2) == BC_NEU) rh(nx,:,:) = TWO*rh(nx,:,:)
-      if (press_bc(2,1) == BC_NEU) rh(:, 0,:) = TWO*rh(:, 0,:)
-      if (press_bc(2,2) == BC_NEU) rh(:,ny,:) = TWO*rh(:,ny,:)
-      if (press_bc(3,1) == BC_NEU) rh(:,:, 0) = TWO*rh(:,:, 0)
-      if (press_bc(3,2) == BC_NEU) rh(:,:,nz) = TWO*rh(:,:,nz)
-
-    end subroutine grid_divu_3d
-
-!   ********************************************************************************************* !
-
-    subroutine ml_crse_divu_contrib(rh, flux, u, mm, dx, crse_domain, ir, side)
-     type(multifab), intent(inout) :: rh
-     type(multifab), intent(inout) :: flux
-     type(multifab), intent(in   ) :: u
-     type(imultifab),intent(in   ) :: mm
-     real(kind=dp_t),intent(in   ) :: dx(:)
-     type(box)      ,intent(in   ) :: crse_domain
-     integer        ,intent(in   ) :: ir(:)
-     integer        ,intent(in   ) :: side
-
-     type(box) :: rbox, fbox, ubox, mbox
-     integer :: lo (rh%dim), hi (rh%dim)
-     integer :: lou(rh%dim)
-     integer :: lof(rh%dim), hif(rh%dim)
-     integer :: lor(rh%dim)
-     integer :: lom(rh%dim)
-     integer :: lo_dom(rh%dim), hi_dom(rh%dim)
-     integer :: dir
-     integer :: i, j, n
-     logical :: nodal(rh%dim)
-
-     integer :: dm
-     real(kind=dp_t), pointer :: rp(:,:,:,:)
-     real(kind=dp_t), pointer :: fp(:,:,:,:)
-     real(kind=dp_t), pointer :: up(:,:,:,:)
-     integer,         pointer :: mp(:,:,:,:)
-
-     nodal = .true.
-
-     dm  = rh%dim
-     dir = iabs(side)
-
-     lo_dom = lwb(crse_domain)
-     hi_dom = upb(crse_domain)+1
-
-     do j = 1, u%nboxes
-
-       ubox = get_ibox(u,j)
-       lou = lwb(ubox) - u%ng
-       ubox = box_nodalize(ubox,nodal)
-
-       rbox = get_ibox(rh,j)
-       lor = lwb(rbox) - rh%ng
-
-       do i = 1, flux%nboxes
-
-         fbox = get_ibox(flux,i)
-         lof  = lwb(fbox)
-         hif  = upb(fbox)
-
-         mbox = get_ibox(mm,i)
-         lom  = lwb(mbox) - mm%ng
-
-         if ((.not. (lof(dir) == lo_dom(dir) .or. lof(dir) == hi_dom(dir))) .and. & 
-             box_intersects(ubox,fbox)) then
-           lo(:) = lwb(box_intersection(ubox,fbox))
-           hi(:) = upb(box_intersection(ubox,fbox))
-
-           fp => dataptr(flux,i)
-           mp => dataptr(mm  ,i)
-
-           up => dataptr(u  ,j)
-           rp => dataptr(rh ,j)
-
-           select case (dm)
-           case (2)
-               call ml_interface_2d_divu(rp(:,:,1,1), lor, &
-                                         fp(:,:,1,1), lof, hif, &
-                                         up(:,:,1,:), lou, &
-                                         mp(:,:,1,1), lom, &
-                                         lo, hi, ir, side, dx)
-           case (3)
-               call ml_interface_3d_divu(rp(:,:,:,1), lor, &
-                                         fp(:,:,:,1), lof, hif, &
-                                         up(:,:,:,:), lou, &
-                                         mp(:,:,:,1), lom, &
-                                         lo, hi, ir, side, dx)
-           end select
-         end if
-       end do
-     end do
-    end subroutine ml_crse_divu_contrib
-
-!   ********************************************************************************************* !
-
-    subroutine ml_interface_2d_divu(rh, lor, fine_flux, lof, hif, uc, loc, &
-                                    mm, lom, lo, hi, ir, side, dx)
-    integer, intent(in) :: lor(:)
-    integer, intent(in) :: loc(:)
-    integer, intent(in) :: lom(:)
-    integer, intent(in) :: lof(:), hif(:)
-    integer, intent(in) :: lo(:), hi(:)
-    real (kind = dp_t), intent(inout) ::        rh(lor(1):,lor(2):)
-    real (kind = dp_t), intent(in   ) :: fine_flux(lof(1):,lof(2):)
-    real (kind = dp_t), intent(in   ) ::        uc(loc(1):,loc(2):,:)
-    integer           , intent(in   ) ::        mm(lom(1):,lom(2):)
-    integer           , intent(in   ) :: ir(:)
-    integer           , intent(in   ) :: side
-    real(kind=dp_t)   , intent(in   ) :: dx(:)
-
-    integer :: i, j
-    real (kind = dp_t) :: crse_flux,vol
-
-    i = lo(1)
-    j = lo(2)
-
-!   NOTE: THESE STENCILS ONLY WORK FOR DX == DY.
-
-!   NOTE: MM IS ON THE FINE GRID, NOT THE CRSE
-
-    vol = dx(1)*dx(2)
-
-!   Lo i side
-    if (side == -1) then
-
-      do j = lo(2),hi(2)
-
-        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-          if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-            crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
-          else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-            crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
-          else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-            crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
-          else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-            crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
-          else
-            crse_flux = (HALF*(uc(i,j,1) + uc(i,j-1,1))/dx(1) &
-                        +HALF*(uc(i,j,2) - uc(i,j-1,2))/dx(2))
-          end if
-
-          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
-        end if
-
-      end do
-
-!   Hi i side
-    else if (side ==  1) then
-
-      do j = lo(2),hi(2)
-
-        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-          if (j == lof(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-            crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
-          else if (j == lof(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,-1)) then
-            crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
-          else if (j == hif(2) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-            crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
-          else if (j == hif(2) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),2,+1)) then
-            crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
-          else
-            crse_flux = (HALF*(-uc(i-1,j,1)-uc(i-1,j-1,1))/dx(1)  &
-                        +HALF*( uc(i-1,j,2)-uc(i-1,j-1,2))/dx(2))
-          end if
-
-          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
-        end if
-
-      end do
-
-!   Lo j side
-    else if (side == -2) then
-
-      do i = lo(1),hi(1)
-
-        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-
-          if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-            crse_flux = FOURTH*(uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
-          else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-            crse_flux =      (uc(i,j,1)/dx(1) + uc(i,j,2)/dx(2))
-          else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-            crse_flux = FOURTH*(-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
-          else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-            crse_flux =      (-uc(i-1,j,1)/dx(1) + uc(i-1,j,2)/dx(2))
-          else
-            crse_flux = (HALF*(uc(i,j,1)-uc(i-1,j,1))/dx(1)  &
-                        +HALF*(uc(i,j,2)+uc(i-1,j,2))/dx(2))
-          end if
-
-          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
-        end if
-
-      end do
-
-!   Hi j side
-    else if (side ==  2) then
-
-      do i = lo(1),hi(1)
-
-        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j),1,0)) then
-
-          if (i == lof(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-            crse_flux = FOURTH*(uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
-          else if (i == lof(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,-1)) then
-            crse_flux =      (uc(i,j-1,1)/dx(1) - uc(i,j-1,2)/dx(2))
-          else if (i == hif(1) .and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-            crse_flux = FOURTH*(-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
-          else if (i == hif(1) .and. bc_neumann(mm(ir(1)*i,ir(2)*j),1,+1)) then
-            crse_flux =      (-uc(i-1,j-1,1)/dx(1) - uc(i-1,j-1,2)/dx(2))
-          else
-            crse_flux = (HALF*( uc(i,j-1,1)-uc(i-1,j-1,1))/dx(1) &
-                        +HALF*(-uc(i,j-1,2)-uc(i-1,j-1,2))/dx(2))
-          end if
-
-          rh(i,j) = rh(i,j) - vol*crse_flux + fine_flux(i,j)
-        end if
-
-      end do
-
-    end if
-
-  end subroutine ml_interface_2d_divu
-
-!   ********************************************************************************************* !
-
-    subroutine ml_interface_3d_divu(rh, lor, fine_flux, lof, hif, uc, loc, &
-                                    mm, lom, lo, hi, ir, side, dx)
-    integer, intent(in) :: lor(:)
-    integer, intent(in) :: loc(:)
-    integer, intent(in) :: lom(:)
-    integer, intent(in) :: lof(:), hif(:)
-    integer, intent(in) :: lo(:), hi(:)
-    real (kind = dp_t), intent(inout) ::        rh(lor(1):,lor(2):,lor(3):)
-    real (kind = dp_t), intent(in   ) :: fine_flux(lof(1):,lof(2):,lof(3):)
-    real (kind = dp_t), intent(in   ) ::        uc(loc(1):,loc(2):,loc(3):,:)
-    integer           , intent(in   ) ::        mm(lom(1):,lom(2):,lom(3):)
-    integer           , intent(in   ) :: ir(:)
-    integer           , intent(in   ) :: side
-    real(kind=dp_t)   , intent(in   ) :: dx(:)
-
-    integer :: i, j, k, ii, jj, kk, ifac
-    logical :: lo_i_neu,lo_j_neu,lo_k_neu,hi_i_neu,hi_j_neu,hi_k_neu
-    logical :: lo_i_not,lo_j_not,lo_k_not,hi_i_not,hi_j_not,hi_k_not
-    real (kind = dp_t) :: cell_pp,cell_mp,cell_pm,cell_mm
-    real (kind = dp_t) :: crse_flux,vol
-
-    ii = lo(1)
-    jj = lo(2)
-    kk = lo(3)
-
-!   NOTE: THESE STENCILS ONLY WORK FOR DX == DY == DZ.
-
-!   NOTE: MM IS ON THE FINE GRID, NOT THE CRSE
-
-    vol = dx(1)*dx(2)*dx(3)
-
-!   Lo/Hi i side
-    if (( side == -1) .or. (side == 1) ) then
- 
-      if (side == -1) then
-        i    = ii
-        ifac = 1
-      else
-        i    = ii-1
-        ifac = -1
-      end if
-
-      do k = lo(3),hi(3)
-      do j = lo(2),hi(2)
-
-        if (bc_dirichlet(mm(ir(1)*ii,ir(2)*j,ir(3)*k),1,0)) then
-
-          cell_pp =  (uc(i,j  ,k  ,1) )/dx(1) * ifac &
-                   + (uc(i,j  ,k  ,2) )/dx(2) &
-                   + (uc(i,j  ,k  ,3) )/dx(3)
-          cell_pm =  (uc(i,j  ,k-1,1) )/dx(1) * ifac &
-                   + (uc(i,j  ,k-1,2) )/dx(2) &
-                   - (uc(i,j  ,k-1,3) )/dx(3)
-          cell_mp =  (uc(i,j-1,k  ,1) )/dx(1) * ifac &
-                   - (uc(i,j-1,k  ,2) )/dx(2) &
-                   + (uc(i,j-1,k  ,3) )/dx(3)
-          cell_mm =  (uc(i,j-1,k-1,1) )/dx(1) * ifac &
-                   - (uc(i,j-1,k-1,2) )/dx(2) &
-                   - (uc(i,j-1,k-1,3) )/dx(3)
-
-          lo_j_not = ( (j == lof(2)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,-1) ) 
-          hi_j_not = ( (j == hif(2)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,+1) ) 
-          lo_j_neu = ( (j == lof(2)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,-1) ) 
-          hi_j_neu = ( (j == hif(2)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),2,+1) ) 
-          lo_k_not = ( (k == lof(3)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,-1) ) 
-          hi_k_not = ( (k == hif(3)).and. .not. bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,+1) ) 
-          lo_k_neu = ( (k == lof(3)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,-1) ) 
-          hi_k_neu = ( (k == hif(3)).and.       bc_neumann(mm(ir(1)*ii,ir(2)*j,ir(3)*k),3,+1) ) 
-
-          if (lo_k_not) then
-             if (lo_j_not) then
-                crse_flux = THIRD*cell_pp
-             else if (lo_j_neu) then
-                crse_flux = cell_pp
-             else if (hi_j_not) then
-                crse_flux = THIRD*cell_mp
-             else if (hi_j_neu) then
-                crse_flux = cell_mp
-             else
-                crse_flux = HALF*(cell_pp + cell_mp)
-             end if
-          else if (lo_k_neu) then
-             if (lo_j_not) then
-                crse_flux = cell_pp
-             else if (lo_j_neu) then
-                crse_flux = FOUR*cell_pp
-             else if (hi_j_not) then
-                crse_flux = cell_mp
-             else if (hi_j_neu) then
-                crse_flux = FOUR*cell_mp
-             else
-                crse_flux = TWO*(cell_pp + cell_mp)
-             end if
-          else if (hi_k_not) then
-             if (lo_j_not) then
-                crse_flux = THIRD*cell_pm
-             else if (lo_j_neu) then
-                crse_flux = cell_pm
-             else if (hi_j_not) then
-                crse_flux = THIRD*cell_mm
-             else if (hi_j_neu) then
-                crse_flux = cell_mm
-             else
-                crse_flux = HALF*(cell_pm  + cell_mm)
-             end if
-          else if (hi_k_neu) then
-             if (lo_j_not) then
-                crse_flux = cell_pm
-             else if (lo_j_neu) then
-                crse_flux = FOUR*cell_pm
-             else if (hi_j_not) then
-                crse_flux = cell_mm
-             else if (hi_j_neu) then
-                crse_flux = FOUR*cell_mm
-             else
-                crse_flux = TWO*(cell_pm  + cell_mm)
-             end if
-          else
-             if (lo_j_not) then
-                crse_flux = HALF*(cell_pm  + cell_pp)
-             else if (lo_j_neu) then
-                crse_flux = TWO*(cell_pm  + cell_pp)
-             else if (hi_j_not) then
-                crse_flux = HALF*(cell_mm  + cell_mp)
-             else if (hi_j_neu) then
-                crse_flux = TWO*(cell_mm  + cell_mp)
-             else
-                crse_flux = cell_mm  + cell_mp + cell_pm + cell_pp
-             end if
-          end if
-
-          rh(ii,j,k) = rh(ii,j,k) - FOURTH*vol*crse_flux + fine_flux(ii,j,k)
-        end if
-
-      end do
-      end do
-
-!   Lo/Hi j side
-    else if (( side == -2) .or. (side == 2) ) then
- 
-      if (side == -2) then
-        j    = jj
-        ifac = 1
-      else
-        j    = jj-1
-        ifac = -1
-      end if
-
-      do k = lo(3),hi(3)
-      do i = lo(1),hi(1)
-
-        if (bc_dirichlet(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,0)) then
-
-          lo_i_not = ( (i == lof(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,-1) ) 
-          hi_i_not = ( (i == hif(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,+1) ) 
-          lo_i_neu = ( (i == lof(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,-1) ) 
-          hi_i_neu = ( (i == hif(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),1,+1) ) 
-          lo_k_not = ( (k == lof(3)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,-1) ) 
-          hi_k_not = ( (k == hif(3)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,+1) ) 
-          lo_k_neu = ( (k == lof(3)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,-1) ) 
-          hi_k_neu = ( (k == hif(3)).and.       bc_neumann(mm(ir(1)*i,ir(2)*jj,ir(3)*k),3,+1) ) 
-
-          cell_pp =  (uc(i  ,j,k  ,1) )/dx(1) &
-                    +(uc(i  ,j,k  ,2) )/dx(2) * ifac &
-                    +(uc(i  ,j,k  ,3) )/dx(3)
-          cell_pm =  (uc(i  ,j,k-1,1) )/dx(1) &
-                    +(uc(i  ,j,k-1,2) )/dx(2) * ifac &
-                    -(uc(i  ,j,k-1,3) )/dx(3)
-          cell_mp = -(uc(i-1,j,k  ,1) )/dx(1) &
-                    +(uc(i-1,j,k  ,2) )/dx(2) * ifac &
-                    +(uc(i-1,j,k  ,3) )/dx(3)
-          cell_mm = -(uc(i-1,j,k-1,1) )/dx(1) &
-                    +(uc(i-1,j,k-1,2) )/dx(2) * ifac &
-                    -(uc(i-1,j,k-1,3) )/dx(3)
-
-          if (lo_k_not) then
-             if (lo_i_not) then
-                crse_flux = THIRD*cell_pp
-             else if (lo_i_neu) then
-                crse_flux = cell_pp
-             else if (hi_i_not) then
-                crse_flux = THIRD*cell_mp
-             else if (hi_i_neu) then
-                crse_flux = cell_mp
-             else
-                crse_flux = HALF*(cell_pp + cell_mp)
-             end if
-          else if (lo_k_neu) then
-             if (lo_i_not) then
-                crse_flux = cell_pp
-             else if (lo_i_neu) then
-                crse_flux = FOUR*cell_pp
-             else if (hi_i_not) then
-                crse_flux = cell_mp
-             else if (hi_i_neu) then
-                crse_flux = FOUR*cell_mp
-             else
-                crse_flux = TWO*(cell_pp + cell_mp)
-             end if
-          else if (hi_k_not) then
-             if (lo_i_not) then
-                crse_flux = THIRD*cell_pm
-             else if (lo_i_neu) then
-                crse_flux = cell_pm
-             else if (hi_i_not) then
-                crse_flux = THIRD*cell_mm
-             else if (hi_i_neu) then
-                crse_flux = cell_mm
-             else
-                crse_flux = HALF*(cell_pm  + cell_mm)
-             end if
-          else if (hi_k_neu) then
-             if (lo_i_not) then
-                crse_flux = cell_pm
-             else if (lo_i_neu) then
-                crse_flux = FOUR*cell_pm
-             else if (hi_i_not) then
-                crse_flux = cell_mm
-             else if (hi_i_neu) then
-                crse_flux = FOUR*cell_mm
-             else
-                crse_flux = TWO*(cell_pm  + cell_mm)
-             end if
-          else
-             if (lo_i_not) then
-                crse_flux = HALF*(cell_pm  + cell_pp)
-             else if (lo_i_neu) then
-                crse_flux = TWO*(cell_pm  + cell_pp)
-             else if (hi_i_not) then
-                crse_flux = HALF*(cell_mm  + cell_mp)
-             else if (hi_i_neu) then
-                crse_flux = TWO*(cell_mm  + cell_mp)
-             else
-                crse_flux = cell_mm  + cell_mp + cell_pm + cell_pp
-             end if
-          end if
-
-          rh(i,jj,k) = rh(i,jj,k) - FOURTH*vol*crse_flux + fine_flux(i,jj,k)
-        end if
-
-      end do
-      end do
-
-!   Lo/Hi k side
-    else if (( side == -3) .or. (side == 3) ) then
- 
-      if (side == -3) then
-        k    = kk
-        ifac = 1
-      else
-        k    = kk-1
-        ifac = -1
-      end if
-
-      do j = lo(2),hi(2)
-      do i = lo(1),hi(1)
-
-        if (bc_dirichlet(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,0)) then
-
-          lo_i_not = ( (i == lof(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,-1) ) 
-          hi_i_not = ( (i == hif(1)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,+1) ) 
-          lo_i_neu = ( (i == lof(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,-1) ) 
-          hi_i_neu = ( (i == hif(1)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),1,+1) ) 
-          lo_j_not = ( (j == lof(2)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,-1) ) 
-          hi_j_not = ( (j == hif(2)).and. .not. bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,+1) ) 
-          lo_j_neu = ( (j == lof(2)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,-1) ) 
-          hi_j_neu = ( (j == hif(2)).and.       bc_neumann(mm(ir(1)*i,ir(2)*j,ir(3)*kk),2,+1) ) 
-
-          cell_pp =  (uc(i  ,j  ,k,1) )/dx(1) &
-                    +(uc(i  ,j  ,k,2) )/dx(2) &
-                    +(uc(i  ,j  ,k,3) )/dx(3) * ifac
-          cell_pm =  (uc(i  ,j-1,k,1) )/dx(1) &
-                    -(uc(i  ,j-1,k,2) )/dx(2) &
-                    +(uc(i  ,j-1,k,3) )/dx(3) * ifac
-          cell_mp = -(uc(i-1,j  ,k,1) )/dx(1) &
-                    +(uc(i-1,j  ,k,2) )/dx(2) &
-                    +(uc(i-1,j  ,k,3) )/dx(3) * ifac
-          cell_mm = -(uc(i-1,j-1,k,1) )/dx(1) &
-                    -(uc(i-1,j-1,k,2) )/dx(2) &
-                    +(uc(i-1,j-1,k,3) )/dx(3) * ifac
-
-          if (lo_j_not) then
-             if (lo_i_not) then
-                crse_flux = THIRD*cell_pp
-             else if (lo_i_neu) then
-                crse_flux = cell_pp
-             else if (hi_i_not) then
-                crse_flux = THIRD*cell_mp
-             else if (hi_i_neu) then
-                crse_flux = cell_mp
-             else
-                crse_flux = HALF*(cell_pp + cell_mp)
-             end if
-          else if (lo_j_neu) then
-             if (lo_i_not) then
-                crse_flux = cell_pp
-             else if (lo_i_neu) then
-                crse_flux = FOUR*cell_pp
-             else if (hi_i_not) then
-                crse_flux = cell_mp
-             else if (hi_i_neu) then
-                crse_flux = FOUR*cell_mp
-             else
-                crse_flux = TWO*(cell_pp + cell_mp)
-             end if
-          else if (hi_j_not) then
-             if (lo_i_not) then
-                crse_flux = THIRD*cell_pm
-             else if (lo_i_neu) then
-                crse_flux = cell_pm
-             else if (hi_i_not) then
-                crse_flux = THIRD*cell_mm
-             else if (hi_i_neu) then
-                crse_flux = cell_mm
-             else
-                crse_flux = HALF*(cell_pm  + cell_mm)
-             end if
-          else if (hi_j_neu) then
-             if (lo_i_not) then
-                crse_flux = cell_pm
-             else if (lo_i_neu) then
-                crse_flux = FOUR*cell_pm
-             else if (hi_i_not) then
-                crse_flux = cell_mm
-             else if (hi_i_neu) then
-                crse_flux = FOUR*cell_mm
-             else
-                crse_flux = TWO*(cell_pm  + cell_mm)
-             end if
-          else
-             if (lo_i_not) then
-                crse_flux = HALF*(cell_pm  + cell_pp)
-             else if (lo_i_neu) then
-                crse_flux = TWO*(cell_pm  + cell_pp)
-             else if (hi_i_not) then
-                crse_flux = HALF*(cell_mm  + cell_mp)
-             else if (hi_i_neu) then
-                crse_flux = TWO*(cell_mm  + cell_mp)
-             else
-                crse_flux = cell_mm  + cell_mp + cell_pm + cell_pp
-             end if
-          end if
-  
-          rh(i,j,kk) = rh(i,j,kk) - FOURTH*vol*crse_flux + fine_flux(i,j,kk)
-        end if
-
-      end do
-      end do
-
-    end if
-
-  end subroutine ml_interface_3d_divu
 
 end module hgproject_module

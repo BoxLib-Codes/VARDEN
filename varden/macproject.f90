@@ -14,14 +14,14 @@ module macproject_module
 
 contains 
 
-subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
+subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: umac(:,:)
   type(multifab ), intent(inout) :: rho(:)
   real(dp_t)     , intent(in   ) :: dx(:,:)
   type(bc_tower ), intent(in   ) :: the_bc_tower
-  integer        , intent(in   ) :: verbose,mg_verbose
+  integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
@@ -50,18 +50,19 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
   end do
 
-  call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose)
+  call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.true.)
 
   call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
-                               mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
+!    call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
+!                              mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
+     call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
   end do
 
   call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose)
+                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
 
   call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,mla%mba%rr,verbose)
 
@@ -84,7 +85,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 
   contains
 
-    subroutine divumac(nlevs,umac,rh,dx,ref_ratio,verbose)
+    subroutine divumac(nlevs,umac,rh,dx,ref_ratio,verbose,before)
 
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: umac(:,:)
@@ -92,6 +93,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t), intent(in   ) :: dx(:,:)
       integer        , intent(in   ) :: ref_ratio(:,:)
       integer        , intent(in   ) :: verbose
+      logical        , intent(in   ) :: before
  
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
@@ -132,10 +134,19 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
          rhmax = max(rhmax,norm_inf(rh(n-1)))
       end do
 
-      if (verbose .eq. 1) then
-         print *,' '
-         print *,'... mac_projection: max of divu ',rhmax
+      if (parallel_IOProcessor() .and. verbose .ge. 1) then
+         if (before) then 
+            write(6,1000) 
+            write(6,1001) rhmax
+         else
+            write(6,1002) rhmax
+            write(6,1000) 
+         end if
       end if
+
+1000  format(' ')
+1001  format('... before mac_projection: max of divu ',e15.8)
+1002  format('...  after mac_projection: max of divu ',e15.8)
 
     end subroutine divumac
 
@@ -147,20 +158,16 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
       integer :: i,j,nx,ny
-      real(kind=dp_t) :: rh_sum
      
       nx = size(rh,dim=1)-1
 
-      rh_sum = ZERO
       do j = 0, size(rh,dim=2)-1
       do i = 0, size(rh,dim=1)-1
          rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
                    (vmac(i,j+1) - vmac(i,j)) / dx(2)
          rh(i,j) = -rh(i,j)
-         rh_sum = rh_sum + rh(i,j)
       end do
       end do
-      print *,'RH_SUM ',rh_sum*dx(1)*dx(2)
 
     end subroutine divumac_2d
 
@@ -382,21 +389,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
         end do
       end do
 
-      call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose)
-
-      do n = nlevs,2,-1
-         call ml_cc_restriction(rh(n-1),rh(n),ref_ratio(n-1,:))
-      end do
-
-      rhmax = ZERO
-      do n = 1,nlevs
-        rhmax = max(rhmax,norm_inf(rh(n)))
-      end do
-
-      if (verbose .eq. 1) then
-         print *,'... mac_projection: max divu after projection',rhmax
-         print *,' '
-      end if
+      call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.)
 
     end subroutine mkumac
 
@@ -807,7 +800,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose)
 end subroutine macproject
 
 subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                         the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose)
+                         the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose,cg_verbose)
 
   use f2kcli
   use stencil_module
@@ -824,7 +817,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
   type(ml_layout),intent(inout) :: mla
   integer        ,intent(in   ) :: stencil_order
   integer        ,intent(in   ) :: ref_ratio(:,:)
-  integer        ,intent(in   ) :: mg_verbose
+  integer        ,intent(in   ) :: mg_verbose, cg_verbose
 
   real(dp_t), intent(in) :: dx(:,:)
   type(bc_tower), intent(in) :: the_bc_tower
@@ -854,7 +847,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
   integer    :: min_width
   integer    :: max_nlevel
   integer    :: verbose
-  integer    :: n, nu1, nu2, gamma, cycle, solver, smoother
+  integer    :: n, nu1, nu2, gamma, cycle, smoother
   integer    :: max_nlevel_in,do_diagnostics
   real(dp_t) :: eps,omega,bottom_solver_eps
   real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
@@ -872,7 +865,6 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
   max_nlevel        = mgt(nlevs)%max_nlevel
   max_iter          = mgt(nlevs)%max_iter
   eps               = mgt(nlevs)%eps
-  solver            = mgt(nlevs)%solver
   smoother          = mgt(nlevs)%smoother
   nu1               = mgt(nlevs)%nu1
   nu2               = mgt(nlevs)%nu2
@@ -928,7 +920,8 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
           max_nlevel = max_nlevel_in, &
           min_width = min_width, &
           eps = eps, &
-          verbose = verbose, &
+          verbose = mg_verbose, &
+          cg_verbose = cg_verbose, &
           nodal = rh(nlevs)%nodal)
 
   end do
@@ -980,7 +973,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
 
   end do
 
-  if ( mg_verbose >=1 ) then
+  if (mg_verbose >= 3) then
     do_diagnostics = 1
   else
     do_diagnostics = 0

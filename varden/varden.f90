@@ -34,7 +34,7 @@ subroutine varden()
   integer    :: narg, farg
   integer    :: max_step,init_iter
   integer    :: plot_int, chk_int, regrid_int
-  integer    :: verbose, mg_verbose
+  integer    :: verbose, mg_verbose, cg_verbose
   integer    :: dim_in,dm
   real(dp_t) :: cflfac,init_shrink
   real(dp_t) :: visc_coef
@@ -140,6 +140,7 @@ subroutine varden()
   namelist /probin/ pmask_z
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
+  namelist /probin/ cg_verbose
 
   ng_cell = 3
   ng_grow = 1
@@ -471,16 +472,15 @@ subroutine varden()
 !       in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
        call hgproject(mla,uold,rhohalf,p,gp,dx,dt_temp, &
-                      the_bc_tower,verbose,mg_verbose,press_comp)
-!      do n = 1,nlevs
-!         call setval( p(n)  ,0.0_dp_t, all=.true.)
-!         call setval(gp(n)  ,0.0_dp_t, all=.true.)
-!      end do
+                      the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+       do n = 1,nlevs
+          call setval( p(n)  ,0.0_dp_t, all=.true.)
+          call setval(gp(n)  ,0.0_dp_t, all=.true.)
+       end do
      end if
  
      if (bcy_lo == OUTLET) then
         pressure_inflow_val = .16
-        print *,'IMPOSING INFLOW PRESSURE '
         call impose_pressure_bcs(p,mla,pressure_inflow_val)
      end if
 
@@ -537,7 +537,7 @@ subroutine varden()
 
   dt_hold = dt
   do n = 1,nlevs
-     call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
+     call estdt(n,uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt,verbose)
      dt = min(dt_hold,dt)
   end do
   if (restart < 0) dt = dt * init_shrink
@@ -687,7 +687,7 @@ subroutine varden()
            call multifab_fill_boundary(gp(n))
 
            if (istep > 1) then
-             call estdt(uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt)
+             call estdt(n,uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt,verbose)
              if (time+dt > stop_time) dt = stop_time - time
            end if
 
@@ -695,7 +695,7 @@ subroutine varden()
 
         half_dt = HALF * dt
 
-        if (verbose .eq. 1) then
+        if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
               write(6,1001) n,time,norm_inf(uold(n),1,1),norm_inf(uold(n),2,1)
            end do
@@ -710,18 +710,18 @@ subroutine varden()
                                force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
-                               visc_coef,verbose,mg_verbose)
+                               visc_coef,verbose)
         end do
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose)
 
         do n = 1,nlevs
-           call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
+           call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
                                 umac(n,:),sedge(n,:),utrans(n,:),&
                                 sforce(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
-                                diff_coef,verbose,mg_verbose)
+                                diff_coef,verbose)
         end do
 
         do n = 2, nlevs
@@ -737,7 +737,7 @@ subroutine varden()
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
-                                 mg_verbose)
+                                 mg_verbose,cg_verbose)
         end if
 
         do n = 1,nlevs
@@ -745,12 +745,12 @@ subroutine varden()
         end do
 
         do n = 1,nlevs
-           call velocity_advance(uold(n),unew(n),sold(n),rhohalf(n),&
+           call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n),&
                                  umac(n,:),uedge(n,:),utrans(n,:),&
                                  gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
-                                 visc_coef,verbose,mg_verbose)
+                                 visc_coef,verbose)
         end do
 
         do n = 2, nlevs
@@ -763,7 +763,7 @@ subroutine varden()
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose,cg_verbose)
         end if
 
         do n = 1,nlevs
@@ -772,11 +772,11 @@ subroutine varden()
 
 !       Project the new velocity field.
         call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose,press_comp)
+                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
         time = time + dt
 
-        if (verbose .eq. 1) then
+        if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
               write(6,1002) n,time,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
            end do
@@ -839,8 +839,6 @@ subroutine varden()
 
        call make_boxes(rho_crse,ba_new,dx_crse,buf_wid)
        call boxarray_refine(ba_new,mla%mba%rr(1,:))
- 
-       call print(ba_new,"NEW BOXARRAY")
 
        call copy(mba_new,mla%mba)
        mba_new%bas(2) = ba_new
@@ -1054,7 +1052,8 @@ subroutine varden()
 
     subroutine initial_iters()
 
-       if (verbose .eq. 1) print *,'DOING ',init_iter,' INITIAL ITERATIONS ' 
+       if (parallel_IOProcessor() .and. verbose .ge. 1) &
+         print *,'DOING ',init_iter,' INITIAL ITERATIONS ' 
 
        do istep = 1,init_iter
 
@@ -1080,19 +1079,18 @@ subroutine varden()
                                gp(n),p(n),force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
-                               visc_coef,&
-                               verbose,mg_verbose)
+                               visc_coef,verbose)
         end do
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose)
 
         do n = 1,nlevs
-           call scalar_advance (uold(n),sold(n),snew(n),rhohalf(n),&
+           call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
                                 umac(n,:),sedge(n,:),utrans(n,:), &
                                 sforce(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
-                                diff_coef,verbose,mg_verbose)
+                                diff_coef,verbose)
         end do
 
         do n = 2, nlevs
@@ -1108,7 +1106,7 @@ subroutine varden()
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,&
-                                 mg_verbose)
+                                 mg_verbose,cg_verbose)
         end if
 
         do n = 1,nlevs
@@ -1116,13 +1114,12 @@ subroutine varden()
         end do
 
         do n = 1,nlevs
-           call velocity_advance(uold(n),unew(n),sold(n),rhohalf(n),&
-                                 umac(n,:),uedge(n,:), &
-                                 utrans(n,:),gp(n),p(n), &
-                                 force(n), &
+           call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n), &
+                                 umac(n,:),uedge(n,:),utrans(n,:), &
+                                 gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
-                                 visc_coef,verbose,mg_verbose)
+                                 visc_coef,verbose)
         end do
 
         do n = 2, nlevs
@@ -1135,7 +1132,7 @@ subroutine varden()
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose,cg_verbose)
         end if
 
         do n = 1,nlevs
@@ -1144,10 +1141,10 @@ subroutine varden()
 
 !       Project the new velocity field.
         call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose,press_comp)
+                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
 
-        if (verbose .eq. 1) then
+        if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
               write(6,1003) n,istep,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
            end do
@@ -1188,7 +1185,7 @@ subroutine varden()
       end do
       write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
 
-      call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt)
+      call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt, verbose)
 
     end subroutine write_checkfile
 
@@ -1315,6 +1312,11 @@ subroutine varden()
            farg = farg + 1
            call get_command_argument(farg, value = fname)
            read(fname, *) mg_verbose
+
+        case ('--cg_verbose')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) cg_verbose
 
         case ('--fixed_grids')
            farg = farg + 1

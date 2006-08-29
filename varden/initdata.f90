@@ -163,7 +163,6 @@ contains
          s(lo(1)       :hi(1)        ,lo(2)-1,1) = INLET_DEN
          s(lo(1)       :hi(1)        ,lo(2)-1,2) = INLET_TRA
          s(lo(1)-1:hi(1)+1,lo(2)-1,2) = ONE
-!        print *,'SETTING V TO ',INLET_VY
       end if
 
       if (size(s,dim=3).gt.2) then
@@ -253,6 +252,17 @@ contains
         end do
         end do
       end if
+
+      u = ZERO
+      s = ONE
+      do k = lo(3), hi(3)
+      do j = lo(2), hi(2)
+      do i = lo(1), hi(1)
+         x = (float(i)+HALF) * dx(1)
+         if (x.lt.0.50) u(i,j,k,1) = ONE
+      enddo
+      enddo
+      enddo
 
 !     imid = (lo(1)+hi(1))/2+1
 !     jmid = (lo(2)+hi(2))/2+1

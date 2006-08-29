@@ -68,28 +68,6 @@ contains
         call destroy(bac)
       end do
 
-! HACK HACK
-! do n = nlevs,1,-1
-
-!   call setval(rh(n),ZERO,all=.true.)
-!   bx = get_ibox(rh(n),1)
-!   bx%lo(2) = (bx%lo(2)+bx%hi(2))/2
-!   bx%hi(2) = bx%lo(2)+1
-!   bx%lo(1) = (bx%lo(1)+bx%hi(1))/2
-!   bx%hi(1) = bx%lo(1)
-!   rp => dataptr(rh(n),1,bx,1,1)
-!   rp = -1.0
-
-!   call setval(full_soln(n),ZERO,all=.true.)
-!   if (n == 1) then
-!     bx = get_ibox(full_soln(n),1)
-!     bx%hi(2) = bx%lo(2)
-!     rp => dataptr(full_soln(n),1,bx,1,1)
-!     rp = 1.0
-!   end if
-! enddo
-! END HACK
-
 
 ! ****************************************************************************
 
@@ -108,8 +86,6 @@ contains
                                    full_soln(n), mgt(n)%mm(mglev),  1, i)
        end do
     end do
-  
-!   call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_cc")
 
     do n = 1,nlevs
       call lmultifab_destroy(fine_mask(n))
@@ -172,31 +148,7 @@ contains
           endif
        end do
 
-! HACK HACK 
-! do n = nlevs,1,-1
-
-!   call setval(rh(n),ZERO,all=.true.)
-!   bx = get_ibox(rh(n),1)
-!   bx%lo(2) = (bx%lo(2)+bx%hi(2))/2
-!   bx%hi(2) = bx%lo(2)
-!   bx%lo(1) = (bx%lo(1)+bx%hi(1))/2
-!   bx%hi(1) = bx%lo(1)
-!   rp => dataptr(rh(n),1,bx,1,1)
-!   rp = -1.0
-
-!   call setval(full_soln(n),ZERO,all=.true.)
-!   if (n == 1) then
-!     bx = get_ibox(full_soln(n),1)
-!     bx%hi(2) = bx%lo(2)
-!     rp => dataptr(full_soln(n),1,bx,1,1)
-!     rp = 1.0
-!   end if
-! enddo
-! END HACK 
-
   call ml_nd(mla,mgt,rh,full_soln,fine_mask,one_sided_ss,ref_ratio,do_diagnostics,eps)
-
-! call fabio_ml_write(full_soln, ref_ratio(:,1), "soln_nodal")
 
   do n = 1,nlevs
      call lmultifab_destroy(fine_mask(n))
