@@ -180,7 +180,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       if (present(divu_rhs)) then
         do n = 1, nlevs
            call multifab_sub_sub(rh(n),divu_rhs(n))
-           call multifab_mult_mult_s(rh(n),-ONE)
         end do
       end if
 
@@ -201,8 +200,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       end if
 
 1000  format(' ')
-1001  format('... before mac_projection: max of (divu-rhs) ',e15.8)
-1002  format('...  after mac_projection: max of (divu-rhs)',e15.8)
+1001  format('... before mac_projection: max of [div (coeff * UMAC) - RHS)]',e15.8)
+1002  format('...  after mac_projection: max of [div (coeff * UMAC) - RHS)]',e15.8)
 
     end subroutine divumac
 
