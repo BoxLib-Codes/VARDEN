@@ -101,6 +101,12 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
   call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,mla%mba%rr,verbose)
 
+  if (use_rhs) then
+    call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.,divu_rhs)
+  else
+    call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.)
+  end if
+
   if (use_div_coeff) then
     do n = 1,nlevs
        call mult_umac_by_coeff(umac(n,:),div_coeff,div_coeff_half,.false.)
@@ -558,8 +564,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
           call ml_edge_restriction(umac(n-1,i),umac(n,i),ref_ratio(n-1,:),i)
         end do
       end do
-
-      call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.)
 
     end subroutine mkumac
 
