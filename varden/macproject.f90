@@ -177,9 +177,15 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
          end do
       end do
 
+!     NOTE: the sign convention is because the elliptic solver solves
+!            (alpha MINUS del dot beta grad) phi = RHS
+!            Here alpha is zero.
+             
+!     Do rh = divu_rhs - rh
       if (present(divu_rhs)) then
         do n = 1, nlevs
            call multifab_sub_sub(rh(n),divu_rhs(n))
+           call multifab_mult_mult_s(rh(n),-ONE)
         end do
       end if
 
@@ -220,7 +226,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       do i = 0, size(rh,dim=1)-1
          rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
                    (vmac(i,j+1) - vmac(i,j)) / dx(2)
-         rh(i,j) = -rh(i,j)
       end do
       end do
 
@@ -245,7 +250,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
          rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
                      (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
                      (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
-         rh(i,j,k) = -rh(i,j,k)
       end do
       end do
       end do
