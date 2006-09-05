@@ -344,8 +344,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
-      real(dp_t)     , intent(in   ) :: div_coeff(:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(:)
+      real(dp_t)     , intent(in   ) :: div_coeff(0:)
+      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
 
       integer :: i,j,k,nx,ny,nz
