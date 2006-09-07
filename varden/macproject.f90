@@ -185,9 +185,12 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       if (present(divu_rhs)) then
         do n = 1, nlevs
            call multifab_sub_sub(rh(n),divu_rhs(n))
-           call multifab_mult_mult_s(rh(n),-ONE)
         end do
       end if
+!     ... or rh = -rh
+      do n = 1, nlevs
+         call multifab_mult_mult_s(rh(n),-ONE)
+      end do
 
       rhmax = norm_inf(rh(nlevs))
       do n = nlevs,2,-1
