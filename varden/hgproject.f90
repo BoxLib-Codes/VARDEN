@@ -17,7 +17,7 @@ module hgproject_module
 contains 
 
 subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                     verbose,mg_verbose,cg_verbose,press_comp)
+                     verbose,mg_verbose,cg_verbose,press_comp,divu_rhs,div_coeff)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: unew(:)
@@ -28,17 +28,20 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(bc_tower ), intent(in   ) :: the_bc_tower
   integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
   integer        , intent(in   ) :: press_comp
-  logical, allocatable :: nodal(:)
+
+  type(multifab ), intent(in   ), optional :: divu_rhs(:)
+  real(dp_t)     , intent(in   ), optional :: div_coeff(:)
 
 ! Local  
   type(multifab), allocatable :: phi(:),gphi(:)
-  type(box)      :: pd,bx
-  type(layout  ) :: la
-  integer        :: n,nlevs,dm,ng,i,RHOCOMP
-  integer        :: ng_for_fill
-  real(dp_t)     :: nrm
-
-  integer        :: stencil_type
+  type(box)                   :: pd,bx
+  type(layout  )              :: la
+  logical, allocatable        :: nodal(:)
+  integer                     :: n,nlevs,dm,ng,i,RHOCOMP
+  real(dp_t)                  :: nrm
+  integer                     :: ng_for_fill
+  integer                     :: stencil_type
+  logical                     :: use_div_coeff, do_mult
 
   stencil_type = ST_DENSE
 ! stencil_type = ST_CROSS
@@ -49,6 +52,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   allocate(phi(nlevs), gphi(nlevs), nodal(dm))
   nodal = .true.
+ 
+  use_div_coeff = .false.
+  if (present(div_coeff)) use_div_coeff = .true.
 
   do n = 1, nlevs
      call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
@@ -71,12 +77,27 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
+  if (use_div_coeff) then
+     do_mult = .true. 
+     do n = 1, nlevs
+        call mult_by_coeff(unew(n),div_coeff,do_mult)
+     end do
+  end if
+
   do n = 1, nlevs
      call setval(phi(n),ZERO,all=.true.)
   end do
 
   call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                    verbose,mg_verbose,cg_verbose,press_comp,stencil_type)
+                    verbose,mg_verbose,cg_verbose,press_comp,stencil_type, &
+                    divu_rhs,div_coeff)
+
+  if (use_div_coeff) then
+     do_mult = .false. 
+     do n = 1, nlevs
+        call mult_by_coeff(unew(n),div_coeff,do_mult)
+     end do
+  end if
 
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
@@ -489,7 +510,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 end subroutine hgproject
 
 subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
-                        divu_verbose,mg_verbose,cg_verbose,press_comp,stencil_type)
+                        divu_verbose,mg_verbose,cg_verbose,press_comp,stencil_type, &
+                        divu_rhs,div_coeff)
   use BoxLib
   use omp_module
   use f2kcli
@@ -512,6 +534,9 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   integer        , intent(in   ) :: divu_verbose,mg_verbose,cg_verbose
   integer        , intent(in   ) :: press_comp
   integer        , intent(in   ) :: stencil_type
+
+  type(multifab ), intent(in   ), optional :: divu_rhs(:)
+  real(dp_t)     , intent(in   ), optional :: div_coeff(:)
 !
 ! Local variables
 !
@@ -621,8 +646,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           dh = dx(n,:), &
           ns = ns, &
           smoother = smoother, &
-!         nu1 = nu1, &
-          nu1 = 1000, &
+          nu1 = nu1, &
           nu2 = nu2, &
           gamma = gamma, &
           cycle = cycle, &
@@ -651,6 +675,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      call setval(coeffs(mgt(n)%nlevels), 0.0_dp_t, 1, all=.true.)
 
      call mkcoeffs(rhohalf(n),coeffs(mgt(n)%nlevels))
+     if (present(div_coeff)) &
+       call mult_by_coeff(coeffs(mgt(n)%nlevels),div_coeff)
      call multifab_fill_boundary(coeffs(mgt(n)%nlevels))
 
      do i = mgt(n)%nlevels-1, 1, -1
@@ -688,6 +714,13 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   end do
 
   call divu(nlevs,mgt,unew,rh,mla%mba%rr,divu_verbose,nodal)
+
+! Do rh = rh - divu_rhs
+  if (present(divu_rhs)) then
+    do n = 1, nlevs
+       call multifab_sub_sub(rh(n),divu_rhs(n))
+    end do 
+  end if
 
   if ( mg_verbose >= 3 ) then
     do_diagnostics = 1
@@ -787,5 +820,79 @@ end subroutine hg_multigrid
     end subroutine mkcoeffs_3d
 
 !   ********************************************************************************************* !
+
+    subroutine mult_by_coeff(u,div_coeff,do_mult)
+
+      type(multifab) , intent(inout) :: u
+      real(dp_t)     , intent(in   ) :: div_coeff(:)
+      logical        , intent(in   ), optional :: do_mult
+
+      real(kind=dp_t), pointer :: ump(:,:,:,:) 
+      integer :: i,ng
+      logical :: local_do_mult
+
+      local_do_mult = .true.
+      if (present(do_mult)) local_do_mult = do_mult
+
+      ng = u%ng
+
+      ! Multiply u by div coeff
+      do i = 1, u%nboxes
+         if ( multifab_remote(u, i) ) cycle
+         ump => dataptr(u, i)
+         select case (u%dim)
+            case (2)
+              call mult_by_coeff_2d(ump(:,:,1,:), div_coeff, ng, local_do_mult)
+            case (3)
+              call mult_by_coeff_3d(ump(:,:,:,:), div_coeff, ng, local_do_mult)
+         end select
+      end do
+
+    end subroutine mult_by_coeff
+
+    subroutine mult_by_coeff_2d(u,div_coeff,ng,do_mult)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) :: u(-ng:,-ng:,:)
+      real(dp_t)     , intent(in   ) :: div_coeff(0:)
+      logical        , intent(in   ) :: do_mult
+
+      integer :: j,ny
+     
+      ny = size(u,dim=2)-2
+
+      if (do_mult) then
+        do j = 0,ny-1 
+           u(:,j,:) = u(:,j,:) * div_coeff(j)
+        end do
+      else
+        do j = 0,ny-1 
+           u(:,j,:) = u(:,j,:) / div_coeff(j)
+        end do
+      end if
+
+    end subroutine mult_by_coeff_2d
+
+    subroutine mult_by_coeff_3d(u,div_coeff,ng,do_mult)
+
+      integer        , intent(in   ) :: ng
+      real(kind=dp_t), intent(inout) :: u(-ng:,-ng:,-ng:,:)
+      real(dp_t)     , intent(in   ) :: div_coeff(0:)
+      logical        , intent(in   ) :: do_mult
+
+      integer :: k,nz
+      nz = size(u,dim=3)-2
+
+      if (do_mult) then
+        do k = 0,nz 
+           u(:,:,k,:) = u(:,:,k,:) * div_coeff(k)
+        end do
+      else
+        do k = 0,nz 
+           u(:,:,k,:) = u(:,:,k,:) / div_coeff(k)
+        end do
+      end if
+
+    end subroutine mult_by_coeff_3d
 
 end module hgproject_module
