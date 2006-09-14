@@ -1067,7 +1067,6 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
   else
      rel_eps = 1.d-10
   endif
-  print *,'REL EPS ',rel_eps
 
   abs_eps = -1.0_dp_t
   if (present(umac_norm)) then
@@ -1075,7 +1074,6 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
       abs_eps = max(abs_eps, umac_norm(n) / dx(n,1))
     end do
     abs_eps = rel_eps * abs_eps
-    print *,'ABS EPS ',abs_eps
   end if
 
   bottom_solver = 2
