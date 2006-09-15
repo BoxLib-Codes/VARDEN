@@ -884,11 +884,11 @@ end subroutine hg_multigrid
       nz = size(div_coeff)
 
       if (do_mult) then
-        do k = 0,nz 
+        do k = 0,nz-1 
            u(:,:,k,:) = u(:,:,k,:) * div_coeff(k)
         end do
       else
-        do k = 0,nz 
+        do k = 0,nz-1 
            u(:,:,k,:) = u(:,:,k,:) / div_coeff(k)
         end do
       end if
