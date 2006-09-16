@@ -713,7 +713,7 @@ subroutine varden()
                                visc_coef,verbose)
         end do
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
@@ -1082,7 +1082,7 @@ subroutine varden()
                                visc_coef,verbose)
         end do
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
