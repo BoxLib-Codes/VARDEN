@@ -711,6 +711,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   allocate(rh(nlevs))
   do n = 1, nlevs
      call multifab_build(rh(n),mla%la(n),1,1,nodal)
+     call setval(rh(n),ZERO,all=.true.)
   end do
 
   call divu(nlevs,mgt,unew,rh,mla%mba%rr,divu_verbose,nodal)
