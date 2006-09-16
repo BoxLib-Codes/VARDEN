@@ -14,13 +14,15 @@ module macproject_module
 
 contains 
 
-subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,divu_rhs,div_coeff,div_coeff_half)
+subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,bc_comp,&
+                      divu_rhs,div_coeff,div_coeff_half)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: umac(:,:)
   type(multifab ), intent(inout) :: rho(:)
   real(dp_t)     , intent(in   ) :: dx(:,:)
   type(bc_tower ), intent(in   ) :: the_bc_tower
+  integer        , intent(in   ) :: bc_comp
   integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
 
   type(multifab ), intent(inout), optional :: divu_rhs(:)
@@ -33,13 +35,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   real(dp_t)     ,allocatable :: umac_norm(:)
   integer                     :: dm,stencil_order,i,n
   integer                     :: ng,nc
-  integer                     :: nlevs,nscal,bc_comp
+  integer                     :: nlevs,nscal
   logical                     :: use_rhs, use_div_coeff
 
   nlevs = mla%nlevel
   dm = umac(nlevs,1)%dim
-  nscal = 2
-  bc_comp = dm + nscal + 1
 
   use_rhs = .false.
   if (present(divu_rhs)) use_rhs = .true.
