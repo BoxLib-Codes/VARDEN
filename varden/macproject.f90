@@ -1153,7 +1153,6 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
 
      pxa = ZERO
      pxb = ZERO
-     print *,'BC ARRAY ',the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp)
      do i = mgt(n)%nlevels, 1, -1
         pdv = layout_boxarray(mgt(n)%ss(i)%la)
         call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
