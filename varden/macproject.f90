@@ -99,7 +99,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
                      the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose,umac_norm)
 
-  call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,mla%mba%rr,verbose)
+  call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr,verbose)
 
   if (use_rhs) then
     call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.,divu_rhs)
@@ -486,7 +486,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
     end subroutine mk_mac_coeffs_3d
 
-    subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,ref_ratio,verbose)
+    subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio,verbose)
 
       type(multifab), intent(inout) :: umac(:,:)
       type(multifab), intent(inout) ::   rh(:)
@@ -495,6 +495,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       type(bndry_reg),intent(in   ) :: fine_flx(2:)
       real(dp_t)    , intent(in   ) :: dx(:,:)
       type(bc_tower), intent(in   ) :: the_bc_tower
+      integer       , intent(in   ) :: press_comp
       integer       , intent(in   ) :: ref_ratio(:,:)
       integer       , intent(in   ) :: verbose
 
@@ -536,11 +537,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
                  call mkumac_2d(ump(:,:,1,1),vmp(:,:,1,1), &
                                 php(:,:,1,1), bp(:,:,1,:), &
                                 lxp(:,:,1,1),hxp(:,:,1,1),lyp(:,:,1,1),hyp(:,:,1,1), &
-                                dx(n,:),bc%ell_bc_level_array(i,:,:,dm+3))
+                                dx(n,:),bc%ell_bc_level_array(i,:,:,press_comp))
                else 
                  call mkumac_2d_base(ump(:,:,1,1),vmp(:,:,1,1), & 
                                      php(:,:,1,1), bp(:,:,1,:), &
-                                     dx(n,:),bc%ell_bc_level_array(i,:,:,dm+3))
+                                     dx(n,:),bc%ell_bc_level_array(i,:,:,press_comp))
                end if
              case (3)
                wmp => dataptr(umac(n,3), i)
@@ -555,11 +556,11 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
                                 php(:,:,:,1), bp(:,:,:,:), &
                                 lxp(:,:,:,1),hxp(:,:,:,1),lyp(:,:,:,1),hyp(:,:,:,1), &
                                 lzp(:,:,:,1),hzp(:,:,:,1),dx(n,:),&
-                                bc%ell_bc_level_array(i,:,:,dm+3))
+                                bc%ell_bc_level_array(i,:,:,press_comp))
                else
                  call mkumac_3d_base(ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),& 
                                      php(:,:,:,1), bp(:,:,:,:), dx(n,:), &
-                                     bc%ell_bc_level_array(i,:,:,dm+3))
+                                     bc%ell_bc_level_array(i,:,:,press_comp))
                end if
           end select
         end do
@@ -1152,11 +1153,12 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
 
      pxa = ZERO
      pxb = ZERO
+     print *,'BC ARRAY ',the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp)
      do i = mgt(n)%nlevels, 1, -1
         pdv = layout_boxarray(mgt(n)%ss(i)%la)
         call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
              pdv, mgt(n)%mm(i), xa, xb, pxa, pxb, pd, stencil_order, &
-             the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,dm+3))
+             the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
      end do
 
      if ( n == 1 .and. bottom_solver == 3 ) then
@@ -1176,7 +1178,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
     do_diagnostics = 0
   end if
   call ml_cc_solve(mla, mgt, rh, phi, fine_flx, &
-                   the_bc_tower%bc_tower_array(nlevs)%ell_bc_level_array(0,:,:,dm+3), &
+                   the_bc_tower%bc_tower_array(nlevs)%ell_bc_level_array(0,:,:,bc_comp), &
                    stencil_order,ref_ratio,do_diagnostics)
 
   do n = 1,nlevs
