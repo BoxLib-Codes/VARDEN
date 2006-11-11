@@ -320,12 +320,12 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
 
-      integer :: i,j,nx,ny
+      integer :: j,ny
      
       ny = size(umac,dim=2)-2
 
       if (do_mult) then
-        do j = 0,ny-1 
+        do j = 0,ny-1
            umac(:,j) = umac(:,j) * div_coeff(j)
         end do
         do j = 0,ny
@@ -351,28 +351,28 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
 
-      integer :: i,j,k,nx,ny,nz
+      integer :: k,nz
      
       nz = size(umac,dim=3)-2
 
       if (do_mult) then
-        do k = 0,ny 
+        do k = 0,nz-1 
            umac(:,:,k) = umac(:,:,k) * div_coeff(k)
         end do
-        do k = 0,ny 
+        do k = 0,nz-1 
            vmac(:,:,k) = vmac(:,:,k) * div_coeff(k)
         end do
-        do k = 0,ny+1 
+        do k = 0,nz
            wmac(:,:,k) = wmac(:,:,k) * div_coeff_half(k)
         end do
       else
-        do k = 0,ny 
+        do k = 0,nz-1 
            umac(:,:,k) = umac(:,:,k) / div_coeff(k)
         end do
-        do k = 0,ny 
+        do k = 0,nz-1
            vmac(:,:,k) = vmac(:,:,k) / div_coeff(k)
         end do
-        do k = 0,ny+1 
+        do k = 0,nz
            wmac(:,:,k) = wmac(:,:,k) / div_coeff_half(k)
         end do
       end if
