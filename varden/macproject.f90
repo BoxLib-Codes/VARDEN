@@ -15,7 +15,7 @@ module macproject_module
 contains 
 
 subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,bc_comp,&
-                      divu_rhs,div_coeff,div_coeff_half)
+                      divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: umac(:,:)
@@ -26,8 +26,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
 
   type(multifab ), intent(inout), optional :: divu_rhs(:)
-  real(dp_t)     , intent(in   ), optional :: div_coeff(:)
-  real(dp_t)     , intent(in   ), optional :: div_coeff_half(:)
+  real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:)
+  real(dp_t)     , intent(in   ), optional :: div_coeff_half_1d(:)
+  type(multifab ), intent(in   ), optional :: div_coeff_3d
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
@@ -36,7 +37,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   integer                     :: dm,stencil_order,i,n
   integer                     :: ng,nc
   integer                     :: nlevs,nscal
-  logical                     :: use_rhs, use_div_coeff
+  logical                     :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
 
   nlevs = mla%nlevel
   dm = umac(nlevs,1)%dim
@@ -44,8 +45,16 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   use_rhs = .false.
   if (present(divu_rhs)) use_rhs = .true.
 
-  use_div_coeff = .false.
-  if (present(div_coeff)) use_div_coeff = .true.
+  use_div_coeff_1d = .false.
+  if (present(div_coeff_1d)) use_div_coeff_1d = .true.
+
+  use_div_coeff_3d = .false.
+  if (present(div_coeff_3d)) use_div_coeff_3d = .true.
+
+  if (use_div_coeff_1d .and. use_div_coeff_3d) then
+     print *,'CANT HAVE 1D and 3D DIV_COEFF IN MACPROJECT '
+     stop
+  end if
 
   stencil_order = 2
 
@@ -63,9 +72,13 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
   end do
 
-  if (use_div_coeff) then
+  if (use_div_coeff_1d) then
     do n = 1,nlevs
-       call mult_umac_by_coeff(umac(n,:),div_coeff,div_coeff_half,.true.)
+       call mult_umac_by_1d_coeff(umac(n,:),div_coeff_1d,div_coeff_half_1d,.true.)
+    end do
+  else if (use_div_coeff_3d) then
+    do n = 1,nlevs
+       call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d,.true.)
     end do
   end if
 
@@ -85,9 +98,13 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
   call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
-  if (use_div_coeff) then
+  if (use_div_coeff_1d) then
     do n = 1,nlevs
-       call mult_beta_by_coeff(beta(n),div_coeff,div_coeff_half)
+       call mult_beta_by_1d_coeff(beta(n),div_coeff_1d,div_coeff_half_1d)
+    end do
+  else if (use_div_coeff_3d) then
+    do n = 1,nlevs
+       call mult_beta_by_3d_coeff(beta(n),div_coeff_3d)
     end do
   end if
 
@@ -107,9 +124,13 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
     call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.)
   end if
 
-  if (use_div_coeff) then
+  if (use_div_coeff_1d) then
     do n = 1,nlevs
-       call mult_umac_by_coeff(umac(n,:),div_coeff,div_coeff_half,.false.)
+       call mult_umac_by_1d_coeff(umac(n,:),div_coeff_1d,div_coeff_half_1d,.false.)
+    end do
+  else if (use_div_coeff_3d) then
+    do n = 1,nlevs
+       call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d,.false.)
     end do
   end if
 
@@ -259,7 +280,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
     end subroutine divumac_3d
 
-    subroutine mult_umac_by_coeff(umac,div_coeff,div_coeff_half,do_mult)
+    subroutine mult_umac_by_1d_coeff(umac,div_coeff,div_coeff_half,do_mult)
 
       type(multifab) , intent(inout) :: umac(:)
       real(dp_t)     , intent(in   ) :: div_coeff(:)
@@ -278,17 +299,18 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
          vmp => dataptr(umac(2), i)
          select case (umac(1)%dim)
             case (2)
-              call mult_by_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), div_coeff, div_coeff_half, do_mult)
+              call mult_by_1d_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), &
+                                       div_coeff, div_coeff_half, do_mult)
             case (3)
               wmp => dataptr(umac(3), i)
-              call mult_by_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                    div_coeff, div_coeff_half, do_mult)
+              call mult_by_1d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                       div_coeff, div_coeff_half, do_mult)
          end select
       end do
 
-    end subroutine mult_umac_by_coeff
+    end subroutine mult_umac_by_1d_coeff
 
-    subroutine mult_beta_by_coeff(beta,div_coeff,div_coeff_half)
+    subroutine mult_beta_by_1d_coeff(beta,div_coeff,div_coeff_half)
 
       type(multifab) , intent(inout) :: beta
       real(dp_t)     , intent(in   ) :: div_coeff(:)
@@ -303,16 +325,17 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
          bp => dataptr(beta,i)
          select case (beta%dim)
             case (2)
-              call mult_by_coeff_2d(bp(:,:,1,1), bp(:,:,1,2), div_coeff, div_coeff_half, .true.)
+              call mult_by_1d_coeff_2d(bp(:,:,1,1), bp(:,:,1,2), &
+                                       div_coeff, div_coeff_half, .true.)
             case (3)
-              call mult_by_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
-                                    div_coeff, div_coeff_half, .true.)
+              call mult_by_1d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
+                                       div_coeff, div_coeff_half, .true.)
          end select
       end do
 
-    end subroutine mult_beta_by_coeff
+    end subroutine mult_beta_by_1d_coeff
 
-    subroutine mult_by_coeff_2d(umac,vmac,div_coeff,div_coeff_half,do_mult)
+    subroutine mult_by_1d_coeff_2d(umac,vmac,div_coeff,div_coeff_half,do_mult)
 
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
@@ -340,9 +363,9 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
         end do
       end if
 
-    end subroutine mult_by_coeff_2d
+    end subroutine mult_by_1d_coeff_2d
 
-    subroutine mult_by_coeff_3d(umac,vmac,wmac,div_coeff,div_coeff_half,do_mult)
+    subroutine mult_by_1d_coeff_3d(umac,vmac,wmac,div_coeff,div_coeff_half,do_mult)
 
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
@@ -377,7 +400,139 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
         end do
       end if
 
-    end subroutine mult_by_coeff_3d
+    end subroutine mult_by_1d_coeff_3d
+
+    subroutine mult_umac_by_3d_coeff(umac,div_coeff,do_mult)
+
+      type(multifab) , intent(inout) :: umac(:)
+      type(multifab) , intent(in   ) :: div_coeff
+      logical        , intent(in   ) :: do_mult
+
+      real(kind=dp_t), pointer :: ump(:,:,:,:) 
+      real(kind=dp_t), pointer :: vmp(:,:,:,:) 
+      real(kind=dp_t), pointer :: wmp(:,:,:,:) 
+      real(kind=dp_t), pointer ::  dp(:,:,:,:) 
+      integer :: i
+
+      ! Multiply edge velocities by div coeff
+      do i = 1, umac(1)%nboxes
+         if ( multifab_remote(umac(1), i) ) cycle
+         ump => dataptr(umac(1), i)
+         vmp => dataptr(umac(2), i)
+         wmp => dataptr(umac(3), i)
+          dp => dataptr(div_coeff, i)
+         select case (umac(1)%dim)
+            case (3)
+              call mult_by_3d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                        dp(:,:,:,1), do_mult)
+         end select
+      end do
+
+    end subroutine mult_umac_by_3d_coeff
+
+    subroutine mult_beta_by_3d_coeff(beta,div_coeff)
+
+      type(multifab) , intent(inout) :: beta
+      type(multifab) , intent(in   ) :: div_coeff
+
+      real(kind=dp_t), pointer :: bp(:,:,:,:) 
+      real(kind=dp_t), pointer :: dp(:,:,:,:) 
+      integer :: i
+
+      ! Multiply edge coefficients by div coeff
+      do i = 1, beta%nboxes
+         if ( multifab_remote(beta, i) ) cycle
+         bp => dataptr(     beta,i)
+         dp => dataptr(div_coeff,i)
+         select case (beta%dim)
+            case (3)
+              call mult_by_3d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
+                                       dp(:,:,:,1), .true.)
+         end select
+      end do
+
+    end subroutine mult_beta_by_3d_coeff
+
+    subroutine mult_by_3d_coeff_3d(umac,vmac,wmac,div_coeff,do_mult)
+
+      real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
+      real(dp_t)     , intent(in   ) :: div_coeff(0:,0:,0:)
+      logical        , intent(in   ) :: do_mult
+
+      integer :: i,j,k,nx,ny,nz
+     
+      nx = size(vmac,dim=1)-2
+      ny = size(wmac,dim=2)-2
+      nz = size(umac,dim=3)-2
+
+      if (do_mult) then
+
+        do k = 0,nz-1 
+        do j = 0,ny-1 
+          umac( 0,j,k) = umac( 0,j,k) * div_coeff(   0,j,k)
+          umac(nx,j,k) = umac(nx,j,k) * div_coeff(nx-1,j,k)
+          do i = 1,nx-1
+            umac(i,j,k) = umac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k))
+          end do
+        end do
+        end do
+
+        do k = 0,nz-1 
+        do i = 0,nx-1 
+          vmac(i, 0,k) = umac(i, 0,k) * div_coeff(i,   0,k)
+          vmac(i,ny,k) = umac(i,ny,k) * div_coeff(i,ny-1,k)
+          do j = 1,ny-1 
+            vmac(i,j,k) = vmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k))
+          end do
+        end do
+        end do
+
+        do j = 0,ny-1 
+        do i = 0,nx-1 
+          vmac(i,j, 0) = umac(i,j, 0) * div_coeff(i,j,   0)
+          vmac(i,j,nz) = umac(i,j,nz) * div_coeff(i,j,nz-1)
+          do k = 1,nz-1 
+            wmac(i,j,k) = wmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1))
+          end do
+        end do
+        end do
+
+      else
+
+        do k = 0,nz-1 
+        do j = 0,ny-1 
+          umac( 0,j,k) = umac( 0,j,k) * div_coeff(   0,j,k)
+          umac(nx,j,k) = umac(nx,j,k) * div_coeff(nx-1,j,k)
+          do i = 1,nx-1
+            umac(i,j,k) = umac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k)))
+          end do
+        end do
+        end do
+
+        do k = 0,nz-1 
+        do i = 0,nx-1 
+          vmac(i, 0,k) = umac(i, 0,k) * div_coeff(i,   0,k)
+          vmac(i,ny,k) = umac(i,ny,k) * div_coeff(i,ny-1,k)
+          do j = 1,ny-1 
+            vmac(i,j,k) = vmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k)))
+          end do
+        end do
+        end do
+
+        do j = 0,ny-1 
+        do i = 0,nx-1 
+          vmac(i,j, 0) = umac(i,j, 0) * div_coeff(i,j,   0)
+          vmac(i,j,nz) = umac(i,j,nz) * div_coeff(i,j,nz-1)
+          do k = 1,nz-1 
+            wmac(i,j,k) = wmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1)))
+          end do
+        end do
+        end do
+      end if
+
+    end subroutine mult_by_3d_coeff_3d
 
     subroutine mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 

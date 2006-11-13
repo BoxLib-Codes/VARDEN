@@ -94,7 +94,7 @@ contains
 
    end subroutine ml_cc_solve
 
-   subroutine ml_nd_solve(mla,mgt,rh,full_soln,one_sided_ss,ref_ratio,do_diagnostics)
+   subroutine ml_nd_solve(mla,mgt,rh,full_soln,one_sided_ss,ref_ratio,do_diagnostics,eps_in)
 
        type(ml_layout), intent(inout) :: mla
        type(mg_tower) , intent(inout) :: mgt(:)
@@ -103,6 +103,7 @@ contains
        type(multifab) , intent(in   ) :: one_sided_ss(2:)
        integer        , intent(in   ) :: ref_ratio(:,:)
        integer        , intent(in   ) :: do_diagnostics 
+       real(dp_t)     , intent(in   ), optional :: eps_in
 
        type(lmultifab), pointer       :: fine_mask(:) => Null()
 
@@ -123,7 +124,11 @@ contains
        type(box)           :: bx
        real(dp_t), pointer :: ap(:,:,:,:)
 
-       eps = 1.d-12
+       if (present(eps_in)) then
+         eps = eps_in
+       else
+         eps = 1.d-12
+       end if
 
        nlevs = mla%nlevel
        dm = rh(nlevs)%dim
@@ -148,13 +153,13 @@ contains
           endif
        end do
 
-  call ml_nd(mla,mgt,rh,full_soln,fine_mask,one_sided_ss,ref_ratio,do_diagnostics,eps)
+       call ml_nd(mla,mgt,rh,full_soln,fine_mask,one_sided_ss,ref_ratio,do_diagnostics,eps)
+     
+       do n = 1,nlevs
+          call lmultifab_destroy(fine_mask(n))
+       end do
 
-  do n = 1,nlevs
-     call lmultifab_destroy(fine_mask(n))
-  end do
-
-  deallocate(fine_mask)
+       deallocate(fine_mask)
 
    contains
 
