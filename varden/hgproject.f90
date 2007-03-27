@@ -288,12 +288,15 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
          end select
       end do
       if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        write(6,1000) 
         write(6,1001) lev, multifab_min_c(unew,1), multifab_max_c(unew,1)
         write(6,1002) lev, multifab_min_c(unew,2), multifab_max_c(unew,2)
         if (dm .eq. 3) &
           write(6,1003) lev, multifab_min_c(unew,3), multifab_max_c(unew,3)
+        write(6,1000) 
       end if
 
+1000  format(' ')
 1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
 1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
 1003  format('LEVEL',i2,' WNEW AFTER PROJ ',e15.8,2x,e15.8)
