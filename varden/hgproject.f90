@@ -287,6 +287,17 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
               call mkunew_3d(lev, upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt,verbose)
          end select
       end do
+      if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        write(6,1001) lev, multifab_min_c(unew,1), multifab_max_c(unew,1)
+        write(6,1002) lev, multifab_min_c(unew,2), multifab_max_c(unew,2)
+        if (dm .eq. 3) &
+          write(6,1003) lev, multifab_min_c(unew,3), multifab_max_c(unew,3)
+      end if
+
+1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
+1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
+1003  format('LEVEL',i2,' WNEW AFTER PROJ ',e15.8,2x,e15.8)
+
       call multifab_fill_boundary(unew)
       call multifab_fill_boundary(gp)
 
@@ -444,30 +455,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       unew(0:nx,0:ny,1) = unew(0:nx,0:ny,1) - gphi(0:nx,0:ny,1)/rhohalf(0:nx,0:ny) 
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
-      if (parallel_IOProcessor() .and. verbose .ge. 1) then
-        umax = unew(0,0,1)
-        umin = unew(0,0,1)
-        vmax = unew(0,0,2)
-        vmin = unew(0,0,2)
-        do j = 0,ny
-        do i = 0,nx
-            umax = max(umax,unew(i,j,1))
-            umin = min(umin,unew(i,j,1))
-            vmax = max(vmax,unew(i,j,2))
-            vmin = min(vmin,unew(i,j,2))
-        enddo
-        enddo
-        write(6,1000)
-        write(6,1001) lev, umin, umax
-        write(6,1002) lev, vmin, vmax
-      end if
-
 !     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
       gp(0:nx,0:ny,:) = (ONE/dt) * gphi(0:nx,0:ny,:)
-
-1000  format(' ')
-1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
-1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
 
     end subroutine mkunew_2d
 
@@ -521,7 +510,6 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
         enddo
         enddo
         if (lev .eq. 1) write(6,1000)
-        write(6,1001) lev, umin, umax
         write(6,1002) lev, vmin, vmax
         write(6,1003) lev, wmin, wmax
         if (lev .gt. 1) write(6,1000)
