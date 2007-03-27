@@ -888,7 +888,7 @@ end subroutine hg_multigrid
 
       integer :: j,ny
      
-      ny = size(div_coeff)
+      ny = size(u,dim=2) - 2*ng
 
       if (do_mult) then
         do j = 0,ny-1 
@@ -910,7 +910,7 @@ end subroutine hg_multigrid
       logical        , intent(in   ) :: do_mult
 
       integer :: k,nz
-      nz = size(div_coeff)
+      nz = size(u,dim=3) - 2*ng
 
       if (do_mult) then
         do k = 0,nz-1 
@@ -959,9 +959,9 @@ end subroutine hg_multigrid
       logical        , intent(in   ) :: do_mult
 
       integer :: i,j,k,nx,ny,nz
-      nx = size(div_coeff,dim=1)
-      ny = size(div_coeff,dim=2)
-      nz = size(div_coeff,dim=3)
+      nx = size(u,dim=1) - 2*ng
+      ny = size(u,dim=2) - 2*ng
+      nz = size(u,dim=3) - 2*ng
 
       if (do_mult) then
         do k = 0,nz-1 
