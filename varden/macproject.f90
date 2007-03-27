@@ -201,7 +201,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 !     NOTE: the sign convention is because the elliptic solver solves
 !            (alpha MINUS del dot beta grad) phi = RHS
 !            Here alpha is zero.
-             
+
 !     Do rh = divu_rhs - rh
       if (present(divu_rhs)) then
         do n = 1, nlevs
@@ -242,9 +242,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
-      integer :: i,j,nx,ny
-     
-      nx = size(rh,dim=1)-1
+      integer :: i,j
 
       do j = 0, size(rh,dim=2)-1
       do i = 0, size(rh,dim=1)-1
@@ -263,10 +261,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
-      integer :: i,j,k,nx,nz
-
-      nx = size(rh,dim=1)-1
-      nz = size(rh,dim=3)-1
+      integer :: i,j,k
 
       do k = 0,size(rh,dim=3)-1
       do j = 0,size(rh,dim=2)-1
