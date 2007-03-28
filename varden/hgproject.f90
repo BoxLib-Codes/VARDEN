@@ -42,7 +42,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   type(layout  )              :: la
   logical, allocatable        :: nodal(:)
   integer                     :: n,nlevs,dm,ng,i,RHOCOMP
-  real(dp_t)                  :: nrm
+  real(dp_t)                  :: umin,umax,vmin,vmax,wmin,wmax
   integer                     :: ng_for_fill
   integer                     :: stencil_type
   logical                     :: use_div_coeff_1d, use_div_coeff_3d
@@ -79,13 +79,32 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   if (parallel_IOProcessor() .and. verbose .ge. 1) then
-     print *,' '
-     nrm = ZERO
+     umin = 1.d30
+     vmin = 1.d30
+     wmin = 1.d30
+     umax = -1.d30
+     vmax = -1.d30
+     wmax = -1.d30
      do n = 1, nlevs
-        nrm = max(nrm,norm_inf(unew(n)))
+        umin = min(umin,multifab_min_c(unew(n),1))
+        umax = max(umax,multifab_max_c(unew(n),1))
+        vmin = min(vmin,multifab_min_c(unew(n),2))
+        vmax = max(vmax,multifab_max_c(unew(n),2))
+        if (dm .eq. 3) then
+          wmin = min(wmin,multifab_min_c(unew(n),3))
+          wmax = max(wmax,multifab_max_c(unew(n),3))
+        end if
      end do
-     print *,'... hgproject: max of u before projection ',nrm
+     write(6,1001) umin,umax
+     write(6,1002) vmin,vmax
+     if (dm .eq. 3) write(6,1003) wmin,wmax
+     write(6,1004)
   end if
+
+1001  format('... x-velocity before projection ',e17.10,2x,e17.10)
+1002  format('... y-velocity before projection ',e17.10,2x,e17.10)
+1003  format('... z-velocity before projection ',e17.10,2x,e17.10)
+1004  format(' ')
 
   call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
 
@@ -129,7 +148,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
      call mk_p(   p(n),phi(n),dt)
-     call mkunew(n,unew(n),gp(n),gphi(n),rhohalf(n),ng,dt,verbose)
+     call mkunew(n,unew(n),gp(n),gphi(n),rhohalf(n),ng,dt)
   end do
 
   do n = nlevs,2,-1
@@ -138,13 +157,32 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end do
 
   if (parallel_IOProcessor() .and. verbose .ge. 1) then
-     nrm = ZERO
+     umin = 1.d30
+     vmin = 1.d30
+     wmin = 1.d30
+     umax = -1.d30
+     vmax = -1.d30
+     wmax = -1.d30
      do n = 1, nlevs
-        nrm = max(nrm,norm_inf(unew(n)))
+        umin = min(umin,multifab_min_c(unew(n),1))
+        umax = max(umax,multifab_max_c(unew(n),1))
+        vmin = min(vmin,multifab_min_c(unew(n),2))
+        vmax = max(vmax,multifab_max_c(unew(n),2))
+        if (dm .eq. 3) then
+          wmin = min(wmin,multifab_min_c(unew(n),3))
+          wmax = max(wmax,multifab_max_c(unew(n),3))
+        end if
      end do
-     print *,'... hgproject: max of u after projection ',nrm
-     print *,' '
+     write(6,1101) umin,umax
+     write(6,1102) vmin,vmax
+     if (dm .eq. 3) write(6,1103) wmin,wmax
+     write(6,1104)
   end if
+
+1101  format('... x-velocity  after projection ',e17.10,2x,e17.10)
+1102  format('... y-velocity  after projection ',e17.10,2x,e17.10)
+1103  format('... z-velocity  after projection ',e17.10,2x,e17.10)
+1104  format(' ')
 
   do n = 1,nlevs
      call multifab_destroy(phi(n))
@@ -257,13 +295,13 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew(lev,unew,gp,gphi,rhohalf,ng,dt,verbose)
+    subroutine mkunew(lev,unew,gp,gphi,rhohalf,ng,dt)
 
       type(multifab) , intent(inout) :: unew
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(in   ) :: gphi
       type(multifab) , intent(in   ) :: rhohalf
-      integer        , intent(in   ) :: lev, ng, verbose
+      integer        , intent(in   ) :: lev, ng
       real(kind=dp_t), intent(in   ) :: dt 
       integer :: i,dm
  
@@ -282,24 +320,11 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
          rp  => dataptr(rhohalf, i)
          select case (dm)
             case (2)
-              call mkunew_2d(lev, upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt,verbose)
+              call mkunew_2d(lev, upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt)
             case (3)
-              call mkunew_3d(lev, upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt,verbose)
+              call mkunew_3d(lev, upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt)
          end select
       end do
-      if (parallel_IOProcessor() .and. verbose .ge. 1) then
-        write(6,1000) 
-        write(6,1001) lev, multifab_min_c(unew,1), multifab_max_c(unew,1)
-        write(6,1002) lev, multifab_min_c(unew,2), multifab_max_c(unew,2)
-        if (dm .eq. 3) &
-          write(6,1003) lev, multifab_min_c(unew,3), multifab_max_c(unew,3)
-        write(6,1000) 
-      end if
-
-1000  format(' ')
-1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
-1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
-1003  format('LEVEL',i2,' WNEW AFTER PROJ ',e15.8,2x,e15.8)
 
       call multifab_fill_boundary(unew)
       call multifab_fill_boundary(gp)
@@ -438,7 +463,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_2d(lev,unew,gp,gphi,rhohalf,ng,dt,verbose)
+    subroutine mkunew_2d(lev,unew,gp,gphi,rhohalf,ng,dt)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::      unew(-ng:,-ng:,:)
@@ -446,7 +471,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) ::      gphi(  0:,  0:,:)
       real(kind=dp_t), intent(in   ) ::   rhohalf( -1:, -1:)
       real(kind=dp_t), intent(in   ) :: dt
-      integer        , intent(in   ) :: lev,verbose
+      integer        , intent(in   ) :: lev
 
       integer         :: i,j,nx,ny
       real(kind=dp_t) :: umax,umin,vmax,vmin
@@ -465,7 +490,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_3d(lev,unew,gp,gphi,rhohalf,ng,dt,verbose)
+    subroutine mkunew_3d(lev,unew,gp,gphi,rhohalf,ng,dt)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) :: unew(-ng:,-ng:,-ng:,:)
@@ -473,7 +498,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: gphi( 0:, 0:, 0:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dt
-      integer        , intent(in   ) :: lev,verbose
+      integer        , intent(in   ) :: lev
 
       integer         :: i,j,k,nx,ny,nz
       real(kind=dp_t) :: umax,umin,vmax,vmin,wmax,wmin
@@ -492,36 +517,6 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
       gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
-
-      if (parallel_IOProcessor() .and. verbose .ge. 1) then
-        umax = unew(0,0,0,1)
-        umin = unew(0,0,0,1)
-        vmax = unew(0,0,0,2)
-        vmin = unew(0,0,0,2)
-        wmax = unew(0,0,0,3)
-        wmin = unew(0,0,0,3)
-        do k = 0,nz
-        do j = 0,ny
-        do i = 0,nx
-            umax = max(umax,unew(i,j,k,1))
-            umin = min(umin,unew(i,j,k,1))
-            vmax = max(vmax,unew(i,j,k,2))
-            vmin = min(vmin,unew(i,j,k,2))
-            wmax = max(wmax,unew(i,j,k,3))
-            wmin = min(wmin,unew(i,j,k,3))
-        enddo
-        enddo
-        enddo
-        if (lev .eq. 1) write(6,1000)
-        write(6,1002) lev, vmin, vmax
-        write(6,1003) lev, wmin, wmax
-        if (lev .gt. 1) write(6,1000)
-      end if
-
-1000  format(' ')
-1001  format('LEVEL',i2,' UNEW AFTER PROJ ',e15.8,2x,e15.8)
-1002  format('LEVEL',i2,' VNEW AFTER PROJ ',e15.8,2x,e15.8)
-1003  format('LEVEL',i2,' WNEW AFTER PROJ ',e15.8,2x,e15.8)
 
     end subroutine mkunew_3d
 
