@@ -278,28 +278,32 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
     subroutine mult_umac_by_1d_coeff(umac,div_coeff,div_coeff_half,do_mult)
 
       type(multifab) , intent(inout) :: umac(:)
-      real(dp_t)     , intent(in   ) :: div_coeff(:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(:)
+      real(dp_t)     , intent(in   ) :: div_coeff(0:)
+      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
 
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
-      integer :: i
+      integer                  :: lo(umac(1)%dim)
+      integer                  :: i,dm
+
+      dm = umac(1)%dim
 
       ! Multiply edge velocities by div coeff
       do i = 1, umac(1)%nboxes
          if ( multifab_remote(umac(1), i) ) cycle
          ump => dataptr(umac(1), i)
          vmp => dataptr(umac(2), i)
-         select case (umac(1)%dim)
+         lo =  lwb(get_box(umac(1), i))
+         select case (dm)
             case (2)
               call mult_by_1d_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), &
-                                       div_coeff, div_coeff_half, do_mult)
+                                       div_coeff(lo(dm):), div_coeff_half(lo(dm):), do_mult)
             case (3)
               wmp => dataptr(umac(3), i)
               call mult_by_1d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                       div_coeff, div_coeff_half, do_mult)
+                                       div_coeff(lo(dm):), div_coeff_half(lo(dm):), do_mult)
          end select
       end do
 
@@ -308,23 +312,27 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
     subroutine mult_beta_by_1d_coeff(beta,div_coeff,div_coeff_half)
 
       type(multifab) , intent(inout) :: beta
-      real(dp_t)     , intent(in   ) :: div_coeff(:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(:)
+      real(dp_t)     , intent(in   ) :: div_coeff(0:)
+      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
 
       real(kind=dp_t), pointer :: bp(:,:,:,:) 
-      integer :: i
+      integer                  :: lo(beta%dim)
+      integer                  :: i,dm
+
+      dm = beta%dim
 
       ! Multiply edge coefficients by div coeff
       do i = 1, beta%nboxes
          if ( multifab_remote(beta, i) ) cycle
          bp => dataptr(beta,i)
-         select case (beta%dim)
+         lo =  lwb(get_box(beta, i))
+         select case (dm)
             case (2)
               call mult_by_1d_coeff_2d(bp(:,:,1,1), bp(:,:,1,2), &
-                                       div_coeff, div_coeff_half, .true.)
+                                       div_coeff(lo(dm):), div_coeff_half(lo(dm):), .true.)
             case (3)
               call mult_by_1d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
-                                       div_coeff, div_coeff_half, .true.)
+                                       div_coeff(lo(dm):), div_coeff_half(lo(dm):), .true.)
          end select
       end do
 
@@ -1228,6 +1236,7 @@ subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
   end if
 
   bottom_solver = 2
+  bottom_solver_eps = 1.d-3
 
   if ( test /= 0 .AND. max_iter == mgt(nlevs)%max_iter ) &
      max_iter = 1000
