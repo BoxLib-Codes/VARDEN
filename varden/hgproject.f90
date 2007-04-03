@@ -32,7 +32,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   type(multifab ), intent(in   ), optional :: divu_rhs(:)
   real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:)
-  type(multifab ), intent(in   ), optional :: div_coeff_3d
+  type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
 
   real(dp_t)     , intent(in   ), optional :: eps_in
 
@@ -78,7 +78,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1, nlevs
   end do
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (.false. .and. parallel_IOProcessor() .and. verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
      wmin = 1.d30
@@ -115,8 +115,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
      end do
   else if (use_div_coeff_3d) then
      do n = 1, nlevs
-        call mult_by_3d_coeff(unew(n),div_coeff_3d,.true.)
-        call mult_by_3d_coeff(rhohalf(n),div_coeff_3d,.false.)
+        call mult_by_3d_coeff(unew(n),div_coeff_3d(n),.true.)
+        call mult_by_3d_coeff(rhohalf(n),div_coeff_3d(n),.false.)
      end do
   end if
 
@@ -140,8 +140,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
      end do
   else if (use_div_coeff_3d) then
      do n = 1, nlevs
-        call mult_by_3d_coeff(unew(n),div_coeff_3d,.false.)
-        call mult_by_3d_coeff(rhohalf(n),div_coeff_3d,.true.)
+        call mult_by_3d_coeff(unew(n),div_coeff_3d(n),.false.)
+        call mult_by_3d_coeff(rhohalf(n),div_coeff_3d(n),.true.)
      end do
   end if
 
@@ -156,7 +156,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
      call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
   end do
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (.false. .and. parallel_IOProcessor() .and. verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
      wmin = 1.d30
@@ -844,6 +844,7 @@ end subroutine hg_multigrid
 
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       integer :: i,ng
+      integer :: lo(u%dim),hi(u%dim)
       logical :: local_do_mult
 
       local_do_mult = .true.
@@ -855,55 +856,54 @@ end subroutine hg_multigrid
       do i = 1, u%nboxes
          if ( multifab_remote(u, i) ) cycle
          ump => dataptr(u, i)
+         lo =  lwb(get_box(u, i))
+         hi =  upb(get_box(u, i))
          select case (u%dim)
             case (2)
-              call mult_by_1d_coeff_2d(ump(:,:,1,:), div_coeff, ng, local_do_mult)
+              call mult_by_1d_coeff_2d(ump(:,:,1,:), div_coeff, lo, hi, ng, local_do_mult)
             case (3)
-              call mult_by_1d_coeff_3d(ump(:,:,:,:), div_coeff, ng, local_do_mult)
+              call mult_by_1d_coeff_3d(ump(:,:,:,:), div_coeff, lo, hi, ng, local_do_mult)
          end select
       end do
 
     end subroutine mult_by_1d_coeff
 
-    subroutine mult_by_1d_coeff_2d(u,div_coeff,ng,do_mult)
+    subroutine mult_by_1d_coeff_2d(u,div_coeff,lo,hi,ng,do_mult)
 
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) :: u(-ng:,-ng:,:)
+      integer        , intent(in   ) :: lo(:),hi(:),ng
+      real(kind=dp_t), intent(inout) :: u(lo(1)-ng:,lo(2)-ng:,:)
       real(dp_t)     , intent(in   ) :: div_coeff(0:)
       logical        , intent(in   ) :: do_mult
 
-      integer :: j,ny
-     
-      ny = size(u,dim=2) - 2*ng
+      integer :: j
 
       if (do_mult) then
-        do j = 0,ny-1 
+        do j = lo(2),hi(2)
            u(:,j,:) = u(:,j,:) * div_coeff(j)
         end do
       else
-        do j = 0,ny-1 
+        do j = lo(2),hi(2)
            u(:,j,:) = u(:,j,:) / div_coeff(j)
         end do
       end if
 
     end subroutine mult_by_1d_coeff_2d
 
-    subroutine mult_by_1d_coeff_3d(u,div_coeff,ng,do_mult)
+    subroutine mult_by_1d_coeff_3d(u,div_coeff,lo,hi,ng,do_mult)
 
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) :: u(-ng:,-ng:,-ng:,:)
+      integer        , intent(in   ) :: lo(:),hi(:),ng
+      real(kind=dp_t), intent(inout) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)
       real(dp_t)     , intent(in   ) :: div_coeff(0:)
       logical        , intent(in   ) :: do_mult
 
-      integer :: k,nz
-      nz = size(u,dim=3) - 2*ng
+      integer :: k
 
       if (do_mult) then
-        do k = 0,nz-1 
+        do k = lo(3),hi(3)
            u(:,:,k,:) = u(:,:,k,:) * div_coeff(k)
         end do
       else
-        do k = 0,nz-1 
+        do k = lo(3),hi(3)
            u(:,:,k,:) = u(:,:,k,:) / div_coeff(k)
         end do
       end if

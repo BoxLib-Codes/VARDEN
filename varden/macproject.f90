@@ -28,7 +28,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   type(multifab ), intent(inout), optional :: divu_rhs(:)
   real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:)
   real(dp_t)     , intent(in   ), optional :: div_coeff_half_1d(:)
-  type(multifab ), intent(in   ), optional :: div_coeff_3d
+  type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
 
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
@@ -78,7 +78,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
     end do
   else if (use_div_coeff_3d) then
     do n = 1,nlevs
-       call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d,.true.)
+       call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d(n),.true.)
     end do
   end if
 
@@ -104,7 +104,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
     end do
   else if (use_div_coeff_3d) then
     do n = 1,nlevs
-       call mult_beta_by_3d_coeff(beta(n),div_coeff_3d)
+       call mult_beta_by_3d_coeff(beta(n),div_coeff_3d(n))
     end do
   end if
 
@@ -130,7 +130,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
     end do
   else if (use_div_coeff_3d) then
     do n = 1,nlevs
-       call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d,.false.)
+       call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d(n),.false.)
     end do
   end if
 
@@ -170,7 +170,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
       real(kind=dp_t)          :: rhmax
-      integer :: i,dm
+      integer :: i,dm,lo(rh(nlevs)%dim),hi(rh(nlevs)%dim)
 
       dm = rh(nlevs)%dim
 
@@ -186,14 +186,16 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
             ump => dataptr(umac(n,1), i)
             vmp => dataptr(umac(n,2), i)
             rhp => dataptr(rh(n)  , i)
+            lo =  lwb(get_box(rh(n), i))
+            hi =  upb(get_box(rh(n), i))
             select case (dm)
                case (2)
                  call divumac_2d(ump(:,:,1,1), vmp(:,:,1,1), &
-                                 rhp(:,:,1,1), dx(n,:))
+                                 rhp(:,:,1,1), dx(n,:),lo,hi)
                case (3)
                  wmp => dataptr(umac(n,3), i)
                  call divumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                 rhp(:,:,:,1), dx(n,:))
+                                 rhp(:,:,:,1), dx(n,:),lo,hi)
             end select
          end do
       end do
@@ -235,17 +237,18 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,vmac,rh,dx)
+    subroutine divumac_2d(umac,vmac,rh,dx,lo,hi)
 
-      real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
-      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
-      real(kind=dp_t), intent(inout) ::   rh( 0:, 0:)
+      integer        , intent(in   ) :: lo(:),hi(:)
+      real(kind=dp_t), intent(in   ) :: umac(lo(1)-1:,lo(2)-1:)
+      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-1:,lo(2)-1:)
+      real(kind=dp_t), intent(inout) ::   rh(lo(1)  :,lo(2)  :)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
       integer :: i,j
 
-      do j = 0, size(rh,dim=2)-1
-      do i = 0, size(rh,dim=1)-1
+      do j = lo(2),hi(2)
+      do i = lo(1),hi(1)
          rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
                    (vmac(i,j+1) - vmac(i,j)) / dx(2)
       end do
@@ -253,19 +256,20 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,vmac,wmac,rh,dx)
+    subroutine divumac_3d(umac,vmac,wmac,rh,dx,lo,hi)
 
-      real(kind=dp_t), intent(in   ) :: umac(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: vmac(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: wmac(-1:,-1:,-1:)
-      real(kind=dp_t), intent(inout) ::   rh( 0:, 0:, 0:)
+      integer        , intent(in   ) :: lo(:),hi(:)
+      real(kind=dp_t), intent(in   ) :: umac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
+      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
+      real(kind=dp_t), intent(in   ) :: wmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
+      real(kind=dp_t), intent(inout) ::   rh(lo(1)  :,lo(2)  :,lo(3)  :)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j,k
 
-      do k = 0,size(rh,dim=3)-1
-      do j = 0,size(rh,dim=2)-1
-      do i = 0,size(rh,dim=1)-1
+      do k = lo(3),hi(3)
+      do j = lo(2),hi(2)
+      do i = lo(1),hi(1)
          rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
                      (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
                      (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
