@@ -381,7 +381,7 @@ contains
          else if (bc(3,1) .eq. FOEXTRAP .or. bc(3,1) .eq. REFLECT_EVEN) then
             do j = lo(2)-ng,hi(2)+ng
             do i = lo(1)-ng,hi(1)+ng
-               s(i,j,lo(2)-ng:lo(2)-1) = s(i,j,lo(2))
+               s(i,j,lo(3)-ng:lo(3)-1) = s(i,j,lo(3))
             end do
             end do
          else if (bc(3,1) .eq. HOEXTRAP) then
