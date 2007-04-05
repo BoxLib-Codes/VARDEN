@@ -488,8 +488,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
         do k = 0,nz-1 
         do i = 0,nx-1 
-          vmac(i, 0,k) = umac(i, 0,k) * div_coeff(i,   0,k)
-          vmac(i,ny,k) = umac(i,ny,k) * div_coeff(i,ny-1,k)
+          vmac(i, 0,k) = vmac(i, 0,k) * div_coeff(i,   0,k)
+          vmac(i,ny,k) = vmac(i,ny,k) * div_coeff(i,ny-1,k)
           do j = 1,ny-1 
             vmac(i,j,k) = vmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k))
           end do
@@ -498,8 +498,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
         do j = 0,ny-1 
         do i = 0,nx-1 
-          vmac(i,j, 0) = umac(i,j, 0) * div_coeff(i,j,   0)
-          vmac(i,j,nz) = umac(i,j,nz) * div_coeff(i,j,nz-1)
+          wmac(i,j, 0) = wmac(i,j, 0) * div_coeff(i,j,   0)
+          wmac(i,j,nz) = wmac(i,j,nz) * div_coeff(i,j,nz-1)
           do k = 1,nz-1 
             wmac(i,j,k) = wmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1))
           end do
@@ -520,8 +520,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
         do k = 0,nz-1 
         do i = 0,nx-1 
-          vmac(i, 0,k) = umac(i, 0,k) * div_coeff(i,   0,k)
-          vmac(i,ny,k) = umac(i,ny,k) * div_coeff(i,ny-1,k)
+          vmac(i, 0,k) = vmac(i, 0,k) * div_coeff(i,   0,k)
+          vmac(i,ny,k) = vmac(i,ny,k) * div_coeff(i,ny-1,k)
           do j = 1,ny-1 
             vmac(i,j,k) = vmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k)))
           end do
@@ -530,8 +530,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
         do j = 0,ny-1 
         do i = 0,nx-1 
-          vmac(i,j, 0) = umac(i,j, 0) * div_coeff(i,j,   0)
-          vmac(i,j,nz) = umac(i,j,nz) * div_coeff(i,j,nz-1)
+          wmac(i,j, 0) = wmac(i,j, 0) * div_coeff(i,j,   0)
+          wmac(i,j,nz) = wmac(i,j,nz) * div_coeff(i,j,nz-1)
           do k = 1,nz-1 
             wmac(i,j,k) = wmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1)))
           end do
