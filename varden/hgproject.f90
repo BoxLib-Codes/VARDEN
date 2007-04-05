@@ -920,9 +920,10 @@ end subroutine hg_multigrid
 
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer ::  dp(:,:,:,:) 
-      integer :: i,ng
+      integer :: i,ngu,ngd
 
-      ng = u%ng
+      ngu  = u%ng
+      ngd = div_coeff%ng
 
       ! Multiply u by div coeff
       do i = 1, u%nboxes
@@ -931,23 +932,23 @@ end subroutine hg_multigrid
           dp => dataptr(div_coeff, i)
          select case (u%dim)
             case (3)
-              call mult_by_3d_coeff_3d(ump(:,:,:,:), dp(:,:,:,1), ng, do_mult)
+              call mult_by_3d_coeff_3d(ump(:,:,:,:), ngu, dp(:,:,:,1), ngd, do_mult)
          end select
       end do
 
     end subroutine mult_by_3d_coeff
 
-    subroutine mult_by_3d_coeff_3d(u,div_coeff,ng,do_mult)
+    subroutine mult_by_3d_coeff_3d(u,ngu,div_coeff,ngd,do_mult)
 
-      integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) :: u(-ng:,-ng:,-ng:,:)
-      real(dp_t)     , intent(in   ) :: div_coeff(0:,0:,0:)
+      integer        , intent(in   ) :: ngu,ngd
+      real(kind=dp_t), intent(inout) ::         u(-ngu:,-ngu:,-ngu:,:)
+      real(dp_t)     , intent(in   ) :: div_coeff(-ngd:,-ngd:,-ngd:)
       logical        , intent(in   ) :: do_mult
 
       integer :: i,j,k,nx,ny,nz
-      nx = size(u,dim=1) - 2*ng
-      ny = size(u,dim=2) - 2*ng
-      nz = size(u,dim=3) - 2*ng
+      nx = size(u,dim=1) - 2*ngu
+      ny = size(u,dim=2) - 2*ngu
+      nz = size(u,dim=3) - 2*ngu
 
       if (do_mult) then
         do k = 0,nz-1 
