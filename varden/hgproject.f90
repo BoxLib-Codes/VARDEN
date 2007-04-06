@@ -922,7 +922,7 @@ end subroutine hg_multigrid
       real(kind=dp_t), pointer ::  dp(:,:,:,:) 
       integer :: i,ngu,ngd
 
-      ngu  = u%ng
+      ngu = u%ng
       ngd = div_coeff%ng
 
       ! Multiply u by div coeff
