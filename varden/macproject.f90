@@ -489,31 +489,55 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
         do k = lo(3),hi(3)
         do j = lo(2),hi(2)
-          do i = lo(1),hi(1)+1
+          do i = lo(1)+1,hi(1)
             umac(i,j,k) = umac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k))
           end do
-          if (lo(1).eq.domlo(1)) umac(lo(1)  ,j,k) = umac(lo(1)  ,j,k) * div_coeff(lo(1),j,k)
-          if (hi(1).eq.domhi(1)) umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
+          if (lo(1).eq.domlo(1)) then
+            umac(lo(1),j,k) = umac(lo(1)  ,j,k) * div_coeff(lo(1),j,k)
+          else
+            umac(lo(1),j,k) = umac(lo(1),j,k) * HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k))
+          end if
+          if (hi(1).eq.domhi(1)) then
+            umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
+          else
+            umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k))
+          end if
         end do
         end do
 
         do k = lo(3),hi(3)
         do i = lo(1),hi(1)
-          do j = lo(2),hi(2)+1
+          do j = lo(2)+1,hi(2)
             vmac(i,j,k) = vmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k))
           end do
-          if (lo(2).eq.domlo(2)) vmac(i,lo(2)  ,k) = vmac(i,lo(2)  ,k) * div_coeff(i,lo(2),k)
-          if (hi(2).eq.domhi(2)) vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
+          if (lo(2).eq.domlo(2)) then
+            vmac(i,lo(2),k) = vmac(i,lo(2),k) * div_coeff(i,lo(2),k)
+          else
+            vmac(i,lo(2),k) = vmac(i,lo(2),k) * HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k))
+          end if
+          if (hi(2).eq.domhi(2)) then
+            vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
+          else
+            vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k))
+          end if
         end do
         end do
 
         do j = lo(2),hi(2)
         do i = lo(1),hi(1)
-          do k = lo(3),hi(3)+1
+          do k = lo(3)+1,hi(3)
             wmac(i,j,k) = wmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1))
           end do
-          if (lo(3).eq.domlo(3)) wmac(i,j,lo(3)  ) = wmac(i,j,lo(3)  ) * div_coeff(i,j,lo(3))
-          if (hi(3).eq.domhi(3)) wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
+          if (lo(3).eq.domlo(3)) then
+            wmac(i,j,lo(3)) = wmac(i,j,lo(3)) * div_coeff(i,j,lo(3))
+          else
+            wmac(i,j,lo(3)) = wmac(i,j,lo(3)) * HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1))
+          end if
+          if (hi(3).eq.domhi(3)) then
+            wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
+          else
+            wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3)))
+          end if
         end do
         end do
 
@@ -521,11 +545,19 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
         do k = lo(3),hi(3)
         do j = lo(2),hi(2)
-          do i = lo(1),hi(1)+1
+          do i = lo(1)+1,hi(1)
             umac(i,j,k) = umac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k)))
           end do
-          if (lo(1).eq.domlo(1)) umac(lo(1)  ,j,k) = umac(lo(1)  ,j,k) * div_coeff(lo(1),j,k)
-          if (hi(1).eq.domhi(1)) umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
+          if (lo(1).eq.domlo(1)) then
+            umac(lo(1),j,k) = umac(lo(1),j,k) * div_coeff(lo(1),j,k)
+          else
+            umac(lo(1),j,k) = umac(lo(1),j,k) / ( HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k)))
+          end if
+          if (hi(1).eq.domhi(1)) then
+            umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
+          else
+            umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) / ( HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k)))
+          end if
         end do
         end do
 
@@ -534,8 +566,16 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
           do j = lo(2),hi(2)+1
             vmac(i,j,k) = vmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k)))
           end do
-          if (lo(2).eq.domlo(2)) vmac(i,lo(2)  ,k) = vmac(i,lo(2)  ,k) * div_coeff(i,lo(2),k)
-          if (hi(2).eq.domhi(2)) vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
+          if (lo(2).eq.domlo(2)) then
+            vmac(i,lo(2),k) = vmac(i,lo(2),k) * div_coeff(i,lo(2),k)
+          else
+            vmac(i,lo(2),k) = vmac(i,lo(2),k) / ( HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k)))
+          end if
+          if (hi(2).eq.domhi(2)) then
+            vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
+          else
+            vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) / ( HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k)))
+          end if
         end do
         end do
 
@@ -544,8 +584,16 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
           do k = lo(3),hi(3)+1
             wmac(i,j,k) = wmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1)))
           end do
-          if (lo(3).eq.domlo(3)) wmac(i,j,lo(3)  ) = wmac(i,j,lo(3)  ) * div_coeff(i,j,lo(3))
-          if (hi(3).eq.domhi(3)) wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
+          if (lo(3).eq.domlo(3)) then
+            wmac(i,j,lo(3)) = wmac(i,j,lo(3)) * div_coeff(i,j,lo(3))
+          else
+            wmac(i,j,lo(3)) = wmac(i,j,lo(3)) / ( HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1)))
+          end if
+          if (hi(3).eq.domhi(3)) then
+            wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
+          else
+            wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) / ( HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3))))
+          end if
         end do
         end do
       end if
