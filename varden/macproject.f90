@@ -597,6 +597,8 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
         end do
         end do
 
+      end if
+
     end subroutine mult_by_3d_coeff_3d
 
     subroutine mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
