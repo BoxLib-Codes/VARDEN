@@ -38,12 +38,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 ! Local  
   type(multifab), allocatable :: phi(:),gphi(:)
-  type(box)                   :: pd,bx
-  type(layout  )              :: la
   logical, allocatable        :: nodal(:)
-  integer                     :: n,nlevs,dm,ng,i,RHOCOMP
+  integer                     :: n,nlevs,dm,ng
   real(dp_t)                  :: umin,umax,vmin,vmax,wmin,wmax
-  integer                     :: ng_for_fill
   integer                     :: stencil_type
   logical                     :: use_div_coeff_1d, use_div_coeff_3d
 
@@ -148,7 +145,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1,nlevs
      call mkgp(gphi(n),phi(n),dx(n,:))
      call mk_p(   p(n),phi(n),dt)
-     call mkunew(n,unew(n),gp(n),gphi(n),rhohalf(n),ng,dt)
+     call mkunew(unew(n),gp(n),gphi(n),rhohalf(n),ng,dt)
   end do
 
   do n = nlevs,2,-1
@@ -208,7 +205,6 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), pointer :: unp(:,:,:,:) 
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
-      real(kind=dp_t), pointer ::  dp(:,:,:,:) 
 
       integer :: i,n,dm,ng
 
@@ -295,13 +291,13 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew(lev,unew,gp,gphi,rhohalf,ng,dt)
+    subroutine mkunew(unew,gp,gphi,rhohalf,ng,dt)
 
       type(multifab) , intent(inout) :: unew
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(in   ) :: gphi
       type(multifab) , intent(in   ) :: rhohalf
-      integer        , intent(in   ) :: lev, ng
+      integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(in   ) :: dt 
       integer :: i,dm
  
@@ -320,9 +316,9 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
          rp  => dataptr(rhohalf, i)
          select case (dm)
             case (2)
-              call mkunew_2d(lev, upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt)
+              call mkunew_2d(upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt)
             case (3)
-              call mkunew_3d(lev, upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt)
+              call mkunew_3d(upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt)
          end select
       end do
 
@@ -342,8 +338,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: dt
       integer        , intent(in   ) :: phys_bc(:,:)
 
-      real(kind=dp_t) :: rh_sum
-      integer :: i,j,nx,ny
+      integer :: nx,ny
       nx = size(gp,dim=1) - 2
       ny = size(gp,dim=2) - 2
 
@@ -373,7 +368,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: dt
       integer        , intent(in   ) :: phys_bc(:,:)
 
-      integer :: i,j,k,nx,ny,nz
+      integer :: nx,ny,nz
 
       nx = size(gp,dim=1) - 2
       ny = size(gp,dim=2) - 2
@@ -463,7 +458,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_2d(lev,unew,gp,gphi,rhohalf,ng,dt)
+    subroutine mkunew_2d(unew,gp,gphi,rhohalf,ng,dt)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::      unew(-ng:,-ng:,:)
@@ -471,10 +466,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) ::      gphi(  0:,  0:,:)
       real(kind=dp_t), intent(in   ) ::   rhohalf( -1:, -1:)
       real(kind=dp_t), intent(in   ) :: dt
-      integer        , intent(in   ) :: lev
 
-      integer         :: i,j,nx,ny
-      real(kind=dp_t) :: umax,umin,vmax,vmin
+      integer         :: nx,ny
 
       nx = size(gphi,dim=1)-1
       ny = size(gphi,dim=2)-1
@@ -490,7 +483,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_3d(lev,unew,gp,gphi,rhohalf,ng,dt)
+    subroutine mkunew_3d(unew,gp,gphi,rhohalf,ng,dt)
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) :: unew(-ng:,-ng:,-ng:,:)
@@ -498,10 +491,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       real(kind=dp_t), intent(in   ) :: gphi( 0:, 0:, 0:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dt
-      integer        , intent(in   ) :: lev
 
-      integer         :: i,j,k,nx,ny,nz
-      real(kind=dp_t) :: umax,umin,vmax,vmin,wmax,wmin
+      integer         :: nx,ny,nz
 
       nx = size(gphi,dim=1)-1
       ny = size(gphi,dim=2)-1
@@ -553,12 +544,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 ! Local variables
 !
 
-  type( multifab) :: ss
-  type(imultifab) :: mm
-  type(sparse)    :: sparse_object
-  type(layout)    :: la
   type(box     )  :: pd
-  type(boxarray)  :: pdv
+  type(  layout)  :: la
 
   type(mg_tower), allocatable :: mgt(:)
   type(multifab), allocatable :: coeffs(:),rh(:)
@@ -573,8 +560,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   integer :: max_iter
   integer :: min_width
   integer :: max_nlevel
-  integer :: nu1, nu2, gamma, cycle, solver, smoother
-  integer :: n, ng, nc
+  integer :: nu1, nu2, gamma, cycle, smoother
+  integer :: n
   integer :: max_nlevel_in
   integer :: verbose
   integer :: do_diagnostics
@@ -589,8 +576,6 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   allocate(one_sided_ss(2:nlevs))
   nodal = .true.
 
-  ng                = mgt(nlevs)%ng
-  nc                = mgt(nlevs)%nc
   max_nlevel        = mgt(nlevs)%max_nlevel
   max_iter          = mgt(nlevs)%max_iter
   eps               = mgt(nlevs)%eps
@@ -698,7 +683,6 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
 !    NOTE: we define the stencils with the finest dx.
      do i = mgt(n)%nlevels, 1, -1
-        pdv = layout_boxarray(mgt(n)%ss(i)%la)
         call stencil_fill_nodal(mgt(n)%ss(i), coeffs(i), &
              mgt(n)%dh(:,i)             , &
              mgt(n)%mm(i), mgt(n)%face_type,stencil_type)
