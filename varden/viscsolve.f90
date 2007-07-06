@@ -133,7 +133,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose)
       real(kind=dp_t), intent(in   ) ::  rho(1-ng_rho:,1-ng_rho:)
       real(kind=dp_t), intent(inout) ::  phi(       0:,       0:)
 
-      integer :: i,j,nx,ny
+      integer :: nx,ny
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
@@ -151,7 +151,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose)
       real(kind=dp_t), intent(in   ) ::  rho(1-ng_rho:,1-ng_rho:,1-ng_rho:)
       real(kind=dp_t), intent(inout) ::  phi(       0:,       0:,       0:)
 
-      integer :: i,j,k,nx,ny,nz
+      integer :: nx,ny,nz
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
@@ -278,7 +278,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
       real(kind=dp_t), intent(in   ) :: snew(1-ng:,1-ng:)
       real(kind=dp_t), intent(inout) ::  phi(0   :,   0:)
 
-      integer :: i,j,nx,ny
+      integer :: nx,ny
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
@@ -295,7 +295,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
       real(kind=dp_t), intent(in   ) :: snew(1-ng:,1-ng:,1-ng:)
       real(kind=dp_t), intent(inout) ::  phi(0   :,   0:,   0:)
 
-      integer :: i,j,k,nx,ny,nz
+      integer :: nx,ny,nz
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
