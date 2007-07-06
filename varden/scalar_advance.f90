@@ -120,12 +120,10 @@ contains
            vmp  => dataptr(umac(2), i)
            select case (dm)
               case (2)
-                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1), &
-                               dx,umac(1)%ng)
+                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1),dx)
               case (3)
                 wmp  => dataptr(umac(3), i)
-                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1), &
-                                  dx,umac(1)%ng)
+                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),dx)
            end select
         end do
         mult = -ONE
