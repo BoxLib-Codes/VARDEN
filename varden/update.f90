@@ -10,7 +10,7 @@ module update_module
   contains
 
    subroutine update_2d (lev,sold,umac,vmac,sedgex,sedgey,force,snew,rhohalf, &
-                         lo,hi,ng,dx,time,dt,is_vel,is_cons,verbose)
+                         lo,hi,ng,dx,dt,is_vel,is_cons,verbose)
 
       implicit none
 
@@ -24,7 +24,7 @@ module update_module
       real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:)
       real (kind = dp_t), intent(in   ) :: dx(:)
-      real (kind = dp_t), intent(in   ) :: time,dt
+      real (kind = dp_t), intent(in   ) :: dt
       logical           , intent(in   ) :: is_vel
       logical           , intent(in   ) :: is_cons(:)
       integer           , intent(in   ) :: verbose
@@ -132,7 +132,7 @@ module update_module
    end subroutine update_2d
 
    subroutine update_3d (lev,sold,umac,vmac,wmac,sedgex,sedgey,sedgez,force,snew,rhohalf, &
-                         lo,hi,ng,dx,time,dt,is_vel,is_cons,verbose)
+                         lo,hi,ng,dx,dt,is_vel,is_cons,verbose)
 
       implicit none
 
@@ -148,7 +148,7 @@ module update_module
       real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
       real (kind = dp_t), intent(in   ) :: dx(:)
-      real (kind = dp_t), intent(in   ) :: time,dt
+      real (kind = dp_t), intent(in   ) :: dt
       logical           , intent(in   ) :: is_vel
       logical           , intent(in   ) :: is_cons(:)
       integer           , intent(in   ) :: verbose

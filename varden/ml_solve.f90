@@ -29,26 +29,21 @@ module ml_solve_module
 
 contains
 
-   subroutine ml_cc_solve(mla,mgt,rh,full_soln,fine_flx,bc,stencil_order,ref_ratio,do_diagnostics)
+   subroutine ml_cc_solve(mla,mgt,rh,full_soln,fine_flx,ref_ratio,do_diagnostics)
 
       type(ml_layout), intent(inout) :: mla
       type(mg_tower ), intent(inout) :: mgt(:)
       type(multifab ), intent(inout) :: rh(:)
       type(multifab ), intent(inout) :: full_soln(:)
       type(bndry_reg), intent(inout) :: fine_flx(2:)
-      integer        , intent(in   ) :: bc(:,:)
-      integer        , intent(in   ) :: stencil_order
       integer        , intent(in   ) :: ref_ratio(:,:)
       integer        , intent(in   ) :: do_diagnostics
 
-      type(box     ) :: pd
-      type(box     ) :: bx
       type(boxarray) :: bac
-      real(dp_t), pointer      :: rp(:,:,:,:)
 
       type(lmultifab), pointer     :: fine_mask(:) => Null()
       integer                      :: i,dm,n,nlevs
-      integer                      :: mglev, mglev_crse, iter, it
+      integer                      :: mglev
       real(dp_t)                   :: eps
 
       dm    = mla%dim
@@ -107,22 +102,13 @@ contains
 
        type(lmultifab), pointer       :: fine_mask(:) => Null()
 
-       type(box)      :: pd
-
-       integer :: nlevs
-
-       type(layout)             :: la
-       integer                  :: i, n, dm, ns
+       integer                  :: nlevs
+       integer                  :: n, dm
 
        integer, allocatable     :: lo(:), hi(:)
        logical, allocatable     :: nodal(:)
 
        real(dp_t)               :: eps
-       real(dp_t)               :: snrm(2)
-       real(dp_t), pointer      :: rp(:,:,:,:)
-
-       type(box)           :: bx
-       real(dp_t), pointer :: ap(:,:,:,:)
 
        if (present(eps_in)) then
          eps = eps_in
@@ -138,13 +124,12 @@ contains
        allocate(fine_mask(nlevs))
 
 !      We are only considering the dense stencils here (3 in 1d, 9 in 2d, 27 in 3d)
-       ns = 3**dm
 
        do n = nlevs, 1, -1
 
           call lmultifab_build(fine_mask(n), mla%la(n), 1, 0, nodal)
           if ( n < nlevs ) then
-             call create_nodal_mask(n,fine_mask(n), &
+             call create_nodal_mask(fine_mask(n), &
                                     mgt(n  )%mm(mgt(n  )%nlevels), &
                                     mgt(n+1)%mm(mgt(n+1)%nlevels), &
                                     ref_ratio(n,:))
@@ -163,9 +148,8 @@ contains
 
    contains
 
-        subroutine create_nodal_mask(n,mask,mm_crse,mm_fine,ref_ratio)
+        subroutine create_nodal_mask(mask,mm_crse,mm_fine,ref_ratio)
 
-        integer        , intent(in   ) :: n
         type(lmultifab), intent(inout) :: mask
         type(imultifab), intent(in   ) :: mm_crse
         type(imultifab), intent(in   ) :: mm_fine

@@ -223,7 +223,7 @@ contains
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
+                             lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
               do n = 1,nscal
                 call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
@@ -237,7 +237,7 @@ contains
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              fp(:,:,:,:) , snp(:,:,:,:), &
                              rp(:,:,:,1) , &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
+                             lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
               do n = 1,nscal
                 call setbc_3d(snp(:,:,:,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)

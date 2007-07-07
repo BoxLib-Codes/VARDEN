@@ -3,6 +3,7 @@ subroutine varden()
   use BoxLib
   use omp_module
   use f2kcli
+  use bl_constants_module
   use list_box_module
   use ml_boxarray_module
   use layout_module
@@ -28,6 +29,7 @@ subroutine varden()
   use restart_module
   use fillpatch_module
   use cluster_module
+  use multifab_fill_ghost_module
 
   implicit none
 
@@ -157,8 +159,8 @@ subroutine varden()
   init_shrink = 1.0
   nscal = 2
 
-! grav = -9.8
-  grav = 0.0
+  grav = -9.8
+! grav = 0.0
 
   do_initial_projection  = 1
 

@@ -202,7 +202,7 @@ contains
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              fp(:,:,1,:), unp(:,:,1,:), &
                              rp(:,:,1,1), &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
+                             lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
             case (3)
                wmp => dataptr(umac(3), i)
                uepz => dataptr(uedge(3), i)
@@ -210,7 +210,7 @@ contains
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              fp(:,:,:,:), unp(:,:,:,:), &
                              rp(:,:,:,1), &
-                             lo, hi, ng_cell,dx,time,dt,is_vel,is_conservative,verbose)
+                             lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
          end select
       end do
 

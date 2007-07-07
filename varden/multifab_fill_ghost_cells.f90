@@ -38,7 +38,6 @@ contains
     real(kind=dp_t), allocatable :: cvcx(:),cvcy(:),cvcz(:)
     integer                      :: local_bc(fine%dim,2,nc)
 
-    integer         :: ii,jj
     integer         :: ng_of_crse
     integer        , allocatable :: cslope_lo(:),cslope_hi(:)
     real(kind=dp_t), allocatable :: dx(:)
