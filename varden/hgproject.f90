@@ -30,7 +30,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
   integer        , intent(in   ) :: press_comp
 
-  type(multifab ), intent(in   ), optional :: divu_rhs(:)
+  type(multifab ), intent(inout), optional :: divu_rhs(:)
   real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:)
   type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
 
@@ -120,6 +120,8 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1, nlevs
      call setval(phi(n),ZERO,all=.true.)
   end do
+
+  call enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
 
   if (present(eps_in)) then
     call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
@@ -326,6 +328,75 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       call multifab_fill_boundary(gp)
 
     end subroutine mkunew
+
+!   ********************************************************************************************* !
+
+    subroutine enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
+
+      type(multifab) , intent(inout) :: divu_rhs(:)
+      type(bc_tower) , intent(in   ) :: the_bc_tower
+ 
+      integer        :: i,n,dm,ng,nlevs
+      type(bc_level) :: bc
+      real(kind=dp_t), pointer :: divp(:,:,:,:) 
+
+      nlevs = size(divu_rhs,dim=1)
+         dm = divu_rhs(1)%dim
+
+      do n = 1, nlevs
+         bc = the_bc_tower%bc_tower_array(n)
+         do i = 1, divu_rhs(n)%nboxes
+            if ( multifab_remote(divu_rhs(n), i) ) cycle
+            divp => dataptr(divu_rhs(n)     , i)
+            select case (dm)
+               case (2)
+                 call enforce_outflow_2d(divp(:,:,1,1), bc%phys_bc_level_array(i,:,:))
+               case (3)
+                 call enforce_outflow_3d(divp(:,:,:,1), bc%phys_bc_level_array(i,:,:))
+            end select
+         end do
+      end do
+
+    end subroutine enforce_outflow_on_divu_rhs
+
+!   ********************************************************************************************* !
+
+    subroutine enforce_outflow_2d(divu_rhs,phys_bc)
+
+      real(kind=dp_t), intent(inout) :: divu_rhs(0:,0:)
+      integer        , intent(in   ) :: phys_bc(:,:)
+
+      integer :: nx,ny
+      nx = size(divu_rhs,dim=1)-1
+      ny = size(divu_rhs,dim=2)-1
+
+      if (phys_bc(1,1) .eq. OUTLET) divu_rhs(0,  :) = ZERO
+      if (phys_bc(1,2) .eq. OUTLET) divu_rhs(nx, :) = ZERO
+      if (phys_bc(2,1) .eq. OUTLET) divu_rhs(: , 0) = ZERO
+      if (phys_bc(2,2) .eq. OUTLET) divu_rhs(: ,ny) = ZERO
+
+    end subroutine enforce_outflow_2d
+
+!   ********************************************************************************************* !
+
+    subroutine enforce_outflow_3d(divu_rhs,phys_bc)
+
+      real(kind=dp_t), intent(inout) :: divu_rhs(0:,0:,0:)
+      integer        , intent(in   ) :: phys_bc(:,:)
+
+      integer :: nx,ny,nz
+      nx = size(divu_rhs,dim=1)-1
+      ny = size(divu_rhs,dim=2)-1
+      nz = size(divu_rhs,dim=3)-1
+
+      if (phys_bc(1,1) .eq. OUTLET) divu_rhs(0,  :, :) = ZERO
+      if (phys_bc(1,2) .eq. OUTLET) divu_rhs(nx, :, :) = ZERO
+      if (phys_bc(2,1) .eq. OUTLET) divu_rhs( :, 0, :) = ZERO
+      if (phys_bc(2,2) .eq. OUTLET) divu_rhs( :,ny, :) = ZERO
+      if (phys_bc(3,1) .eq. OUTLET) divu_rhs( :,: , 0) = ZERO
+      if (phys_bc(3,2) .eq. OUTLET) divu_rhs( :,: ,nz) = ZERO
+
+    end subroutine enforce_outflow_3d
 
 !   ********************************************************************************************* !
 
@@ -643,8 +714,10 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           dh = dx(n,:), &
           ns = ns, &
           smoother = smoother, &
-          nu1 = nu1, &
-          nu2 = nu2, &
+          nu1 = 10, &
+          nu2 = 10, &
+!         nu1 = nu1, &
+!         nu2 = nu2, &
           gamma = gamma, &
           cycle = cycle, &
           omega = omega, &
