@@ -69,7 +69,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
      call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
      call multifab_build(gphi(n), mla%la(n), dm, 0) 
      call multifab_copy(phi(n),p(n))
-     call multifab_mult_mult_s(phi(n),dt,all=.true.)
+     call multifab_mult_mult_s(phi(n),dt,phi(n)%ng)
   end do
 
   do n = 1, nlevs
