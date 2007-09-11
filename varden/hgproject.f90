@@ -714,10 +714,8 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           dh = dx(n,:), &
           ns = ns, &
           smoother = smoother, &
-          nu1 = 10, &
-          nu2 = 10, &
-!         nu1 = nu1, &
-!         nu2 = nu2, &
+          nu1 = nu1, &
+          nu2 = nu2, &
           gamma = gamma, &
           cycle = cycle, &
           omega = omega, &
