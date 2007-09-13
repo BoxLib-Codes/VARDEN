@@ -74,6 +74,7 @@ contains
       real (kind = dp_t) :: x,y,r,cpx,cpy,spx,spy,Pi
       real (kind = dp_t) :: velfact
       real (kind = dp_t) :: ro,r_pert
+      real (kind = dp_t) :: r0,denfact
 
       Pi = 4.0_dp_t*atan(1.0) 
       velfact = 1.0_dp_t
@@ -124,11 +125,11 @@ contains
 !          u(i,j,1) =  TWO*velfact*spy*cpy*spx*spx
 !          u(i,j,2) = -TWO*velfact*spx*cpx*spy*spy
 
-!          u(i,j,1) = tanh(30.0_dp_T*(0.25_dp_t - abs(y-0.5_dp_t)))
-!          u(i,j,2) = 0.05d0 * sin(2.0_dp_t*Pi*x)
+           u(i,j,1) = tanh(30.0_dp_T*(0.25_dp_t - abs(y-0.5_dp_t)))
+           u(i,j,2) = 0.05d0 * sin(2.0_dp_t*Pi*x)
 
-           u(i,j,1) = sin(y)
-           u(i,j,2) = cos(x)
+!          u(i,j,1) = sin(y)
+!          u(i,j,2) = cos(x)
 
            s(i,j,1) = ONE
            r = sqrt((x-HALF)**2 + (y-HALF)**2)
@@ -137,16 +138,38 @@ contains
         enddo
       enddo
 
-      else
+      else if (.false.) then
 
         u = ZERO
         s = ONE
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
            x = (float(i)+HALF) * dx(1)
-           if (x.lt.0.50) u(i,j,1) = ONE
+           y = (float(j)+HALF) * dx(2)
+           if (y.lt.0.50) then
+             u(i,j,1) = ONE
+           else
+             u(i,j,1) = -ONE
+           end if
         enddo
         enddo
+
+      else
+
+        u = ZERO
+        s = ONE
+        r0 = 0.15d0
+        denfact = 20.d0
+        do j = lo(2), hi(2)
+        do i = lo(1), hi(1)
+           y = (float(j)+HALF) * dx(2) / prob_hi(2)
+           x = (float(i)+HALF) * dx(1) / prob_hi(1)
+           r = sqrt((x-HALF)**2 + (y-HALF)**2)
+           s(i,j,1) = ONE + HALF*(denfact-ONE)*(ONE-tanh(30.*(r-r0)))
+           s(i,j,1) = ONE / s(i,j,1)
+
+        end do
+        end do
 
       end if
 
