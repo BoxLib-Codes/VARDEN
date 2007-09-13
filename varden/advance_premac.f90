@@ -18,8 +18,7 @@ contains
                              gp,p,ext_force, &
                              dx,time,dt, &
                              the_bc_level, &
-                             visc_coef,&
-                             verbose)
+                             visc_coef)
  
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -32,8 +31,6 @@ contains
       real(kind=dp_t), intent(in   ) :: dx(:),time,dt
       type(bc_level) , intent(in   ) :: the_bc_level
       real(kind=dp_t), intent(in   ) :: visc_coef
- 
-      integer        , intent(in   ) :: verbose
  
       type(multifab) :: force
  
