@@ -178,6 +178,9 @@ subroutine varden()
   bcz_hi = SLIP_WALL
 
   pmask = .FALSE.
+
+  stop_time = -1.d0
+
   call get_environment_variable('PROBIN', probin_env, status = ierr)
   if ( need_inputs .AND. ierr == 0 ) then
      un = unit_new()
@@ -543,7 +546,9 @@ subroutine varden()
      dt = min(dt_hold,dt)
   end do
   if (restart < 0) dt = dt * init_shrink
-  if (time+dt > stop_time) dt = min(dt, stop_time - time)
+  if (stop_time >= 0.d0) then
+    if (time+dt > stop_time) dt = min(dt, stop_time - time)
+  end if
 
   half_dt = HALF * dt
 
@@ -580,7 +585,8 @@ subroutine varden()
 ! Begin the real integration.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if (max_step >= init_step .and. time < stop_time) then
+  if ( (max_step >= init_step) .and. &
+       (time < stop_time .or. stop_time < 0.d0) ) then
 
      do istep = init_step,max_step
 
@@ -690,7 +696,9 @@ subroutine varden()
 
            if (istep > 1) then
              call estdt(n,uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt,verbose)
-             if (time+dt > stop_time) dt = stop_time - time
+             if (stop_time >= 0.d0) then
+               if (time+dt > stop_time) dt = stop_time - time
+             end if
            end if
 
         end do
@@ -802,7 +810,9 @@ subroutine varden()
            last_chk_written = istep
         end if
 
-        if (time >= stop_time) goto 999
+        if (stop_time >= 0.d0) then
+          if (time >= stop_time) goto 999
+        end if
 
      end do
 
