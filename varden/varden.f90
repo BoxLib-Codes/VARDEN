@@ -533,8 +533,8 @@ subroutine varden()
      call multifab_fill_boundary(sold(n))
 
 !    This is done to impose any Dirichlet bc's on unew or snew.
-     call multifab_copy_c(unew(n),1,uold(n),1,dm   ,all=.true.)
-     call multifab_copy_c(snew(n),1,sold(n),1,nscal,all=.true.)
+     call multifab_copy_c(unew(n),1,uold(n),1,dm   ,ng=unew(n)%ng)
+     call multifab_copy_c(snew(n),1,sold(n),1,nscal,ng=snew(n)%ng)
 
   end do
 
