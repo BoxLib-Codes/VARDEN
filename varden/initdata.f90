@@ -38,6 +38,21 @@ contains
          select case (dm)
             case (2)
               call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx, prob_hi)
+            case (3)
+              call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
+         end select
+      end do
+
+      call multifab_fill_boundary(u)
+      call multifab_fill_boundary(s)
+
+      do i = 1, u%nboxes
+         if ( multifab_remote(u, i) ) cycle
+         uop => dataptr(u, i)
+         sop => dataptr(s, i)
+         lo =  lwb(get_box(u, i))
+         select case (dm)
+            case (2)
               do n = 1,dm
                 call setbc_2d(uop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
               end do
@@ -45,7 +60,6 @@ contains
                 call setbc_2d(sop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
               end do
             case (3)
-              call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
               do n = 1,dm
                 call setbc_3d(uop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
               end do
@@ -54,8 +68,6 @@ contains
               end do
          end select
       end do
-      call multifab_fill_boundary(u)
-      call multifab_fill_boundary(s)
 
    end subroutine initdata
 

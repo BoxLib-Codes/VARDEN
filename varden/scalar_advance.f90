@@ -224,12 +224,6 @@ contains
                              fp(:,:,1,:) , snp(:,:,1,:), &
                              rp(:,:,1,1) , &
                              lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
-              do n = 1,nscal
-                call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
-                              the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
-              call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
-                            the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
             case (3)
                wmp => dataptr(umac(3), i)
                sepz => dataptr(sedge(3), i)
@@ -238,6 +232,26 @@ contains
                              fp(:,:,:,:) , snp(:,:,:,:), &
                              rp(:,:,:,1) , &
                              lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
+         end select
+      end do
+
+      call multifab_fill_boundary(rhohalf)
+      call multifab_fill_boundary(snew)
+
+      do i = 1, sold%nboxes
+         if ( multifab_remote(uold, i) ) cycle
+         snp => dataptr(snew, i)
+          rp => dataptr(rhohalf, i)
+         lo =  lwb(get_box(uold, i))
+         select case (dm)
+            case (2)
+              do n = 1,nscal
+                call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
+                              the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
+              end do
+              call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
+                            the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
+            case (3)
               do n = 1,nscal
                 call setbc_3d(snp(:,:,:,n), lo, ng_cell, &
                               the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
@@ -246,8 +260,6 @@ contains
                             the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
          end select
       end do
-      call multifab_fill_boundary(rhohalf)
-      call multifab_fill_boundary(snew)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

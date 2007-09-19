@@ -76,6 +76,9 @@ contains
 
       call multifab_build(     force,ext_force%la,dm,1)
 
+      call multifab_fill_boundary(uold)
+      call multifab_fill_boundary(sold)
+
 !     Impose boundary conditions on sold and uold.
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
@@ -98,8 +101,6 @@ contains
                 call setbc_3d(sop(:,:,:,1), lo, ng_cell, the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
          end select
       end do
-      call multifab_fill_boundary(uold)
-      call multifab_fill_boundary(sold)
 
 !     Create force.
       visc_fac = ONE

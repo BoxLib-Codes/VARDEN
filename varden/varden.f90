@@ -417,6 +417,10 @@ subroutine varden()
      end do
 
      do n = 1,nlevs
+
+        call multifab_fill_boundary(uold(n))
+        call multifab_fill_boundary(sold(n))
+
         bc = the_bc_tower%bc_tower_array(n)
         do i = 1, uold_rg(n)%nboxes
           if ( multifab_remote(uold_rg(n), i) ) cycle
@@ -496,6 +500,10 @@ subroutine varden()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   do n = 1,nlevs
+
+     call multifab_fill_boundary(uold(n))
+     call multifab_fill_boundary(sold(n))
+
      bc = the_bc_tower%bc_tower_array(n)
      do i = 1, uold(n)%nboxes
        if ( multifab_remote(uold(n), i) ) cycle
@@ -528,9 +536,6 @@ subroutine varden()
             end do
          end select
      end do
-
-     call multifab_fill_boundary(uold(n))
-     call multifab_fill_boundary(sold(n))
 
 !    This is done to impose any Dirichlet bc's on unew or snew.
      call multifab_copy_c(unew(n),1,uold(n),1,dm   ,ng=unew(n)%ng)
@@ -630,6 +635,10 @@ subroutine varden()
                p =    p_rg
 
           do n = 1,nlevs
+
+             call multifab_fill_boundary(uold(n))
+             call multifab_fill_boundary(sold(n))
+
              bc = the_bc_tower%bc_tower_array(n)
              do i = 1, uold(n)%nboxes
                if ( multifab_remote(uold(n), i) ) cycle
