@@ -16,6 +16,7 @@ subroutine varden()
   use scalar_advance_module
   use macproject_module
   use hgproject_module
+  use proj_parameters
   use ml_restriction_module
   use bc_module
   use define_bc_module
@@ -480,7 +481,7 @@ subroutine varden()
 !    Note that we use rhohalf, filled with 1 at this point, as a temporary
 !       in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
-       call hgproject(mla,uold,rhohalf,p,gp,dx,dt_temp, &
+       call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,dt_temp, &
                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
        do n = 1,nlevs
           call setval( p(n)  ,0.0_dp_t, all=.true.)
@@ -790,7 +791,7 @@ subroutine varden()
         end do
 
 !       Project the new velocity field.
-        call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
+        call hgproject(regular_timestep,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                        the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
         time = time + dt
@@ -1161,7 +1162,7 @@ subroutine varden()
         end do
 
 !       Project the new velocity field.
-        call hgproject(mla,unew,rhohalf,p,gp,dx,dt, &
+        call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                        the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
 

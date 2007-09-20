@@ -10,18 +10,21 @@ module hgproject_module
   use stencil_module
   use ml_solve_module
   use ml_restriction_module
+  use proj_parameters
   use fabio_module
 
   implicit none
 
 contains 
 
-subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
+subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
                      verbose,mg_verbose,cg_verbose,press_comp,divu_rhs, &
                      div_coeff_1d,div_coeff_3d,eps_in)
 
+  integer        , intent(in   ) :: proj_type
   type(ml_layout), intent(inout) :: mla
   type(multifab ), intent(inout) :: unew(:)
+  type(multifab ), intent(in   ) :: uold(:)
   type(multifab ), intent(inout) :: rhohalf(:)
   type(multifab ), intent(inout) :: gp(:)
   type(multifab ), intent(inout) :: p(:)
@@ -44,12 +47,15 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   integer                     :: stencil_type
   logical                     :: use_div_coeff_1d, use_div_coeff_3d
 
-  stencil_type = ST_DENSE
-! stencil_type = ST_CROSS
+! stencil_type = ST_DENSE
+  stencil_type = ST_CROSS
 
   nlevs = mla%nlevel
   dm    = mla%dim
   ng = unew(nlevs)%ng
+
+  if (parallel_IOProcessor() .and. verbose .ge. 1) &
+    print *,'PROJ_TYPE IN HGPROJECT:',proj_type
 
   allocate(phi(nlevs), gphi(nlevs), nodal(dm))
   nodal = .true.
@@ -75,7 +81,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1, nlevs
   end do
 
-  if (.false. .and. parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (parallel_IOProcessor() .and. verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
      wmin = 1.d30
@@ -103,7 +109,35 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 1003  format('... z-velocity before projection ',e17.10,2x,e17.10)
 1004  format(' ')
 
-  call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
+  ! quantity projected is U
+  if (proj_type .eq. initial_projection) then
+
+     print *,'DOING INITIAL PROJECTION '
+
+  ! quantity projected is U
+  else if (proj_type .eq. divu_iters) then
+
+     print *,'DOING INITIAL DIVU_ITERS '
+
+  ! quantity projected is (Ustar - Un) 
+  else if (proj_type .eq. pressure_iters) then
+
+     print *,'DOING PRESSURE ITERATIONS'
+     do n = 1,nlevs
+       call multifab_sub_sub(unew(n), uold(n), 1)
+     end do
+
+  ! quantity projected is (Ustar - Un) + dt * (1/rho) Gp
+  else if (proj_type .eq. regular_timestep) then
+
+    call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
+
+  else 
+
+     print *,'No proj_type by this number ',proj_type
+     stop
+
+  end if
 
   if (use_div_coeff_1d) then
      do n = 1, nlevs
@@ -145,17 +179,18 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
   end if
 
   do n = 1,nlevs
-     call mkgp(gphi(n),phi(n),dx(n,:))
-     call mk_p(   p(n),phi(n),dt)
-     call mkunew(unew(n),gp(n),gphi(n),rhohalf(n),ng,dt)
+     call mkgphi(gphi(n),phi(n),dx(n,:))
+     call hg_update(proj_type,unew(n),uold(n), &
+                    gp(n),gphi(n),rhohalf(n),  &
+                     p(n), phi(n),ng,dt)
   end do
 
   do n = nlevs,2,-1
-     call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
+     call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:)) 
      call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
   end do
 
-  if (.false. .and. parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (parallel_IOProcessor() .and. verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
      wmin = 1.d30
@@ -236,7 +271,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkgp(gphi,phi,dx)
+    subroutine mkgphi(gphi,phi,dx)
 
       type(multifab), intent(inout) :: gphi
       type(multifab), intent(in   ) :: phi
@@ -255,79 +290,66 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
          pp  => dataptr(phi , i)
          select case (dm)
             case (2)
-              call mkgp_2d(gph(:,:,1,:), pp(:,:,1,1), dx)
+              call mkgphi_2d(gph(:,:,1,:), pp(:,:,1,1), dx)
             case (3)
-              call mkgp_3d(gph(:,:,:,:), pp(:,:,:,1), dx)
+              call mkgphi_3d(gph(:,:,:,:), pp(:,:,:,1), dx)
          end select
       end do
 
       call multifab_fill_boundary(gphi)
 
-    end subroutine mkgp
+    end subroutine mkgphi
 
 !   ********************************************************************************************* !
 
-    subroutine mk_p(p,phi,dt)
+    subroutine hg_update(proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt)
 
-      type(multifab), intent(inout) :: p
-      type(multifab), intent(in   ) :: phi
-      real(kind=dp_t),intent(in   ) :: dt
- 
-      real(kind=dp_t), pointer :: ph(:,:,:,:) 
-      real(kind=dp_t), pointer :: pp(:,:,:,:) 
-      integer                  :: i
-      real(kind=dp_t)          :: dt_inv
-
-      dt_inv = ONE/dt
-
-      do i = 1, phi%nboxes
-         if ( multifab_remote(phi, i) ) cycle
-         ph => dataptr(phi, i)
-         pp => dataptr(p  , i)
-         pp = dt_inv * ph
-      end do
-
-      call multifab_fill_boundary(p)
-
-    end subroutine mk_p
-
-!   ********************************************************************************************* !
-
-    subroutine mkunew(unew,gp,gphi,rhohalf,ng,dt)
-
+      integer        , intent(in   ) :: proj_type
       type(multifab) , intent(inout) :: unew
+      type(multifab) , intent(in   ) :: uold
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(in   ) :: gphi
       type(multifab) , intent(in   ) :: rhohalf
+      type(multifab) , intent(inout) :: p
+      type(multifab) , intent(in   ) :: phi
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(in   ) :: dt 
       integer :: i,dm
  
       real(kind=dp_t), pointer :: upn(:,:,:,:) 
+      real(kind=dp_t), pointer :: uon(:,:,:,:) 
       real(kind=dp_t), pointer :: gph(:,:,:,:) 
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
+      real(kind=dp_t), pointer ::  ph(:,:,:,:) 
+      real(kind=dp_t), pointer ::  pp(:,:,:,:) 
 
       dm = unew%dim
 
       do i = 1, unew%nboxes
          if ( multifab_remote(unew, i) ) cycle
          upn => dataptr(unew, i)
+         uon => dataptr(uold, i)
          gpp => dataptr(gp  , i)
          gph => dataptr(gphi, i)
          rp  => dataptr(rhohalf, i)
+          pp => dataptr( p  , i)
+          ph => dataptr( phi, i)
          select case (dm)
             case (2)
-              call mkunew_2d(upn(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1),ng,dt)
+              call hg_update_2d(proj_type, upn(:,:,1,:), uon(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1), &
+                                pp(:,:,1,1), ph(:,:,1,1), ng, dt)
             case (3)
-              call mkunew_3d(upn(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1),ng,dt)
+              call hg_update_3d(proj_type, upn(:,:,:,:), uon(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1), &
+                                pp(:,:,:,1), ph(:,:,:,1), ng, dt)
          end select
       end do
 
       call multifab_fill_boundary(unew)
       call multifab_fill_boundary(gp)
+      call multifab_fill_boundary( p)
 
-    end subroutine mkunew
+    end subroutine hg_update
 
 !   ********************************************************************************************* !
 
@@ -470,7 +492,7 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   ********************************************************************************************* !
 
-    subroutine mkgp_2d(gp,phi,dx)
+    subroutine mkgphi_2d(gp,phi,dx)
 
       real(kind=dp_t), intent(inout) ::  gp(0:,0:,:)
       real(kind=dp_t), intent(inout) :: phi(-1:,-1:)
@@ -490,11 +512,11 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       end do
       end do
 
-    end subroutine mkgp_2d
+    end subroutine mkgphi_2d
 
 !   ********************************************************************************************* !
 
-    subroutine mkgp_3d(gp,phi,dx)
+    subroutine mkgphi_3d(gp,phi,dx)
 
       real(kind=dp_t), intent(inout) ::  gp(0:,0:,0:,1:)
       real(kind=dp_t), intent(inout) :: phi(-1:,-1:,-1:)
@@ -525,17 +547,21 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       end do
       end do
 
-    end subroutine mkgp_3d
+    end subroutine mkgphi_3d
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_2d(unew,gp,gphi,rhohalf,ng,dt)
+    subroutine hg_update_2d(proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt)
 
+      integer        , intent(in   ) :: proj_type
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::      unew(-ng:,-ng:,:)
-      real(kind=dp_t), intent(inout) ::        gp( -1:, -1:,:)
-      real(kind=dp_t), intent(in   ) ::      gphi(  0:,  0:,:)
-      real(kind=dp_t), intent(in   ) ::   rhohalf( -1:, -1:)
+      real(kind=dp_t), intent(inout) ::    unew(-ng:,-ng:,:)
+      real(kind=dp_t), intent(in   ) ::    uold(-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::      gp( -1:, -1:,:)
+      real(kind=dp_t), intent(in   ) ::    gphi(  0:,  0:,:)
+      real(kind=dp_t), intent(in   ) :: rhohalf( -1:, -1:)
+      real(kind=dp_t), intent(inout) ::       p( -1:, -1:)
+      real(kind=dp_t), intent(in   ) ::     phi( -1:, -1:)
       real(kind=dp_t), intent(in   ) :: dt
 
       integer         :: nx,ny
@@ -547,20 +573,45 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       unew(0:nx,0:ny,1) = unew(0:nx,0:ny,1) - gphi(0:nx,0:ny,1)/rhohalf(0:nx,0:ny) 
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
-!     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
-      gp(0:nx,0:ny,:) = (ONE/dt) * gphi(0:nx,0:ny,:)
+      if (proj_type .eq. pressure_iters) &    ! unew held the projection of (ustar-uold)
+        unew(0:nx,0:ny,:) = uold(0:nx,0:ny,:) + unew(0:nx,0:ny,:)
 
-    end subroutine mkunew_2d
+      if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
+
+        gp = ZERO
+         p = ZERO
+      
+      else if (proj_type .eq. pressure_iters) then
+
+        !  phi held                 dt * (change in pressure)
+        ! gphi held the gradient of dt * (change in pressure)
+        gp(0:nx,0:ny,:) = gp(0:nx,0:ny,:) + (ONE/dt) * gphi(0:nx,0:ny,:)
+         p(0:nx,0:ny  ) =  p(0:nx,0:ny  ) + (ONE/dt) *  phi(0:nx,0:ny  )
+
+      else if (proj_type .eq. regular_timestep) then
+
+        !  phi held                 dt * (pressure)
+        ! gphi held the gradient of dt * (pressure)
+        gp(0:nx,0:ny,:) = (ONE/dt) * gphi(0:nx,0:ny,:)
+         p(0:nx,0:ny  ) = (ONE/dt) *  phi(0:nx,0:ny  )
+
+      end if
+
+    end subroutine hg_update_2d
 
 !   ********************************************************************************************* !
 
-    subroutine mkunew_3d(unew,gp,gphi,rhohalf,ng,dt)
+    subroutine hg_update_3d(proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt)
 
+      integer        , intent(in   ) :: proj_type
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) :: unew(-ng:,-ng:,-ng:,:)
-      real(kind=dp_t), intent(inout) ::   gp(-1:,-1:,-1:,:)
-      real(kind=dp_t), intent(in   ) :: gphi( 0:, 0:, 0:,:)
+      real(kind=dp_t), intent(inout) ::    unew(-ng:,-ng:,-ng:,:)
+      real(kind=dp_t), intent(in   ) ::    uold(-ng:,-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::      gp(-1:,-1:,-1:,:)
+      real(kind=dp_t), intent(in   ) ::    gphi( 0:, 0:, 0:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) ::       p( -1:, -1:,-1:)
+      real(kind=dp_t), intent(in   ) ::     phi( -1:, -1:,-1:)
       real(kind=dp_t), intent(in   ) :: dt
 
       integer         :: nx,ny,nz
@@ -577,10 +628,28 @@ subroutine hgproject(mla,unew,rhohalf,p,gp,dx,dt,the_bc_tower, &
       unew(0:nx,0:ny,0:nz,3) = &
           unew(0:nx,0:ny,0:nz,3) - gphi(0:nx,0:ny,0:nz,3)/rhohalf(0:nx,0:ny,0:nz) 
 
-!     Replace (gradient of) pressure by 1/dt * (gradient of) phi.
-      gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
+      if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
 
-    end subroutine mkunew_3d
+        gp(0:nx,0:ny,0:nz,:) = ZERO
+
+      else if (proj_type .eq. pressure_iters) then
+
+        ! unew held the projection of (ustar-uold)
+        unew(0:nx,0:ny,0:nz,:) = uold(0:nx,0:ny,0:nz,:) + unew(0:nx,0:ny,0:nz,:)
+
+        ! gphi held the gradient of dt * (change in pressure)
+        gp(0:nx,0:ny,0:nz,:) = gp(0:nx,0:ny,0:nz,:) + (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
+
+      else if (proj_type .eq. regular_timestep) then
+
+        ! unew held the projection of (ustar + dt/rho Gp)
+
+        ! gphi held the gradient of dt * (pressure)
+        gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
+
+      end if
+
+    end subroutine hg_update_3d
 
 end subroutine hgproject
 
@@ -668,6 +737,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   eps = 1.d-14
 
   bottom_solver = 2
+  min_width = 2
 
 ! Note: put this here for robustness
   max_iter = 100
@@ -716,6 +786,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
           smoother = smoother, &
           nu1 = nu1, &
           nu2 = nu2, &
+          nub = nu2, &
           gamma = gamma, &
           cycle = cycle, &
           omega = omega, &
