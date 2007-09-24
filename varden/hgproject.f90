@@ -81,7 +81,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
   do n = 1, nlevs
   end do
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
      wmin = 1.d30
@@ -98,10 +98,12 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
           wmax = max(wmax,multifab_max_c(unew(n),3))
         end if
      end do
-     write(6,1001) umin,umax
-     write(6,1002) vmin,vmax
-     if (dm .eq. 3) write(6,1003) wmin,wmax
-     write(6,1004)
+     if (parallel_IOProcessor()) then
+        write(6,1001) umin,umax
+        write(6,1002) vmin,vmax
+        if (dm .eq. 3) write(6,1003) wmin,wmax
+        write(6,1004)
+     end if
   end if
 
 1001  format('... x-velocity before projection ',e17.10,2x,e17.10)
@@ -164,7 +166,6 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
     call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
                       verbose,mg_verbose,cg_verbose,press_comp,stencil_type,divu_rhs)
   end if
-  
 
   if (use_div_coeff_1d) then
      do n = 1, nlevs
@@ -190,7 +191,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
      call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
   end do
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
      wmin = 1.d30
@@ -207,10 +208,12 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
           wmax = max(wmax,multifab_max_c(unew(n),3))
         end if
      end do
-     write(6,1101) umin,umax
-     write(6,1102) vmin,vmax
-     if (dm .eq. 3) write(6,1103) wmin,wmax
-     write(6,1104)
+     if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        write(6,1101) umin,umax
+        write(6,1102) vmin,vmax
+        if (dm .eq. 3) write(6,1103) wmin,wmax
+        write(6,1104)
+     end if
   end if
 
 1101  format('... x-velocity  after projection ',e17.10,2x,e17.10)
