@@ -663,12 +663,9 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   use f2kcli
   use stencil_module
   use coeffs_module
-  use mg_module
   use list_box_module
   use itsol_module
-  use sparse_solve_module
   use bl_mem_stat_module
-  use box_util_module
   use bl_IO_module
 
   type(ml_layout), intent(inout) :: mla
