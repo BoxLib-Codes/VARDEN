@@ -124,12 +124,13 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
   ! quantity projected is (Ustar - Un) 
   else if (proj_type .eq. pressure_iters) then
 
-     print *,'DOING PRESSURE ITERATIONS'
+     print *,'DOING PRESSURE ITERATIONS WITH DT ',dt
      do n = 1,nlevs
        call multifab_sub_sub(unew(n), uold(n), 1)
+       call multifab_div_div_s(unew(n), dt, 1)
      end do
 
-  ! quantity projected is (Ustar - Un) + dt * (1/rho) Gp
+  ! quantity projected is Ustar + dt * (1/rho) Gp
   else if (proj_type .eq. regular_timestep) then
 
     call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
@@ -577,7 +578,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
       unew(0:nx,0:ny,2) = unew(0:nx,0:ny,2) - gphi(0:nx,0:ny,2)/rhohalf(0:nx,0:ny) 
 
       if (proj_type .eq. pressure_iters) &    ! unew held the projection of (ustar-uold)
-        unew(0:nx,0:ny,:) = uold(0:nx,0:ny,:) + unew(0:nx,0:ny,:)
+        unew(0:nx,0:ny,:) = uold(0:nx,0:ny,:) + dt * unew(0:nx,0:ny,:)
 
       if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
 
@@ -588,8 +589,10 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
         !  phi held                 dt * (change in pressure)
         ! gphi held the gradient of dt * (change in pressure)
-        gp(0:nx,0:ny,:) = gp(0:nx,0:ny,:) + (ONE/dt) * gphi(0:nx,0:ny,:)
-         p(0:nx,0:ny  ) =  p(0:nx,0:ny  ) + (ONE/dt) *  phi(0:nx,0:ny  )
+!       gp(0:nx,0:ny,:) = gp(0:nx,0:ny,:) + (ONE/dt) * gphi(0:nx,0:ny,:)
+!        p(0:nx,0:ny  ) =  p(0:nx,0:ny  ) + (ONE/dt) *  phi(0:nx,0:ny  )
+        gp(0:nx,0:ny,:) = gp(0:nx,0:ny,:) +            gphi(0:nx,0:ny,:)
+         p(0:nx,0:ny  ) =  p(0:nx,0:ny  ) +             phi(0:nx,0:ny  )
 
       else if (proj_type .eq. regular_timestep) then
 
@@ -734,7 +737,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
   verbose = mg_verbose
 
 ! Note: put this here to minimize asymmetries - ASA
-  eps = 1.d-14
+  eps = 1.d-12
 
   bottom_solver = 2
   min_width = 2
