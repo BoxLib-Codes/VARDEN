@@ -114,17 +114,17 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
   ! quantity projected is U
   if (proj_type .eq. initial_projection) then
 
-     print *,'DOING INITIAL PROJECTION '
+     print *,'DOING HGPROJECT IN INITIAL PROJECTION '
 
   ! quantity projected is U
   else if (proj_type .eq. divu_iters) then
 
-     print *,'DOING INITIAL DIVU_ITERS '
+     print *,'DOING HGPROJECT IN INITIAL DIVU_ITERS '
 
   ! quantity projected is (Ustar - Un) 
   else if (proj_type .eq. pressure_iters) then
 
-     print *,'DOING PRESSURE ITERATIONS WITH DT ',dt
+     print *,'DOING HGPROJECT IN PRESSURE ITERATIONS WITH DT ',dt
      do n = 1,nlevs
        call multifab_sub_sub(unew(n), uold(n), 1)
        call multifab_div_div_s(unew(n), dt, 1)
