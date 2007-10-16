@@ -582,10 +582,8 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
       
       else if (proj_type .eq. pressure_iters) then
 
-        !  phi held                 dt * (change in pressure)
-        ! gphi held the gradient of dt * (change in pressure)
-!       gp(0:nx,0:ny,:) = gp(0:nx,0:ny,:) + (ONE/dt) * gphi(0:nx,0:ny,:)
-!        p(0:nx,0:ny  ) =  p(0:nx,0:ny  ) + (ONE/dt) *  phi(0:nx,0:ny  )
+        !  phi held                 (change in pressure)
+        ! gphi held the gradient of (change in pressure)
         gp(0:nx,0:ny,:) = gp(0:nx,0:ny,:) +            gphi(0:nx,0:ny,:)
          p(0:nx,0:ny  ) =  p(0:nx,0:ny  ) +             phi(0:nx,0:ny  )
 
@@ -629,25 +627,28 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
       unew(0:nx,0:ny,0:nz,3) = &
           unew(0:nx,0:ny,0:nz,3) - gphi(0:nx,0:ny,0:nz,3)/rhohalf(0:nx,0:ny,0:nz) 
 
+      if (proj_type .eq. pressure_iters) &    ! unew held the projection of (ustar-uold)
+        unew(0:nx,0:ny,0:nz,:) = uold(0:nx,0:ny,0:nz,:) + dt * unew(0:nx,0:ny,0:nz,:)
+ 
       if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
-
-        gp(0:nx,0:ny,0:nz,:) = ZERO
-
+ 
+        gp = ZERO
+         p = ZERO
+ 
       else if (proj_type .eq. pressure_iters) then
-
-        ! unew held the projection of (ustar-uold)
-        unew(0:nx,0:ny,0:nz,:) = uold(0:nx,0:ny,0:nz,:) + unew(0:nx,0:ny,0:nz,:)
-
-        ! gphi held the gradient of dt * (change in pressure)
-        gp(0:nx,0:ny,0:nz,:) = gp(0:nx,0:ny,0:nz,:) + (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
-
+ 
+        !  phi held                 (change in pressure)
+        ! gphi held the gradient of (change in pressure)
+        gp(0:nx,0:ny,0:nz,:) = gp(0:nx,0:ny,0:nz,:) +            gphi(0:nx,0:ny,0:nz,:)
+         p(0:nx,0:ny,0:nz  ) =  p(0:nx,0:ny,0:nz  ) +             phi(0:nx,0:ny,0:nz  )
+ 
       else if (proj_type .eq. regular_timestep) then
-
-        ! unew held the projection of (ustar + dt/rho Gp)
-
+ 
+        !  phi held                 dt * (pressure)
         ! gphi held the gradient of dt * (pressure)
         gp(0:nx,0:ny,0:nz,:) = (ONE/dt) * gphi(0:nx,0:ny,0:nz,:)
-
+         p(0:nx,0:ny,0:nz  ) = (ONE/dt) *  phi(0:nx,0:ny,0:nz  )
+ 
       end if
 
     end subroutine hg_update_3d
