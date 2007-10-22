@@ -178,8 +178,6 @@ subroutine varden()
   bcy_hi = SLIP_WALL
   bcz_hi = SLIP_WALL
 
-  pmask = .FALSE.
-
   stop_time = -1.d0
 
   call get_environment_variable('PROBIN', probin_env, status = ierr)
@@ -220,6 +218,8 @@ subroutine varden()
   press_comp = dm + nscal + 1
 
   allocate(pmask(dm))
+  pmask = .FALSE.
+
   pmask(1) = pmask_x
   if (dm > 1) pmask(2) = pmask_y
   if (dm > 2) pmask(3) = pmask_z
