@@ -59,7 +59,7 @@ contains
       type(multifab) :: divu
       real(dp_t)     :: mult
 
-      integer :: nscal,velpred
+      integer :: nscal
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel, make_divu
@@ -139,7 +139,6 @@ contains
 !     Create the edge states of scalar using the MAC velocity 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      velpred = 0
       do i = 1, sold%nboxes
          if ( multifab_remote(sold, i) ) cycle
          sop  => dataptr(sold, i)
@@ -162,7 +161,7 @@ contains
                              lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                             velpred, ng_cell)
+                             ng_cell)
             case (3)
                sepz => dataptr(sedge(3), i)
                wmp  => dataptr(umac(3), i)
@@ -174,7 +173,7 @@ contains
                              lo, dx, dt, is_vel, is_conservative, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                             velpred, ng_cell)
+                             ng_cell)
          end select
       end do
 
