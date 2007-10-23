@@ -3,7 +3,7 @@ module scalar_advance_module
   use bl_types
   use multifab_module
   use viscous_module
-  use mkflux_module
+  use mkflux_macvel_module
   use mkdivu_module
   use mkforce_module
   use update_module
@@ -155,7 +155,7 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
+              call mkflux_macvel_2d(sop(:,:,1,:), uop(:,:,1,:), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,1), vmp(:,:,1,1), &
                              utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
@@ -167,7 +167,7 @@ contains
                sepz => dataptr(sedge(3), i)
                wmp  => dataptr(umac(3), i)
                wtp  => dataptr(utrans(3), i)
-              call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
+              call mkflux_macvel_3d(sop(:,:,:,:), uop(:,:,:,:), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                              utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
