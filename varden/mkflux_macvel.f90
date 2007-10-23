@@ -35,7 +35,6 @@ contains
       real(kind=dp_t), allocatable::  s_l(:),s_r(:),s_b(:),s_t(:)
 
 !     Local variables
-      real(kind=dp_t) ubardth, vbardth
       real(kind=dp_t) hx, hy, dth
       real(kind=dp_t) splus,sminus
       real(kind=dp_t) savg,st
@@ -149,11 +148,9 @@ contains
                st = force(i,j,n) - &
                     HALF * (vtrans(i,j)+vtrans(i,j+1))*(splus - sminus) / hy
                
-               ubardth = dth*u(i,j,1)/hx
-               
-               s_l(i+1)= s(i,j,n) + (HALF-ubardth)*slopex(i,j,n) + dth*st
-               s_r(i  )= s(i,j,n) - (HALF+ubardth)*slopex(i,j,n) + dth*st
-               
+               s_l(i+1)= s(i,j,n) + (HALF-dth*uadv(i+1,j)/hx)*slopex(i,j,1) + dth*st
+               s_r(i  )= s(i,j,n) - (HALF+dth*uadv(i,j)/hx)*slopex(i,j,1) + dth*st
+
             enddo
             
             do i = is, ie+1 
@@ -248,10 +245,8 @@ contains
                st = force(i,j,n) - &
                     HALF * (utrans(i,j)+utrans(i+1,j))*(splus - sminus) / hx
                
-               vbardth = dth*u(i,j,2)/hy
-               
-               s_b(j+1)= s(i,j,n) + (HALF-vbardth)*slopey(i,j,n) + dth*st
-               s_t(j  )= s(i,j,n) - (HALF+vbardth)*slopey(i,j,n) + dth*st
+               s_b(j+1)= s(i,j,n) + (HALF-dth*vadv(i,j+1)/hy)*slopey(i,j,1) + dth*st
+               s_t(j  )= s(i,j,n) - (HALF+dth*vadv(i,j)/hy)*slopey(i,j,1) + dth*st
                
             enddo
             
@@ -336,7 +331,6 @@ contains
       real(kind=dp_t), allocatable::  s_l(:),s_r(:),s_b(:),s_t(:),s_u(:),s_d(:)
 
 !     Local variables
-      real(kind=dp_t) ubardth, vbardth, wbardth
       real(kind=dp_t) hx, hy, hz, dth
       real(kind=dp_t) splus,sminus,st,str,savg
       real(kind=dp_t) sptop,spbot,smtop,smbot,splft,sprgt,smlft,smrgt
@@ -531,11 +525,10 @@ contains
 !        ******************************************************************
                   
                   st = force(i,j,k,n) - str
-                  ubardth = dth*u(i,j,k,1)/hx
                   
-                  s_l(i+1)= s(i,j,k,n) + (HALF-ubardth)*slopex(i,j,k,n) + dth*st
-                  s_r(i  )= s(i,j,k,n) - (HALF+ubardth)*slopex(i,j,k,n) + dth*st
-                  
+                  s_l(i+1)= s(i,j,k,n) + (HALF-dth*uadv(i+1,j,k))*slopex(i,j,k,1) + dth*st
+                  s_r(i  )= s(i,j,k,n) - (HALF+dth*uadv(i  ,j,k))*slopex(i,j,k,1) + dth*st
+
                enddo
                
                do i = is, ie+1 
@@ -700,10 +693,9 @@ contains
                   
                   st = force(i,j,k,n) - str
                   
-                  vbardth = dth*u(i,j,k,2)/hy
+                  s_b(j+1)= s(i,j,k,n) + (HALF-dth*vadv(i,j+1,k))*slopey(i,j,k,1) + dth*st
+                  s_t(j  )= s(i,j,k,n) - (HALF+dth*vadv(i,j,  k))*slopey(i,j,k,1) + dth*st
                   
-                  s_b(j+1)= s(i,j,k,n) + (HALF-vbardth)*slopey(i,j,k,n) + dth*st
-                  s_t(j  )= s(i,j,k,n) - (HALF+vbardth)*slopey(i,j,k,n) + dth*st
                enddo
                
                
@@ -869,11 +861,9 @@ contains
 
                   st = force(i,j,k,n) - str
                   
-                  wbardth = dth*u(i,j,k,3)/hz
-                  
-                  s_d(k+1)= s(i,j,k,n) + (HALF-wbardth)*slopez(i,j,k,n) + dth*st
-                  s_u(k  )= s(i,j,k,n) - (HALF+wbardth)*slopez(i,j,k,n) + dth*st
-                  
+                  s_d(k+1)= s(i,j,k,n) + (HALF-dth*wadv(i,j,k+1))*slopez(i,j,k,1) + dth*st
+                  s_u(k  )= s(i,j,k,n) - (HALF+dth*wadv(i,j,k  ))*slopez(i,j,k,1) + dth*st
+
                enddo
                
                do k = ks, ke+1 
