@@ -395,28 +395,28 @@ contains
       allocate(simhz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
 
       ! these are allocated from lo:hi+1 in the normal direction
-      ! and from lo-1:hi+1 in the transverse directions
-      allocate(slxy(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(slxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(srxy(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(srxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(slyx(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(slyz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(sryx(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(sryz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(slzx(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
-      allocate(slzy(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
-      allocate(srzx(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
-      allocate(srzy(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      ! and from lo:hi in the transverse directions
+      allocate(slxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
+      allocate(slxz(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
+      allocate(srxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
+      allocate(srxz(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
+      allocate(slyx(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(slyz(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(sryx(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(sryz(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(slzx(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
+      allocate(slzy(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
+      allocate(srzx(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
+      allocate(srzy(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
 
       ! these are allocated from lo:hi+1 in the normal direction
-      ! and from lo-1:hi+1 in the transverse directions
-      allocate(simhxy(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(simhxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(simhyx(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(simhyz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
-      allocate(simhzx(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
-      allocate(simhzy(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      ! and from lo:hi in the transverse directions
+      allocate(simhxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
+      allocate(simhxz(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
+      allocate(simhyx(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(simhyz(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(simhzx(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
+      allocate(simhzy(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
 
       ! these are allocated from lo:hi+1 in the normal direction
       ! and from lo:hi in the transverse directions
@@ -642,8 +642,8 @@ contains
 !******************************************************************
 
             ! loop over appropriate x-faces
-            do k=ks-1,ke+1
-               do j=js-1,je+1
+            do k=ks,ke
+               do j=js,je
                   do i=is,ie+1
                      ! make slxy, srxy by updating 1D extrapolation
                      slxy(i,j,k) = slx(i,j,k) - (dt6/hy**2)*(vtrans(i-1,j+1,k)+vtrans(i-1,j,k))*(simhy(i-1,j+1,k)-simhy(i-1,j,k))
@@ -735,9 +735,9 @@ contains
             enddo
 
             ! loop over appropriate y-faces
-            do k=ks-1,ke+1
+            do k=ks,ke
                do j=js,je+1
-                  do i=is-1,ie+1
+                  do i=is,ie
                      ! make slyx, sryx by updating 1D extrapolation
                      slyx(i,j,k) = sly(i,j,k) - (dt6/hx**2)*(utrans(i+1,j-1,k)+utrans(i,j-1,k))*(simhx(i+1,j-1,k)-simhx(i,j-1,k))
                      sryx(i,j,k) = sry(i,j,k) - (dt6/hx**2)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhx(i+1,j,k)-simhx(i,j,k))
@@ -829,8 +829,8 @@ contains
 
             ! loop over appropriate z-faces
             do k=ks,ke+1
-               do j=js-1,je+1
-                  do i=is-1,ie+1
+               do j=js,je
+                  do i=is,ie
                      ! make slzx, srzx by updating 1D extrapolation
                      slzx(i,j,k) = slz(i,j,k) - (dt6/hx**2)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhx(i+1,j,k-1)-simhx(i,j,k-1))
                      srzx(i,j,k) = srz(i,j,k) - (dt6/hx**2)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhx(i+1,j,k)-simhx(i,j,k))
@@ -921,7 +921,7 @@ contains
             enddo
 
 !******************************************************************
-! Create s_{\i-\half\e_x}^{x,n+\myhalf} = sedgex, etc.
+! Create sedgelx, etc.
 !******************************************************************
 
             ! loop over appropriate x-faces
