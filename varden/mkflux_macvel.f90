@@ -31,10 +31,10 @@ contains
       logical        ,intent(in) :: is_vel
       logical        ,intent(in) :: is_cons(:)
 
+!     Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:),slopey(:,:,:)
       real(kind=dp_t), allocatable::  s_l(:),s_r(:),s_b(:),s_t(:)
 
-!     Local variables
       real(kind=dp_t) hx, hy, dth
       real(kind=dp_t) splus,sminus
       real(kind=dp_t) savg,st
@@ -322,12 +322,12 @@ contains
       logical        ,intent(in) :: is_vel
       logical        ,intent(in) :: is_cons(:)
 
+!     Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)
       real(kind=dp_t), allocatable::  slopey(:,:,:,:)
       real(kind=dp_t), allocatable::  slopez(:,:,:,:)
       real(kind=dp_t), allocatable::  s_l(:),s_r(:),s_b(:),s_t(:),s_u(:),s_d(:)
 
-!     Local variables
       real(kind=dp_t) hx, hy, hz, dth
       real(kind=dp_t) splus,sminus,st,str,savg
       real(kind=dp_t) sptop,spbot,smtop,smbot,splft,sprgt,smlft,smrgt
@@ -340,6 +340,14 @@ contains
       integer :: i,j,k,is,js,ks,ie,je,ke,n
       integer :: slope_order = 4
       integer :: ncomp
+
+      ! these correspond to s_L^x, etc.
+      real(kind=dp_t), allocatable:: slx(:,:,:),srx(:,:,:)
+      real(kind=dp_t), allocatable:: sly(:,:,:),sry(:,:,:)
+      real(kind=dp_t), allocatable:: slz(:,:,:),srz(:,:,:)
+
+      ! these correspond to s_{\i-\half\e_x}^x, etc.
+      real(kind=dp_t), allocatable:: simhx(:,:,:),simhy(:,:,:),simhz(:,:,:)
 
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
       hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
@@ -355,6 +363,21 @@ contains
       allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
       allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
       allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
+
+      ! these are allocated from lo:hi+1 in the normal direction
+      ! and from lo-1:hi+1 in the transverse directions
+      allocate(slx(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(srx(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(sly(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(sry(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(slz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      allocate(srz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+
+      ! these are allocated from lo:hi+1 in the normal direction
+      ! and from lo-1:hi+1 in the transverse directions
+      allocate(simhx(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(simhy(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(simhz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
 
       ncomp = size(s,dim=4)
       do k = lo(3)-1,hi(3)+1
@@ -407,6 +430,101 @@ contains
 
       if(cornerCoupling) then
 
+         ! loop over components
+         do n=1,ncomp
+
+            ! loop over appropriate x-faces
+            do k=ks-1,ke+1
+               do j=js-1,je+1
+                  do i=is,ie+1
+                     ! make slx, srx with 1D extrapolation
+                     slx(i,j,k) = s(i-1,j,k,n) + (HALF - dth*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,n)
+                     srx(i,j,k) = s(i  ,j,k,n) - (HALF + dth*u(i,  j,k,1)/hx)*slopex(i,  j,k,n)
+
+                     ! impose lo side bc's
+                     if(i .eq. is) then
+                        slx(i,j,k) = merge(s(is-1,j,k,n),slx(i,j,k),phys_bc(1,1) .eq. INLET)
+                        srx(i,j,k) = merge(s(is-1,j,k,n),srx(i,j,k),phys_bc(1,1) .eq. INLET)
+                        if(phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+                           if(is_vel .and. n .eq. 1) then
+                              slx(i,j,k) = ZERO
+                              srx(i,j,k) = ZERO
+                           else if(is_vel .and. n .ne. 1) then
+                              slx(i,j,k) = merge(ZERO,srx(i,j,k),phys_bc(1,1) .eq. NO_SLIP_WALL)
+                              srx(i,j,k) = merge(ZERO,srx(i,j,k),phys_bc(1,1) .eq. NO_SLIP_WALL)
+                           else
+                              slx(i,j,k) = srx(i,j,k)
+                           endif
+                        endif
+                     endif
+
+                     ! impose hi side bc's
+                     if(i .eq. ie+1) then
+                        slx(i,j,k) = merge(s(ie+1,j,k,n),slx(i,j,k),phys_bc(1,2) .eq. INLET)
+                        srx(i,j,k) = merge(s(ie+1,j,k,n),srx(i,j,k),phys_bc(1,2) .eq. INLET)
+                        if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+                           if (is_vel .and. n .eq. 1) then
+                              slx(i,j,k) = ZERO
+                              srx(i,j,k) = ZERO
+                           else if (is_vel .and. n .ne. 1) then
+                              slx(i,j,k) = merge(ZERO,slx(i,j,k),phys_bc(1,2).eq.NO_SLIP_WALL)
+                              srx(i,j,k) = merge(ZERO,slx(i,j,k),phys_bc(1,2).eq.NO_SLIP_WALL)
+                           else
+                              srx(i,j,k) =slx(i,j,k)
+                           endif
+                        endif
+                     endif
+
+                     ! make simhx by solving Riemann problem
+                     simhx(i,j,k) = merge(slx(i,j,k),srx(i,j,k),utrans(i,j,k) .gt. ZERO)
+                     savg = HALF*(slx(i,j,k)+srx(i,j,k))
+                     simhx(i,j,k) = merge(simhx(i,j,k),savg,abs(utrans(i,j,k)) .gt. eps)
+                  enddo
+               enddo
+            enddo
+
+            ! loop over appropriate y-faces
+            do k=ks-1,ke+1
+               do j=js,je+1
+                  do i=is-1,ie+1
+                     ! make slx, srx with 1D extrapolation
+                     sly(i,j,k) = s(i,j-1,k,n) + (HALF - dth*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,n)
+                     sry(i,j,k) = s(i,j,  k,n) - (HALF + dth*u(i,j,  k,2)/hy)*slopey(i,j,  k,n)
+
+                     ! impose lo side bc's
+
+                     ! impose hi side bc's
+
+                     ! make simhy by solving Riemann problem
+                  enddo
+               enddo
+            enddo
+
+            ! loop over appropriate z-faces
+            do k=ks,ke+1
+               do j=js-1,je+1
+                  do i=is-1,ie+1
+                     ! make slx, srx with 1D extrapolation
+                     slz(i,j,k) = s(i,j,k-1,n) + (HALF - dth*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,n)
+                     srz(i,j,k) = s(i,j,k,  n) - (HALF + dth*u(i,j,k,  3)/hz)*slopez(i,j,k,  n)
+
+                     ! impose lo side bc's
+
+                     ! impose hi side bc's
+
+                     ! make simhz by solving Riemann problem
+                  enddo
+               enddo
+            enddo
+
+
+
+
+
+         ! end loop over components
+         enddo
+
+      ! end (cornerCoupling .eq. .true.)
       else
 
          ! loop for x fluxes
@@ -414,9 +532,9 @@ contains
             do k = ks,ke 
                do j = js,je 
                   do i = is-1,ie+1 
-                     !******************************************************************
-                     !MAKE TRANSVERSE DERIVATIVES IN Y-DIRECTION
-                     !******************************************************************
+!******************************************************************
+!MAKE TRANSVERSE DERIVATIVES IN Y-DIRECTION
+!******************************************************************
                      spbot = s(i,j  ,k,n) + (HALF - dth*u(i,j  ,k,2)/hy)*slopey(i,j  ,k,n)
                      !    $            + dth * force(i,  j,k,n)
                      sptop = s(i,j+1,k,n) - (HALF + dth*u(i,j+1,k,2)/hy)*slopey(i,j+1,k,n)
@@ -905,6 +1023,17 @@ contains
       deallocate(slopex)
       deallocate(slopey)
       deallocate(slopez)
+
+      deallocate(slx)
+      deallocate(srx)
+      deallocate(sly)
+      deallocate(sry)
+      deallocate(slz)
+      deallocate(srz)
+
+      deallocate(simhx)
+      deallocate(simhy)
+      deallocate(simhz)
 
       end subroutine mkflux_macvel_3d
 
