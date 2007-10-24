@@ -328,7 +328,7 @@ contains
       real(kind=dp_t), allocatable::  slopez(:,:,:,:)
       real(kind=dp_t), allocatable::  s_l(:),s_r(:),s_b(:),s_t(:),s_u(:),s_d(:)
 
-      real(kind=dp_t) hx, hy, hz, dth
+      real(kind=dp_t) hx, hy, hz, dth, dt3
       real(kind=dp_t) splus,sminus,st,str,savg
       real(kind=dp_t) sptop,spbot,smtop,smbot,splft,sprgt,smlft,smrgt
       logical test
@@ -348,6 +348,11 @@ contains
 
       ! these correspond to s_{\i-\half\e_x}^x, etc.
       real(kind=dp_t), allocatable:: simhx(:,:,:),simhy(:,:,:),simhz(:,:,:)
+
+      ! these correspond to s_L^{x|y}, etc.
+      real(kind=dp_t), allocatable:: slxy(:,:,:),slxz(:,:,:),srxy(:,:,:),srxz(:,:,:)
+      real(kind=dp_t), allocatable:: slyx(:,:,:),slyz(:,:,:),sryx(:,:,:),sryz(:,:,:)
+      real(kind=dp_t), allocatable:: slzx(:,:,:),slzy(:,:,:),srzx(:,:,:),srzy(:,:,:)
 
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
       hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
@@ -379,6 +384,21 @@ contains
       allocate(simhy(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
       allocate(simhz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
 
+      ! these are allocated from lo:hi+1 in the normal direction
+      ! and from lo-1:hi+1 in the transverse directions
+      allocate(slxy(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(slxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(srxy(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(srxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(slyx(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(slyz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(sryx(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(sryz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(slzx(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      allocate(slzy(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      allocate(srzx(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      allocate(srzy(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+
       ncomp = size(s,dim=4)
       do k = lo(3)-1,hi(3)+1
          call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
@@ -396,6 +416,7 @@ contains
       ke = hi(3)
 
       dth = HALF*dt
+      dt3 = dt/3.0d0
 
       hx = dx(1)
       hy = dx(2)
@@ -470,7 +491,7 @@ contains
                               slx(i,j,k) = merge(ZERO,slx(i,j,k),phys_bc(1,2).eq.NO_SLIP_WALL)
                               srx(i,j,k) = merge(ZERO,slx(i,j,k),phys_bc(1,2).eq.NO_SLIP_WALL)
                            else
-                              srx(i,j,k) =slx(i,j,k)
+                              srx(i,j,k) = slx(i,j,k)
                            endif
                         endif
                      endif
@@ -487,15 +508,48 @@ contains
             do k=ks-1,ke+1
                do j=js,je+1
                   do i=is-1,ie+1
-                     ! make slx, srx with 1D extrapolation
+                     ! make sly, sry with 1D extrapolation
                      sly(i,j,k) = s(i,j-1,k,n) + (HALF - dth*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,n)
                      sry(i,j,k) = s(i,j,  k,n) - (HALF + dth*u(i,j,  k,2)/hy)*slopey(i,j,  k,n)
 
                      ! impose lo side bc's
+                     if(j .eq. js) then
+                        sly(i,j,k) = merge(s(is,j-1,k,n),sly(i,j,k),phys_bc(2,1) .eq. INLET)
+                        sry(i,j,k) = merge(s(is,j-1,k,n),sry(i,j,k),phys_bc(2,1) .eq. INLET)
+                        if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
+                           if(is_vel .and. n .eq. 2) then
+                              sly(i,j,k) = ZERO
+                              sry(i,j,k) = ZERO
+                           else if(is_vel .and. n .ne. 2) then
+                              sly(i,j,k) = merge(ZERO,sry(i,j,k),phys_bc(2,1) .eq. NO_SLIP_WALL)
+                              sry(i,j,k) = merge(ZERO,sry(i,j,k),phys_bc(2,1) .eq. NO_SLIP_WALL)
+                           else
+                              sly(i,j,k) = sry(i,j,k)
+                           endif
+                        endif
+                     endif
 
                      ! impose hi side bc's
+                     if(j .eq. je+1) then
+                        sly(i,j,k) = merge(s(i,je+1,k,n),sly(i,j,k),phys_bc(2,2) .eq. INLET)
+                        sry(i,j,k) = merge(s(i,je+1,k,n),sry(i,j,k),phys_bc(2,2) .eq. INLET)
+                        if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
+                           if (is_vel .and. n .eq. 2) then
+                              sly(i,j,k) = ZERO
+                              sry(i,j,k) = ZERO
+                           else if (is_vel .and. n .ne. 2) then
+                              sly(i,j,k) = merge(ZERO,sly(i,j,k),phys_bc(2,2).eq.NO_SLIP_WALL)
+                              sry(i,j,k) = merge(ZERO,sly(i,j,k),phys_bc(2,2).eq.NO_SLIP_WALL)
+                           else
+                              sry(i,j,k) = sly(i,j,k)
+                           endif
+                        endif
+                     endif
 
                      ! make simhy by solving Riemann problem
+                     simhy(i,j,k) = merge(sly(i,j,k),sry(i,j,k),vtrans(i,j,k) .gt. ZERO)
+                     savg = HALF*(sly(i,j,k)+sry(i,j,k))
+                     simhy(i,j,k) = merge(simhy(i,j,k),savg,abs(vtrans(i,j,k)) .gt. eps)
                   enddo
                enddo
             enddo
@@ -504,15 +558,48 @@ contains
             do k=ks,ke+1
                do j=js-1,je+1
                   do i=is-1,ie+1
-                     ! make slx, srx with 1D extrapolation
+                     ! make slz, srz with 1D extrapolation
                      slz(i,j,k) = s(i,j,k-1,n) + (HALF - dth*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,n)
                      srz(i,j,k) = s(i,j,k,  n) - (HALF + dth*u(i,j,k,  3)/hz)*slopez(i,j,k,  n)
 
                      ! impose lo side bc's
+                     if(k .eq. ks) then
+                        slz(i,j,k) = merge(s(is,j,k-1,n),slz(i,j,k),phys_bc(3,1) .eq. INLET)
+                        srz(i,j,k) = merge(s(is,j,k-1,n),srz(i,j,k),phys_bc(3,1) .eq. INLET)
+                        if(phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
+                           if(is_vel .and. n .eq. 3) then
+                              slz(i,j,k) = ZERO
+                              srz(i,j,k) = ZERO
+                           else if(is_vel .and. n .ne. 3) then
+                              slz(i,j,k) = merge(ZERO,srz(i,j,k),phys_bc(3,1) .eq. NO_SLIP_WALL)
+                              srz(i,j,k) = merge(ZERO,srz(i,j,k),phys_bc(3,1) .eq. NO_SLIP_WALL)
+                           else
+                              slz(i,j,k) = srz(i,j,k)
+                           endif
+                        endif
+                     endif
 
                      ! impose hi side bc's
+                     if(k .eq. ke+1) then
+                        slz(i,j,k) = merge(s(i,j,ke+1,n),slz(i,j,k),phys_bc(3,2) .eq. INLET)
+                        srz(i,j,k) = merge(s(i,j,ke+1,n),srz(i,j,k),phys_bc(3,2) .eq. INLET)
+                        if(phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
+                           if (is_vel .and. n .eq. 3) then
+                              slz(i,j,k) = ZERO
+                              srz(i,j,k) = ZERO
+                           else if (is_vel .and. n .ne. 3) then
+                              slz(i,j,k) = merge(ZERO,slz(i,j,k),phys_bc(3,2).eq.NO_SLIP_WALL)
+                              srz(i,j,k) = merge(ZERO,slz(i,j,k),phys_bc(3,2).eq.NO_SLIP_WALL)
+                           else
+                              srz(i,j,k) = slz(i,j,k)
+                           endif
+                        endif
+                     endif
 
                      ! make simhz by solving Riemann problem
+                     simhz(i,j,k) = merge(slz(i,j,k),srz(i,j,k),wtrans(i,j,k) .gt. ZERO)
+                     savg = HALF*(slz(i,j,k)+srz(i,j,k))
+                     simhz(i,j,k) = merge(simhz(i,j,k),savg,abs(wtrans(i,j,k)) .gt. eps)
                   enddo
                enddo
             enddo
@@ -1034,6 +1121,19 @@ contains
       deallocate(simhx)
       deallocate(simhy)
       deallocate(simhz)
+
+      deallocate(slxy)
+      deallocate(slxz)
+      deallocate(srxy)
+      deallocate(srxz)
+      deallocate(slyx)
+      deallocate(slyz)
+      deallocate(sryx)
+      deallocate(sryz)
+      deallocate(slzx)
+      deallocate(slzy)
+      deallocate(srzx)
+      deallocate(srzy)
 
       end subroutine mkflux_macvel_3d
 
