@@ -350,9 +350,9 @@ contains
       real(kind=dp_t), allocatable:: simhx(:,:,:),simhy(:,:,:),simhz(:,:,:)
 
       ! these correspond to s_L^{x|y}, etc.
-      real(kind=dp_t), allocatable:: slxy(:,:,:),slxz(:,:,:),srxy(:,:,:),srxz(:,:,:)
-      real(kind=dp_t), allocatable:: slyx(:,:,:),slyz(:,:,:),sryx(:,:,:),sryz(:,:,:)
-      real(kind=dp_t), allocatable:: slzx(:,:,:),slzy(:,:,:),srzx(:,:,:),srzy(:,:,:)
+      real(kind=dp_t), allocatable:: slxy(:,:,:),srxy(:,:,:),slxz(:,:,:),srxz(:,:,:)
+      real(kind=dp_t), allocatable:: slyx(:,:,:),sryx(:,:,:),slyz(:,:,:),sryz(:,:,:)
+      real(kind=dp_t), allocatable:: slzx(:,:,:),srzx(:,:,:),slzy(:,:,:),srzy(:,:,:)
 
       ! these correspond to s_{\i-\half\e_x}^{x|y}, etc.
       real(kind=dp_t), allocatable:: simhxy(:,:,:),simhxz(:,:,:)
@@ -394,29 +394,34 @@ contains
       allocate(simhy(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
       allocate(simhz(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
 
-      ! these are allocated from lo:hi+1 in the normal direction
-      ! and from lo:hi in the transverse directions
-      allocate(slxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
-      allocate(slxz(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
-      allocate(srxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
-      allocate(srxz(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
-      allocate(slyx(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
-      allocate(slyz(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
-      allocate(sryx(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
-      allocate(sryz(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
-      allocate(slzx(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
-      allocate(slzy(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
-      allocate(srzx(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
-      allocate(srzy(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
 
-      ! these are allocated from lo:hi+1 in the normal direction
-      ! and from lo:hi in the transverse directions
-      allocate(simhxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
-      allocate(simhxz(lo(1):hi(1)+1,lo(2):hi(2),lo(3):hi(3)))
-      allocate(simhyx(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
-      allocate(simhyz(lo(1):hi(1),lo(2):hi(2)+1,lo(3):hi(3)))
-      allocate(simhzx(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
-      allocate(simhzy(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
+      ! The general pattern is
+      ! lo:hi+1 in normal direction
+      ! lo:hi in transverse direction
+      ! lo-1:hi+1 in unused direction
+      allocate(slxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3)-1:hi(3)+1))
+      allocate(srxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3)-1:hi(3)+1))
+      allocate(simhxy(lo(1):hi(1)+1,lo(2):hi(2),lo(3)-1:hi(3)+1))
+
+      allocate(slxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)))
+      allocate(srxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)))
+      allocate(simhxz(lo(1):hi(1)+1,lo(2)-1:hi(2)+1,lo(3):hi(3)))
+
+      allocate(slyx(lo(1):hi(1),lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(sryx(lo(1):hi(1),lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+      allocate(simhyx(lo(1):hi(1),lo(2):hi(2)+1,lo(3)-1:hi(3)+1))
+
+      allocate(slyz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(sryz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)))
+      allocate(simhyz(lo(1)-1:hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)))
+
+      allocate(slzx(lo(1):hi(1),lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      allocate(srzx(lo(1):hi(1),lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+      allocate(simhzx(lo(1):hi(1),lo(2)-1:hi(2)+1,lo(3):hi(3)+1))
+
+      allocate(slzy(lo(1)-1:hi(1)+1,lo(2):hi(2),lo(3):hi(3)+1))
+      allocate(srzy(lo(1)-1:hi(1)+1,lo(2):hi(2),lo(3):hi(3)+1))
+      allocate(simhzy(lo(1)-1:hi(1)+1,lo(2):hi(2),lo(3):hi(3)+1))
 
       ! these are allocated from lo:hi+1 in the normal direction
       ! and from lo:hi in the transverse directions
@@ -641,8 +646,8 @@ contains
 ! Create s_{\i-\half\e_x}^{x|y}, etc.
 !******************************************************************
 
-            ! loop over appropriate x-faces
-            do k=ks,ke
+            ! loop over appropriate xy faces
+            do k=ks-1,ke+1
                do j=js,je
                   do i=is,ie+1
                      ! make slxy, srxy by updating 1D extrapolation
@@ -687,7 +692,14 @@ contains
                      simhxy(i,j,k) = merge(slxy(i,j,k),srxy(i,j,k),utrans(i,j,k) .gt. ZERO)
                      savg = HALF*(slxy(i,j,k)+srxy(i,j,k))
                      simhxy(i,j,k) = merge(simhxy(i,j,k),savg,abs(utrans(i,j,k)) .gt. eps)
+                  enddo
+               enddo
+            enddo
 
+           ! loop over appropriate xz faces
+            do k=ks,ke
+               do j=js-1,je+1
+                  do i=is,ie+1
                      ! make slxz, srxz by updating 1D extrapolation
                      slxz(i,j,k) = slx(i,j,k) - (dt6/hz**2)*(wtrans(i-1,j,k+1)+wtrans(i-1,j,k))*(simhz(i-1,j,k+1)-simhz(i-1,j,k))
                      srxz(i,j,k) = slx(i,j,k) - (dt6/hz**2)*(wtrans(i,j,k+1)+wtrans(i,j,k))*(simhz(i,j,k+1)-simhz(i,j,k))
@@ -734,8 +746,8 @@ contains
                enddo
             enddo
 
-            ! loop over appropriate y-faces
-            do k=ks,ke
+            ! loop over appropriate yx faces
+            do k=ks-1,ke+1
                do j=js,je+1
                   do i=is,ie
                      ! make slyx, sryx by updating 1D extrapolation
@@ -780,7 +792,14 @@ contains
                      simhyx(i,j,k) = merge(slyx(i,j,k),sryx(i,j,k),vtrans(i,j,k) .gt. ZERO)
                      savg = HALF*(slyx(i,j,k)+sryx(i,j,k))
                      simhyx(i,j,k) = merge(simhyx(i,j,k),savg,abs(vtrans(i,j,k)) .gt. eps)
+                  enddo
+               enddo
+            enddo
 
+            ! loop over appropriate yz faces
+            do k=ks,ke
+               do j=js,je+1
+                  do i=is-1,ie+1
                      ! make slyz, sryz by updating 1D extrapolation
                      slyz(i,j,k) = sly(i,j,k) - (dt6/hz**2)*(wtrans(i,j-1,k+1)+wtrans(i,j-1,k))*(simhz(i,j-1,k+1)-simhz(i,j-1,k))
                      sryz(i,j,k) = sry(i,j,k) - (dt6/hz**2)*(wtrans(i,j,k+1)+wtrans(i,j,k))*(simhz(i,j,k+1)-simhz(i,j,k))
@@ -827,9 +846,9 @@ contains
                enddo
             enddo
 
-            ! loop over appropriate z-faces
+            ! loop over appropriate zx faces
             do k=ks,ke+1
-               do j=js,je
+               do j=js-1,je+1
                   do i=is,ie
                      ! make slzx, srzx by updating 1D extrapolation
                      slzx(i,j,k) = slz(i,j,k) - (dt6/hx**2)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhx(i+1,j,k-1)-simhx(i,j,k-1))
@@ -873,7 +892,14 @@ contains
                      simhzx(i,j,k) = merge(slzx(i,j,k),srzx(i,j,k),wtrans(i,j,k) .gt. ZERO)
                      savg = HALF*(slzx(i,j,k)+srzx(i,j,k))
                      simhzx(i,j,k) = merge(simhzx(i,j,k),savg,abs(wtrans(i,j,k)) .gt. eps)
+                  enddo
+               enddo
+            enddo
 
+            ! loop over appropriate zy faces
+            do k=ks,ke+1
+               do j=js,je
+                  do i=is-1,ie+1
                      ! make slzy, srzy by updating 1D extrapolation
                      slzy(i,j,k) = slz(i,j,k) - (dt6/hy**2)*(vtrans(i,j+1,k-1)+vtrans(i,j,k-1))*(simhy(i,j+1,k-1)-simhy(i,j,k-1))
                      srzy(i,j,k) = srz(i,j,k) - (dt6/hy**2)*(vtrans(i,j+1,k)+vtrans(i,j,k))*(simhy(i,j+1,k)-simhy(i,j,k))
@@ -987,7 +1013,7 @@ contains
                      ! make sedgely, sedgery
                      sedgely(i,j,k) = s(i,j-1,k,n) + (HALF - dth*vadv(i,j,k)/hy)*slopey(i,j-1,k,n) &
                           - (dth/hx)*(utrans(i+1,j-1,k)+utrans(i,j-1,k))*(simhxz(i+1,j-1,k)-simhxz(i,j-1,k)) &
-                          - (dth/hz)*(wtrans(i,j-1,k+1)+wtrans(i,j-1,k))*(simhzy(i,j-1,k+1)-simhzy(i,j-1,k)) &
+                          - (dth/hz)*(wtrans(i,j-1,k+1)+wtrans(i,j-1,k))*(simhzx(i,j-1,k+1)-simhzx(i,j-1,k)) &
                           + dth*force(i,j,k,n)
                      sedgery(i,j,k) = s(i,j,k,n) - (HALF + dth*vadv(i,j,k)/hy)*slopey(i,j,k,n) &
                           - (dth/hx)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhxz(i+1,j,k)-simhxz(i,j,k)) &
@@ -1043,7 +1069,7 @@ contains
                      ! make sedgelz, sedgerz
                      sedgelz(i,j,k) = s(i,j,k-1,n) + (HALF - dth*wadv(i,j,k)/hz)*slopez(i,j,k-1,n) &
                           - (dth/hx)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhxy(i+1,j,k-1)-simhxy(i,j,k-1)) &
-                          - (dth/hy)*(vtrans(i,j+1,k-1)+vtrans(i,j,k-1))*(simhyx(i,j+1,k-1)-simhzy(i,j,k-1)) &
+                          - (dth/hy)*(vtrans(i,j+1,k-1)+vtrans(i,j,k-1))*(simhyx(i,j+1,k-1)-simhyx(i,j,k-1)) &
                           + dth*force(i,j,k,n)
                      sedgerz(i,j,k) = s(i,j,k,n) - (HALF + dth*wadv(i,j,k)/hz)*slopez(i,j,k,n) &
                           - (dth/hx)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhxy(i+1,j,k)-simhxy(i,j,k)) &
@@ -1607,16 +1633,16 @@ contains
       deallocate(simhz)
 
       deallocate(slxy)
-      deallocate(slxz)
       deallocate(srxy)
+      deallocate(slxz)
       deallocate(srxz)
       deallocate(slyx)
-      deallocate(slyz)
       deallocate(sryx)
+      deallocate(slyz)
       deallocate(sryz)
       deallocate(slzx)
-      deallocate(slzy)
       deallocate(srzx)
+      deallocate(slzy)
       deallocate(srzy)
 
       deallocate(simhxy)
