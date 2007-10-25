@@ -10,8 +10,8 @@ module mkflux_module
 contains
 
       subroutine mkflux_2d(s,u,sedgex,sedgey,uadv,vadv,utrans,vtrans,&
-                                  force,lo,dx,dt,is_vel,velpred,&
-                                  phys_bc,adv_bc,ng)
+                           force,lo,dx,dt,is_vel,velpred,&
+                           phys_bc,adv_bc,ng)
 
       integer, intent(in) :: lo(2),ng
 
@@ -48,6 +48,11 @@ contains
 
       integer :: i,j,is,js,ie,je
  
+      if(velpred .and. (.not. is_vel)) then
+         print*,"ERROR: velpred .eq. .true. .and. is_vel .eq. .false. in mkflux.f90"
+         stop
+      endif
+
       ncomp = size(s,dim=3)
 
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
@@ -76,17 +81,35 @@ contains
       hx = dx(1)
       hy = dx(2)
          
-      umax = abs(uadv(is,js))
-      do j = js,je
-         do i = is,ie+1
-            umax = max(umax,abs(uadv(i,j)))
+      if(velpred) then
+
+         umax = abs(utrans(is,js))
+         do j = js,je
+            do i = is,ie+1
+               umax = max(umax,abs(utrans(i,j)))
+            end do
          end do
-      end do
-      do j = js,je+1
-         do i = is,ie
-            umax = max(umax,abs(vadv(i,j)))
+         do j = js,je+1
+            do i = is,ie
+               umax = max(umax,abs(vtrans(i,j)))
+            end do
          end do
-      end do
+
+      else
+
+         umax = abs(uadv(is,js))
+         do j = js,je
+            do i = is,ie+1
+               umax = max(umax,abs(uadv(i,j)))
+            end do
+         end do
+         do j = js,je+1
+            do i = is,ie
+               umax = max(umax,abs(vadv(i,j)))
+            end do
+         end do
+
+      endif
       
       eps = abs_eps * umax
       
@@ -145,16 +168,32 @@ contains
                st = force(i,j,n) - &
                     HALF * (vtrans(i,j)+vtrans(i,j+1))*(splus - sminus) / hy
                
-               s_l(i+1)= s(i,j,n) + (HALF-dth*uadv(i+1,j)/hx)*slopex(i,j,1) + dth*st
-               s_r(i  )= s(i,j,n) - (HALF+dth*uadv(i,j)/hx)*slopex(i,j,1) + dth*st
+               if(velpred) then
+                  s_l(i+1)= s(i,j,n) + (HALF-dth*u(i,j,1)/hx)*slopex(i,j,1) + dth*st
+                  s_r(i  )= s(i,j,n) - (HALF+dth*u(i,j,1)/hx)*slopex(i,j,1) + dth*st
+               else
+                  s_l(i+1)= s(i,j,n) + (HALF-dth*uadv(i+1,j)/hx)*slopex(i,j,1) + dth*st
+                  s_r(i  )= s(i,j,n) - (HALF+dth*uadv(i,j)/hx)*slopex(i,j,1) + dth*st
+               endif
                
             enddo
             
-            do i = is, ie+1 
-               sedgex(i,j,n)=merge(s_l(i),s_r(i),uadv(i,j).gt.ZERO)
-               savg = HALF*(s_r(i) + s_l(i))
-               sedgex(i,j,n)=merge(savg,sedgex(i,j,n),abs(uadv(i,j)) .lt. eps)
-            enddo
+            if(velpred) then
+               do i = is, ie+1 
+                  savg = HALF*(s_r(i) + s_l(i))
+                  test = ( (s_l(i) .le. ZERO  .and. &
+                       s_r(i) .ge. ZERO)  .or. &
+                       (abs(s_l(i) + s_r(i)) .lt. eps) )
+                  sedgex(i,j,n)=merge(s_l(i),s_r(i),savg.gt.ZERO)
+                  sedgex(i,j,n)=merge(savg,sedgex(i,j,n),test)
+               enddo
+            else
+               do i = is, ie+1 
+                  sedgex(i,j,n)=merge(s_l(i),s_r(i),uadv(i,j).gt.ZERO)
+                  savg = HALF*(s_r(i) + s_l(i))
+                  sedgex(i,j,n)=merge(savg,sedgex(i,j,n),abs(uadv(i,j)) .lt. eps)
+               enddo
+            endif
             
             if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
                if (is_vel .and. n .eq. 1) then
@@ -182,6 +221,13 @@ contains
             elseif (phys_bc(1,2) .eq. OUTLET) then
                sedgex(ie+1,j,n) = s_l(ie+1)
             endif
+
+            if(velpred .and. n .eq. 1) then
+               do i = is, ie+1 
+                  uadv(i,j) = sedgex(i,j,n)
+               enddo
+            endif
+
          enddo
       enddo
 
@@ -240,16 +286,32 @@ contains
                st = force(i,j,n) - &
                     HALF * (utrans(i,j)+utrans(i+1,j))*(splus - sminus) / hx
                
-               s_b(j+1)= s(i,j,n) + (HALF-dth*vadv(i,j+1)/hy)*slopey(i,j,1) + dth*st
-               s_t(j  )= s(i,j,n) - (HALF+dth*vadv(i,j)/hy)*slopey(i,j,1) + dth*st
+               if(velpred) then
+                  s_b(j+1)= s(i,j,n) + (HALF-dth*u(i,j,2)/hy)*slopey(i,j,1) + dth*st
+                  s_t(j  )= s(i,j,n) - (HALF+dth*u(i,j,2)/hy)*slopey(i,j,1) + dth*st
+               else
+                  s_b(j+1)= s(i,j,n) + (HALF-dth*vadv(i,j+1)/hy)*slopey(i,j,1) + dth*st
+                  s_t(j  )= s(i,j,n) - (HALF+dth*vadv(i,j)/hy)*slopey(i,j,1) + dth*st
+               endif
                
             enddo
             
-            do j = js, je+1 
-               sedgey(i,j,n)=merge(s_b(j),s_t(j),vadv(i,j).gt.ZERO)
-               savg = HALF*(s_b(j) + s_t(j))
-               sedgey(i,j,n)=merge(savg,sedgey(i,j,n),abs(vadv(i,j)) .lt. eps)
-            enddo
+            if(velpred) then
+               do j = js, je+1 
+                  savg = HALF*(s_b(j) + s_t(j))
+                  test = ( (s_b(j) .le. ZERO  .and. &
+                       s_t(j) .ge. ZERO)  .or. &
+                       (abs(s_b(j) + s_t(j)) .lt. eps) )
+                  sedgey(i,j,n)=merge(s_b(j),s_t(j),savg.gt.ZERO)
+                  sedgey(i,j,n)=merge(savg,sedgey(i,j,n),test)
+               enddo
+            else
+               do j = js, je+1 
+                  sedgey(i,j,n)=merge(s_b(j),s_t(j),vadv(i,j).gt.ZERO)
+                  savg = HALF*(s_b(j) + s_t(j))
+                  sedgey(i,j,n)=merge(savg,sedgey(i,j,n),abs(vadv(i,j)) .lt. eps)
+               enddo
+            endif
             
             if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
                if (is_vel .and. n .eq. 2) then
@@ -278,6 +340,13 @@ contains
             elseif (phys_bc(2,2) .eq. OUTLET) then
                sedgey(i,je+1,n) = s_b(je+1)
             endif
+
+            if(velpred .and. n .eq. 2) then
+               do j = js, je+1 
+                  vadv(i,j) = sedgey(i,j,n)
+               enddo
+            endif
+
          enddo
       enddo
       
@@ -1034,9 +1103,17 @@ contains
                   endif
                   
                   ! make sedgex by solving Riemann problem
-                  sedgex(i,j,k,n) = merge(sedgelx(i,j,k),sedgerx(i,j,k),uadv(i,j,k) .gt. ZERO)
-                  savg = HALF*(sedgelx(i,j,k)+sedgerx(i,j,k))
-                  sedgex(i,j,k,n) = merge(sedgex(i,j,k,n),savg,abs(uadv(i,j,k)) .gt. eps)
+                  if(velpred) then
+                     savg = HALF*(sedgelx(i,j,k)+sedgerx(i,j,k))
+                     test = ((sedgelx(i,j,k) .le. ZERO .and. sedgerx(i,j,k) .ge. ZERO) .or. &
+                          (abs(sedgelx(i,j,k)+sedgerx(i,j,k)) .lt. eps))
+                     sedgex(i,j,k,n) = merge(sedgelx(i,j,k),sedgerx(i,j,k),savg .gt. ZERO)
+                     sedgex(i,j,k,n) = merge(savg,sedgex(i,j,k,n),test)
+                  else
+                     sedgex(i,j,k,n) = merge(sedgelx(i,j,k),sedgerx(i,j,k),uadv(i,j,k) .gt. ZERO)
+                     savg = HALF*(sedgelx(i,j,k)+sedgerx(i,j,k))
+                     sedgex(i,j,k,n) = merge(sedgex(i,j,k,n),savg,abs(uadv(i,j,k)) .gt. eps)
+                  endif
 
                   if(velpred .and. n .eq. 1) then
                      uadv(i,j,k) = sedgex(i,j,k,n)
@@ -1105,9 +1182,17 @@ contains
                   endif
                   
                   ! make sedgey by solving Riemann problem
-                  sedgey(i,j,k,n) = merge(sedgely(i,j,k),sedgery(i,j,k),vadv(i,j,k) .gt. ZERO)
-                  savg = HALF*(sedgely(i,j,k)+sedgery(i,j,k))
-                  sedgey(i,j,k,n) = merge(sedgey(i,j,k,n),savg,abs(vadv(i,j,k)) .gt. eps)
+                  if(velpred) then
+                     savg = HALF*(sedgely(i,j,k)+sedgery(i,j,k))
+                     test = ((sedgely(i,j,k) .le. ZERO .and. sedgery(i,j,k) .ge. ZERO) .or. &
+                          (abs(sedgely(i,j,k)+sedgery(i,j,k)) .lt. eps))
+                     sedgey(i,j,k,n) = merge(sedgely(i,j,k),sedgery(i,j,k),savg .gt. ZERO)
+                     sedgey(i,j,k,n) = merge(savg,sedgey(i,j,k,n),test)
+                  else
+                     sedgey(i,j,k,n) = merge(sedgely(i,j,k),sedgery(i,j,k),vadv(i,j,k) .gt. ZERO)
+                     savg = HALF*(sedgely(i,j,k)+sedgery(i,j,k))
+                     sedgey(i,j,k,n) = merge(sedgey(i,j,k,n),savg,abs(vadv(i,j,k)) .gt. eps)
+                  endif
 
                   if(velpred .and. n .eq. 2) then
                      vadv(i,j,k) = sedgey(i,j,k,n)
@@ -1176,9 +1261,17 @@ contains
                   endif
                   
                   ! make sedgez by solving Riemann problem
-                  sedgez(i,j,k,n) = merge(sedgelz(i,j,k),sedgerz(i,j,k),wadv(i,j,k) .gt. ZERO)
-                  savg = HALF*(sedgelz(i,j,k)+sedgerz(i,j,k))
-                  sedgez(i,j,k,n) = merge(sedgez(i,j,k,n),savg,abs(wadv(i,j,k)) .gt. eps)
+                  if(velpred) then
+                     savg = HALF*(sedgelz(i,j,k)+sedgerz(i,j,k))
+                     test = ((sedgelz(i,j,k) .le. ZERO .and. sedgerz(i,j,k) .ge. ZERO) .or. &
+                          (abs(sedgelz(i,j,k)+sedgerz(i,j,k)) .lt. eps))
+                     sedgez(i,j,k,n) = merge(sedgelz(i,j,k),sedgerz(i,j,k),savg .gt. ZERO)
+                     sedgez(i,j,k,n) = merge(savg,sedgez(i,j,k,n),test)
+                  else
+                     sedgez(i,j,k,n) = merge(sedgelz(i,j,k),sedgerz(i,j,k),wadv(i,j,k) .gt. ZERO)
+                     savg = HALF*(sedgelz(i,j,k)+sedgerz(i,j,k))
+                     sedgez(i,j,k,n) = merge(sedgez(i,j,k,n),savg,abs(wadv(i,j,k)) .gt. eps)
+                  endif
 
                   if(velpred .and. n .eq. 3) then
                      wadv(i,j,k) = sedgez(i,j,k,n)
