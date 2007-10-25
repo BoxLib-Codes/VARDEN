@@ -486,7 +486,8 @@ contains
       if(cornerCoupling) then
 
          ! loop over components
-         do n=1,ncomp
+!         do n=1,ncomp
+         do n=2,2
 
 !******************************************************************
 ! Create s_{\i-\half\e_x}^x, etc.
@@ -652,7 +653,7 @@ contains
                   do i=is,ie+1
                      ! make slxy, srxy by updating 1D extrapolation
                      slxy(i,j,k) = slx(i,j,k) - (dt6/hy)*(vtrans(i-1,j+1,k)+vtrans(i-1,j,k))*(simhy(i-1,j+1,k)-simhy(i-1,j,k))
-                     srxy(i,j,k) = srx(i,j,k) - (dt6/hy)*(vtrans(i,j+1,k)+vtrans(i,j,k))*(simhy(i,j+1,k)-simhy(i,j,k))
+                     srxy(i,j,k) = srx(i,j,k) - (dt6/hy)*(vtrans(i,  j+1,k)+vtrans(i,  j,k))*(simhy(i,  j+1,k)-simhy(i,  j,k))
 
                      ! impose lo side bc's
                      if(i .eq. is) then
@@ -702,7 +703,7 @@ contains
                   do i=is,ie+1
                      ! make slxz, srxz by updating 1D extrapolation
                      slxz(i,j,k) = slx(i,j,k) - (dt6/hz)*(wtrans(i-1,j,k+1)+wtrans(i-1,j,k))*(simhz(i-1,j,k+1)-simhz(i-1,j,k))
-                     srxz(i,j,k) = slx(i,j,k) - (dt6/hz)*(wtrans(i,j,k+1)+wtrans(i,j,k))*(simhz(i,j,k+1)-simhz(i,j,k))
+                     srxz(i,j,k) = srx(i,j,k) - (dt6/hz)*(wtrans(i,  j,k+1)+wtrans(i,  j,k))*(simhz(i,  j,k+1)-simhz(i,  j,k))
 
                      ! impose lo side bc's
                      if(i .eq. is) then
@@ -752,7 +753,7 @@ contains
                   do i=is,ie
                      ! make slyx, sryx by updating 1D extrapolation
                      slyx(i,j,k) = sly(i,j,k) - (dt6/hx)*(utrans(i+1,j-1,k)+utrans(i,j-1,k))*(simhx(i+1,j-1,k)-simhx(i,j-1,k))
-                     sryx(i,j,k) = sry(i,j,k) - (dt6/hx)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhx(i+1,j,k)-simhx(i,j,k))
+                     sryx(i,j,k) = sry(i,j,k) - (dt6/hx)*(utrans(i+1,j,  k)+utrans(i,j,  k))*(simhx(i+1,j,  k)-simhx(i,j,  k))
 
                      ! impose lo side bc's
                      if(j .eq. js) then
@@ -802,7 +803,7 @@ contains
                   do i=is-1,ie+1
                      ! make slyz, sryz by updating 1D extrapolation
                      slyz(i,j,k) = sly(i,j,k) - (dt6/hz)*(wtrans(i,j-1,k+1)+wtrans(i,j-1,k))*(simhz(i,j-1,k+1)-simhz(i,j-1,k))
-                     sryz(i,j,k) = sry(i,j,k) - (dt6/hz)*(wtrans(i,j,k+1)+wtrans(i,j,k))*(simhz(i,j,k+1)-simhz(i,j,k))
+                     sryz(i,j,k) = sry(i,j,k) - (dt6/hz)*(wtrans(i,j,  k+1)+wtrans(i,j,  k))*(simhz(i,j,  k+1)-simhz(i,j,  k))
 
                      ! impose lo side bc's
                      if(j .eq. js) then
@@ -852,7 +853,7 @@ contains
                   do i=is,ie
                      ! make slzx, srzx by updating 1D extrapolation
                      slzx(i,j,k) = slz(i,j,k) - (dt6/hx)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhx(i+1,j,k-1)-simhx(i,j,k-1))
-                     srzx(i,j,k) = srz(i,j,k) - (dt6/hx)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhx(i+1,j,k)-simhx(i,j,k))
+                     srzx(i,j,k) = srz(i,j,k) - (dt6/hx)*(utrans(i+1,j,k  )+utrans(i,j,k  ))*(simhx(i+1,j,k  )-simhx(i,j,k  ))
 
                      ! impose lo side bc's
                      if(k .eq. ks) then
@@ -902,7 +903,7 @@ contains
                   do i=is-1,ie+1
                      ! make slzy, srzy by updating 1D extrapolation
                      slzy(i,j,k) = slz(i,j,k) - (dt6/hy)*(vtrans(i,j+1,k-1)+vtrans(i,j,k-1))*(simhy(i,j+1,k-1)-simhy(i,j,k-1))
-                     srzy(i,j,k) = srz(i,j,k) - (dt6/hy)*(vtrans(i,j+1,k)+vtrans(i,j,k))*(simhy(i,j+1,k)-simhy(i,j,k))
+                     srzy(i,j,k) = srz(i,j,k) - (dt6/hy)*(vtrans(i,j+1,k  )+vtrans(i,j,k  ))*(simhy(i,j+1,k  )-simhy(i,j,k  ))
 
                      ! impose lo side bc's
                      if(k .eq. ks) then
@@ -959,9 +960,9 @@ contains
                           - (dt4/hy)*(vtrans(i-1,j+1,k)+vtrans(i-1,j,k))*(simhyz(i-1,j+1,k)-simhyz(i-1,j,k)) &
                           - (dt4/hz)*(wtrans(i-1,j,k+1)+wtrans(i-1,j,k))*(simhzy(i-1,j,k+1)-simhzy(i-1,j,k)) &
                           + dth*force(i,j,k,n)
-                     sedgerx(i,j,k) = s(i,j,k,n) - (HALF + dth*uadv(i,j,k)/hx)*slopex(i,j,k,n) &
-                          - (dt4/hy)*(vtrans(i,j+1,k)+vtrans(i,j,k))*(simhyz(i,j+1,k)-simhyz(i,j,k)) &
-                          - (dt4/hz)*(wtrans(i,j,k+1)+wtrans(i,j,k))*(simhzy(i,j,k+1)-simhzy(i,j,k)) &
+                     sedgerx(i,j,k) = s(i,  j,k,n) - (HALF + dth*uadv(i,j,k)/hx)*slopex(i,  j,k,n) &
+                          - (dt4/hy)*(vtrans(i,  j+1,k)+vtrans(i,  j,k))*(simhyz(i,  j+1,k)-simhyz(i,  j,k)) &
+                          - (dt4/hz)*(wtrans(i,  j,k+1)+wtrans(i,  j,k))*(simhzy(i,  j,k+1)-simhzy(i,  j,k)) &
                           + dth*force(i,j,k,n)
 
                      ! impose lo side bc's
@@ -1015,9 +1016,9 @@ contains
                           - (dt4/hx)*(utrans(i+1,j-1,k)+utrans(i,j-1,k))*(simhxz(i+1,j-1,k)-simhxz(i,j-1,k)) &
                           - (dt4/hz)*(wtrans(i,j-1,k+1)+wtrans(i,j-1,k))*(simhzx(i,j-1,k+1)-simhzx(i,j-1,k)) &
                           + dth*force(i,j,k,n)
-                     sedgery(i,j,k) = s(i,j,k,n) - (HALF + dth*vadv(i,j,k)/hy)*slopey(i,j,k,n) &
-                          - (dt4/hx)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhxz(i+1,j,k)-simhxz(i,j,k)) &
-                          - (dt4/hz)*(wtrans(i,j,k+1)+wtrans(i,j,k))*(simhzx(i,j,k+1)-simhzx(i,j,k)) &
+                     sedgery(i,j,k) = s(i,j,  k,n) - (HALF + dth*vadv(i,j,k)/hy)*slopey(i,j,  k,n) &
+                          - (dt4/hx)*(utrans(i+1,j,  k)+utrans(i,j,  k))*(simhxz(i+1,j,  k)-simhxz(i,j,  k)) &
+                          - (dt4/hz)*(wtrans(i,j,  k+1)+wtrans(i,j,  k))*(simhzx(i,j,  k+1)-simhzx(i,j,  k)) &
                           + dth*force(i,j,k,n)
 
                      ! impose lo side bc's
@@ -1054,7 +1055,7 @@ contains
                         endif
                      endif
 
-                     ! make simhy by solving Riemann problem
+                     ! make sedgey by solving Riemann problem
                      sedgey(i,j,k,n) = merge(sedgely(i,j,k),sedgery(i,j,k),vadv(i,j,k) .gt. ZERO)
                      savg = HALF*(sedgely(i,j,k)+sedgery(i,j,k))
                      sedgey(i,j,k,n) = merge(sedgey(i,j,k,n),savg,abs(vadv(i,j,k)) .gt. eps)
@@ -1071,9 +1072,9 @@ contains
                           - (dt4/hx)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhxy(i+1,j,k-1)-simhxy(i,j,k-1)) &
                           - (dt4/hy)*(vtrans(i,j+1,k-1)+vtrans(i,j,k-1))*(simhyx(i,j+1,k-1)-simhyx(i,j,k-1)) &
                           + dth*force(i,j,k,n)
-                     sedgerz(i,j,k) = s(i,j,k,n) - (HALF + dth*wadv(i,j,k)/hz)*slopez(i,j,k,n) &
-                          - (dt4/hx)*(utrans(i+1,j,k)+utrans(i,j,k))*(simhxy(i+1,j,k)-simhxy(i,j,k)) &
-                          - (dt4/hy)*(vtrans(i,j+1,k)+vtrans(i,j,k))*(simhyx(i,j+1,k)-simhyx(i,j,k)) &
+                     sedgerz(i,j,k) = s(i,j,k,  n) - (HALF + dth*wadv(i,j,k)/hz)*slopez(i,j,k,  n) &
+                          - (dt4/hx)*(utrans(i+1,j,k  )+utrans(i,j,k  ))*(simhxy(i+1,j,k  )-simhxy(i,j,k  )) &
+                          - (dt4/hy)*(vtrans(i,j+1,k  )+vtrans(i,j,k  ))*(simhyx(i,j+1,k  )-simhyx(i,j,k  )) &
                           + dth*force(i,j,k,n)
 
                      ! impose lo side bc's
