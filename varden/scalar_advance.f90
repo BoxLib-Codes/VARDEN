@@ -3,7 +3,7 @@ module scalar_advance_module
   use bl_types
   use multifab_module
   use viscous_module
-  use mkflux_macvel_module
+  use mkflux_module
   use mkdivu_module
   use mkforce_module
   use update_module
@@ -62,7 +62,7 @@ contains
       integer :: nscal
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
-      logical :: is_vel, make_divu
+      logical :: is_vel, velpred, make_divu
       logical, allocatable :: is_conservative(:)
       real(kind=dp_t) :: visc_fac, diff_fac
       real(kind=dp_t) :: half_dt
@@ -75,6 +75,7 @@ contains
 
       nscal   = ncomp(sold)
       is_vel  = .false.
+      velpred = .false.
 
       allocate(is_conservative(nscal))
       is_conservative(1) = .true.
@@ -154,11 +155,11 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call mkflux_macvel_2d(sop(:,:,1,:), uop(:,:,1,:), &
+              call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,1), vmp(:,:,1,1), &
                              utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
-                             lo, dx, dt, is_vel, is_conservative, &
+                             lo, dx, dt, is_vel, velpred, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                              ng_cell)
@@ -166,11 +167,11 @@ contains
                sepz => dataptr(sedge(3), i)
                wmp  => dataptr(umac(3), i)
                wtp  => dataptr(utrans(3), i)
-              call mkflux_macvel_3d(sop(:,:,:,:), uop(:,:,:,:), &
+              call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                              utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
-                             lo, dx, dt, is_vel, is_conservative, &
+                             lo, dx, dt, is_vel, velpred, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                              ng_cell)
