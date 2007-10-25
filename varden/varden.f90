@@ -160,8 +160,7 @@ subroutine varden()
   init_shrink = 1.0
   nscal = 2
 
-  grav = -9.8
-! grav = 0.0
+  grav = 0.0d0
 
   do_initial_projection  = 1
 
