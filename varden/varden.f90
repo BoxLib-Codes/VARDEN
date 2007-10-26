@@ -723,7 +723,7 @@ subroutine varden()
         do n = 1,nlevs
 
            call advance_premac(uold(n),sold(n),&
-                               umac(n,:),uedge(n,:), &
+                               umac(n,:), &
                                gp(n),p(n), &
                                force(n), &
                                dx(n,:),time,dt, &
@@ -1092,7 +1092,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call advance_premac(uold(n),sold(n),&
-                               umac(n,:),uedge(n,:), & 
+                               umac(n,:), & 
                                gp(n),p(n),force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &

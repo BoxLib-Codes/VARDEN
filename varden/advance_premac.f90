@@ -13,7 +13,7 @@ module pre_advance_module
 
 contains
 
-   subroutine advance_premac(uold,sold,umac,uedge, &
+   subroutine advance_premac(uold,sold,umac, &
                              gp,p,ext_force, &
                              dx,time,dt, &
                              the_bc_level, &
@@ -22,7 +22,6 @@ contains
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
       type(multifab) , intent(inout) :: umac(:)
-      type(multifab) , intent(inout) :: uedge(:)
       type(multifab) , intent(in   ) :: gp
       type(multifab) , intent(in   ) :: p
       type(multifab) , intent(in   ) :: ext_force
@@ -39,9 +38,6 @@ contains
       real(kind=dp_t), pointer:: gpp(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
-      real(kind=dp_t), pointer:: uepx(:,:,:,:)
-      real(kind=dp_t), pointer:: uepy(:,:,:,:)
-      real(kind=dp_t), pointer:: uepz(:,:,:,:)
 !
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
@@ -129,8 +125,6 @@ contains
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          uop  => dataptr(uold  , i)
-         uepx => dataptr(uedge(1), i)
-         uepy => dataptr(uedge(2), i)
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
           fp  => dataptr(force , i)
@@ -139,7 +133,6 @@ contains
          select case (dm)
             case (2)
               call velpred_2d(uop(:,:,1,:), uop(:,:,1,:), &
-                              uepx(:,:,1,:), uepy(:,:,1,:), &
                               ump(:,:,1,1),  vmp(:,:,1,1), &
                               fp(:,:,1,:), &
                               lo, dx, dt, &
@@ -147,10 +140,8 @@ contains
                               the_bc_level%adv_bc_level_array(i,:,:,:), &
                               ng_cell)
             case (3)
-               uepz => dataptr(uedge(3), i)
                wmp  => dataptr(umac(3), i)
               call velpred_3d(uop(:,:,:,:), uop(:,:,:,:), &
-                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                               ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
                               fp(:,:,:,:), &
                               lo, dx, dt, &
