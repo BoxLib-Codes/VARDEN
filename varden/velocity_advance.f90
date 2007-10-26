@@ -12,7 +12,7 @@ module velocity_advance_module
 contains
 
    subroutine velocity_advance(lev,uold,unew,sold,rhohalf,&
-                               umac,uedge,utrans,gp,p, &
+                               umac,uedge,gp,p, &
                                ext_force,dx,time,dt, &
                                the_bc_level, &
                                visc_coef,verbose)
@@ -20,7 +20,6 @@ contains
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
       type(multifab) , intent(inout) :: umac(:)
-      type(multifab) , intent(inout) :: utrans(:)
       type(multifab) , intent(inout) :: uedge(:)
       type(multifab) , intent(inout) :: unew
       type(multifab) , intent(inout) :: rhohalf
@@ -41,9 +40,6 @@ contains
       real(kind=dp_t), pointer:: ump(:,:,:,:)
       real(kind=dp_t), pointer:: vmp(:,:,:,:)
       real(kind=dp_t), pointer:: wmp(:,:,:,:)
-      real(kind=dp_t), pointer:: utp(:,:,:,:)
-      real(kind=dp_t), pointer:: vtp(:,:,:,:)
-      real(kind=dp_t), pointer:: wtp(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)

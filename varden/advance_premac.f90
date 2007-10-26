@@ -6,7 +6,6 @@ module pre_advance_module
   use define_bc_module
   use multifab_module
   use velpred_module
-  use mkutrans_module
   use mkforce_module
   use setbc_module
 
@@ -14,7 +13,7 @@ module pre_advance_module
 
 contains
 
-   subroutine advance_premac(uold,sold,umac,uedge,utrans, &
+   subroutine advance_premac(uold,sold,umac,uedge, &
                              gp,p,ext_force, &
                              dx,time,dt, &
                              the_bc_level, &
@@ -24,7 +23,6 @@ contains
       type(multifab) , intent(inout) :: sold
       type(multifab) , intent(inout) :: umac(:)
       type(multifab) , intent(inout) :: uedge(:)
-      type(multifab) , intent(inout) :: utrans(:)
       type(multifab) , intent(in   ) :: gp
       type(multifab) , intent(in   ) :: p
       type(multifab) , intent(in   ) :: ext_force
@@ -38,9 +36,6 @@ contains
       real(kind=dp_t), pointer:: ump(:,:,:,:)
       real(kind=dp_t), pointer:: vmp(:,:,:,:)
       real(kind=dp_t), pointer:: wmp(:,:,:,:)
-      real(kind=dp_t), pointer:: utp(:,:,:,:)
-      real(kind=dp_t), pointer:: vtp(:,:,:,:)
-      real(kind=dp_t), pointer:: wtp(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
@@ -61,7 +56,6 @@ contains
       integer :: dm,ng_cell
       integer :: i,n,comp
       logical :: is_conservative(uold%dim)
-      logical :: is_vel, velpred
       real(kind=dp_t) :: visc_fac, visc_mu
 
       real(kind=dp_t) :: half_dt
@@ -131,35 +125,7 @@ contains
       end do
       call multifab_fill_boundary(force)
 
-!     Create utrans.
-      do i = 1, uold%nboxes
-         if ( multifab_remote(uold, i) ) cycle
-         uop => dataptr(uold  , i)
-         utp => dataptr(utrans(1), i)
-         vtp => dataptr(utrans(2), i)
-          fp => dataptr(force , i)
-         lo =  lwb(get_box(uold, i))
-         hi =  upb(get_box(uold, i))
-         select case (dm)
-            case (2)
-              call mkutrans_2d(uop(:,:,1,:), utp(:,:,1,1), vtp(:,:,1,1), &
-                               fp(:,:,1,:), &
-                               lo,dx,dt,ng_cell,&
-                               the_bc_level%adv_bc_level_array(i,:,:,:), &
-                               the_bc_level%phys_bc_level_array(i,:,:))
-            case (3)
-               wtp => dataptr(utrans(3), i)
-              call mkutrans_3d(uop(:,:,:,:), utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), &
-                               fp(:,:,:,:), &
-                               lo,dx,dt,ng_cell,&
-                               the_bc_level%adv_bc_level_array(i,:,:,:), &
-                               the_bc_level%phys_bc_level_array(i,:,:))
-         end select
-      end do
-
 !     Create the edge states to be used for the MAC velocity 
-      velpred = .true.
-      is_vel = .true.
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
          uop  => dataptr(uold  , i)
@@ -167,8 +133,6 @@ contains
          uepy => dataptr(uedge(2), i)
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
-         utp  => dataptr(utrans(1), i)
-         vtp  => dataptr(utrans(2), i)
           fp  => dataptr(force , i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
@@ -177,20 +141,19 @@ contains
               call velpred_2d(uop(:,:,1,:), uop(:,:,1,:), &
                               uepx(:,:,1,:), uepy(:,:,1,:), &
                               ump(:,:,1,1),  vmp(:,:,1,1), &
-                              utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
-                              lo, dx, dt, is_vel, velpred, &
+                              fp(:,:,1,:), &
+                              lo, dx, dt, &
                               the_bc_level%phys_bc_level_array(i,:,:), &
                               the_bc_level%adv_bc_level_array(i,:,:,:), &
                               ng_cell)
             case (3)
                uepz => dataptr(uedge(3), i)
                wmp  => dataptr(umac(3), i)
-               wtp  => dataptr(utrans(3), i)
               call velpred_3d(uop(:,:,:,:), uop(:,:,:,:), &
                               uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                               ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
-                              utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
-                              lo, dx, dt, is_vel, velpred, &
+                              fp(:,:,:,:), &
+                              lo, dx, dt, &
                               the_bc_level%phys_bc_level_array(i,:,:), &
                               the_bc_level%adv_bc_level_array(i,:,:,:), &
                               ng_cell)

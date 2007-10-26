@@ -14,7 +14,7 @@ module scalar_advance_module
 contains
 
    subroutine scalar_advance (lev,uold,sold,snew,rhohalf,&
-                              umac,sedge,utrans, &
+                              umac,sedge, &
                               ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
@@ -27,7 +27,6 @@ contains
       type(multifab) , intent(inout) :: rhohalf
       type(multifab) , intent(inout) :: umac(:)
       type(multifab) , intent(inout) :: sedge(:)
-      type(multifab) , intent(inout) :: utrans(:)
       type(multifab) , intent(inout) :: ext_scal_force
 !
       real(kind=dp_t), intent(inout) :: dx(:),time,dt
@@ -42,9 +41,6 @@ contains
       real(kind=dp_t), pointer:: ump(:,:,:,:)
       real(kind=dp_t), pointer:: vmp(:,:,:,:)
       real(kind=dp_t), pointer:: wmp(:,:,:,:)
-      real(kind=dp_t), pointer:: utp(:,:,:,:)
-      real(kind=dp_t), pointer:: vtp(:,:,:,:)
-      real(kind=dp_t), pointer:: wtp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
 !

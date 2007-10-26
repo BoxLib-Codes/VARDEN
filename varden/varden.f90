@@ -88,7 +88,6 @@ subroutine varden()
 
   ! Edge-based quantities
   type(multifab), allocatable ::   umac(:,:)
-  type(multifab), allocatable :: utrans(:,:)
   type(multifab), allocatable ::  uedge(:,:)
   type(multifab), allocatable ::  sedge(:,:)
 
@@ -288,7 +287,7 @@ subroutine varden()
   allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
 
   allocate(unew(nlevs),snew(nlevs))
-  allocate(umac(nlevs,dm),utrans(nlevs,dm))
+  allocate(umac(nlevs,dm))
   allocate(uedge(nlevs,dm),sedge(nlevs,dm))
   allocate(rhohalf(nlevs),vort(nlevs))
 
@@ -725,7 +724,7 @@ subroutine varden()
 
            call advance_premac(uold(n),sold(n),&
                                umac(n,:),uedge(n,:), &
-                               utrans(n,:),gp(n),p(n), &
+                               gp(n),p(n), &
                                force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
@@ -736,7 +735,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
-                                umac(n,:),sedge(n,:),utrans(n,:),&
+                                umac(n,:),sedge(n,:),&
                                 sforce(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
@@ -765,7 +764,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n),&
-                                 umac(n,:),uedge(n,:),utrans(n,:),&
+                                 umac(n,:),uedge(n,:), &
                                  gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
@@ -1013,12 +1012,10 @@ subroutine varden()
           umac_nodal_flag = .false.
           umac_nodal_flag(i) = .true.
           call multifab_build(  umac(n,i), mla_loc%la(n),    1, 1, nodal = umac_nodal_flag)
-          call multifab_build(utrans(n,i), mla_loc%la(n),    1, 1, nodal = umac_nodal_flag)
           call multifab_build( uedge(n,i), mla_loc%la(n),   dm, 0, nodal = umac_nodal_flag)
           call multifab_build( sedge(n,i), mla_loc%la(n),nscal, 0, nodal = umac_nodal_flag)
 
           call setval(  umac(n,i),ZERO, all=.true.)
-          call setval(utrans(n,i),ZERO, all=.true.)
           call setval( uedge(n,i),ZERO, all=.true.)
           call setval( sedge(n,i),ZERO, all=.true.)
         end do
@@ -1046,7 +1043,6 @@ subroutine varden()
          call multifab_destroy(sforce(n))
          do i = 1,dm
            call multifab_destroy(umac(n,i))
-           call multifab_destroy(utrans(n,i))
            call multifab_destroy(uedge(n,i))
            call multifab_destroy(sedge(n,i))
          end do
@@ -1096,7 +1092,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call advance_premac(uold(n),sold(n),&
-                               umac(n,:),uedge(n,:),utrans(n,:),& 
+                               umac(n,:),uedge(n,:), & 
                                gp(n),p(n),force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
@@ -1107,7 +1103,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
-                                umac(n,:),sedge(n,:),utrans(n,:), &
+                                umac(n,:),sedge(n,:), &
                                 sforce(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
@@ -1136,7 +1132,7 @@ subroutine varden()
 
         do n = 1,nlevs
            call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n), &
-                                 umac(n,:),uedge(n,:),utrans(n,:), &
+                                 umac(n,:),uedge(n,:), &
                                  gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
