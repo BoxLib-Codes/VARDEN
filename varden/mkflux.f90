@@ -596,6 +596,7 @@ contains
             do j=js-1,je+1
                do i=is,ie+1
                   ! make slx, srx with 1D extrapolation
+                  ! change for umac
                   slx(i,j,k) = s(i-1,j,k,n) + (HALF - dth*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,n)
                   srx(i,j,k) = s(i  ,j,k,n) - (HALF + dth*u(i,  j,k,1)/hx)*slopex(i,  j,k,n)
                   
@@ -634,6 +635,7 @@ contains
                   endif
                   
                   ! make simhx by solving Riemann problem
+                  ! change for umac
                   simhx(i,j,k) = merge(slx(i,j,k),srx(i,j,k),utrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slx(i,j,k)+srx(i,j,k))
                   simhx(i,j,k) = merge(simhx(i,j,k),savg,abs(utrans(i,j,k)) .gt. eps)
@@ -646,6 +648,7 @@ contains
             do j=js,je+1
                do i=is-1,ie+1
                   ! make sly, sry with 1D extrapolation
+                  ! change for umac
                   sly(i,j,k) = s(i,j-1,k,n) + (HALF - dth*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,n)
                   sry(i,j,k) = s(i,j,  k,n) - (HALF + dth*u(i,j,  k,2)/hy)*slopey(i,j,  k,n)
                   
@@ -684,6 +687,7 @@ contains
                   endif
                   
                   ! make simhy by solving Riemann problem
+                  ! change for umac
                   simhy(i,j,k) = merge(sly(i,j,k),sry(i,j,k),vtrans(i,j,k) .gt. ZERO)
                   savg = HALF*(sly(i,j,k)+sry(i,j,k))
                   simhy(i,j,k) = merge(simhy(i,j,k),savg,abs(vtrans(i,j,k)) .gt. eps)
@@ -696,6 +700,7 @@ contains
             do j=js-1,je+1
                do i=is-1,ie+1
                   ! make slz, srz with 1D extrapolation
+                  ! change for umac
                   slz(i,j,k) = s(i,j,k-1,n) + (HALF - dth*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,n)
                   srz(i,j,k) = s(i,j,k,  n) - (HALF + dth*u(i,j,k,  3)/hz)*slopez(i,j,k,  n)
                   
@@ -734,6 +739,7 @@ contains
                   endif
                   
                   ! make simhz by solving Riemann problem
+                  ! change for umac
                   simhz(i,j,k) = merge(slz(i,j,k),srz(i,j,k),wtrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slz(i,j,k)+srz(i,j,k))
                   simhz(i,j,k) = merge(simhz(i,j,k),savg,abs(wtrans(i,j,k)) .gt. eps)
@@ -750,6 +756,7 @@ contains
             do j=js,je
                do i=is,ie+1
                   ! make slxy, srxy by updating 1D extrapolation
+                  ! change for umac
                   slxy(i,j,k) = slx(i,j,k) - (dt6/hy)*(vtrans(i-1,j+1,k)+vtrans(i-1,j,k))*(simhy(i-1,j+1,k)-simhy(i-1,j,k))
                   srxy(i,j,k) = srx(i,j,k) - (dt6/hy)*(vtrans(i,  j+1,k)+vtrans(i,  j,k))*(simhy(i,  j+1,k)-simhy(i,  j,k))
                   
@@ -788,6 +795,7 @@ contains
                   endif
                   
                   ! make simhxy by solving Riemann problem
+                  ! change for umac
                   simhxy(i,j,k) = merge(slxy(i,j,k),srxy(i,j,k),utrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slxy(i,j,k)+srxy(i,j,k))
                   simhxy(i,j,k) = merge(simhxy(i,j,k),savg,abs(utrans(i,j,k)) .gt. eps)
@@ -800,6 +808,7 @@ contains
             do j=js-1,je+1
                do i=is,ie+1
                   ! make slxz, srxz by updating 1D extrapolation
+                  ! change for umac
                   slxz(i,j,k) = slx(i,j,k) - (dt6/hz)*(wtrans(i-1,j,k+1)+wtrans(i-1,j,k))*(simhz(i-1,j,k+1)-simhz(i-1,j,k))
                   srxz(i,j,k) = srx(i,j,k) - (dt6/hz)*(wtrans(i,  j,k+1)+wtrans(i,  j,k))*(simhz(i,  j,k+1)-simhz(i,  j,k))
                   
@@ -838,6 +847,7 @@ contains
                   endif
                   
                   ! make simhxz by solving Riemann problem
+                  ! change for umac
                   simhxz(i,j,k) = merge(slxz(i,j,k),srxz(i,j,k),utrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slxz(i,j,k)+srxz(i,j,k))
                   simhxz(i,j,k) = merge(simhxz(i,j,k),savg,abs(utrans(i,j,k)) .gt. eps)
@@ -850,6 +860,7 @@ contains
             do j=js,je+1
                do i=is,ie
                   ! make slyx, sryx by updating 1D extrapolation
+                  ! change for umac
                   slyx(i,j,k) = sly(i,j,k) - (dt6/hx)*(utrans(i+1,j-1,k)+utrans(i,j-1,k))*(simhx(i+1,j-1,k)-simhx(i,j-1,k))
                   sryx(i,j,k) = sry(i,j,k) - (dt6/hx)*(utrans(i+1,j,  k)+utrans(i,j,  k))*(simhx(i+1,j,  k)-simhx(i,j,  k))
                   
@@ -888,6 +899,7 @@ contains
                   endif
                   
                   ! make simhyx by solving Riemann problem
+                  ! change for umac
                   simhyx(i,j,k) = merge(slyx(i,j,k),sryx(i,j,k),vtrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slyx(i,j,k)+sryx(i,j,k))
                   simhyx(i,j,k) = merge(simhyx(i,j,k),savg,abs(vtrans(i,j,k)) .gt. eps)
@@ -900,6 +912,7 @@ contains
             do j=js,je+1
                do i=is-1,ie+1
                   ! make slyz, sryz by updating 1D extrapolation
+                  ! change for umac
                   slyz(i,j,k) = sly(i,j,k) - (dt6/hz)*(wtrans(i,j-1,k+1)+wtrans(i,j-1,k))*(simhz(i,j-1,k+1)-simhz(i,j-1,k))
                   sryz(i,j,k) = sry(i,j,k) - (dt6/hz)*(wtrans(i,j,  k+1)+wtrans(i,j,  k))*(simhz(i,j,  k+1)-simhz(i,j,  k))
                   
@@ -938,6 +951,7 @@ contains
                   endif
                   
                   ! make simhyz by solving Riemann problem
+                  ! change for umac
                   simhyz(i,j,k) = merge(slyz(i,j,k),sryz(i,j,k),vtrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slyz(i,j,k)+sryz(i,j,k))
                   simhyz(i,j,k) = merge(simhyz(i,j,k),savg,abs(vtrans(i,j,k)) .gt. eps)
@@ -950,6 +964,7 @@ contains
             do j=js-1,je+1
                do i=is,ie
                   ! make slzx, srzx by updating 1D extrapolation
+                  ! change for umac
                   slzx(i,j,k) = slz(i,j,k) - (dt6/hx)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhx(i+1,j,k-1)-simhx(i,j,k-1))
                   srzx(i,j,k) = srz(i,j,k) - (dt6/hx)*(utrans(i+1,j,k  )+utrans(i,j,k  ))*(simhx(i+1,j,k  )-simhx(i,j,k  ))
                   
@@ -988,6 +1003,7 @@ contains
                   endif
                   
                   ! make simhzx by solving Riemann problem
+                  ! change for umac
                   simhzx(i,j,k) = merge(slzx(i,j,k),srzx(i,j,k),wtrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slzx(i,j,k)+srzx(i,j,k))
                   simhzx(i,j,k) = merge(simhzx(i,j,k),savg,abs(wtrans(i,j,k)) .gt. eps)
@@ -1000,6 +1016,7 @@ contains
             do j=js,je
                do i=is-1,ie+1
                   ! make slzy, srzy by updating 1D extrapolation
+                  ! change for umac
                   slzy(i,j,k) = slz(i,j,k) - (dt6/hy)*(vtrans(i,j+1,k-1)+vtrans(i,j,k-1))*(simhy(i,j+1,k-1)-simhy(i,j,k-1))
                   srzy(i,j,k) = srz(i,j,k) - (dt6/hy)*(vtrans(i,j+1,k  )+vtrans(i,j,k  ))*(simhy(i,j+1,k  )-simhy(i,j,k  ))
                   
@@ -1038,6 +1055,7 @@ contains
                   endif
                   
                   ! make simhzy by solving Riemann problem
+                  ! change for umac
                   simhzy(i,j,k) = merge(slzy(i,j,k),srzy(i,j,k),wtrans(i,j,k) .gt. ZERO)
                   savg = HALF*(slzy(i,j,k)+srzy(i,j,k))
                   simhzy(i,j,k) = merge(simhzy(i,j,k),savg,abs(wtrans(i,j,k)) .gt. eps)
@@ -1054,6 +1072,7 @@ contains
             do j=js,je
                do i=is,ie+1
                   ! make sedgelx, sedgerx
+                  ! change for umac
                   if(velpred) then
                      sedgelx(i,j,k) = s(i-1,j,k,n) + (HALF - dth*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,n) &
                           - (dt4/hy)*(vtrans(i-1,j+1,k)+vtrans(i-1,j,k))*(simhyz(i-1,j+1,k)-simhyz(i-1,j,k)) &
@@ -1114,7 +1133,7 @@ contains
                      test = ((sedgelx(i,j,k) .le. ZERO .and. sedgerx(i,j,k) .ge. ZERO) .or. &
                           (abs(sedgelx(i,j,k)+sedgerx(i,j,k)) .lt. eps))
                      sedgex(i,j,k,n) = merge(sedgelx(i,j,k),sedgerx(i,j,k),savg .gt. ZERO)
-                     sedgex(i,j,k,n) = merge(savg,sedgex(i,j,k,n),test)
+                     sedgex(i,j,k,n) = merge(0.d0,sedgex(i,j,k,n),test)
                   else
                      sedgex(i,j,k,n) = merge(sedgelx(i,j,k),sedgerx(i,j,k),uadv(i,j,k) .gt. ZERO)
                      savg = HALF*(sedgelx(i,j,k)+sedgerx(i,j,k))
@@ -1133,6 +1152,7 @@ contains
             do j=js,je+1
                do i=is,ie
                   ! make sedgely, sedgery
+                  ! change for umac
                   if(velpred) then
                      sedgely(i,j,k) = s(i,j-1,k,n) + (HALF - dth*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,n) &
                           - (dt4/hx)*(utrans(i+1,j-1,k)+utrans(i,j-1,k))*(simhxz(i+1,j-1,k)-simhxz(i,j-1,k)) &
@@ -1193,7 +1213,7 @@ contains
                      test = ((sedgely(i,j,k) .le. ZERO .and. sedgery(i,j,k) .ge. ZERO) .or. &
                           (abs(sedgely(i,j,k)+sedgery(i,j,k)) .lt. eps))
                      sedgey(i,j,k,n) = merge(sedgely(i,j,k),sedgery(i,j,k),savg .gt. ZERO)
-                     sedgey(i,j,k,n) = merge(savg,sedgey(i,j,k,n),test)
+                     sedgey(i,j,k,n) = merge(0.d0,sedgey(i,j,k,n),test)
                   else
                      sedgey(i,j,k,n) = merge(sedgely(i,j,k),sedgery(i,j,k),vadv(i,j,k) .gt. ZERO)
                      savg = HALF*(sedgely(i,j,k)+sedgery(i,j,k))
@@ -1212,6 +1232,7 @@ contains
             do j=js,je
                do i=is,ie
                   ! make sedgelz, sedgerz
+                  ! change for umac
                   if(velpred) then
                      sedgelz(i,j,k) = s(i,j,k-1,n) + (HALF - dth*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,n) &
                           - (dt4/hx)*(utrans(i+1,j,k-1)+utrans(i,j,k-1))*(simhxy(i+1,j,k-1)-simhxy(i,j,k-1)) &
@@ -1272,7 +1293,7 @@ contains
                      test = ((sedgelz(i,j,k) .le. ZERO .and. sedgerz(i,j,k) .ge. ZERO) .or. &
                           (abs(sedgelz(i,j,k)+sedgerz(i,j,k)) .lt. eps))
                      sedgez(i,j,k,n) = merge(sedgelz(i,j,k),sedgerz(i,j,k),savg .gt. ZERO)
-                     sedgez(i,j,k,n) = merge(savg,sedgez(i,j,k,n),test)
+                     sedgez(i,j,k,n) = merge(0.d0,sedgez(i,j,k,n),test)
                   else
                      sedgez(i,j,k,n) = merge(sedgelz(i,j,k),sedgerz(i,j,k),wadv(i,j,k) .gt. ZERO)
                      savg = HALF*(sedgelz(i,j,k)+sedgerz(i,j,k))
