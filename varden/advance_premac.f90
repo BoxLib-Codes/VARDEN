@@ -5,7 +5,7 @@ module pre_advance_module
   use bc_module
   use define_bc_module
   use multifab_module
-  use mkflux_module
+  use velpred_module
   use mkutrans_module
   use mkforce_module
   use setbc_module
@@ -174,26 +174,26 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
-                             uepx(:,:,1,:), uepy(:,:,1,:), &
-                             ump(:,:,1,1),  vmp(:,:,1,1), &
-                             utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
-                             lo, dx, dt, is_vel, velpred, &
-                             the_bc_level%phys_bc_level_array(i,:,:), &
-                             the_bc_level%adv_bc_level_array(i,:,:,:), &
-                             ng_cell)
+              call velpred_2d(uop(:,:,1,:), uop(:,:,1,:), &
+                              uepx(:,:,1,:), uepy(:,:,1,:), &
+                              ump(:,:,1,1),  vmp(:,:,1,1), &
+                              utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
+                              lo, dx, dt, is_vel, velpred, &
+                              the_bc_level%phys_bc_level_array(i,:,:), &
+                              the_bc_level%adv_bc_level_array(i,:,:,:), &
+                              ng_cell)
             case (3)
                uepz => dataptr(uedge(3), i)
                wmp  => dataptr(umac(3), i)
                wtp  => dataptr(utrans(3), i)
-              call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
-                             uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
-                             ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
-                             utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
-                             lo, dx, dt, is_vel, velpred, &
-                             the_bc_level%phys_bc_level_array(i,:,:), &
-                             the_bc_level%adv_bc_level_array(i,:,:,:), &
-                             ng_cell)
+              call velpred_3d(uop(:,:,:,:), uop(:,:,:,:), &
+                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                              ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
+                              utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
+                              lo, dx, dt, is_vel, velpred, &
+                              the_bc_level%phys_bc_level_array(i,:,:), &
+                              the_bc_level%adv_bc_level_array(i,:,:,:), &
+                              ng_cell)
          end select
       end do
 

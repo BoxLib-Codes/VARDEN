@@ -62,7 +62,7 @@ contains
       integer :: nscal
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
-      logical :: is_vel, velpred, make_divu
+      logical :: is_vel, make_divu
       logical, allocatable :: is_conservative(:)
       real(kind=dp_t) :: visc_fac, diff_fac
       real(kind=dp_t) :: half_dt
@@ -75,7 +75,6 @@ contains
 
       nscal   = ncomp(sold)
       is_vel  = .false.
-      velpred = .false.
 
       allocate(is_conservative(nscal))
       is_conservative(1) = .true.
@@ -148,8 +147,6 @@ contains
          sepy => dataptr(sedge(2), i)
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
-         utp  => dataptr(utrans(1), i)
-         vtp  => dataptr(utrans(2), i)
           fp  => dataptr(scal_force , i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
@@ -158,20 +155,19 @@ contains
               call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,1), vmp(:,:,1,1), &
-                             utp(:,:,1,1), vtp(:,:,1,1), fp(:,:,1,:), &
-                             lo, dx, dt, is_vel, velpred, &
+                             fp(:,:,1,:), &
+                             lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                              ng_cell)
             case (3)
                sepz => dataptr(sedge(3), i)
                wmp  => dataptr(umac(3), i)
-               wtp  => dataptr(utrans(3), i)
               call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                             utp(:,:,:,1), vtp(:,:,:,1), wtp(:,:,:,1), fp(:,:,:,:), &
-                             lo, dx, dt, is_vel, velpred, &
+                             fp(:,:,:,:), &
+                             lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                              ng_cell)
