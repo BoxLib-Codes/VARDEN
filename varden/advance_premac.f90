@@ -141,7 +141,7 @@ contains
                               ng_cell)
             case (3)
                wmp  => dataptr(umac(3), i)
-              call velpred_3d(uop(:,:,:,:), uop(:,:,:,:), &
+              call velpred_3d(uop(:,:,:,:), &
                               ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
                               fp(:,:,:,:), &
                               lo, dx, dt, &
