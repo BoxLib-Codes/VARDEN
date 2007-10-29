@@ -132,7 +132,7 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call velpred_2d(uop(:,:,1,:), uop(:,:,1,:), &
+              call velpred_2d(uop(:,:,1,:), &
                               ump(:,:,1,1),  vmp(:,:,1,1), &
                               fp(:,:,1,:), &
                               lo, dx, dt, &

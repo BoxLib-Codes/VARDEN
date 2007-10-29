@@ -115,10 +115,33 @@ contains
             urx(i,j,1) = u(i,j,1) - (HALF + dt2*u(i,j,1)/hx)*slopex(i,j,1)
             urx(i,j,2) = u(i,j,2) - (HALF + dt2*u(i,j,2)/hx)*slopex(i,j,2)
 
-            ! Apply boundary conditions
-
-
-
+            ! impose lo side bc's
+            if(i .eq. is) then
+               ulx(i,j,1) = merge(u(is-1,j,1),ulx(i,j,1),phys_bc(1,1) .eq. INLET)
+               urx(i,j,1) = merge(u(is-1,j,1),urx(i,j,1),phys_bc(1,1) .eq. INLET)
+               ulx(i,j,2) = merge(u(is-1,j,2),ulx(i,j,2),phys_bc(1,1) .eq. INLET)
+               urx(i,j,2) = merge(u(is-1,j,2),urx(i,j,2),phys_bc(1,1) .eq. INLET)
+               if(phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+                  ulx(i,j,1) = ZERO
+                  urx(i,j,1) = ZERO
+                  ulx(i,j,2) = merge(ZERO,urx(i,j,2),phys_bc(1,1) .eq. NO_SLIP_WALL)
+                  urx(i,j,2) = merge(ZERO,urx(i,j,2),phys_bc(1,1) .eq. NO_SLIP_WALL)
+               endif
+            endif
+                  
+            ! impose hi side bc's
+            if(i .eq. ie+1) then
+               ulx(i,j,1) = merge(u(ie+1,j,1),ulx(i,j,1),phys_bc(1,2) .eq. INLET)
+               urx(i,j,1) = merge(u(ie+1,j,1),urx(i,j,1),phys_bc(1,2) .eq. INLET)
+               ulx(i,j,2) = merge(u(ie+1,j,2),ulx(i,j,2),phys_bc(1,2) .eq. INLET)
+               urx(i,j,2) = merge(u(ie+1,j,2),urx(i,j,2),phys_bc(1,2) .eq. INLET)
+               if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+                  ulx(i,j,1) = ZERO
+                  urx(i,j,1) = ZERO
+                  ulx(i,j,2) = merge(ZERO,ulx(i,j,2),phys_bc(1,2) .eq. NO_SLIP_WALL)
+                  urx(i,j,2) = merge(ZERO,ulx(i,j,2),phys_bc(1,2) .eq. NO_SLIP_WALL)
+               endif
+            endif
 
             ! make normal component of uimhx by first solving a normal Riemann problem
             uavg = HALF*(ulx(i,j,1)+urx(i,j,1))
@@ -144,10 +167,33 @@ contains
             ury(i,j,1) = u(i,j,1) - (HALF + dt2*u(i,j,1)/hy)*slopey(i,j,1)
             ury(i,j,2) = u(i,j,2) - (HALF + dt2*u(i,j,2)/hy)*slopey(i,j,2)
 
-            ! Apply boundary conditions
-
-
-
+            ! impose lo side bc's
+            if(j .eq. js) then
+               uly(i,j,1) = merge(u(i,js-1,1),uly(i,j,1),phys_bc(2,1) .eq. INLET)
+               ury(i,j,1) = merge(u(i,js-1,1),ury(i,j,1),phys_bc(2,1) .eq. INLET)
+               uly(i,j,2) = merge(u(i,js-1,2),uly(i,j,2),phys_bc(2,1) .eq. INLET)
+               ury(i,j,2) = merge(u(i,js-1,2),ury(i,j,2),phys_bc(2,1) .eq. INLET)
+               if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
+                  uly(i,j,1) = merge(ZERO,ury(i,j,1),phys_bc(2,1) .eq. NO_SLIP_WALL)
+                  ury(i,j,1) = merge(ZERO,ury(i,j,1),phys_bc(2,1) .eq. NO_SLIP_WALL)
+                  uly(i,j,2) = ZERO
+                  ury(i,j,2) = ZERO
+               endif
+            endif
+                  
+            ! impose hi side bc's
+            if(j .eq. je+1) then
+               uly(i,j,1) = merge(u(i,je+1,1),uly(i,j,1),phys_bc(2,2) .eq. INLET)
+               ury(i,j,1) = merge(u(i,je+1,1),ury(i,j,1),phys_bc(2,2) .eq. INLET)
+               uly(i,j,2) = merge(u(i,je+1,2),uly(i,j,2),phys_bc(2,2) .eq. INLET)
+               ury(i,j,2) = merge(u(i,je+1,2),ury(i,j,2),phys_bc(2,2) .eq. INLET)
+               if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
+                  uly(i,j,1) = merge(ZERO,uly(i,j,1),phys_bc(2,2) .eq. NO_SLIP_WALL)
+                  ury(i,j,1) = merge(ZERO,uly(i,j,1),phys_bc(2,2) .eq. NO_SLIP_WALL)
+                  uly(i,j,2) = ZERO
+                  ury(i,j,2) = ZERO
+               endif
+            endif
 
             ! make normal component of uimhx by first solving a normal Riemann problem
             uavg = HALF*(uly(i,j,2)+ury(i,j,2))
@@ -185,8 +231,25 @@ contains
       enddo
 
       ! Apply boundary conditions
+      do j=js,je
+         ! lo side
+         if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+            umac(is,j) = ZERO
+         elseif (phys_bc(1,1) .eq. INLET) then
+            umac(is,j) = u(is-1,j,1)
+         elseif (phys_bc(1,1) .eq. OUTLET) then
+            umac(is,j) = MIN(umacr(is,j),ZERO)
+         endif
 
-
+         ! hi side
+         if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+            umac(ie+1,j) = ZERO
+         elseif (phys_bc(1,2) .eq. INLET) then
+            umac(ie+1,j) = u(ie+1,j,1)
+         elseif (phys_bc(1,2) .eq. OUTLET) then
+            umac(ie+1,j) = MAX(umacl(ie+1,j),ZERO)
+         endif
+      enddo
 
       do j=js,je+1
          do i=is,ie
@@ -206,8 +269,25 @@ contains
       enddo
 
       ! Apply boundary conditions
+      do i=is,ie
+         ! lo side
+         if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
+            vmac(i,js) = ZERO
+         elseif (phys_bc(2,1) .eq. INLET) then
+            vmac(i,js) = u(i,js-1,2)
+         elseif (phys_bc(2,1) .eq. OUTLET) then
+            vmac(i,js) = MIN(vmacr(i,js),ZERO)
+         endif
 
-
+         ! hi side
+         if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
+            vmac(i,je+1) = ZERO
+         elseif (phys_bc(2,2) .eq. INLET) then
+            vmac(i,je+1) = u(i,je+1,2)
+         elseif (phys_bc(2,2) .eq. OUTLET) then
+            vmac(i,je+1) = MAX(vmacl(i,je+1),ZERO)
+         endif
+      enddo
 
       deallocate(slopex)
       deallocate(slopey)
@@ -218,6 +298,11 @@ contains
       deallocate(ury)
       deallocate(uimhx)
       deallocate(uimhy)
+
+      deallocate(umacl)
+      deallocate(umacr)
+      deallocate(vmacl)
+      deallocate(vmacr)
 
       end subroutine velpred_2d
 
@@ -284,13 +369,6 @@ contains
       hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
       hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
       hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
-
-      allocate(s_l(lo(1)-1:hi(1)+2))
-      allocate(s_r(lo(1)-1:hi(1)+2))
-      allocate(s_b(lo(2)-1:hi(2)+2))
-      allocate(s_t(lo(2)-1:hi(2)+2))
-      allocate(s_u(lo(3)-1:hi(3)+2))
-      allocate(s_d(lo(3)-1:hi(3)+2))
 
       allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
       allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
@@ -373,6 +451,7 @@ contains
       hy = dx(2)
       hz = dx(3)
 
+      ! Compute eps, which is relative to the max velocity
       umax = abs(u(is,js,ks,1))
       do k = ks,ke
          do j = js,je
@@ -383,11 +462,9 @@ contains
             end do
          end do
       end do
-           
       eps = abs_eps * umax
       
-      ! loop over components
-      do n = 1,ncomp
+
 
 !******************************************************************
 ! Create s_{\i-\half\e_x}^x, etc.
@@ -976,14 +1053,6 @@ contains
                enddo
             enddo
          enddo
-      enddo
-      
-      deallocate(s_l)
-      deallocate(s_r)
-      deallocate(s_b)
-      deallocate(s_t)
-      deallocate(s_d)
-      deallocate(s_u)
 
       deallocate(slopex)
       deallocate(slopey)
