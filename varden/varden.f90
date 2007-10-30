@@ -143,6 +143,7 @@ subroutine varden()
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
   namelist /probin/ cg_verbose
+  namelist /probin/ grav
 
   ng_cell = 3
   ng_grow = 1
@@ -1246,6 +1247,11 @@ subroutine varden()
            farg = farg + 1
            call get_command_argument(farg, value = fname)
            read(fname, *) visc_coef
+
+        case ('--grav')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) grav
 
         case ('--diff_coef')
            farg = farg + 1
