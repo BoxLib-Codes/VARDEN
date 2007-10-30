@@ -95,7 +95,7 @@ contains
          enddo
       enddo
 
-      do j=31,hi(2)
+      do j=32,hi(2)
          do i=lo(1),hi(1)
 
             u(i,j,1) = ZERO
@@ -105,6 +105,9 @@ contains
 
          enddo
       enddo
+
+      u(31,31,2) = -0.1d0
+      u(32,31,2) = -0.1d0
 
    end subroutine initdata_2d
 
@@ -124,25 +127,10 @@ contains
       do k=lo(3),hi(3)
          do j=lo(2),hi(2)
             do i=lo(1),hi(1)
-
-               u(i,j,k,1) = ONE
-               u(i,j,k,2) = ONE
-               u(i,j,k,3) = ONE
-               s(i,j,k,1) = ONE
-               s(i,j,k,2) = ZERO
                
             enddo
          enddo
       enddo
-      
-      s(3,3,3,2) = ONE
-      s(3,3,4,2) = ONE
-      s(3,4,3,2) = ONE
-      s(3,4,4,2) = ONE
-      s(4,3,3,2) = ONE
-      s(4,3,4,2) = ONE
-      s(4,4,3,2) = ONE
-      s(4,4,4,2) = ONE
 
    end subroutine initdata_3d
 
