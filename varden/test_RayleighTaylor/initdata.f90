@@ -155,7 +155,7 @@ contains
          enddo
       enddo
 
-      do j=lo(1),hi(1)
+      do j=lo(2),hi(2)
          u(15,j,15,3) = -0.1d0
          u(16,j,15,3) = -0.1d0
 
