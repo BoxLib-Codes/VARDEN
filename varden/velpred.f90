@@ -708,7 +708,7 @@ contains
                ! upwind
                uimhyz(i,j,k) = merge(ulyz(i,j,k),uryz(i,j,k),uimhy(i,j,k,2).gt.ZERO)
                uavg = HALF*(ulyz(i,j,k)+uryz(i,j,k))
-               uimhyz(i,j,k) = merge(uavg,uimhyz(i,j,k),uimhy(i,j,k,2).lt.eps)
+               uimhyz(i,j,k) = merge(uavg,uimhyz(i,j,k),abs(uimhy(i,j,k,2)).lt.eps)
             enddo
          enddo
       enddo
@@ -746,7 +746,7 @@ contains
                ! upwind
                uimhzy(i,j,k) = merge(ulzy(i,j,k),urzy(i,j,k),uimhz(i,j,k,3).gt.ZERO)
                uavg = HALF*(ulzy(i,j,k)+urzy(i,j,k))
-               uimhzy(i,j,k) = merge(uavg,uimhzy(i,j,k),uimhz(i,j,k,3).lt.eps)
+               uimhzy(i,j,k) = merge(uavg,uimhzy(i,j,k),abs(uimhz(i,j,k,3)).lt.eps)
             enddo
          enddo
       enddo
@@ -784,7 +784,7 @@ contains
                ! upwind
                vimhxz(i,j,k) = merge(vlxz(i,j,k),vrxz(i,j,k),uimhx(i,j,k,1).gt.ZERO)
                uavg = HALF*(vlxz(i,j,k)+vrxz(i,j,k))
-               vimhxz(i,j,k) = merge(uavg,vimhxz(i,j,k),uimhx(i,j,k,1).lt.eps)
+               vimhxz(i,j,k) = merge(uavg,vimhxz(i,j,k),abs(uimhx(i,j,k,1)).lt.eps)
             enddo
          enddo
       enddo
@@ -822,7 +822,7 @@ contains
                ! upwind
                vimhzx(i,j,k) = merge(vlzx(i,j,k),vrzx(i,j,k),uimhz(i,j,k,3).gt.ZERO)
                uavg = HALF*(vlzx(i,j,k)+vrzx(i,j,k))
-               vimhzx(i,j,k) = merge(uavg,vimhzx(i,j,k),uimhz(i,j,k,3).lt.eps)
+               vimhzx(i,j,k) = merge(uavg,vimhzx(i,j,k),abs(uimhz(i,j,k,3)).lt.eps)
             enddo
          enddo
       enddo
@@ -860,7 +860,7 @@ contains
                ! upwind
                wimhxy(i,j,k) = merge(wlxy(i,j,k),wrxy(i,j,k),uimhx(i,j,k,1).gt.ZERO)
                uavg = HALF*(wlxy(i,j,k)+wrxy(i,j,k))
-               wimhxy(i,j,k) = merge(uavg,wimhxy(i,j,k),uimhx(i,j,k,1).lt.eps)
+               wimhxy(i,j,k) = merge(uavg,wimhxy(i,j,k),abs(uimhx(i,j,k,1)).lt.eps)
             enddo
          enddo
       enddo
@@ -898,7 +898,7 @@ contains
                ! upwind
                wimhyx(i,j,k) = merge(wlyx(i,j,k),wryx(i,j,k),uimhy(i,j,k,2).gt.ZERO)
                uavg = HALF*(wlyx(i,j,k)+wryx(i,j,k))
-               wimhyx(i,j,k) = merge(uavg,wimhyx(i,j,k),uimhy(i,j,k,2).lt.eps)
+               wimhyx(i,j,k) = merge(uavg,wimhyx(i,j,k),abs(uimhy(i,j,k,2)).lt.eps)
             enddo
          enddo
       enddo
@@ -912,12 +912,14 @@ contains
          do j=js,je
             do i=is,ie+1
                ! extrapolate to edges
-               umacl(i,j,k) = ulx(i,j,k,1) + dt2*force(i-1,j,k,1) &
+               umacl(i,j,k) = ulx(i,j,k,1) &
                     - (dt4/hy)*(uimhy(i-1,j+1,k,2)+uimhy(i-1,j,k,2))*(uimhyz(i-1,j+1,k)-uimhyz(i-1,j,k)) &
-                    - (dt4/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j,k+1)-uimhzy(i-1,j,k))
-               umacr(i,j,k) = urx(i,j,k,1) + dt2*force(i,j,k,1) &
+                    - (dt4/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j,k+1)-uimhzy(i-1,j,k)) &
+                    + dt2*force(i-1,j,k,1)
+               umacr(i,j,k) = urx(i,j,k,1) &
                     - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(uimhyz(i,j+1,k)-uimhyz(i,j,k)) &
-                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhzy(i,j,k+1)-uimhzy(i,j,k))
+                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhzy(i,j,k+1)-uimhzy(i,j,k)) &
+                    + dt2*force(i,j,k,1)
 
                ! solve Riemann problem
                uavg = HALF*(umacl(i,j,k)+umacr(i,j,k))
@@ -956,12 +958,14 @@ contains
          do j=js,je+1
             do i=is,ie
                ! extrapolate to edges
-               vmacl(i,j,k) = ulx(i,j,k,2) + dt2*force(i,j-1,k,2) &
+               vmacl(i,j,k) = uly(i,j,k,2) &
                     - (dt4/hx)*(uimhx(i+1,j-1,k,1)+uimhx(i,j-1,k,1))*(vimhxz(i+1,j-1,k)-vimhxz(i,j-1,k)) &
-                    - (dt4/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i,j-1,k+1)-vimhzx(i,j-1,k))
-               vmacr(i,j,k) = urx(i,j,k,2) + dt2*force(i,j,k,2) &
+                    - (dt4/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i,j-1,k+1)-vimhzx(i,j-1,k)) &
+                    + dt2*force(i,j-1,k,2)
+               vmacr(i,j,k) = ury(i,j,k,2) &
                     - (dt4/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(vimhxz(i+1,j,k)-vimhxz(i,j,k)) &
-                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(vimhzx(i,j,k+1)-vimhzx(i,j,k))
+                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(vimhzx(i,j,k+1)-vimhzx(i,j,k)) &
+                    + dt2*force(i,j,k,2)
                
                ! solve Riemann problem
                uavg = HALF*(vmacl(i,j,k)+vmacr(i,j,k))
@@ -1000,12 +1004,14 @@ contains
          do j=js,je
             do i=is,ie
                ! extrapolate to edges
-               wmacl(i,j,k) = ulx(i,j,k,3) + dt2*force(i,j,k-1,3) &
+               wmacl(i,j,k) = ulz(i,j,k,3) &
                     - (dt4/hx)*(uimhx(i+1,j,k-1,1)+uimhx(i,j,k-1,1))*(wimhxy(i+1,j,k-1)-wimhxy(i,j,k-1)) &
-                    - (dt4/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i,j+1,k-1)-wimhyx(i,j,k-1))
-               wmacr(i,j,k) = urx(i,j,k,3) + dt2*force(i,j,k,3) &
+                    - (dt4/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i,j+1,k-1)-wimhyx(i,j,k-1)) &
+                    + dt2*force(i,j,k-1,3)
+               wmacr(i,j,k) = urz(i,j,k,3) &
                     - (dt4/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(wimhxy(i+1,j,k)-wimhxy(i,j,k)) &
-                    - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(wimhyx(i,j+1,k)-wimhyx(i,j,k))
+                    - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(wimhyx(i,j+1,k)-wimhyx(i,j,k)) &
+                    + dt2*force(i,j,k,3)
                
                ! solve Riemann problem
                uavg = HALF*(wmacl(i,j,k)+wmacr(i,j,k))
