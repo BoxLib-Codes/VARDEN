@@ -106,6 +106,9 @@ contains
          enddo
       enddo
 
+      u(15,15,1) = -0.1d0
+      u(16,15,1) =  0.1d0
+
       u(15,15,2) = -0.1d0
       u(16,15,2) = -0.1d0
 
@@ -155,6 +158,9 @@ contains
       do j=lo(1),hi(1)
          u(15,j,15,3) = -0.1d0
          u(16,j,15,3) = -0.1d0
+
+         u(15,j,15,1) = 0.1d0
+         u(16,j,15,1) = -0.1d0
       enddo
 
    end subroutine initdata_3d
