@@ -948,7 +948,7 @@ contains
                   sedgelx(i,j,k) = s(i-1,j,k,n) + (HALF - dt2*umac(i,j,k)/hx)*slopex(i-1,j,k,n) &
                        - (dt4/hy)*(vmac(i-1,j+1,k)+vmac(i-1,j,k))*(simhyz(i-1,j+1,k)-simhyz(i-1,j,k)) &
                        - (dt4/hz)*(wmac(i-1,j,k+1)+wmac(i-1,j,k))*(simhzy(i-1,j,k+1)-simhzy(i-1,j,k)) &
-                       + dt2*force(i,j,k,n)
+                       + dt2*force(i-1,j,k,n)
                   sedgerx(i,j,k) = s(i,  j,k,n) - (HALF + dt2*umac(i,j,k)/hx)*slopex(i,  j,k,n) &
                        - (dt4/hy)*(vmac(i,  j+1,k)+vmac(i,  j,k))*(simhyz(i,  j+1,k)-simhyz(i,  j,k)) &
                        - (dt4/hz)*(wmac(i,  j,k+1)+wmac(i,  j,k))*(simhzy(i,  j,k+1)-simhzy(i,  j,k)) &
@@ -1014,7 +1014,7 @@ contains
                   sedgely(i,j,k) = s(i,j-1,k,n) + (HALF - dt2*vmac(i,j,k)/hy)*slopey(i,j-1,k,n) &
                        - (dt4/hx)*(umac(i+1,j-1,k)+umac(i,j-1,k))*(simhxz(i+1,j-1,k)-simhxz(i,j-1,k)) &
                        - (dt4/hz)*(wmac(i,j-1,k+1)+wmac(i,j-1,k))*(simhzx(i,j-1,k+1)-simhzx(i,j-1,k)) &
-                       + dt2*force(i,j,k,n)
+                       + dt2*force(i,j-1,k,n)
                   sedgery(i,j,k) = s(i,j,  k,n) - (HALF + dt2*vmac(i,j,k)/hy)*slopey(i,j,  k,n) &
                        - (dt4/hx)*(umac(i+1,j,  k)+umac(i,j,  k))*(simhxz(i+1,j,  k)-simhxz(i,j,  k)) &
                        - (dt4/hz)*(wmac(i,j,  k+1)+wmac(i,j,  k))*(simhzx(i,j,  k+1)-simhzx(i,j,  k)) &
@@ -1080,7 +1080,7 @@ contains
                   sedgelz(i,j,k) = s(i,j,k-1,n) + (HALF - dt2*wmac(i,j,k)/hz)*slopez(i,j,k-1,n) &
                        - (dt4/hx)*(umac(i+1,j,k-1)+umac(i,j,k-1))*(simhxy(i+1,j,k-1)-simhxy(i,j,k-1)) &
                        - (dt4/hy)*(vmac(i,j+1,k-1)+vmac(i,j,k-1))*(simhyx(i,j+1,k-1)-simhyx(i,j,k-1)) &
-                       + dt2*force(i,j,k,n)
+                       + dt2*force(i,j,k-1,n)
                   sedgerz(i,j,k) = s(i,j,k,  n) - (HALF + dt2*wmac(i,j,k)/hz)*slopez(i,j,k,  n) &
                        - (dt4/hx)*(umac(i+1,j,k  )+umac(i,j,k  ))*(simhxy(i+1,j,k  )-simhxy(i,j,k  )) &
                        - (dt4/hy)*(vmac(i,j+1,k  )+vmac(i,j,k  ))*(simhyx(i,j+1,k  )-simhyx(i,j,k  )) &
@@ -1137,6 +1137,7 @@ contains
                endif
             enddo
          enddo
+
       enddo ! end loop over components
       
       deallocate(slopex)
