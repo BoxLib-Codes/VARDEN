@@ -84,7 +84,7 @@ contains
 !     Local variables
       integer :: i, j
 
-      do j=lo(2),hi(2)
+      do j=lo(2),15
          do i=lo(1),hi(1)
 
             u(i,j,1) = ZERO
@@ -95,7 +95,7 @@ contains
          enddo
       enddo
 
-      do j=32,hi(2)
+      do j=16,hi(2)
          do i=lo(1),hi(1)
 
             u(i,j,1) = ZERO
@@ -106,14 +106,8 @@ contains
          enddo
       enddo
 
-!      u(31,31,1) = 0.1d0
-!      u(32,31,1) = -0.1d0
-
-      u(31,31,2) = -0.1d0
-      u(32,31,2) = -0.1d0
-
-!      s(31,31,1) = TWO
-!      s(32,31,1) = TWO
+      u(15,15,2) = -0.1d0
+      u(16,15,2) = -0.1d0
 
    end subroutine initdata_2d
 
@@ -130,12 +124,37 @@ contains
 !     Local variables
       integer :: i, j, k
 
-      do k=lo(3),hi(3)
+      do k=lo(3),15
          do j=lo(2),hi(2)
             do i=lo(1),hi(1)
-               
+
+               u(i,j,k,1) = ZERO
+               u(i,j,k,2) = ZERO
+               u(i,j,k,3) = ZERO
+               s(i,j,k,1) = ONE
+               s(i,j,k,2) = ZERO
+
             enddo
          enddo
+      enddo
+
+      do k=16,hi(3)
+         do j=lo(2),hi(2)
+            do i=lo(1),hi(1)
+
+               u(i,j,k,1) = ZERO
+               u(i,j,k,2) = ZERO
+               u(i,j,k,3) = ZERO
+               s(i,j,k,1) = TWO
+               s(i,j,k,2) = ZERO
+
+            enddo
+         enddo
+      enddo
+
+      do j=lo(1),hi(1)
+         u(15,j,15,3) = -0.1d0
+         u(16,j,15,3) = -0.1d0
       enddo
 
    end subroutine initdata_3d
