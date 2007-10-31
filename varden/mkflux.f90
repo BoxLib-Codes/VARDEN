@@ -147,8 +147,8 @@ contains
                     HALF * (vmac(i,j)+vmac(i,j+1))*(splus - sminus) / hy
                
                ! extrapolate to normal faces with transverse and force contribution
-               s_l(i+1)= s(i,j,n) + (HALF-dt2*umac(i+1,j)/hx)*slopex(i,j,1) + dt2*st
-               s_r(i  )= s(i,j,n) - (HALF+dt2*umac(i,j)/hx)*slopex(i,j,1) + dt2*st
+               s_l(i+1)= s(i,j,n) + (HALF-dt2*umac(i+1,j)/hx)*slopex(i,j,n) + dt2*st
+               s_r(i  )= s(i,j,n) - (HALF+dt2*umac(i,j)/hx)*slopex(i,j,n) + dt2*st
             enddo
             
             ! upwind based on umac
@@ -249,8 +249,8 @@ contains
                     HALF * (umac(i,j)+umac(i+1,j))*(splus - sminus) / hx
                
                ! extrapolate to normal faces with transverse and force contribution
-               s_b(j+1)= s(i,j,n) + (HALF-dt2*vmac(i,j+1)/hy)*slopey(i,j,1) + dt2*st
-               s_t(j  )= s(i,j,n) - (HALF+dt2*vmac(i,j)/hy)*slopey(i,j,1) + dt2*st
+               s_b(j+1)= s(i,j,n) + (HALF-dt2*vmac(i,j+1)/hy)*slopey(i,j,n) + dt2*st
+               s_t(j  )= s(i,j,n) - (HALF+dt2*vmac(i,j)/hy)*slopey(i,j,n) + dt2*st
             enddo
             
             ! upwind based on vmac

@@ -104,11 +104,11 @@ contains
          do i=is,ie+1
             ! extrapolate both components of velocity to left face
             ulx(i,j,1) = u(i-1,j,1) + (HALF - dt2*u(i-1,j,1)/hx)*slopex(i-1,j,1)
-            ulx(i,j,2) = u(i-1,j,2) + (HALF - dt2*u(i-1,j,2)/hx)*slopex(i-1,j,2)
+            ulx(i,j,2) = u(i-1,j,2) + (HALF - dt2*u(i-1,j,1)/hx)*slopex(i-1,j,2)
 
             ! extrapolate both components of velocity to right face
-            urx(i,j,1) = u(i,j,1) - (HALF + dt2*u(i,j,1)/hx)*slopex(i,j,1)
-            urx(i,j,2) = u(i,j,2) - (HALF + dt2*u(i,j,2)/hx)*slopex(i,j,2)
+            urx(i,j,1) = u(i  ,j,1) - (HALF + dt2*u(i  ,j,1)/hx)*slopex(i  ,j,1)
+            urx(i,j,2) = u(i  ,j,2) - (HALF + dt2*u(i  ,j,1)/hx)*slopex(i  ,j,2)
 
             ! impose lo side bc's
             if(i .eq. is) then
@@ -143,7 +143,7 @@ contains
             test = ((ulx(i,j,1) .le. ZERO .and. urx(i,j,1) .ge. ZERO) .or. &
                  (abs(ulx(i,j,1)+urx(i,j,1)) .lt. eps))
             uimhx(i,j,1) = merge(ulx(i,j,1),urx(i,j,1),uavg .gt. ZERO)
-            uimhx(i,j,1) = merge(uavg,uimhx(i,j,1),test)
+            uimhx(i,j,1) = merge(ZERO,uimhx(i,j,1),test)
 
             ! now upwind to get transverse component of uimhx
             uimhx(i,j,2) = merge(ulx(i,j,2),urx(i,j,2),uimhx(i,j,1).gt.ZERO)
@@ -155,12 +155,12 @@ contains
       do j=js,je+1
          do i=is-1,ie+1
             ! extrapolate both components of velocity to left face
-            uly(i,j,1) = u(i,j-1,1) + (HALF - dt2*u(i,j-1,1)/hy)*slopey(i,j-1,1)
+            uly(i,j,1) = u(i,j-1,1) + (HALF - dt2*u(i,j-1,2)/hy)*slopey(i,j-1,1)
             uly(i,j,2) = u(i,j-1,2) + (HALF - dt2*u(i,j-1,2)/hy)*slopey(i,j-1,2)
 
             ! extrapolate both components of velocity to right face
-            ury(i,j,1) = u(i,j,1) - (HALF + dt2*u(i,j,1)/hy)*slopey(i,j,1)
-            ury(i,j,2) = u(i,j,2) - (HALF + dt2*u(i,j,2)/hy)*slopey(i,j,2)
+            ury(i,j,1) = u(i,j  ,1) - (HALF + dt2*u(i,j  ,2)/hy)*slopey(i,j  ,1)
+            ury(i,j,2) = u(i,j  ,2) - (HALF + dt2*u(i,j  ,2)/hy)*slopey(i,j  ,2)
 
             ! impose lo side bc's
             if(j .eq. js) then
@@ -195,9 +195,9 @@ contains
             test = ((uly(i,j,2) .le. ZERO .and. ury(i,j,2) .ge. ZERO) .or. &
                  (abs(uly(i,j,2)+ury(i,j,2)) .lt. eps))
             uimhy(i,j,2) = merge(uly(i,j,2),ury(i,j,2),uavg .gt. ZERO)
-            uimhy(i,j,2) = merge(uavg,uimhy(i,j,2),test)
+            uimhy(i,j,2) = merge(ZERO,uimhy(i,j,2),test)
 
-            ! now upwind to get transverse component of uimhx
+            ! now upwind to get transverse component of uimhy
             uimhy(i,j,1) = merge(uly(i,j,1),ury(i,j,1),uimhy(i,j,2).gt.ZERO)
             uavg = HALF*(uly(i,j,1)+ury(i,j,1))
             uimhy(i,j,1) = merge(uavg,uimhy(i,j,1),abs(uimhy(i,j,2)).lt.eps)
@@ -211,17 +211,17 @@ contains
       do j=js,je
          do i=is,ie+1
             ! extrapolate to edges
-            umacl(i,j) = ulx(i,j,1) + dt2*force(i,j,1) &
+            umacl(i,j) = ulx(i,j,1) + dt2*force(i-1,j,1) &
                  - (dt4/hy)*(uimhy(i-1,j+1,2)+uimhy(i-1,j,2))*(uimhy(i-1,j+1,1)-uimhy(i-1,j,1))
             umacr(i,j) = urx(i,j,1) + dt2*force(i,j,1) &
-                 - (dt4/hy)*(uimhy(i,j+1,2)+uimhy(i,j,2))*(uimhy(i,j+1,1)-uimhy(i,j,1))
+                 - (dt4/hy)*(uimhy(i  ,j+1,2)+uimhy(i  ,j,2))*(uimhy(i  ,j+1,1)-uimhy(i  ,j,1))
 
             ! solve Riemann problem
             uavg = HALF*(umacl(i,j)+umacr(i,j))
             test = ((umacl(i,j) .le. ZERO .and. umacr(i,j) .ge. ZERO) .or. &
                  (abs(umacl(i,j)+umacr(i,j)) .lt. eps))
             umac(i,j) = merge(umacl(i,j),umacr(i,j),uavg .gt. ZERO)
-            umac(i,j) = merge(uavg,umac(i,j),test)
+            umac(i,j) = merge(ZERO,umac(i,j),test)
          enddo
       enddo
 
@@ -249,17 +249,17 @@ contains
       do j=js,je+1
          do i=is,ie
             ! extrapolate to edges
-            vmacl(i,j) = ulx(i,j,2) + dt2*force(i,j,2) &
+            vmacl(i,j) = uly(i,j,2) + dt2*force(i,j-1,2) &
                  - (dt4/hx)*(uimhx(i+1,j-1,1)+uimhx(i,j-1,1))*(uimhx(i+1,j-1,2)-uimhx(i,j-1,2))
-            vmacr(i,j) = urx(i,j,2) + dt2*force(i,j,2) &
-                 - (dt4/hx)*(uimhx(i+1,j,1)+uimhx(i,j,1))*(uimhx(i+1,j,2)-uimhy(i,j,2))
+            vmacr(i,j) = ury(i,j,2) + dt2*force(i,j,2) &
+                 - (dt4/hx)*(uimhx(i+1,j  ,1)+uimhx(i,j  ,1))*(uimhx(i+1,j  ,2)-uimhx(i,j  ,2))
 
             ! solve Riemann problem
             uavg = HALF*(vmacl(i,j)+vmacr(i,j))
             test = ((vmacl(i,j) .le. ZERO .and. vmacr(i,j) .ge. ZERO) .or. &
                  (abs(vmacl(i,j)+vmacr(i,j)) .lt. eps))
             vmac(i,j) = merge(vmacl(i,j),vmacr(i,j),uavg .gt. ZERO)
-            vmac(i,j) = merge(uavg,vmac(i,j),test)
+            vmac(i,j) = merge(ZERO,vmac(i,j),test)
          enddo
       enddo
 
@@ -472,13 +472,13 @@ contains
             do i=is,ie+1
                ! extrapolate all components of velocity to left face
                ulx(i,j,k,1) = u(i-1,j,k,1) + (HALF - dt2*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,1)
-               ulx(i,j,k,2) = u(i-1,j,k,2) + (HALF - dt2*u(i-1,j,k,2)/hx)*slopex(i-1,j,k,2)
-               ulx(i,j,k,3) = u(i-1,j,k,3) + (HALF - dt2*u(i-1,j,k,3)/hx)*slopex(i-1,j,k,3)
+               ulx(i,j,k,2) = u(i-1,j,k,2) + (HALF - dt2*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,2)
+               ulx(i,j,k,3) = u(i-1,j,k,3) + (HALF - dt2*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,3)
 
                ! extrapolate all components of velocity to right face
                urx(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,1)/hx)*slopex(i,j,k,1)
-               urx(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,2)/hx)*slopex(i,j,k,2)
-               urx(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,3)/hx)*slopex(i,j,k,3)
+               urx(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,1)/hx)*slopex(i,j,k,2)
+               urx(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,1)/hx)*slopex(i,j,k,3)
 
                ! impose lo side bc's
                if(i .eq. is) then
@@ -539,14 +539,14 @@ contains
          do j=js,je+1
             do i=is-1,ie+1
                ! extrapolate all components of velocity to left face
-               uly(i,j,k,1) = u(i,j-1,k,1) + (HALF - dt2*u(i,j-1,k,1)/hy)*slopey(i,j-1,k,1)
+               uly(i,j,k,1) = u(i,j-1,k,1) + (HALF - dt2*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,1)
                uly(i,j,k,2) = u(i,j-1,k,2) + (HALF - dt2*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,2)
-               uly(i,j,k,3) = u(i,j-1,k,3) + (HALF - dt2*u(i,j-1,k,3)/hy)*slopey(i,j-1,k,3)
+               uly(i,j,k,3) = u(i,j-1,k,3) + (HALF - dt2*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,3)
 
                ! extrapolate all components of velocity to right face
-               ury(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,1)/hy)*slopey(i,j,k,1)
+               ury(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,2)/hy)*slopey(i,j,k,1)
                ury(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,2)/hy)*slopey(i,j,k,2)
-               ury(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,3)/hy)*slopey(i,j,k,3)
+               ury(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,2)/hy)*slopey(i,j,k,3)
 
                ! impose lo side bc's
                if(j .eq. js) then
@@ -607,13 +607,13 @@ contains
          do j=js-1,je+1
             do i=is-1,ie+1
                ! extrapolate all components of velocity to left face
-               ulz(i,j,k,1) = u(i,j,k-1,1) + (HALF - dt2*u(i,j,k-1,1)/hz)*slopez(i,j,k-1,1)
-               ulz(i,j,k,2) = u(i,j,k-1,2) + (HALF - dt2*u(i,j,k-1,2)/hz)*slopez(i,j,k-1,2)
+               ulz(i,j,k,1) = u(i,j,k-1,1) + (HALF - dt2*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,1)
+               ulz(i,j,k,2) = u(i,j,k-1,2) + (HALF - dt2*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,2)
                ulz(i,j,k,3) = u(i,j,k-1,3) + (HALF - dt2*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,3)
 
                ! extrapolate all components of velocity to right face
-               urz(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,1)/hz)*slopez(i,j,k,1)
-               urz(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,2)/hz)*slopez(i,j,k,2)
+               urz(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,3)/hz)*slopez(i,j,k,1)
+               urz(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,3)/hz)*slopez(i,j,k,2)
                urz(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,3)/hz)*slopez(i,j,k,3)
 
                ! impose lo side bc's
@@ -882,7 +882,7 @@ contains
          do j=js,je
             do i=is,ie+1
                ! extrapolate to edges
-               umacl(i,j,k) = ulx(i,j,k,1) + dt2*force(i,j,k,1) &
+               umacl(i,j,k) = ulx(i,j,k,1) + dt2*force(i-1,j,k,1) &
                     - (dt4/hy)*(uimhy(i-1,j+1,k,2)+uimhy(i-1,j,k,2))*(uimhyz(i-1,j+1,k)-uimhyz(i-1,j,k)) &
                     - (dt4/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j,k+1)-uimhzy(i-1,j,k))
                umacr(i,j,k) = urx(i,j,k,1) + dt2*force(i,j,k,1) &
@@ -926,7 +926,7 @@ contains
          do j=js,je+1
             do i=is,ie
                ! extrapolate to edges
-               vmacl(i,j,k) = ulx(i,j,k,2) + dt2*force(i,j,k,2) &
+               vmacl(i,j,k) = ulx(i,j,k,2) + dt2*force(i,j-1,k,2) &
                     - (dt4/hx)*(uimhx(i+1,j-1,k,1)+uimhx(i,j-1,k,1))*(vimhxz(i+1,j-1,k)-vimhxz(i,j-1,k)) &
                     - (dt4/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i,j-1,k+1)-vimhzx(i,j-1,k))
                vmacr(i,j,k) = urx(i,j,k,2) + dt2*force(i,j,k,2) &
@@ -970,7 +970,7 @@ contains
          do j=js,je
             do i=is,ie
                ! extrapolate to edges
-               wmacl(i,j,k) = ulx(i,j,k,3) + dt2*force(i,j,k,3) &
+               wmacl(i,j,k) = ulx(i,j,k,3) + dt2*force(i,j,k-1,3) &
                     - (dt4/hx)*(uimhx(i+1,j,k-1,1)+uimhx(i,j,k-1,1))*(wimhxy(i+1,j,k-1)-wimhxy(i,j,k-1)) &
                     - (dt4/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i,j+1,k-1)-wimhyx(i,j,k-1))
                wmacr(i,j,k) = urx(i,j,k,3) + dt2*force(i,j,k,3) &
