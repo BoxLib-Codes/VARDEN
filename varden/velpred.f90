@@ -872,7 +872,7 @@ contains
                ! extrapolate to faces
                wlyx(i,j,k) = uly(i,j,k,3) &
                     - (dt6/hx)*(uimhx(i+1,j-1,k,1)+uimhx(i,j-1,k,1))*(uimhx(i+1,j-1,k,3)-uimhx(i,j-1,k,3))
-               wryx(i,j,k) = uly(i,j,k,3) &
+               wryx(i,j,k) = ury(i,j,k,3) &
                     - (dt6/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(uimhx(i+1,j,k,3)-uimhx(i,j,k,3))
 
                ! impose lo side bc's
