@@ -106,8 +106,14 @@ contains
          enddo
       enddo
 
+!      u(31,31,1) = 0.1d0
+!      u(32,31,1) = -0.1d0
+
       u(31,31,2) = -0.1d0
       u(32,31,2) = -0.1d0
+
+!      s(31,31,1) = TWO
+!      s(32,31,1) = TWO
 
    end subroutine initdata_2d
 

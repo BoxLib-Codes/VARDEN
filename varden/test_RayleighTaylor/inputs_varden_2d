@@ -5,14 +5,14 @@
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 1
+ max_step  = 100
  init_iter = 0
 
- plot_int  = 1
- chk_int   = 1
+ plot_int  = 10
+ chk_int   = 100
 
- stop_time = 1.0
- cflfac = 1.0
+ stop_time = 1000.0
+ cflfac = 0.9
 
  visc_coef = 0.0
  diff_coef = 0.0
@@ -21,15 +21,15 @@
 
  bcx_lo = -1
  bcx_hi = -1
- bcy_lo = -1
- bcy_hi = -1
+ bcy_lo = 15
+ bcy_hi = 15
 
  pmask_x = T
- pmask_y = T
+ pmask_y = F
 
  verbose = 0
  mg_verbose = 0
 
 !restart = 1
-do_initial_projection = 0
+do_initial_projection = 1
 /
