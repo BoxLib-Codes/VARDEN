@@ -521,7 +521,7 @@ contains
                test = ((ulx(i,j,k,1) .le. ZERO .and. urx(i,j,k,1) .ge. ZERO) .or. &
                     (abs(ulx(i,j,k,1)+urx(i,j,k,1)) .lt. eps))
                uimhx(i,j,k,1) = merge(ulx(i,j,k,1),urx(i,j,k,1),uavg .gt. ZERO)
-               uimhx(i,j,k,1) = merge(uavg,uimhx(i,j,k,1),test)
+               uimhx(i,j,k,1) = merge(ZERO,uimhx(i,j,k,1),test)
                
                ! now upwind to get transverse components of uimhx
                uimhx(i,j,k,2) = merge(ulx(i,j,k,2),urx(i,j,k,2),uimhx(i,j,k,1).gt.ZERO)
@@ -589,7 +589,7 @@ contains
                test = ((uly(i,j,k,2) .le. ZERO .and. ury(i,j,k,2) .ge. ZERO) .or. &
                     (abs(uly(i,j,k,2)+ury(i,j,k,2)) .lt. eps))
                uimhy(i,j,k,2) = merge(uly(i,j,k,2),ury(i,j,k,2),uavg .gt. ZERO)
-               uimhy(i,j,k,2) = merge(uavg,uimhy(i,j,k,2),test)
+               uimhy(i,j,k,2) = merge(ZERO,uimhy(i,j,k,2),test)
                
                ! now upwind to get transverse components of uimhy
                uimhy(i,j,k,1) = merge(uly(i,j,k,1),ury(i,j,k,1),uimhy(i,j,k,2).gt.ZERO)
@@ -657,7 +657,7 @@ contains
                test = ((ulz(i,j,k,3) .le. ZERO .and. urz(i,j,k,3) .ge. ZERO) .or. &
                     (abs(ulz(i,j,k,3)+urz(i,j,k,3)) .lt. eps))
                uimhz(i,j,k,3) = merge(ulz(i,j,k,3),urz(i,j,k,3),uavg .gt. ZERO)
-               uimhz(i,j,k,3) = merge(uavg,uimhz(i,j,k,3),test)
+               uimhz(i,j,k,3) = merge(ZERO,uimhz(i,j,k,3),test)
                
                ! now upwind to get transverse components of uimhz
                uimhz(i,j,k,1) = merge(ulz(i,j,k,1),urz(i,j,k,1),uimhz(i,j,k,3).gt.ZERO)
@@ -704,6 +704,11 @@ contains
                      uryz(i,j,k) = merge(ZERO,ulyz(i,j,k),phys_bc(2,2) .eq. NO_SLIP_WALL)
                   endif
                endif
+
+               ! upwind
+               uimhyz(i,j,k) = merge(ulyz(i,j,k),uryz(i,j,k),uimhy(i,j,k,2).gt.ZERO)
+               uavg = HALF*(ulyz(i,j,k)+uryz(i,j,k))
+               uimhyz(i,j,k) = merge(uavg,uimhyz(i,j,k),uimhy(i,j,k,2).lt.eps)
             enddo
          enddo
       enddo
@@ -737,6 +742,11 @@ contains
                      urzy(i,j,k) = merge(ZERO,ulzy(i,j,k),phys_bc(3,2) .eq. NO_SLIP_WALL)
                   endif
                endif
+
+               ! upwind
+               uimhzy(i,j,k) = merge(ulzy(i,j,k),urzy(i,j,k),uimhz(i,j,k,3).gt.ZERO)
+               uavg = HALF*(ulzy(i,j,k)+urzy(i,j,k))
+               uimhzy(i,j,k) = merge(uavg,uimhzy(i,j,k),uimhz(i,j,k,3).lt.eps)
             enddo
          enddo
       enddo
@@ -770,6 +780,11 @@ contains
                      vrxz(i,j,k) = merge(ZERO,vlxz(i,j,k),phys_bc(1,2) .eq. NO_SLIP_WALL)
                   endif
                endif
+
+               ! upwind
+               vimhxz(i,j,k) = merge(vlxz(i,j,k),vrxz(i,j,k),uimhx(i,j,k,1).gt.ZERO)
+               uavg = HALF*(vlxz(i,j,k)+vrxz(i,j,k))
+               vimhxz(i,j,k) = merge(uavg,vimhxz(i,j,k),uimhx(i,j,k,1).lt.eps)
             enddo
          enddo
       enddo
@@ -803,6 +818,11 @@ contains
                      vrzx(i,j,k) = merge(ZERO,vlzx(i,j,k),phys_bc(3,2) .eq. NO_SLIP_WALL)
                   endif
                endif
+
+               ! upwind
+               vimhzx(i,j,k) = merge(vlzx(i,j,k),vrzx(i,j,k),uimhz(i,j,k,3).gt.ZERO)
+               uavg = HALF*(vlzx(i,j,k)+vrzx(i,j,k))
+               vimhzx(i,j,k) = merge(uavg,vimhzx(i,j,k),uimhz(i,j,k,3).lt.eps)
             enddo
          enddo
       enddo
@@ -836,6 +856,11 @@ contains
                      wrxy(i,j,k) = merge(ZERO,wlxy(i,j,k),phys_bc(1,2) .eq. NO_SLIP_WALL)
                   endif
                endif
+
+               ! upwind
+               wimhxy(i,j,k) = merge(wlxy(i,j,k),wrxy(i,j,k),uimhx(i,j,k,1).gt.ZERO)
+               uavg = HALF*(wlxy(i,j,k)+wrxy(i,j,k))
+               wimhxy(i,j,k) = merge(uavg,wimhxy(i,j,k),uimhx(i,j,k,1).lt.eps)
             enddo
          enddo
       enddo
@@ -869,6 +894,11 @@ contains
                      wryx(i,j,k) = merge(ZERO,wlyx(i,j,k),phys_bc(2,2) .eq. NO_SLIP_WALL)
                   endif
                endif
+
+               ! upwind
+               wimhyx(i,j,k) = merge(wlyx(i,j,k),wryx(i,j,k),uimhy(i,j,k,2).gt.ZERO)
+               uavg = HALF*(wlyx(i,j,k)+wryx(i,j,k))
+               wimhyx(i,j,k) = merge(uavg,wimhyx(i,j,k),uimhy(i,j,k,2).lt.eps)
             enddo
          enddo
       enddo
@@ -894,7 +924,7 @@ contains
                test = ((umacl(i,j,k) .le. ZERO .and. umacr(i,j,k) .ge. ZERO) .or. &
                     (abs(umacl(i,j,k)+umacr(i,j,k)) .lt. eps))
                umac(i,j,k) = merge(umacl(i,j,k),umacr(i,j,k),uavg .gt. ZERO)
-               umac(i,j,k) = merge(uavg,umac(i,j,k),test)
+               umac(i,j,k) = merge(ZERO,umac(i,j,k),test)
             enddo
          enddo
       enddo
@@ -938,7 +968,7 @@ contains
                test = ((vmacl(i,j,k) .le. ZERO .and. vmacr(i,j,k) .ge. ZERO) .or. &
                     (abs(vmacl(i,j,k)+vmacr(i,j,k)) .lt. eps))
                vmac(i,j,k) = merge(vmacl(i,j,k),vmacr(i,j,k),uavg .gt. ZERO)
-               vmac(i,j,k) = merge(uavg,vmac(i,j,k),test)
+               vmac(i,j,k) = merge(ZERO,vmac(i,j,k),test)
             enddo
          enddo
       enddo
@@ -982,7 +1012,7 @@ contains
                test = ((wmacl(i,j,k) .le. ZERO .and. wmacr(i,j,k) .ge. ZERO) .or. &
                     (abs(wmacl(i,j,k)+wmacr(i,j,k)) .lt. eps))
                wmac(i,j,k) = merge(wmacl(i,j,k),wmacr(i,j,k),uavg .gt. ZERO)
-               wmac(i,j,k) = merge(uavg,wmac(i,j,k),test)
+               wmac(i,j,k) = merge(ZERO,wmac(i,j,k),test)
             enddo
          enddo
       enddo
