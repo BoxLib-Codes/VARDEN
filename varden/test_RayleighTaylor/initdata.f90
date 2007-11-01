@@ -106,11 +106,15 @@ contains
          enddo
       enddo
 
-      u(15,15,1) = -0.1d0
-      u(16,15,1) =  0.1d0
+      ! add a velocity perturbation
+!      u(15,15,1) = -0.1d0
+!      u(16,15,1) =  0.1d0
+!      u(15,15,2) = -0.1d0
+!      u(16,15,2) = -0.1d0
 
-      u(15,15,2) = -0.1d0
-      u(16,15,2) = -0.1d0
+      ! add a density perturbation
+      s(15,15,1) = TWO
+      s(16,15,1) = TWO
 
    end subroutine initdata_2d
 
@@ -156,11 +160,19 @@ contains
       enddo
 
       do j=lo(2),hi(2)
-         u(15,j,15,3) = -0.1d0
-         u(16,j,15,3) = -0.1d0
+         ! add a velocity perturbation
+!         u(15,j,15,3) = -0.1d0
+!         u(16,j,15,3) = -0.1d0
+!         u(15,j,15,1) = 0.1d0
+!         u(16,j,15,1) = -0.1d0
 
-         u(15,j,15,1) = 0.1d0
-         u(16,j,15,1) = -0.1d0
+         ! add a density perturbation
+         s(15,j,15,1) = TWO
+         s(16,j,15,1) = TWO
+
+         ! add a transverse velocity perturbation
+!         u(15,j,15,2) = 0.1d0
+!         u(16,j,15,2) = 0.1d0
       enddo
 
    end subroutine initdata_3d
