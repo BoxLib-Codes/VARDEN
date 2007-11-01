@@ -7,13 +7,13 @@
  prob_hi_z = 1.0
 
  max_step  = 50
- init_iter = 0
+ init_iter = 3
 
- plot_int  = 5
+ plot_int  = 1
  chk_int   = 50
 
  stop_time = 1000.0
- cflfac = 0.9
+ cflfac = 0.95
 
  visc_coef = 0.0
  diff_coef = 0.0
