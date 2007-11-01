@@ -732,7 +732,19 @@ subroutine varden()
                                visc_coef)
         end do
 
+        do n=1,nlevs
+           do d=1,dm
+              call multifab_fill_boundary(umac(n,d))
+           enddo
+        enddo
+
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+
+        do n=1,nlevs
+           do d=1,dm
+              call multifab_fill_boundary(umac(n,d))
+           enddo
+        enddo
 
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
@@ -1100,7 +1112,19 @@ subroutine varden()
                                visc_coef)
         end do
 
+        do n=1,nlevs
+           do d=1,dm
+              call multifab_fill_boundary(umac(n,d))
+           enddo
+        enddo
+
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+
+        do n=1,nlevs
+           do d=1,dm
+              call multifab_fill_boundary(umac(n,d))
+           enddo
+        enddo
 
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
