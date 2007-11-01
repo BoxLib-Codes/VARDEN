@@ -94,7 +94,11 @@ contains
             umax = max(umax,abs(u(i,j,2)))
          end do
       end do
-      eps = abs_eps * umax
+      if(umax .eq. 0.d0) then
+         eps = abs_eps
+      else
+         eps = abs_eps * umax
+      endif
 
 !******************************************************************
 ! Create u_{\i-\half\e_x}^x, etc.
@@ -461,7 +465,11 @@ contains
             end do
          end do
       end do
-      eps = abs_eps * umax
+      if(umax .eq. 0.d0) then
+         eps = abs_eps
+      else
+         eps = abs_eps * umax
+      endif
       
 !******************************************************************
 ! Create u_{\i-\half\e_x}^x, etc.
