@@ -52,6 +52,7 @@ contains
       integer :: dm,ng_cell
       integer :: i,n,comp
       logical :: is_conservative(uold%dim)
+      logical :: use_minion
       real(kind=dp_t) :: visc_fac, visc_mu
 
       real(kind=dp_t) :: half_dt
@@ -59,6 +60,7 @@ contains
       half_dt = HALF * dt
 
       is_conservative = .false.
+      use_minion = .false.
 
       ng_cell = uold%ng
       dm      = uold%dim
@@ -138,7 +140,7 @@ contains
                               lo, dx, dt, &
                               the_bc_level%phys_bc_level_array(i,:,:), &
                               the_bc_level%adv_bc_level_array(i,:,:,:), &
-                              ng_cell)
+                              ng_cell, use_minion)
             case (3)
                wmp  => dataptr(umac(3), i)
               call velpred_3d(uop(:,:,:,:), &
@@ -147,7 +149,7 @@ contains
                               lo, dx, dt, &
                               the_bc_level%phys_bc_level_array(i,:,:), &
                               the_bc_level%adv_bc_level_array(i,:,:,:), &
-                              ng_cell)
+                              ng_cell, use_minion)
          end select
       end do
 

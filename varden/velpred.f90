@@ -11,18 +11,20 @@ contains
 
       subroutine velpred_2d(u,umac,vmac,&
                             force,lo,dx,dt,&
-                            phys_bc,adv_bc,ng)
+                            phys_bc,adv_bc,ng,use_minion)
 
-      integer, intent(in) :: lo(2),ng
+      integer         ,intent(in) :: lo(2)
+      integer         ,intent(in) :: ng
 
       real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
       real(kind=dp_t), intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,:)
 
-      real(kind=dp_t),intent(in) :: dt,dx(:)
-      integer        ,intent(in) :: phys_bc(:,:)
-      integer        ,intent(in) :: adv_bc(:,:,:)
+      real(kind=dp_t) ,intent(in) :: dx(:),dt
+      integer         ,intent(in) :: phys_bc(:,:)
+      integer         ,intent(in) :: adv_bc(:,:,:)
+      logical         ,intent(in) :: use_minion
 
 !     Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:),slopey(:,:,:)
@@ -114,6 +116,14 @@ contains
             urx(i,j,1) = u(i  ,j,1) - (HALF + dt2*min(ZERO,u(i  ,j,1)/hx))*slopex(i  ,j,1)
             urx(i,j,2) = u(i  ,j,2) - (HALF + dt2*min(ZERO,u(i  ,j,1)/hx))*slopex(i  ,j,2)
 
+            ! add source terms
+            if(use_minion) then
+               ulx(i,j,1) = ulx(i,j,1) + dt2*force(i-1,j,1)
+               ulx(i,j,2) = ulx(i,j,2) + dt2*force(i-1,j,2)
+               urx(i,j,1) = urx(i,j,1) + dt2*force(i  ,j,1)
+               urx(i,j,2) = urx(i,j,2) + dt2*force(i  ,j,2)
+            endif
+
             ! impose lo side bc's
             if(i .eq. is) then
                ulx(i,j,1) = merge(u(is-1,j,1),ulx(i,j,1),phys_bc(1,1) .eq. INLET)
@@ -166,6 +176,14 @@ contains
             ury(i,j,1) = u(i,j  ,1) - (HALF + dt2*min(ZERO,u(i,j  ,2)/hy))*slopey(i,j  ,1)
             ury(i,j,2) = u(i,j  ,2) - (HALF + dt2*min(ZERO,u(i,j  ,2)/hy))*slopey(i,j  ,2)
 
+            ! add source terms
+            if(use_minion) then
+               uly(i,j,1) = uly(i,j,1) + dt2*force(i,j-1,1)
+               uly(i,j,2) = uly(i,j,2) + dt2*force(i,j-1,2)
+               ury(i,j,1) = ury(i,j,1) + dt2*force(i,j  ,1)
+               ury(i,j,2) = ury(i,j,2) + dt2*force(i,j  ,2)
+            endif
+
             ! impose lo side bc's
             if(j .eq. js) then
                uly(i,j,1) = merge(u(i,js-1,1),uly(i,j,1),phys_bc(2,1) .eq. INLET)
@@ -215,10 +233,17 @@ contains
       do j=js,je
          do i=is,ie+1
             ! extrapolate to edges
-            umacl(i,j) = ulx(i,j,1) + dt2*force(i-1,j,1) &
+            umacl(i,j) = ulx(i,j,1) &
                  - (dt4/hy)*(uimhy(i-1,j+1,2)+uimhy(i-1,j,2))*(uimhy(i-1,j+1,1)-uimhy(i-1,j,1))
-            umacr(i,j) = urx(i,j,1) + dt2*force(i,j,1) &
+            umacr(i,j) = urx(i,j,1) &
                  - (dt4/hy)*(uimhy(i  ,j+1,2)+uimhy(i  ,j,2))*(uimhy(i  ,j+1,1)-uimhy(i  ,j,1))
+
+            ! if use_minion is true, we have already accounted for source terms
+            ! in ulx and urx; otherwise, we need to account for them here.
+            if(.not. use_minion) then
+               umacl(i,j) = umacl(i,j) + dt2*force(i-1,j,1)
+               umacr(i,j) = umacr(i,j) + dt2*force(i  ,j,1)
+            endif
 
             ! solve Riemann problem
             uavg = HALF*(umacl(i,j)+umacr(i,j))
@@ -253,10 +278,17 @@ contains
       do j=js,je+1
          do i=is,ie
             ! extrapolate to edges
-            vmacl(i,j) = uly(i,j,2) + dt2*force(i,j-1,2) &
+            vmacl(i,j) = uly(i,j,2) &
                  - (dt4/hx)*(uimhx(i+1,j-1,1)+uimhx(i,j-1,1))*(uimhx(i+1,j-1,2)-uimhx(i,j-1,2))
-            vmacr(i,j) = ury(i,j,2) + dt2*force(i,j,2) &
+            vmacr(i,j) = ury(i,j,2) &
                  - (dt4/hx)*(uimhx(i+1,j  ,1)+uimhx(i,j  ,1))*(uimhx(i+1,j  ,2)-uimhx(i,j  ,2))
+
+            ! if use_minion is true, we have already accounted for source terms
+            ! in uly and ury; otherwise, we need to account for them here.
+            if(.not. use_minion) then
+               vmacl(i,j) = vmacl(i,j) + dt2*force(i,j-1,2)
+               vmacr(i,j) = vmacr(i,j) + dt2*force(i,j  ,2)
+            endif
 
             ! solve Riemann problem
             uavg = HALF*(vmacl(i,j)+vmacr(i,j))
@@ -307,9 +339,10 @@ contains
 
       subroutine velpred_3d(u, umac,vmac,wmac, &
                             force,lo,dx,dt, &
-                            phys_bc,adv_bc,ng)
+                            phys_bc,adv_bc,ng,use_minion)
 
-      integer, intent(in) :: lo(:),ng
+      integer         ,intent(in) :: lo(3)
+      integer         ,intent(in) :: ng
 
       real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
       real(kind=dp_t),intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
@@ -317,9 +350,10 @@ contains
       real(kind=dp_t),intent(inout) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
       real(kind=dp_t),intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
 
-      real(kind=dp_t),intent(in) :: dt,dx(:)
-      integer        ,intent(in) :: phys_bc(:,:)
-      integer        ,intent(in) :: adv_bc(:,:,:)
+      real(kind=dp_t) ,intent(in) :: dx(:),dt
+      integer         ,intent(in) :: phys_bc(:,:)
+      integer         ,intent(in) :: adv_bc(:,:,:)
+      logical         ,intent(in) :: use_minion
 
 !     Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)
@@ -488,6 +522,16 @@ contains
                urx(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,2)
                urx(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,3)
 
+               ! add source terms
+               if(use_minion) then
+                  ulx(i,j,k,1) = ulx(i,j,k,1) + dt2*force(i-1,j,k,1)
+                  ulx(i,j,k,2) = ulx(i,j,k,2) + dt2*force(i-1,j,k,2)
+                  ulx(i,j,k,3) = ulx(i,j,k,3) + dt2*force(i-1,j,k,3)
+                  urx(i,j,k,1) = urx(i,j,k,1) + dt2*force(i  ,j,k,1)
+                  urx(i,j,k,2) = urx(i,j,k,2) + dt2*force(i  ,j,k,2)
+                  urx(i,j,k,3) = urx(i,j,k,3) + dt2*force(i  ,j,k,3)
+               endif
+
                ! impose lo side bc's
                if(i .eq. is) then
                   ulx(i,j,k,1) = merge(u(is-1,j,k,1),ulx(i,j,k,1),phys_bc(1,1) .eq. INLET)
@@ -556,6 +600,16 @@ contains
                ury(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,2))/hy)*slopey(i,j,k,2)
                ury(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,2))/hy)*slopey(i,j,k,3)
 
+               ! add source terms
+               if(use_minion) then
+                  uly(i,j,k,1) = uly(i,j,k,1) + dt2*force(i,j-1,k,1)
+                  uly(i,j,k,2) = uly(i,j,k,2) + dt2*force(i,j-1,k,2)
+                  uly(i,j,k,3) = uly(i,j,k,3) + dt2*force(i,j-1,k,3)
+                  ury(i,j,k,1) = ury(i,j,k,1) + dt2*force(i,j  ,k,1)
+                  ury(i,j,k,2) = ury(i,j,k,2) + dt2*force(i,j  ,k,2)
+                  ury(i,j,k,3) = ury(i,j,k,3) + dt2*force(i,j  ,k,3)
+               endif
+
                ! impose lo side bc's
                if(j .eq. js) then
                   uly(i,j,k,1) = merge(u(i,js-1,k,1),uly(i,j,k,1),phys_bc(2,1) .eq. INLET)
@@ -623,6 +677,16 @@ contains
                urz(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*min(ZERO,u(i,j,k,3))/hz)*slopez(i,j,k,1)
                urz(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,3))/hz)*slopez(i,j,k,2)
                urz(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,3))/hz)*slopez(i,j,k,3)
+
+               ! add source terms
+               if(use_minion) then
+                  ulz(i,j,k,1) = ulz(i,j,k,1) + dt2*force(i,j,k-1,1)
+                  ulz(i,j,k,2) = ulz(i,j,k,2) + dt2*force(i,j,k-1,2)
+                  ulz(i,j,k,3) = ulz(i,j,k,3) + dt2*force(i,j,k-1,3)
+                  urz(i,j,k,1) = urz(i,j,k,1) + dt2*force(i,j,k  ,1)
+                  urz(i,j,k,2) = urz(i,j,k,2) + dt2*force(i,j,k  ,2)
+                  urz(i,j,k,3) = urz(i,j,k,3) + dt2*force(i,j,k  ,3)
+               endif
 
                ! impose lo side bc's
                if(k .eq. ks) then
@@ -922,12 +986,17 @@ contains
                ! extrapolate to edges
                umacl(i,j,k) = ulx(i,j,k,1) &
                     - (dt4/hy)*(uimhy(i-1,j+1,k,2)+uimhy(i-1,j,k,2))*(uimhyz(i-1,j+1,k)-uimhyz(i-1,j,k)) &
-                    - (dt4/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j,k+1)-uimhzy(i-1,j,k)) &
-                    + dt2*force(i-1,j,k,1)
+                    - (dt4/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j,k+1)-uimhzy(i-1,j,k))
                umacr(i,j,k) = urx(i,j,k,1) &
                     - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(uimhyz(i,j+1,k)-uimhyz(i,j,k)) &
-                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhzy(i,j,k+1)-uimhzy(i,j,k)) &
-                    + dt2*force(i,j,k,1)
+                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhzy(i,j,k+1)-uimhzy(i,j,k))
+
+               ! if use_minion is true, we have already accounted for source terms
+               ! in ulx and urx; otherwise, we need to account for them here.
+               if(.not. use_minion) then
+                  umacl(i,j,k) = umacl(i,j,k) + dt2*force(i-1,j,k,1)
+                  umacr(i,j,k) = umacr(i,j,k) + dt2*force(i  ,j,k,1)
+               endif
 
                ! solve Riemann problem
                uavg = HALF*(umacl(i,j,k)+umacr(i,j,k))
@@ -968,13 +1037,18 @@ contains
                ! extrapolate to edges
                vmacl(i,j,k) = uly(i,j,k,2) &
                     - (dt4/hx)*(uimhx(i+1,j-1,k,1)+uimhx(i,j-1,k,1))*(vimhxz(i+1,j-1,k)-vimhxz(i,j-1,k)) &
-                    - (dt4/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i,j-1,k+1)-vimhzx(i,j-1,k)) &
-                    + dt2*force(i,j-1,k,2)
+                    - (dt4/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i,j-1,k+1)-vimhzx(i,j-1,k))
                vmacr(i,j,k) = ury(i,j,k,2) &
                     - (dt4/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(vimhxz(i+1,j,k)-vimhxz(i,j,k)) &
-                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(vimhzx(i,j,k+1)-vimhzx(i,j,k)) &
-                    + dt2*force(i,j,k,2)
+                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(vimhzx(i,j,k+1)-vimhzx(i,j,k))
                
+               ! if use_minion is true, we have already accounted for source terms
+               ! in uly and ury; otherwise, we need to account for them here.
+               if(.not. use_minion) then
+                  vmacl(i,j,k) = vmacl(i,j,k) + dt2*force(i,j-1,k,2)
+                  vmacr(i,j,k) = vmacr(i,j,k) + dt2*force(i,j  ,k,2)
+               endif
+
                ! solve Riemann problem
                uavg = HALF*(vmacl(i,j,k)+vmacr(i,j,k))
                test = ((vmacl(i,j,k) .le. ZERO .and. vmacr(i,j,k) .ge. ZERO) .or. &
@@ -1014,12 +1088,17 @@ contains
                ! extrapolate to edges
                wmacl(i,j,k) = ulz(i,j,k,3) &
                     - (dt4/hx)*(uimhx(i+1,j,k-1,1)+uimhx(i,j,k-1,1))*(wimhxy(i+1,j,k-1)-wimhxy(i,j,k-1)) &
-                    - (dt4/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i,j+1,k-1)-wimhyx(i,j,k-1)) &
-                    + dt2*force(i,j,k-1,3)
+                    - (dt4/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i,j+1,k-1)-wimhyx(i,j,k-1))
                wmacr(i,j,k) = urz(i,j,k,3) &
                     - (dt4/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(wimhxy(i+1,j,k)-wimhxy(i,j,k)) &
-                    - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(wimhyx(i,j+1,k)-wimhyx(i,j,k)) &
-                    + dt2*force(i,j,k,3)
+                    - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(wimhyx(i,j+1,k)-wimhyx(i,j,k))
+
+               ! if use_minion is true, we have already accounted for source terms
+               ! in uly and ury; otherwise, we need to account for them here.
+               if(.not. use_minion) then
+                  wmacl(i,j,k) = wmacl(i,j,k) + dt2*force(i,j,k-1,3)
+                  wmacr(i,j,k) = wmacr(i,j,k) + dt2*force(i,j,k  ,3)
+               endif
                
                ! solve Riemann problem
                uavg = HALF*(wmacl(i,j,k)+wmacr(i,j,k))
