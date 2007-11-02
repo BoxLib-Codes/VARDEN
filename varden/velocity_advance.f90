@@ -57,6 +57,7 @@ contains
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,comp,dm,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold%dim)
+      logical :: use_minion
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
 
@@ -67,6 +68,7 @@ contains
       dm      = uold%dim
 
       is_conservative = .false.
+      use_minion = .false.
 
       irz = 0
 
@@ -128,7 +130,7 @@ contains
                              lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             ng_cell)
+                             ng_cell, use_minion)
             case (3)
                uepz => dataptr(uedge(3), i)
                wmp  => dataptr(umac(3), i)
@@ -139,7 +141,7 @@ contains
                              lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             ng_cell)
+                             ng_cell, use_minion)
          end select
       end do
 
