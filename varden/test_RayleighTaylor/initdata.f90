@@ -84,7 +84,7 @@ contains
 !     Local variables
       integer :: i, j
 
-      do j=lo(2),15
+      do j=lo(2),(hi(2)+1)/2-1
          do i=lo(1),hi(1)
 
             u(i,j,1) = ZERO
@@ -95,7 +95,7 @@ contains
          enddo
       enddo
 
-      do j=16,hi(2)
+      do j=(hi(2)+1)/2,hi(2)
          do i=lo(1),hi(1)
 
             u(i,j,1) = ZERO
@@ -107,14 +107,14 @@ contains
       enddo
 
       ! add a velocity perturbation
-!      u(15,15,1) = -0.1d0
-!      u(16,15,1) =  0.1d0
-!      u(15,15,2) = -0.1d0
-!      u(16,15,2) = -0.1d0
+!      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = -0.1d0
+!      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) =  0.1d0
+!      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = -0.1d0
+!      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = -0.1d0
 
       ! add a density perturbation
-      s(15,15,1) = TWO
-      s(16,15,1) = TWO
+      s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
+      s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
 
    end subroutine initdata_2d
 
@@ -131,7 +131,7 @@ contains
 !     Local variables
       integer :: i, j, k
 
-      do k=lo(3),15
+      do k=lo(3),(hi(3)+1)/2-1
          do j=lo(2),hi(2)
             do i=lo(1),hi(1)
 
@@ -145,7 +145,7 @@ contains
          enddo
       enddo
 
-      do k=16,hi(3)
+      do k=(hi(3)+1)/2,hi(3)
          do j=lo(2),hi(2)
             do i=lo(1),hi(1)
 
@@ -161,18 +161,18 @@ contains
 
       do j=lo(2),hi(2)
          ! add a velocity perturbation
-!         u(15,j,15,3) = -0.1d0
-!         u(16,j,15,3) = -0.1d0
-!         u(15,j,15,1) = 0.1d0
-!         u(16,j,15,1) = -0.1d0
+!         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,3) = -0.1d0
+!         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,3) = -0.1d0
+!         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = 0.1d0
+!         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = -0.1d0
 
          ! add a density perturbation
-         s(15,j,15,1) = TWO
-         s(16,j,15,1) = TWO
+         s((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = TWO
+         s((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = TWO
 
          ! add a transverse velocity perturbation
-!         u(15,j,15,2) = 0.1d0
-!         u(16,j,15,2) = 0.1d0
+!         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,2) = 0.1d0
+!         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,2) = 0.1d0
       enddo
 
    end subroutine initdata_3d
