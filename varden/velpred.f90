@@ -107,12 +107,12 @@ contains
       do j=js-1,je+1
          do i=is,ie+1
             ! extrapolate both components of velocity to left face
-            ulx(i,j,1) = u(i-1,j,1) + (HALF - dt2*u(i-1,j,1)/hx)*slopex(i-1,j,1)
-            ulx(i,j,2) = u(i-1,j,2) + (HALF - dt2*u(i-1,j,1)/hx)*slopex(i-1,j,2)
+            ulx(i,j,1) = u(i-1,j,1) + (HALF - dt2*max(ZERO,u(i-1,j,1)/hx))*slopex(i-1,j,1)
+            ulx(i,j,2) = u(i-1,j,2) + (HALF - dt2*max(ZERO,u(i-1,j,1)/hx))*slopex(i-1,j,2)
 
             ! extrapolate both components of velocity to right face
-            urx(i,j,1) = u(i  ,j,1) - (HALF + dt2*u(i  ,j,1)/hx)*slopex(i  ,j,1)
-            urx(i,j,2) = u(i  ,j,2) - (HALF + dt2*u(i  ,j,1)/hx)*slopex(i  ,j,2)
+            urx(i,j,1) = u(i  ,j,1) - (HALF + dt2*min(ZERO,u(i  ,j,1)/hx))*slopex(i  ,j,1)
+            urx(i,j,2) = u(i  ,j,2) - (HALF + dt2*min(ZERO,u(i  ,j,1)/hx))*slopex(i  ,j,2)
 
             ! impose lo side bc's
             if(i .eq. is) then
@@ -159,12 +159,12 @@ contains
       do j=js,je+1
          do i=is-1,ie+1
             ! extrapolate both components of velocity to left face
-            uly(i,j,1) = u(i,j-1,1) + (HALF - dt2*u(i,j-1,2)/hy)*slopey(i,j-1,1)
-            uly(i,j,2) = u(i,j-1,2) + (HALF - dt2*u(i,j-1,2)/hy)*slopey(i,j-1,2)
+            uly(i,j,1) = u(i,j-1,1) + (HALF - dt2*max(ZERO,u(i,j-1,2)/hy))*slopey(i,j-1,1)
+            uly(i,j,2) = u(i,j-1,2) + (HALF - dt2*max(ZERO,u(i,j-1,2)/hy))*slopey(i,j-1,2)
 
             ! extrapolate both components of velocity to right face
-            ury(i,j,1) = u(i,j  ,1) - (HALF + dt2*u(i,j  ,2)/hy)*slopey(i,j  ,1)
-            ury(i,j,2) = u(i,j  ,2) - (HALF + dt2*u(i,j  ,2)/hy)*slopey(i,j  ,2)
+            ury(i,j,1) = u(i,j  ,1) - (HALF + dt2*min(ZERO,u(i,j  ,2)/hy))*slopey(i,j  ,1)
+            ury(i,j,2) = u(i,j  ,2) - (HALF + dt2*min(ZERO,u(i,j  ,2)/hy))*slopey(i,j  ,2)
 
             ! impose lo side bc's
             if(j .eq. js) then
@@ -237,7 +237,7 @@ contains
          elseif (phys_bc(1,1) .eq. INLET) then
             umac(is,j) = u(is-1,j,1)
          elseif (phys_bc(1,1) .eq. OUTLET) then
-            umac(is,j) = MIN(umacr(is,j),ZERO)
+            umac(is,j) = min(umacr(is,j),ZERO)
          endif
 
          ! hi side
@@ -246,7 +246,7 @@ contains
          elseif (phys_bc(1,2) .eq. INLET) then
             umac(ie+1,j) = u(ie+1,j,1)
          elseif (phys_bc(1,2) .eq. OUTLET) then
-            umac(ie+1,j) = MAX(umacl(ie+1,j),ZERO)
+            umac(ie+1,j) = max(umacl(ie+1,j),ZERO)
          endif
       enddo
 
@@ -275,7 +275,7 @@ contains
          elseif (phys_bc(2,1) .eq. INLET) then
             vmac(i,js) = u(i,js-1,2)
          elseif (phys_bc(2,1) .eq. OUTLET) then
-            vmac(i,js) = MIN(vmacr(i,js),ZERO)
+            vmac(i,js) = min(vmacr(i,js),ZERO)
          endif
 
          ! hi side
@@ -284,7 +284,7 @@ contains
          elseif (phys_bc(2,2) .eq. INLET) then
             vmac(i,je+1) = u(i,je+1,2)
          elseif (phys_bc(2,2) .eq. OUTLET) then
-            vmac(i,je+1) = MAX(vmacl(i,je+1),ZERO)
+            vmac(i,je+1) = max(vmacl(i,je+1),ZERO)
          endif
       enddo
 
@@ -479,14 +479,14 @@ contains
          do j=js-1,je+1
             do i=is,ie+1
                ! extrapolate all components of velocity to left face
-               ulx(i,j,k,1) = u(i-1,j,k,1) + (HALF - dt2*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,1)
-               ulx(i,j,k,2) = u(i-1,j,k,2) + (HALF - dt2*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,2)
-               ulx(i,j,k,3) = u(i-1,j,k,3) + (HALF - dt2*u(i-1,j,k,1)/hx)*slopex(i-1,j,k,3)
+               ulx(i,j,k,1) = u(i-1,j,k,1) + (HALF - dt2*max(ZERO,u(i-1,j,k,1))/hx)*slopex(i-1,j,k,1)
+               ulx(i,j,k,2) = u(i-1,j,k,2) + (HALF - dt2*max(ZERO,u(i-1,j,k,1))/hx)*slopex(i-1,j,k,2)
+               ulx(i,j,k,3) = u(i-1,j,k,3) + (HALF - dt2*max(ZERO,u(i-1,j,k,1))/hx)*slopex(i-1,j,k,3)
 
                ! extrapolate all components of velocity to right face
-               urx(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,1)/hx)*slopex(i,j,k,1)
-               urx(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,1)/hx)*slopex(i,j,k,2)
-               urx(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,1)/hx)*slopex(i,j,k,3)
+               urx(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,1)
+               urx(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,2)
+               urx(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,3)
 
                ! impose lo side bc's
                if(i .eq. is) then
@@ -547,14 +547,14 @@ contains
          do j=js,je+1
             do i=is-1,ie+1
                ! extrapolate all components of velocity to left face
-               uly(i,j,k,1) = u(i,j-1,k,1) + (HALF - dt2*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,1)
-               uly(i,j,k,2) = u(i,j-1,k,2) + (HALF - dt2*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,2)
-               uly(i,j,k,3) = u(i,j-1,k,3) + (HALF - dt2*u(i,j-1,k,2)/hy)*slopey(i,j-1,k,3)
+               uly(i,j,k,1) = u(i,j-1,k,1) + (HALF - dt2*max(ZERO,u(i,j-1,k,2)/hy))*slopey(i,j-1,k,1)
+               uly(i,j,k,2) = u(i,j-1,k,2) + (HALF - dt2*max(ZERO,u(i,j-1,k,2)/hy))*slopey(i,j-1,k,2)
+               uly(i,j,k,3) = u(i,j-1,k,3) + (HALF - dt2*max(ZERO,u(i,j-1,k,2)/hy))*slopey(i,j-1,k,3)
 
                ! extrapolate all components of velocity to right face
-               ury(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,2)/hy)*slopey(i,j,k,1)
-               ury(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,2)/hy)*slopey(i,j,k,2)
-               ury(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,2)/hy)*slopey(i,j,k,3)
+               ury(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*min(ZERO,u(i,j,k,2))/hy)*slopey(i,j,k,1)
+               ury(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,2))/hy)*slopey(i,j,k,2)
+               ury(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,2))/hy)*slopey(i,j,k,3)
 
                ! impose lo side bc's
                if(j .eq. js) then
@@ -615,14 +615,14 @@ contains
          do j=js-1,je+1
             do i=is-1,ie+1
                ! extrapolate all components of velocity to left face
-               ulz(i,j,k,1) = u(i,j,k-1,1) + (HALF - dt2*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,1)
-               ulz(i,j,k,2) = u(i,j,k-1,2) + (HALF - dt2*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,2)
-               ulz(i,j,k,3) = u(i,j,k-1,3) + (HALF - dt2*u(i,j,k-1,3)/hz)*slopez(i,j,k-1,3)
+               ulz(i,j,k,1) = u(i,j,k-1,1) + (HALF - dt2*max(ZERO,u(i,j,k-1,3))/hz)*slopez(i,j,k-1,1)
+               ulz(i,j,k,2) = u(i,j,k-1,2) + (HALF - dt2*max(ZERO,u(i,j,k-1,3))/hz)*slopez(i,j,k-1,2)
+               ulz(i,j,k,3) = u(i,j,k-1,3) + (HALF - dt2*max(ZERO,u(i,j,k-1,3))/hz)*slopez(i,j,k-1,3)
 
                ! extrapolate all components of velocity to right face
-               urz(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*u(i,j,k,3)/hz)*slopez(i,j,k,1)
-               urz(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*u(i,j,k,3)/hz)*slopez(i,j,k,2)
-               urz(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*u(i,j,k,3)/hz)*slopez(i,j,k,3)
+               urz(i,j,k,1) = u(i,j,k,1) - (HALF + dt2*min(ZERO,u(i,j,k,3))/hz)*slopez(i,j,k,1)
+               urz(i,j,k,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,3))/hz)*slopez(i,j,k,2)
+               urz(i,j,k,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,3))/hz)*slopez(i,j,k,3)
 
                ! impose lo side bc's
                if(k .eq. ks) then
@@ -948,7 +948,7 @@ contains
             elseif (phys_bc(1,1) .eq. INLET) then
                umac(is,j,k) = u(is-1,j,k,1)
             elseif (phys_bc(1,1) .eq. OUTLET) then
-               umac(is,j,k) = MIN(umacr(is,j,k),ZERO)
+               umac(is,j,k) = min(umacr(is,j,k),ZERO)
             endif
             
             ! hi side
@@ -957,7 +957,7 @@ contains
             elseif (phys_bc(1,2) .eq. INLET) then
                umac(ie+1,j,k) = u(ie+1,j,k,1)
             elseif (phys_bc(1,2) .eq. OUTLET) then
-               umac(ie+1,j,k) = MAX(umacl(ie+1,j,k),ZERO)
+               umac(ie+1,j,k) = max(umacl(ie+1,j,k),ZERO)
             endif
          enddo
       enddo
@@ -994,7 +994,7 @@ contains
             elseif (phys_bc(2,1) .eq. INLET) then
                vmac(i,js,k) = u(i,js-1,k,2)
             elseif (phys_bc(2,1) .eq. OUTLET) then
-               vmac(i,js,k) = MIN(vmacr(i,js,k),ZERO)
+               vmac(i,js,k) = min(vmacr(i,js,k),ZERO)
             endif
             
             ! hi side
@@ -1003,7 +1003,7 @@ contains
             elseif (phys_bc(2,2) .eq. INLET) then
                vmac(i,je+1,k) = u(i,je+1,k,2)
             elseif (phys_bc(2,2) .eq. OUTLET) then
-               vmac(i,je+1,k) = MAX(vmacl(i,je+1,k),ZERO)
+               vmac(i,je+1,k) = max(vmacl(i,je+1,k),ZERO)
             endif
          enddo
       enddo
@@ -1040,7 +1040,7 @@ contains
             elseif (phys_bc(3,1) .eq. INLET) then
                wmac(i,j,ks) = u(i,j,ks-1,3)
             elseif (phys_bc(3,1) .eq. OUTLET) then
-               wmac(i,j,ks) = MIN(wmacr(i,j,ks),ZERO)
+               wmac(i,j,ks) = min(wmacr(i,j,ks),ZERO)
             endif
             
             ! hi side
@@ -1049,7 +1049,7 @@ contains
             elseif (phys_bc(3,2) .eq. INLET) then
                wmac(i,j,ke+1) = u(i,j,ke+1,3)
             elseif (phys_bc(3,2) .eq. OUTLET) then
-               wmac(i,j,ke+1) = MAX(wmacl(i,j,ke+1),ZERO)
+               wmac(i,j,ke+1) = max(wmacl(i,j,ke+1),ZERO)
             endif
          enddo
       enddo
