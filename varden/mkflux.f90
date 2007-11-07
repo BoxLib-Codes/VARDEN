@@ -10,8 +10,8 @@ module mkflux_module
 contains
 
       subroutine mkflux_2d(s,u,sedgex,sedgey,umac,vmac, &
-                           force,lo,dx,dt,is_vel, &
-                           phys_bc,adv_bc,ng,use_minion)
+                           force,divu,lo,dx,dt,is_vel, &
+                           phys_bc,adv_bc,ng,use_minion,is_conservative)
 
       integer, intent(in) :: lo(2),ng
 
@@ -19,14 +19,15 @@ contains
       real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
       real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
       real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
-      real(kind=dp_t), intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:)
-      real(kind=dp_t), intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:)
-      real(kind=dp_t), intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,:)
+      real(kind=dp_t), intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:)
+      real(kind=dp_t), intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:)
+      real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
+      real(kind=dp_t), intent(in   ) ::   divu(lo(1)- 1:,lo(2)- 1:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) :: phys_bc(:,:)
       integer        ,intent(in) :: adv_bc(:,:,:)
-      logical        ,intent(in) :: is_vel, use_minion
+      logical        ,intent(in) :: is_vel, use_minion, is_conservative(:)
 
 !     Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:),slopey(:,:,:)
@@ -332,8 +333,8 @@ contains
 
       subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,&
                            umac,vmac,wmac, &
-                           force,lo,dx,dt,is_vel, &
-                           phys_bc,adv_bc,ng,use_minion)
+                           force,divu,lo,dx,dt,is_vel, &
+                           phys_bc,adv_bc,ng,use_minion,is_conservative)
 
       integer, intent(in) :: lo(:),ng
 
@@ -342,15 +343,16 @@ contains
       real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
-      real(kind=dp_t),intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-      real(kind=dp_t),intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-      real(kind=dp_t),intent(inout) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-      real(kind=dp_t),intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
+      real(kind=dp_t),intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(in   ) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+      real(kind=dp_t),intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
+      real(kind=dp_t),intent(in   ) ::   divu(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
 
       real(kind=dp_t),intent(in) :: dt,dx(:)
       integer        ,intent(in) :: phys_bc(:,:)
       integer        ,intent(in) :: adv_bc(:,:,:)
-      logical        ,intent(in) :: is_vel, use_minion
+      logical        ,intent(in) :: is_vel, use_minion, is_conservative(:)
 
 !     Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)

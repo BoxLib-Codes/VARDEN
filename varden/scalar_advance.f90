@@ -35,7 +35,7 @@ contains
 ! 
       integer        , intent(in   ) :: lev,verbose
 ! 
-      type(multifab) :: force,scal_force
+      type(multifab) :: scal_force
 ! 
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: ump(:,:,:,:)
@@ -53,8 +53,6 @@ contains
       real(kind=dp_t), pointer:: sepz(:,:,:,:)
 !
       type(multifab) :: divu
-      real(dp_t)     :: mult
-
       integer :: nscal
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
@@ -78,6 +76,9 @@ contains
       is_conservative(2) = .false.
 
       call multifab_build(scal_force,ext_scal_force%la,nscal,1)
+      call multifab_build(divu,scal_force%la,1,0)
+
+      call setval(divu,0.0_dp_t,all=.true.)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create scalar force at time n.
@@ -93,42 +94,16 @@ contains
          select case (dm)
             case (2)
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
-                                  ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                  ng_cell, dx, &
+                                  the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                   diff_coef, visc_fac)
             case (3)
               call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
-                                  ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                  ng_cell, dx, &
+                                  the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                   diff_coef, visc_fac)
          end select
       end do
-
-!     Make divu = div(umac) array if any of the scalars are conservatively advected
-      make_divu = .false.
-      do n = 1,nscal
-        if (is_conservative(n)) make_divu = .true.
-      end do
-
-      if (make_divu) then
-        call multifab_build(divu,umac(1)%la,1,0)
-        do i = 1, divu%nboxes
-           if ( multifab_remote(divu, i) ) cycle
-            dp  => dataptr(divu, i)
-           ump  => dataptr(umac(1), i)
-           vmp  => dataptr(umac(2), i)
-           select case (dm)
-              case (2)
-                call mkdivu_2d(dp(:,:,1,1),ump(:,:,1,1),vmp(:,:,1,1),dx)
-              case (3)
-                wmp  => dataptr(umac(3), i)
-                call mkdivu_3d(dp(:,:,:,1),ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),dx)
-           end select
-        end do
-        mult = -ONE
-        do n = 1,nscal
-          if (is_conservative(n)) call modify_force(scal_force,n,sold,n,divu,1,1,mult)
-        end do
-        call multifab_destroy(divu)
-      end if
 
       call multifab_fill_boundary(scal_force)
 
@@ -145,6 +120,7 @@ contains
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
           fp  => dataptr(scal_force , i)
+          dp  => dataptr(divu, i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
          select case (dm)
@@ -152,22 +128,22 @@ contains
               call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                              sepx(:,:,1,:), sepy(:,:,1,:), &
                              ump(:,:,1,1), vmp(:,:,1,1), &
-                             fp(:,:,1,:), &
+                             fp(:,:,1,:), dp(:,:,1,1), &
                              lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                             ng_cell, use_minion)
+                             ng_cell, use_minion, is_conservative)
             case (3)
                sepz => dataptr(sedge(3), i)
                wmp  => dataptr(umac(3), i)
               call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                              sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                             fp(:,:,:,:), &
+                             fp(:,:,:,:), dp(:,:,:,1), &
                              lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                             ng_cell, use_minion)
+                             ng_cell, use_minion, is_conservative)
          end select
       end do
 
@@ -258,6 +234,7 @@ contains
 
       deallocate(is_conservative)
       call multifab_destroy(scal_force)
+      call multifab_destroy(divu)
 
    end subroutine scalar_advance
 

@@ -6,6 +6,7 @@ module velocity_advance_module
   use mkflux_module
   use mkforce_module
   use update_module
+  use mkdivu_module
 
   implicit none
 
@@ -34,6 +35,7 @@ contains
       integer        , intent(in   ) :: lev,verbose
  
       type(multifab) :: force
+      type(multifab) :: divu
  
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: unp(:,:,:,:)
@@ -50,14 +52,15 @@ contains
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
       real(kind=dp_t), pointer::  rp(:,:,:,:) 
+      real(kind=dp_t), pointer::  dp(:,:,:,:) 
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 !
       integer :: irz,edge_based
       integer :: lo(uold%dim),hi(uold%dim)
-      integer :: i,comp,dm,ng_cell,ng_rho
+      integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold%dim)
-      logical :: use_minion
+      logical :: use_minion,make_divu
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
 
@@ -72,7 +75,10 @@ contains
 
       irz = 0
 
-      call multifab_build(     force,ext_force%la,   dm,1)
+      call multifab_build(force,ext_force%la,dm,1)
+      call multifab_build(divu,force%la,1,1)
+
+      call setval(divu,0.0_dp_t,all=.true.)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the velocity forcing term at time n using rho and the full viscous term.
@@ -106,7 +112,6 @@ contains
       end do
       call multifab_fill_boundary(force)
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the edge states of velocity using the MAC velocity 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -119,6 +124,7 @@ contains
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
           fp  => dataptr(force , i)
+          dp  => dataptr(divu, i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
          select case (dm)
@@ -126,22 +132,22 @@ contains
               call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
                              uepx(:,:,1,:), uepy(:,:,1,:), &
                              ump(:,:,1,1), vmp(:,:,1,1), &
-                             fp(:,:,1,:), &
+                             fp(:,:,1,:), dp(:,:,1,1), &
                              lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             ng_cell, use_minion)
+                             ng_cell, use_minion, is_conservative)
             case (3)
                uepz => dataptr(uedge(3), i)
                wmp  => dataptr(umac(3), i)
                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                             fp(:,:,:,:), &
+                             fp(:,:,:,:), dp(:,:,:,1), &
                              lo, dx, dt, is_vel, &
                              the_bc_level%phys_bc_level_array(i,:,:), &
                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             ng_cell, use_minion)
+                             ng_cell, use_minion, is_conservative)
          end select
       end do
 
@@ -209,6 +215,7 @@ contains
       end do
 
       call multifab_destroy(force)
+      call multifab_destroy(divu)
 
    end subroutine velocity_advance
 
