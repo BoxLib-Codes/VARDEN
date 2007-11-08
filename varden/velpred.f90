@@ -27,7 +27,8 @@ contains
       logical         ,intent(in) :: use_minion
 
 !     Local variables
-      real(kind=dp_t), allocatable::  slopex(:,:,:),slopey(:,:,:)
+      real(kind=dp_t), allocatable::  slopex(:,:,:)
+      real(kind=dp_t), allocatable::  slopey(:,:,:)
 
       real(kind=dp_t) hx, hy, dt2, dt4, uavg
 
@@ -364,7 +365,7 @@ contains
 
       integer :: hi(3)
       integer :: slope_order = 4
-      logical test
+      logical :: test
 
       real(kind=dp_t) :: abs_eps, eps, umax
       integer :: i,j,k,is,js,ks,ie,je,ke
