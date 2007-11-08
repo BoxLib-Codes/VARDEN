@@ -4,7 +4,6 @@ module scalar_advance_module
   use multifab_module
   use viscous_module
   use mkflux_module
-  use mkdivu_module
   use mkforce_module
   use update_module
   use setbc_module

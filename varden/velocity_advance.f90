@@ -6,7 +6,6 @@ module velocity_advance_module
   use mkflux_module
   use mkforce_module
   use update_module
-  use mkdivu_module
 
   implicit none
 

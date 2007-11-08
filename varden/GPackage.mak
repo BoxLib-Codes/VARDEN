@@ -9,7 +9,6 @@ f90sources += inlet_bc.f90
 f90sources += laplac.f90
 f90sources += macproject.f90
 f90sources += makevort.f90
-f90sources += mkdivu.f90
 f90sources += mkflux.f90
 f90sources += mkforce.f90
 f90sources += ml_solve.f90
