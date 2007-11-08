@@ -76,7 +76,7 @@ contains
       is_conservative(2) = .false.
 
       call multifab_build(scal_force,ext_scal_force%la,nscal,1)
-      call multifab_build(divu,scal_force%la,1,0)
+      call multifab_build(divu,scal_force%la,1,1)
 
       call setval(divu,0.0_dp_t,all=.true.)
 

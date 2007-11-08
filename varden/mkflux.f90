@@ -92,7 +92,7 @@ contains
       else
          eps = abs_eps * umax
       endif
-      
+
       !
       !     Loop for fluxes on x-edges.
       !
@@ -102,6 +102,12 @@ contains
                ! extrapolate to transverse faces on hi side of cell
                spbot = s(i,j  ,n) + (HALF - dt2*u(i,j  ,2)/hy) * slopey(i,j  ,n)
                sptop = s(i,j+1,n) - (HALF + dt2*u(i,j+1,2)/hy) * slopey(i,j+1,n)
+
+               ! add s*v_y term where v_y = divu - u_x
+               if(is_conservative(n)) then
+                  spbot = spbot - dt2*s(i,j  ,n)*(divu(i,j  ) - (umac(i+1,j  )-umac(i,j  ))/hx)
+                  sptop = sptop - dt2*s(i,j+1,n)*(divu(i,j+1) - (umac(i+1,j+1)-umac(i,j+1))/hx)
+               endif
 
                ! add source terms
                if(use_minion) then
@@ -133,6 +139,12 @@ contains
                smtop = s(i,j  ,n) - (HALF + dt2*u(i,j  ,2)/hy) * slopey(i,j  ,n)
                smbot = s(i,j-1,n) + (HALF - dt2*u(i,j-1,2)/hy) * slopey(i,j-1,n)
 
+               ! add s*v_y term where v_y = divu - u_x
+               if(is_conservative(n)) then
+                  smtop = smtop - dt2*s(i,j  ,n)*(divu(i,j  ) - (umac(i+1,j  )-umac(i,j  ))/hx)
+                  smbot = smbot - dt2*s(i,j-1,n)*(divu(i,j-1) - (umac(i+1,j-1)-umac(i,j-1))/hx)
+               endif
+
                ! add source terms
                if(use_minion) then
                   smtop = smtop + dt2*force(i,j,n)
@@ -159,13 +171,29 @@ contains
                savg   = HALF * (smbot + smtop)
                sminus = merge(sminus, savg, abs(vmac(i,j)) .gt. eps)
                
+               ! extrapolate to normal faces
+               s_l(i+1) = s(i,j,n) + (HALF-dt2*umac(i+1,j)/hx)*slopex(i,j,n)
+               s_r(i  ) = s(i,j,n) - (HALF+dt2*umac(i,j)/hx)*slopex(i,j,n)
+
+               ! add s*u_x term where u_x = divu - v_y
+               if(is_conservative(n)) then
+                  s_l(i+1) = s_l(i+1) - dt2*s(i,j,n)*(divu(i,j) - (vmac(i,j+1)-vmac(i,j))/hy)
+                  s_r(i  ) = s_r(i  ) - dt2*s(i,j,n)*(divu(i,j) - (vmac(i,j+1)-vmac(i,j))/hy)
+               endif
+
                ! create transverse plus force term
-               st = force(i,j,n) - &
-                    HALF * (vmac(i,j)+vmac(i,j+1))*(splus - sminus) / hy
-               
-               ! extrapolate to normal faces with transverse and force contribution
-               s_l(i+1)= s(i,j,n) + (HALF-dt2*umac(i+1,j)/hx)*slopex(i,j,n) + dt2*st
-               s_r(i  )= s(i,j,n) - (HALF+dt2*umac(i,j)/hx)*slopex(i,j,n) + dt2*st
+               if(is_conservative(n)) then
+                  st = force(i,j,n) - &
+                       (vmac(i,j+1)*splus - vmac(i,j)*sminus) / hy
+               else
+                  st = force(i,j,n) - &
+                       HALF * (vmac(i,j)+vmac(i,j+1))*(splus - sminus) / hy
+               endif
+
+               ! add transverse plus force term
+               s_l(i+1) = s_l(i+1) + dt2*st
+               s_r(i  ) = s_r(i  ) + dt2*st
+
             enddo
             
             ! upwind based on umac
@@ -217,6 +245,12 @@ contains
                splft = s(i,j  ,n) + (HALF - dt2*u(i  ,j,1)/hx) * slopex(i  ,j,n)
                sprgt = s(i+1,j,n) - (HALF + dt2*u(i+1,j,1)/hx) * slopex(i+1,j,n)
                
+               ! add s*u_x term where u_x = divu - v_y
+               if(is_conservative(n)) then
+                  splft = splft - dt2*s(i  ,j,n)*(divu(i  ,j) - (vmac(i  ,j+1)-vmac(i  ,j))/hy)
+                  sprgt = sprgt - dt2*s(i+1,j,n)*(divu(i+1,j) - (vmac(i+1,j+1)-vmac(i+1,j))/hy)
+               endif
+
                ! add source terms
                if(use_minion) then
                   splft = splft + dt2*force(i,j,n)
@@ -247,6 +281,12 @@ contains
                smrgt = s(i  ,j,n) - (HALF + dt2*u(i  ,j,1)/hx) * slopex(i  ,j,n)
                smlft = s(i-1,j,n) + (HALF - dt2*u(i-1,j,1)/hx) * slopex(i-1,j,n)
 
+               ! add s*u_x term where u_x = divu - v_y
+               if(is_conservative(n)) then
+                  smrgt = smrgt - dt2*s(i  ,j,n)*(divu(i  ,j) - (vmac(i  ,j+1)-vmac(i  ,j))/hx)
+                  smlft = smlft - dt2*s(i-1,j,n)*(divu(i-1,j) - (vmac(i-1,j+1)-vmac(i-1,j))/hx)
+               endif
+
                ! add source terms
                if(use_minion) then
                   smlft = smlft + dt2*force(i,j,n)
@@ -273,13 +313,29 @@ contains
                savg   = HALF * (smlft + smrgt)
                sminus = merge(sminus, savg, abs(umac(i,j)) .gt. eps)
                
+               ! extrapolate to normal faces
+               s_b(j+1)= s(i,j,n) + (HALF-dt2*vmac(i,j+1)/hy)*slopey(i,j,n)
+               s_t(j  )= s(i,j,n) - (HALF+dt2*vmac(i,j)/hy)*slopey(i,j,n)
+
+               ! add s*v_y term where v_y = divu - u_x
+               if(is_conservative(n)) then
+                  s_b(j+1) = s_b(j+1) - dt2*s(i,j,n)*(divu(i,j) - (umac(i+1,j)-umac(i,j))/hx)
+                  s_t(j  ) = s_t(j  ) - dt2*s(i,j,n)*(divu(i,j) - (umac(i+1,j)-umac(i,j))/hx)
+               endif
+
                ! create transverse plus force term
-               st = force(i,j,n) - &
-                    HALF * (umac(i,j)+umac(i+1,j))*(splus - sminus) / hx
-               
-               ! extrapolate to normal faces with transverse and force contribution
-               s_b(j+1)= s(i,j,n) + (HALF-dt2*vmac(i,j+1)/hy)*slopey(i,j,n) + dt2*st
-               s_t(j  )= s(i,j,n) - (HALF+dt2*vmac(i,j)/hy)*slopey(i,j,n) + dt2*st
+               if(is_conservative(n)) then
+                  st = force(i,j,n) - &
+                       (umac(i+1,j)*splus - umac(i,j)*sminus) / hx
+               else
+                  st = force(i,j,n) - &
+                       HALF * (umac(i,j)+umac(i+1,j))*(splus - sminus) / hx
+               endif
+
+               ! add transverse plus force term
+               s_b(j+1) = s_b(j+1) + dt2*st
+               s_t(j  ) = s_t(j  ) + dt2*st
+
             enddo
             
             ! upwind based on vmac
