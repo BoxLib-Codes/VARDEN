@@ -1032,79 +1032,79 @@ contains
                
                do j=js,je
                   do i=is,ie
-                  ! make sedgelz, sedgerz
-                  if(is_conservative(n)) then
-                     sedgelz(i,j) = slz(i,j,kc) &
-                          - (dt2/hx)*(simhxy(i+1,j,kp)*umac(i+1,j,k-1) - simhxy(i,j,kp)*umac(i,j,k-1)) &
-                          - (dt2/hy)*(simhyx(i,j+1,kp)*vmac(i,j+1,k-1) - simhyx(i,j,kp)*vmac(i,j,k-1))
-                     sedgerz(i,j) = srz(i,j,kc) &
-                          - (dt2/hx)*(simhxy(i+1,j,kc)*umac(i+1,j,k  ) - simhxy(i,j,kc)*umac(i,j,k  )) &
-                          - (dt2/hy)*(simhyx(i,j+1,kc)*vmac(i,j+1,k  ) - simhyx(i,j,kc)*vmac(i,j,k  ))
-                  else
-                     sedgelz(i,j) = slz(i,j,kc) &
-                          - (dt4/hx)*(umac(i+1,j,k-1)+umac(i,j,k-1))*(simhxy(i+1,j,kp)-simhxy(i,j,kp)) &
-                          - (dt4/hy)*(vmac(i,j+1,k-1)+vmac(i,j,k-1))*(simhyx(i,j+1,kp)-simhyx(i,j,kp))
-                     sedgerz(i,j) = srz(i,j,kc) &
-                          - (dt4/hx)*(umac(i+1,j,k  )+umac(i,j,k  ))*(simhxy(i+1,j,kc)-simhxy(i,j,kc)) &
-                          - (dt4/hy)*(vmac(i,j+1,k  )+vmac(i,j,k  ))*(simhyx(i,j+1,kc)-simhyx(i,j,kc))
-                  endif
-
-                  ! if use_minion is true, we have already accounted for source terms
-                  ! in slz and srz; otherwise, we need to account for them here.
-                  if(.not. use_minion) then
-                     sedgelz(i,j) = sedgelz(i,j) + dt2*force(i,j,k-1,n)
-                     sedgerz(i,j) = sedgerz(i,j) + dt2*force(i,j,k  ,n)
-                  endif
-                  
-                  ! make sedgez by solving Riemann problem
-                  ! boundary conditions enforced outside of i,j,k loop
-                  sedgez(i,j,k,n) = merge(sedgelz(i,j),sedgerz(i,j),wmac(i,j,k) .gt. ZERO)
-                  savg = HALF*(sedgelz(i,j)+sedgerz(i,j))
-                  sedgez(i,j,k,n) = merge(sedgez(i,j,k,n),savg,abs(wmac(i,j,k)) .gt. eps)
-
-                  ! sedgez boundary conditions
-                  if(k .eq. ks) then
-                     ! lo side
-                     if (phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
-                        if (is_vel .and. n .eq. 2) then
-                           sedgez(i,j,ks,n) = ZERO
-                        elseif (is_vel .and. n .ne. 2) then
-                           sedgez(i,j,ks,n) = merge(ZERO,sedgerz(i,j),phys_bc(3,1).eq.NO_SLIP_WALL)
-                        else 
-                           sedgez(i,j,ks,n) = sedgerz(i,j)
-                        endif
-                     elseif (phys_bc(3,1) .eq. INLET) then
-                        sedgez(i,j,ks,n) = s(i,j,ks-1,n)
-                     elseif (phys_bc(3,1) .eq. OUTLET) then
-                        if (is_vel .and. n.eq.3) then
-                           sedgez(i,j,ks,n) = MIN(sedgerz(i,j),ZERO)
-                        else
-                           sedgez(i,j,ks,n) = sedgerz(i,j)
-                        end if
+                     ! make sedgelz, sedgerz
+                     if(is_conservative(n)) then
+                        sedgelz(i,j) = slz(i,j,kc) &
+                             - (dt2/hx)*(simhxy(i+1,j,kp)*umac(i+1,j,k-1) - simhxy(i,j,kp)*umac(i,j,k-1)) &
+                             - (dt2/hy)*(simhyx(i,j+1,kp)*vmac(i,j+1,k-1) - simhyx(i,j,kp)*vmac(i,j,k-1))
+                        sedgerz(i,j) = srz(i,j,kc) &
+                             - (dt2/hx)*(simhxy(i+1,j,kc)*umac(i+1,j,k  ) - simhxy(i,j,kc)*umac(i,j,k  )) &
+                             - (dt2/hy)*(simhyx(i,j+1,kc)*vmac(i,j+1,k  ) - simhyx(i,j,kc)*vmac(i,j,k  ))
+                     else
+                        sedgelz(i,j) = slz(i,j,kc) &
+                             - (dt4/hx)*(umac(i+1,j,k-1)+umac(i,j,k-1))*(simhxy(i+1,j,kp)-simhxy(i,j,kp)) &
+                             - (dt4/hy)*(vmac(i,j+1,k-1)+vmac(i,j,k-1))*(simhyx(i,j+1,kp)-simhyx(i,j,kp))
+                        sedgerz(i,j) = srz(i,j,kc) &
+                             - (dt4/hx)*(umac(i+1,j,k  )+umac(i,j,k  ))*(simhxy(i+1,j,kc)-simhxy(i,j,kc)) &
+                             - (dt4/hy)*(vmac(i,j+1,k  )+vmac(i,j,k  ))*(simhyx(i,j+1,kc)-simhyx(i,j,kc))
                      endif
-                  else if(k .eq. ke+1) then
-                     ! hi side
-                     if (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
-                        if (is_vel .and. n .eq. 2) then
-                           sedgez(i,j,ke+1,n) = ZERO
-                        elseif (is_vel .and. n .ne. 2) then
-                           sedgez(i,j,ke+1,n) = merge(ZERO,sedgelz(i,j),phys_bc(3,2).eq.NO_SLIP_WALL)
-                        else 
-                           sedgez(i,j,ke+1,n) = sedgelz(i,j)
-                        endif
-                     elseif (phys_bc(3,2) .eq. INLET) then
-                        sedgez(i,j,ke+1,n) = s(i,j,ke+1,n)
-                     elseif (phys_bc(3,2) .eq. OUTLET) then
-                        if (is_vel .and. n.eq.3) then
-                           sedgez(i,j,ke+1,n) = MAX(sedgelz(i,j),ZERO)
-                        else
-                           sedgez(i,j,ke+1,n) = sedgelz(i,j)
-                        end if
+                     
+                     ! if use_minion is true, we have already accounted for source terms
+                     ! in slz and srz; otherwise, we need to account for them here.
+                     if(.not. use_minion) then
+                        sedgelz(i,j) = sedgelz(i,j) + dt2*force(i,j,k-1,n)
+                        sedgerz(i,j) = sedgerz(i,j) + dt2*force(i,j,k  ,n)
                      endif
-                  endif
+                     
+                     ! make sedgez by solving Riemann problem
+                     ! boundary conditions enforced outside of i,j,k loop
+                     sedgez(i,j,k,n) = merge(sedgelz(i,j),sedgerz(i,j),wmac(i,j,k) .gt. ZERO)
+                     savg = HALF*(sedgelz(i,j)+sedgerz(i,j))
+                     sedgez(i,j,k,n) = merge(sedgez(i,j,k,n),savg,abs(wmac(i,j,k)) .gt. eps)
+                     
+                     ! sedgez boundary conditions
+                     if(k .eq. ks) then
+                        ! lo side
+                        if (phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
+                           if (is_vel .and. n .eq. 2) then
+                              sedgez(i,j,ks,n) = ZERO
+                           elseif (is_vel .and. n .ne. 2) then
+                              sedgez(i,j,ks,n) = merge(ZERO,sedgerz(i,j),phys_bc(3,1).eq.NO_SLIP_WALL)
+                           else 
+                              sedgez(i,j,ks,n) = sedgerz(i,j)
+                           endif
+                        elseif (phys_bc(3,1) .eq. INLET) then
+                           sedgez(i,j,ks,n) = s(i,j,ks-1,n)
+                        elseif (phys_bc(3,1) .eq. OUTLET) then
+                           if (is_vel .and. n.eq.3) then
+                              sedgez(i,j,ks,n) = MIN(sedgerz(i,j),ZERO)
+                           else
+                              sedgez(i,j,ks,n) = sedgerz(i,j)
+                           end if
+                        endif
+                     else if(k .eq. ke+1) then
+                        ! hi side
+                        if (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
+                           if (is_vel .and. n .eq. 2) then
+                              sedgez(i,j,ke+1,n) = ZERO
+                           elseif (is_vel .and. n .ne. 2) then
+                              sedgez(i,j,ke+1,n) = merge(ZERO,sedgelz(i,j),phys_bc(3,2).eq.NO_SLIP_WALL)
+                           else 
+                              sedgez(i,j,ke+1,n) = sedgelz(i,j)
+                           endif
+                        elseif (phys_bc(3,2) .eq. INLET) then
+                           sedgez(i,j,ke+1,n) = s(i,j,ke+1,n)
+                        elseif (phys_bc(3,2) .eq. OUTLET) then
+                           if (is_vel .and. n.eq.3) then
+                              sedgez(i,j,ke+1,n) = MAX(sedgelz(i,j),ZERO)
+                           else
+                              sedgez(i,j,ke+1,n) = sedgelz(i,j)
+                           end if
+                        endif
+                     endif
+                  enddo
                enddo
-            enddo
-
+               
 !******************************************************************
 ! 7. Compute simhzx(is  :ie  ,js-1:je+1,k)
 !******************************************************************
@@ -1169,8 +1169,8 @@ contains
                   do i=is-1,ie+1
                      ! make slzy, srzy by updating 1D extrapolation
                      if(is_conservative(n)) then
-                        slzy(i,j,kc) = slz(i,j,kc) - (dt3/hy)*(simhy(i,j+1,kp)*vmac(i,j+1,k-1) - simhy(i,j,kp)*vmac(i,j,kp))
-                        srzy(i,j,kc) = srz(i,j,kc) - (dt3/hy)*(simhy(i,j+1,kc)*vmac(i,j+1,k  ) - simhy(i,j,kc)*vmac(i,j,kc))
+                        slzy(i,j,kc) = slz(i,j,kc) - (dt3/hy)*(simhy(i,j+1,kp)*vmac(i,j+1,k-1) - simhy(i,j,kp)*vmac(i,j,k-1))
+                        srzy(i,j,kc) = srz(i,j,kc) - (dt3/hy)*(simhy(i,j+1,kc)*vmac(i,j+1,k  ) - simhy(i,j,kc)*vmac(i,j,k  ))
                      else
                         slzy(i,j,kc) = slz(i,j,kc) - (dt6/hy)*(vmac(i,j+1,k-1)+vmac(i,j,k-1))*(simhy(i,j+1,kp)-simhy(i,j,kp))
                         srzy(i,j,kc) = srz(i,j,kc) - (dt6/hy)*(vmac(i,j+1,k  )+vmac(i,j,k  ))*(simhy(i,j+1,kc)-simhy(i,j,kc))
@@ -1339,35 +1339,35 @@ contains
                
                do j=js,je
                   do i=is,ie+1
-                  ! make sedgelx, sedgerx
-                  if(is_conservative(n)) then
-                     sedgelx(i,j) = slx(i,j,kp) &
-                          - (dt2/hy)*(simhyz(i-1,j+1,kp)*vmac(i-1,j+1,k-1) - simhyz(i-1,j,kp)*vmac(i-1,j,k-1)) &
-                          - (dt2/hz)*(simhzy(i-1,j  ,kc)*wmac(i-1,j  ,k  ) - simhzy(i-1,j,kp)*wmac(i-1,j,k-1))
-                     sedgerx(i,j) = srx(i,j,kp) &
-                          - (dt2/hy)*(simhyz(i,  j+1,kp)*vmac(i,  j+1,k-1) - simhyz(i,  j,kp)*vmac(i,  j,k-1)) &
-                          - (dt2/hz)*(simhzy(i,  j  ,kc)*wmac(i,  j  ,k  ) - simhzy(i,  j,kp)*wmac(i,  j,k-1))
-                  else
-                     sedgelx(i,j) = slx(i,j,kp) &
-                          - (dt4/hy)*(vmac(i-1,j+1,k-1)+vmac(i-1,j,k-1))*(simhyz(i-1,j+1,kp)-simhyz(i-1,j,kp)) &
-                          - (dt4/hz)*(wmac(i-1,j  ,k  )+wmac(i-1,j,k-1))*(simhzy(i-1,j  ,kc)-simhzy(i-1,j,kp))
-                     sedgerx(i,j) = srx(i,j,kp) &
-                          - (dt4/hy)*(vmac(i,  j+1,k-1)+vmac(i,  j,k-1))*(simhyz(i,  j+1,kp)-simhyz(i,  j,kp)) &
-                          - (dt4/hz)*(wmac(i,  j  ,k  )+wmac(i,  j,k-1))*(simhzy(i,  j  ,kc)-simhzy(i,  j,kp))
-                  endif
-                  
-                  ! if use_minion is true, we have already accounted for source terms
-                  ! in slx and srx; otherwise, we need to account for them here.
-                  if(.not. use_minion) then
-                     sedgelx(i,j) = sedgelx(i,j) + dt2*force(i-1,j,k-1,n)
-                     sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,k-1,n)
-                  endif
-
-                  ! make sedgex by solving Riemann problem
-                  ! boundary conditions enforced outside of i,j,k loop
-                  sedgex(i,j,k-1,n) = merge(sedgelx(i,j),sedgerx(i,j),umac(i,j,k-1) .gt. ZERO)
-                  savg = HALF*(sedgelx(i,j)+sedgerx(i,j))
-                  sedgex(i,j,k-1,n) = merge(sedgex(i,j,k-1,n),savg,abs(umac(i,j,k-1)) .gt. eps)
+                     ! make sedgelx, sedgerx
+                     if(is_conservative(n)) then
+                        sedgelx(i,j) = slx(i,j,kp) &
+                             - (dt2/hy)*(simhyz(i-1,j+1,kp)*vmac(i-1,j+1,k-1) - simhyz(i-1,j,kp)*vmac(i-1,j,k-1)) &
+                             - (dt2/hz)*(simhzy(i-1,j  ,kc)*wmac(i-1,j  ,k  ) - simhzy(i-1,j,kp)*wmac(i-1,j,k-1))
+                        sedgerx(i,j) = srx(i,j,kp) &
+                             - (dt2/hy)*(simhyz(i,  j+1,kp)*vmac(i,  j+1,k-1) - simhyz(i,  j,kp)*vmac(i,  j,k-1)) &
+                             - (dt2/hz)*(simhzy(i,  j  ,kc)*wmac(i,  j  ,k  ) - simhzy(i,  j,kp)*wmac(i,  j,k-1))
+                     else
+                        sedgelx(i,j) = slx(i,j,kp) &
+                             - (dt4/hy)*(vmac(i-1,j+1,k-1)+vmac(i-1,j,k-1))*(simhyz(i-1,j+1,kp)-simhyz(i-1,j,kp)) &
+                             - (dt4/hz)*(wmac(i-1,j  ,k  )+wmac(i-1,j,k-1))*(simhzy(i-1,j  ,kc)-simhzy(i-1,j,kp))
+                        sedgerx(i,j) = srx(i,j,kp) &
+                             - (dt4/hy)*(vmac(i,  j+1,k-1)+vmac(i,  j,k-1))*(simhyz(i,  j+1,kp)-simhyz(i,  j,kp)) &
+                             - (dt4/hz)*(wmac(i,  j  ,k  )+wmac(i,  j,k-1))*(simhzy(i,  j  ,kc)-simhzy(i,  j,kp))
+                     endif
+                     
+                     ! if use_minion is true, we have already accounted for source terms
+                     ! in slx and srx; otherwise, we need to account for them here.
+                     if(.not. use_minion) then
+                        sedgelx(i,j) = sedgelx(i,j) + dt2*force(i-1,j,k-1,n)
+                        sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,k-1,n)
+                     endif
+                     
+                     ! make sedgex by solving Riemann problem
+                     ! boundary conditions enforced outside of i,j,k loop
+                     sedgex(i,j,k-1,n) = merge(sedgelx(i,j),sedgerx(i,j),umac(i,j,k-1) .gt. ZERO)
+                     savg = HALF*(sedgelx(i,j)+sedgerx(i,j))
+                     sedgex(i,j,k-1,n) = merge(sedgex(i,j,k-1,n),savg,abs(umac(i,j,k-1)) .gt. eps)
                   enddo
                enddo
 
@@ -1503,7 +1503,7 @@ contains
 
          enddo ! end loop over k
       enddo ! end loop over components
-      
+
       deallocate(slopex)
       deallocate(slopey)
       deallocate(slopez)
