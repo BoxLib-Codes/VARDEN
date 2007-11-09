@@ -1430,7 +1430,7 @@ contains
                      else
                         sedgely(i,j) = sly(i,j,kp) &
                              - (dt4/hx)*(umac(i+1,j-1,k-1)+umac(i,j-1,k-1))*(simhxz(i+1,j-1,kp)-simhxz(i,j-1,kp)) &
-                             - (dt4/hz)*(wmac(i  ,j-1,k+1)+wmac(i,j-1,k  ))*(simhzx(i  ,j-1,kc)-simhzx(i,j-1,kp))
+                             - (dt4/hz)*(wmac(i  ,j-1,k  )+wmac(i,j-1,k-1))*(simhzx(i  ,j-1,kc)-simhzx(i,j-1,kp))
                         sedgery(i,j) = sry(i,j,kp) &
                              - (dt4/hx)*(umac(i+1,j,  k-1)+umac(i,j,  k-1))*(simhxz(i+1,j,  kp)-simhxz(i,j,  kp)) &
                              - (dt4/hz)*(wmac(i  ,j,  k  )+wmac(i,j,  k-1))*(simhzx(i  ,j,  kc)-simhzx(i,j,  kp))
