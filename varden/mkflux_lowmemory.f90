@@ -1,4 +1,4 @@
-module mkflux_module
+module mkflux_lowmemory_module
 
   use bl_types
   use bl_constants_module
@@ -9,9 +9,9 @@ module mkflux_module
 
 contains
 
-      subroutine mkflux_2d(s,u,sedgex,sedgey,umac,vmac, &
-                           force,divu,lo,dx,dt,is_vel, &
-                           phys_bc,adv_bc,ng,use_minion,is_conservative)
+      subroutine mkflux_lowmemory_2d(s,u,sedgex,sedgey,umac,vmac, &
+                                     force,divu,lo,dx,dt,is_vel, &
+                                     phys_bc,adv_bc,ng,use_minion,is_conservative)
 
       integer, intent(in) :: lo(:),ng
 
@@ -410,12 +410,12 @@ contains
       deallocate(sedgely)
       deallocate(sedgery)
 
-      end subroutine mkflux_2d
+      end subroutine mkflux_lowmemory_2d
 
-      subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,&
-                           umac,vmac,wmac, &
-                           force,divu,lo,dx,dt,is_vel, &
-                           phys_bc,adv_bc,ng,use_minion,is_conservative)
+      subroutine mkflux_lowmemory_3d(s,u,sedgex,sedgey,sedgez,&
+                                     umac,vmac,wmac, &
+                                     force,divu,lo,dx,dt,is_vel, &
+                                     phys_bc,adv_bc,ng,use_minion,is_conservative)
 
       integer, intent(in) :: lo(:),ng
 
@@ -1414,6 +1414,6 @@ contains
       deallocate(sedgelz)
       deallocate(sedgerz)
 
-      end subroutine mkflux_3d
+      end subroutine mkflux_lowmemory_3d
 
-end module mkflux_module
+end module mkflux_lowmemory_module

@@ -10,6 +10,7 @@ f90sources += laplac.f90
 f90sources += macproject.f90
 f90sources += makevort.f90
 f90sources += mkflux.f90
+f90sources += mkflux_lowmemory.f90
 f90sources += mkforce.f90
 f90sources += ml_solve.f90
 f90sources += multifab_fill_ghost_cells.f90

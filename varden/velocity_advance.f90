@@ -4,6 +4,7 @@ module velocity_advance_module
   use multifab_module
   use viscous_module
   use mkflux_module
+  use mkflux_lowmemory_module
   use mkforce_module
   use update_module
 
@@ -59,7 +60,7 @@ contains
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold%dim)
-      logical :: use_minion,make_divu
+      logical :: use_minion,make_divu, use_mkflux_lowmemory
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
 
@@ -71,6 +72,7 @@ contains
 
       is_conservative = .false.
       use_minion = .false.
+      use_mkflux_lowmemory = .true.
 
       irz = 0
 
@@ -127,26 +129,48 @@ contains
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
          select case (dm)
-            case (2)
-              call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
-                             uepx(:,:,1,:), uepy(:,:,1,:), &
-                             ump(:,:,1,1), vmp(:,:,1,1), &
-                             fp(:,:,1,:), dp(:,:,1,1), &
-                             lo, dx, dt, is_vel, &
-                             the_bc_level%phys_bc_level_array(i,:,:), &
-                             the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             ng_cell, use_minion, is_conservative)
-            case (3)
-               uepz => dataptr(uedge(3), i)
-               wmp  => dataptr(umac(3), i)
+         case (2)
+            if(use_mkflux_lowmemory) then
+               call mkflux_lowmemory_2d(uop(:,:,1,:), uop(:,:,1,:), &
+                                        uepx(:,:,1,:), uepy(:,:,1,:), &
+                                        ump(:,:,1,1), vmp(:,:,1,1), &
+                                        fp(:,:,1,:), dp(:,:,1,1), &
+                                        lo, dx, dt, is_vel, &
+                                        the_bc_level%phys_bc_level_array(i,:,:), &
+                                        the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                        ng_cell, use_minion, is_conservative)
+            else
+               call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
+                              uepx(:,:,1,:), uepy(:,:,1,:), &
+                              ump(:,:,1,1), vmp(:,:,1,1), &
+                              fp(:,:,1,:), dp(:,:,1,1), &
+                              lo, dx, dt, is_vel, &
+                              the_bc_level%phys_bc_level_array(i,:,:), &
+                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                              ng_cell, use_minion, is_conservative)
+            endif
+         case (3)
+            uepz => dataptr(uedge(3), i)
+            wmp  => dataptr(umac(3), i)
+            if(use_mkflux_lowmemory) then
+               call mkflux_lowmemory_3d(uop(:,:,:,:), uop(:,:,:,:), &
+                                        uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                                        ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                        fp(:,:,:,:), dp(:,:,:,1), &
+                                        lo, dx, dt, is_vel, &
+                                        the_bc_level%phys_bc_level_array(i,:,:), &
+                                        the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                        ng_cell, use_minion, is_conservative)
+            else
                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
-                             uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
-                             ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                             fp(:,:,:,:), dp(:,:,:,1), &
-                             lo, dx, dt, is_vel, &
-                             the_bc_level%phys_bc_level_array(i,:,:), &
-                             the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                             ng_cell, use_minion, is_conservative)
+                              uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                              ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                              fp(:,:,:,:), dp(:,:,:,1), &
+                              lo, dx, dt, is_vel, &
+                              the_bc_level%phys_bc_level_array(i,:,:), &
+                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                              ng_cell, use_minion, is_conservative)
+            endif
          end select
       end do
 
