@@ -88,9 +88,6 @@ contains
       js = lo(2)
       je = hi(2)
 
-      jc = 1
-      jp = 2
-
       dt2 = HALF*dt
       dt4 = dt/4.0d0
 
@@ -126,7 +123,7 @@ contains
       !        3. Compute sedgey(is:ie,j)
       !     endif
       !     if(j .ne. js-1 .and. j .ne. js) then
-      !        4. Compute sedgex(is-1:ie+1,j-1)
+      !        4. Compute sedgex(is:ie+1,j-1)
       !     endif
       !     5. Cycle indeces
       !  enddo
@@ -137,6 +134,10 @@ contains
 
       ! loop over components
       do n=1,ncomp
+
+         jc = 1
+         jp = 2
+
          do j=js-1,je+1
 
 !******************************************************************
@@ -146,7 +147,7 @@ contains
             do i=is,ie+1
                ! make slx, srx with 1D extrapolation
                slx(i,jc) = s(i-1,j,n) + (HALF - dt2*umac(i,j)/hx)*slopex(i-1,j,n)
-               srx(i,jc) = s(i  ,j,n) + (HALF - dt2*umac(i,j)/hx)*slopex(i  ,j,n)
+               srx(i,jc) = s(i  ,j,n) - (HALF + dt2*umac(i,j)/hx)*slopex(i  ,j,n)
 
                ! add s*u_x term where u_x = divu - v_y
                if(is_conservative(n)) then
@@ -203,6 +204,7 @@ contains
             enddo
 
             if(j .ne. js-1) then
+
 !******************************************************************
 ! 2. Compute simhy(is-1:ie+1,j)
 !******************************************************************
@@ -264,7 +266,6 @@ contains
                   simhy(i,jc) = merge(sly(i,jc),sry(i,jc),vmac(i,j) .gt. ZERO)
                   savg = HALF*(sly(i,jc)+sry(i,jc))
                   simhy(i,jc) = merge(simhy(i,jc),savg,abs(vmac(i,j)) .gt. eps)
-                  
                enddo
 
 !******************************************************************
@@ -272,21 +273,148 @@ contains
 !******************************************************************
                
                do i=is,ie
-
-
-
+                  ! make sedgely, sedgery
+                  if(is_conservative(n)) then
+                     sedgely(i) = sly(i,jc) &
+                          - (dt2/hx)*(simhx(i+1,jp)*umac(i+1,j-1) - simhx(i,jp)*umac(i,j-1))
+                     sedgery(i) = sry(i,jc) &
+                          - (dt2/hx)*(simhx(i+1,jc)*umac(i+1,j  ) - simhx(i,jc)*umac(i,j  ))
+                  else
+                     sedgely(i) = sly(i,jc) &
+                          - (dt4/hx)*(umac(i+1,j-1)+umac(i,j-1))*(simhx(i+1,jp)-simhx(i,jp))
+                     sedgery(i) = sry(i,jc) &
+                          - (dt4/hx)*(umac(i+1,j  )+umac(i,j  ))*(simhx(i+1,jc)-simhx(i,jc))
+                  endif
+                  
+                  ! if use_minion is true, we have already accounted for source terms
+                  ! in sly and sry; otherwise, we need to account for them here.
+                  if(.not. use_minion) then
+                     sedgely(i) = sedgely(i) + dt2*force(i,j-1,n)
+                     sedgery(i) = sedgery(i) + dt2*force(i,j  ,n)
+                  endif
+                  
+                  ! make sedgey by solving Riemann problem
+                  ! boundary conditions enforced outside of i,j loop
+                  sedgey(i,j,n) = merge(sedgely(i),sedgery(i),vmac(i,j) .gt. ZERO)
+                  savg = HALF*(sedgely(i)+sedgery(i))
+                  sedgey(i,j,n) = merge(sedgey(i,j,n),savg,abs(vmac(i,j)) .gt. eps)
+         
+                  ! sedgey boundary conditions
+                  if(j .eq. js) then
+                     ! lo side
+                     if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
+                        if (is_vel .and. n .eq. 2) then
+                           sedgey(i,js,n) = ZERO
+                        elseif (is_vel .and. n .ne. 2) then
+                           sedgey(i,js,n) = merge(ZERO,sedgery(i),phys_bc(2,1).eq.NO_SLIP_WALL)
+                        else 
+                           sedgey(i,js,n) = sedgery(i)
+                        endif
+                     elseif (phys_bc(2,1) .eq. INLET) then
+                        sedgey(i,js,n) = s(i,js-1,n)
+                     elseif (phys_bc(2,1) .eq. OUTLET) then
+                        if (is_vel .and. n.eq.2) then
+                           sedgey(i,js,n) = MIN(sedgery(i),ZERO)
+                        else
+                           sedgey(i,js,n) = sedgery(i)
+                        end if
+                     endif
+                  else if(j .eq. je+1) then
+                     ! hi side
+                     if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
+                        if (is_vel .and. n .eq. 2) then
+                           sedgey(i,je+1,n) = ZERO
+                        elseif (is_vel .and. n .ne. 2) then
+                           sedgey(i,je+1,n) = merge(ZERO,sedgely(i),phys_bc(2,2).eq.NO_SLIP_WALL)
+                        else 
+                           sedgey(i,je+1,n) = sedgely(i)
+                        endif
+                     elseif (phys_bc(2,2) .eq. INLET) then
+                        sedgey(i,je+1,n) = s(i,je+1,n)
+                     elseif (phys_bc(2,2) .eq. OUTLET) then
+                        if (is_vel .and. n.eq.2) then
+                           sedgey(i,je+1,n) = MAX(sedgely(i),ZERO)
+                        else
+                           sedgey(i,je+1,n) = sedgely(i)
+                        end if
+                     endif
+                  endif
                enddo
 
             endif
 
             if(j .ne. js-1 .and. j .ne. js) then
+
 !******************************************************************
-! 4. Compute sedgex(is-1:ie+1,j-1)
+! 4. Compute sedgex(is:ie+1,j-1)
 !******************************************************************
 
-               do i=is-1,ie+1
-
+               do i=is,ie+1
+                  ! make sedgelx, sedgerx
+                  if(is_conservative(n)) then
+                     sedgelx(i) = slx(i,jp) &
+                          - (dt2/hy)*(simhy(i-1,jc)*vmac(i-1,j) - simhy(i-1,jp)*vmac(i-1,j-1))
+                     sedgerx(i) = srx(i,jp) &
+                          - (dt2/hy)*(simhy(i,  jc)*vmac(i,  j) - simhy(i,  jp)*vmac(i,  j-1))
+                  else
+                     sedgelx(i) = slx(i,jp) &
+                          - (dt4/hy)*(vmac(i-1,j)+vmac(i-1,j-1))*(simhy(i-1,jc)-simhy(i-1,jp))
+                     sedgerx(i) = srx(i,jp) &
+                          - (dt4/hy)*(vmac(i,  j)+vmac(i,  j-1))*(simhy(i,  jc)-simhy(i,  jp))
+                  endif
+                  
+                  ! if use_minion is true, we have already accounted for source terms
+                  ! in slx and srx; otherwise, we need to account for them here.
+                  if(.not. use_minion) then
+                     sedgelx(i) = sedgelx(i) + dt2*force(i-1,j-1,n)
+                     sedgerx(i) = sedgerx(i) + dt2*force(i  ,j-1,n)
+                  endif
+                  
+                  ! make sedgex by solving Riemann problem
+                  ! boundary conditions enforced outside of i,j loop
+                  sedgex(i,j-1,n) = merge(sedgelx(i),sedgerx(i),umac(i,j-1) .gt. ZERO)
+                  savg = HALF*(sedgelx(i)+sedgerx(i))
+                  sedgex(i,j-1,n) = merge(sedgex(i,j-1,n),savg,abs(umac(i,j-1)) .gt. eps)
                enddo
+               
+               ! sedgex boundary conditions
+               ! lo side
+               if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+                  if (is_vel .and. n .eq. 1) then
+                     sedgex(is,j-1,n) = ZERO
+                  elseif (is_vel .and. n .ne. 1) then
+                     sedgex(is,j-1,n) = merge(ZERO,sedgerx(is),phys_bc(1,1).eq.NO_SLIP_WALL)
+                  else
+                     sedgex(is,j-1,n) = sedgerx(is)
+                  endif
+               elseif (phys_bc(1,1) .eq. INLET) then
+                  sedgex(is,j-1,n) = s(is-1,j-1,n)
+               elseif (phys_bc(1,1) .eq. OUTLET) then
+                  if (is_vel .and. n.eq.1) then
+                     sedgex(is,j-1,n) = MIN(sedgerx(is),ZERO)
+                  else
+                     sedgex(is,j-1,n) = sedgerx(is)
+                  end if
+               endif
+               
+               ! hi side
+               if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+                  if (is_vel .and. n .eq. 1) then
+                     sedgex(ie+1,j-1,n) = ZERO
+                  else if (is_vel .and. n .ne. 1) then
+                     sedgex(ie+1,j-1,n) = merge(ZERO,sedgelx(ie+1),phys_bc(1,2).eq.NO_SLIP_WALL)
+                  else 
+                     sedgex(ie+1,j-1,n) = sedgelx(ie+1)
+                  endif
+               elseif (phys_bc(1,2) .eq. INLET) then
+                  sedgex(ie+1,j-1,n) = s(ie+1,j-1,n)
+               elseif (phys_bc(1,2) .eq. OUTLET) then
+                  if (is_vel .and. n.eq.1) then
+                     sedgex(ie+1,j-1,n) = MAX(sedgelx(ie+1),ZERO)
+                  else
+                     sedgex(ie+1,j-1,n) = sedgelx(ie+1)
+                  end if
+               endif
 
             endif
             
@@ -294,8 +422,8 @@ contains
 ! 5. Cycle indeces
 !******************************************************************
 
-            jc = 2 - jc
-            jp = 2 - jp
+            jc = 3 - jc
+            jp = 3 - jp
 
          enddo ! end loop over j
       enddo ! end loop over components
