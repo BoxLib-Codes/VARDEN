@@ -6,6 +6,7 @@ module pre_advance_module
   use define_bc_module
   use multifab_module
   use velpred_module
+  use velpred_lowmemory_module
   use mkforce_module
   use setbc_module
 
@@ -53,6 +54,7 @@ contains
       integer :: i,n,comp
       logical :: is_conservative(uold%dim)
       logical :: use_minion
+      logical :: use_velpred_lowmemory
       real(kind=dp_t) :: visc_fac, visc_mu
 
       real(kind=dp_t) :: half_dt
@@ -61,6 +63,7 @@ contains
 
       is_conservative = .false.
       use_minion = .false.
+      use_velpred_lowmemory = .true.
 
       ng_cell = uold%ng
       dm      = uold%dim
@@ -133,23 +136,43 @@ contains
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
          select case (dm)
-            case (2)
-              call velpred_2d(uop(:,:,1,:), &
-                              ump(:,:,1,1),  vmp(:,:,1,1), &
-                              fp(:,:,1,:), &
-                              lo, dx, dt, &
-                              the_bc_level%phys_bc_level_array(i,:,:), &
-                              the_bc_level%adv_bc_level_array(i,:,:,:), &
-                              ng_cell, use_minion)
-            case (3)
-               wmp  => dataptr(umac(3), i)
-              call velpred_3d(uop(:,:,:,:), &
-                              ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
-                              fp(:,:,:,:), &
-                              lo, dx, dt, &
-                              the_bc_level%phys_bc_level_array(i,:,:), &
-                              the_bc_level%adv_bc_level_array(i,:,:,:), &
-                              ng_cell, use_minion)
+         case (2)
+            if(use_velpred_lowmemory) then
+               call velpred_lowmemory_2d(uop(:,:,1,:), &
+                                         ump(:,:,1,1),  vmp(:,:,1,1), &
+                                         fp(:,:,1,:), &
+                                         lo, dx, dt, &
+                                         the_bc_level%phys_bc_level_array(i,:,:), &
+                                         the_bc_level%adv_bc_level_array(i,:,:,:), &
+                                         ng_cell, use_minion)
+            else
+               call velpred_2d(uop(:,:,1,:), &
+                               ump(:,:,1,1),  vmp(:,:,1,1), &
+                               fp(:,:,1,:), &
+                               lo, dx, dt, &
+                               the_bc_level%phys_bc_level_array(i,:,:), &
+                               the_bc_level%adv_bc_level_array(i,:,:,:), &
+                               ng_cell, use_minion)
+            endif
+         case (3)
+            wmp  => dataptr(umac(3), i)
+            if(use_velpred_lowmemory) then
+               call velpred_lowmemory_3d(uop(:,:,:,:), &
+                                         ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
+                                         fp(:,:,:,:), &
+                                         lo, dx, dt, &
+                                         the_bc_level%phys_bc_level_array(i,:,:), &
+                                         the_bc_level%adv_bc_level_array(i,:,:,:), &
+                                         ng_cell, use_minion)
+            else
+               call velpred_3d(uop(:,:,:,:), &
+                               ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
+                               fp(:,:,:,:), &
+                               lo, dx, dt, &
+                               the_bc_level%phys_bc_level_array(i,:,:), &
+                               the_bc_level%adv_bc_level_array(i,:,:,:), &
+                               ng_cell, use_minion)
+            endif
          end select
       end do
 
