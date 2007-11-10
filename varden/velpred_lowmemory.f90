@@ -648,9 +648,9 @@ contains
                ulx(i,j,kc,3) = u(i-1,j,k,3) + (HALF - dt2*max(ZERO,u(i-1,j,k,1))/hx)*slopex(i-1,j,k,3)
 
                ! extrapolate all components of velocity to right face
-               urx(i,j,kc,1) = u(i,j,kc,1) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,1)
-               urx(i,j,kc,2) = u(i,j,kc,2) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,2)
-               urx(i,j,kc,3) = u(i,j,kc,3) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,3)
+               urx(i,j,kc,1) = u(i,j,k,1) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,1)
+               urx(i,j,kc,2) = u(i,j,k,2) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,2)
+               urx(i,j,kc,3) = u(i,j,k,3) - (HALF + dt2*min(ZERO,u(i,j,k,1))/hx)*slopex(i,j,k,3)
 
                ! add source terms
                if(use_minion) then
