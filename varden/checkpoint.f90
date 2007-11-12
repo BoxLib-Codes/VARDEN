@@ -80,6 +80,8 @@ contains
        write(unit=un,fmt=*) rrs(n,1)
     end do
     
+    deallocate(lo,hi)
+
   end subroutine checkpoint_write
 
   subroutine checkpoint_read(mfs, mfs_nodal, dirname, time_out, dt_out, nlevs_out)
