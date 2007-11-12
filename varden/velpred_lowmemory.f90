@@ -26,7 +26,7 @@ contains
       integer         ,intent(in) :: adv_bc(:,:,:)
       logical         ,intent(in) :: use_minion
 
-!     Local variables
+      ! Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:)
       real(kind=dp_t), allocatable::  slopey(:,:,:)
 
@@ -411,7 +411,7 @@ contains
       integer         ,intent(in) :: adv_bc(:,:,:)
       logical         ,intent(in) :: use_minion
 
-!     Local variables
+      ! Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)
       real(kind=dp_t), allocatable::  slopey(:,:,:,:)
       real(kind=dp_t), allocatable::  slopez(:,:,:,:)
@@ -1178,8 +1178,8 @@ contains
                        - (dt4/hy)*(uimhy(i-1,j+1,kp,2)+uimhy(i-1,j,kp,2))*(uimhyz(i-1,j+1,kp)-uimhyz(i-1,j,kp)) &
                        - (dt4/hz)*(uimhz(i-1,j  ,kc,3)+uimhz(i-1,j,kp,3))*(uimhzy(i-1,j  ,kc)-uimhzy(i-1,j,kp))
                   umacr(i,j) = urx(i,j,kp,1) &
-                       - (dt4/hy)*(uimhy(i,j+1,kp,2)+uimhy(i,j,kp,2))*(uimhyz(i,j+1,kp)-uimhyz(i,j,kp)) &
-                       - (dt4/hz)*(uimhz(i,j  ,kc,3)+uimhz(i,j,kp,3))*(uimhzy(i,j  ,kc)-uimhzy(i,j,kp))
+                       - (dt4/hy)*(uimhy(i  ,j+1,kp,2)+uimhy(i  ,j,kp,2))*(uimhyz(i  ,j+1,kp)-uimhyz(i  ,j,kp)) &
+                       - (dt4/hz)*(uimhz(i  ,j  ,kc,3)+uimhz(i  ,j,kp,3))*(uimhzy(i  ,j  ,kc)-uimhzy(i  ,j,kp))
                   
                   ! if use_minion is true, we have already accounted for source terms
                   ! in ulx and urx; otherwise, we need to account for them here.
@@ -1228,8 +1228,8 @@ contains
                        - (dt4/hx)*(uimhx(i+1,j-1,kp,1)+uimhx(i,j-1,kp,1))*(vimhxz(i+1,j-1,kp)-vimhxz(i,j-1,kp)) &
                        - (dt4/hz)*(uimhz(i  ,j-1,kc,3)+uimhz(i,j-1,kp,3))*(vimhzx(i  ,j-1,kc)-vimhzx(i,j-1,kp))
                   vmacr(i,j) = ury(i,j,kp,2) &
-                       - (dt4/hx)*(uimhx(i+1,j,kp,1)+uimhx(i,j,kp,1))*(vimhxz(i+1,j,kp)-vimhxz(i,j,kp)) &
-                       - (dt4/hz)*(uimhz(i  ,j,kc,3)+uimhz(i,j,kp,3))*(vimhzx(i  ,j,kc)-vimhzx(i,j,kp))
+                       - (dt4/hx)*(uimhx(i+1,j  ,kp,1)+uimhx(i,j  ,kp,1))*(vimhxz(i+1,j  ,kp)-vimhxz(i,j  ,kp)) &
+                       - (dt4/hz)*(uimhz(i  ,j  ,kc,3)+uimhz(i,j  ,kp,3))*(vimhzx(i  ,j  ,kc)-vimhzx(i,j  ,kp))
                   
                   ! if use_minion is true, we have already accounted for source terms
                   ! in uly and ury; otherwise, we need to account for them here.

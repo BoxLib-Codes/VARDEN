@@ -26,7 +26,7 @@ contains
       integer         ,intent(in) :: adv_bc(:,:,:)
       logical         ,intent(in) :: use_minion
 
-!     Local variables
+      ! Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:)
       real(kind=dp_t), allocatable::  slopey(:,:,:)
 
@@ -356,7 +356,7 @@ contains
       integer         ,intent(in) :: adv_bc(:,:,:)
       logical         ,intent(in) :: use_minion
 
-!     Local variables
+      ! Local variables
       real(kind=dp_t), allocatable::  slopex(:,:,:,:)
       real(kind=dp_t), allocatable::  slopey(:,:,:,:)
       real(kind=dp_t), allocatable::  slopez(:,:,:,:)
@@ -756,7 +756,7 @@ contains
                ulyz(i,j,k) = uly(i,j,k,1) &
                     - (dt6/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(uimhz(i,j-1,k+1,1)-uimhz(i,j-1,k,1))               
                uryz(i,j,k) = ury(i,j,k,1) &
-                    - (dt6/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhz(i,j,k+1,1)-uimhz(i,j,k,1)) 
+                    - (dt6/hz)*(uimhz(i,j  ,k+1,3)+uimhz(i,j  ,k,3))*(uimhz(i,j  ,k+1,1)-uimhz(i,j  ,k,1)) 
 
                ! impose lo side bc's
                if(j .eq. js) then
@@ -794,7 +794,7 @@ contains
                ulzy(i,j,k) = ulz(i,j,k,1) &
                     - (dt6/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(uimhy(i,j+1,k-1,1)-uimhy(i,j,k-1,1))
                urzy(i,j,k) = urz(i,j,k,1) &
-                    - (dt6/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(uimhy(i,j+1,k,1)-uimhy(i,j,k,1))
+                    - (dt6/hy)*(uimhy(i,j+1,k  ,2)+uimhy(i,j,k  ,2))*(uimhy(i,j+1,k  ,1)-uimhy(i,j,k  ,1))
 
                ! impose lo side bc's
                if(k .eq. ks) then
@@ -832,7 +832,7 @@ contains
                vlxz(i,j,k) = ulx(i,j,k,2) &
                     - (dt6/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhz(i-1,j,k+1,2)-uimhz(i-1,j,k,2))
                vrxz(i,j,k) = urx(i,j,k,2) &
-                    - (dt6/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhz(i,j,k+1,2)-uimhz(i,j,k,2))
+                    - (dt6/hz)*(uimhz(i  ,j,k+1,3)+uimhz(i  ,j,k,3))*(uimhz(i  ,j,k+1,2)-uimhz(i  ,j,k,2))
 
                ! impose lo side bc's
                if(i .eq. is) then
@@ -870,7 +870,7 @@ contains
                vlzx(i,j,k) = ulz(i,j,k,2) &
                     - (dt6/hx)*(uimhx(i+1,j,k-1,1)+uimhx(i,j,k-1,1))*(uimhx(i+1,j,k-1,2)-uimhx(i,j,k-1,2))
                vrzx(i,j,k) = urz(i,j,k,2) &
-                    - (dt6/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(uimhx(i+1,j,k,2)-uimhx(i,j,k,2))
+                    - (dt6/hx)*(uimhx(i+1,j,k  ,1)+uimhx(i,j,k  ,1))*(uimhx(i+1,j,k  ,2)-uimhx(i,j,k  ,2))
 
                ! impose lo side bc's
                if(k .eq. ks) then
@@ -908,7 +908,7 @@ contains
                wlxy(i,j,k) = ulx(i,j,k,3) &
                     - (dt6/hy)*(uimhy(i-1,j+1,k,2)+uimhy(i-1,j,k,2))*(uimhy(i-1,j+1,k,3)-uimhy(i-1,j,k,3))
                wrxy(i,j,k) = urx(i,j,k,3) &
-                    - (dt6/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(uimhy(i,j+1,k,3)-uimhy(i,j,k,3))
+                    - (dt6/hy)*(uimhy(i  ,j+1,k,2)+uimhy(i  ,j,k,2))*(uimhy(i  ,j+1,k,3)-uimhy(i  ,j,k,3))
 
                ! impose lo side bc's
                if(i .eq. is) then
@@ -946,7 +946,7 @@ contains
                wlyx(i,j,k) = uly(i,j,k,3) &
                     - (dt6/hx)*(uimhx(i+1,j-1,k,1)+uimhx(i,j-1,k,1))*(uimhx(i+1,j-1,k,3)-uimhx(i,j-1,k,3))
                wryx(i,j,k) = ury(i,j,k,3) &
-                    - (dt6/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(uimhx(i+1,j,k,3)-uimhx(i,j,k,3))
+                    - (dt6/hx)*(uimhx(i+1,j  ,k,1)+uimhx(i,j  ,k,1))*(uimhx(i+1,j  ,k,3)-uimhx(i,j  ,k,3))
 
                ! impose lo side bc's
                if(j .eq. js) then
@@ -986,11 +986,11 @@ contains
             do i=is,ie+1
                ! extrapolate to edges
                umacl(i,j,k) = ulx(i,j,k,1) &
-                    - (dt4/hy)*(uimhy(i-1,j+1,k,2)+uimhy(i-1,j,k,2))*(uimhyz(i-1,j+1,k)-uimhyz(i-1,j,k)) &
-                    - (dt4/hz)*(uimhz(i-1,j,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j,k+1)-uimhzy(i-1,j,k))
+                    - (dt4/hy)*(uimhy(i-1,j+1,k  ,2)+uimhy(i-1,j,k,2))*(uimhyz(i-1,j+1,k  )-uimhyz(i-1,j,k)) &
+                    - (dt4/hz)*(uimhz(i-1,j  ,k+1,3)+uimhz(i-1,j,k,3))*(uimhzy(i-1,j  ,k+1)-uimhzy(i-1,j,k))
                umacr(i,j,k) = urx(i,j,k,1) &
-                    - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(uimhyz(i,j+1,k)-uimhyz(i,j,k)) &
-                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(uimhzy(i,j,k+1)-uimhzy(i,j,k))
+                    - (dt4/hy)*(uimhy(i  ,j+1,k  ,2)+uimhy(i  ,j,k,2))*(uimhyz(i  ,j+1,k  )-uimhyz(i  ,j,k)) &
+                    - (dt4/hz)*(uimhz(i  ,j  ,k+1,3)+uimhz(i  ,j,k,3))*(uimhzy(i  ,j  ,k+1)-uimhzy(i  ,j,k))
 
                ! if use_minion is true, we have already accounted for source terms
                ! in ulx and urx; otherwise, we need to account for them here.
@@ -1037,11 +1037,11 @@ contains
             do i=is,ie
                ! extrapolate to edges
                vmacl(i,j,k) = uly(i,j,k,2) &
-                    - (dt4/hx)*(uimhx(i+1,j-1,k,1)+uimhx(i,j-1,k,1))*(vimhxz(i+1,j-1,k)-vimhxz(i,j-1,k)) &
-                    - (dt4/hz)*(uimhz(i,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i,j-1,k+1)-vimhzx(i,j-1,k))
+                    - (dt4/hx)*(uimhx(i+1,j-1,k  ,1)+uimhx(i,j-1,k,1))*(vimhxz(i+1,j-1,k  )-vimhxz(i,j-1,k)) &
+                    - (dt4/hz)*(uimhz(i  ,j-1,k+1,3)+uimhz(i,j-1,k,3))*(vimhzx(i  ,j-1,k+1)-vimhzx(i,j-1,k))
                vmacr(i,j,k) = ury(i,j,k,2) &
-                    - (dt4/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(vimhxz(i+1,j,k)-vimhxz(i,j,k)) &
-                    - (dt4/hz)*(uimhz(i,j,k+1,3)+uimhz(i,j,k,3))*(vimhzx(i,j,k+1)-vimhzx(i,j,k))
+                    - (dt4/hx)*(uimhx(i+1,j  ,k  ,1)+uimhx(i,j  ,k,1))*(vimhxz(i+1,j  ,k  )-vimhxz(i,j  ,k)) &
+                    - (dt4/hz)*(uimhz(i  ,j  ,k+1,3)+uimhz(i,j  ,k,3))*(vimhzx(i  ,j  ,k+1)-vimhzx(i,j  ,k))
                
                ! if use_minion is true, we have already accounted for source terms
                ! in uly and ury; otherwise, we need to account for them here.
@@ -1088,11 +1088,11 @@ contains
             do i=is,ie
                ! extrapolate to edges
                wmacl(i,j,k) = ulz(i,j,k,3) &
-                    - (dt4/hx)*(uimhx(i+1,j,k-1,1)+uimhx(i,j,k-1,1))*(wimhxy(i+1,j,k-1)-wimhxy(i,j,k-1)) &
-                    - (dt4/hy)*(uimhy(i,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i,j+1,k-1)-wimhyx(i,j,k-1))
+                    - (dt4/hx)*(uimhx(i+1,j  ,k-1,1)+uimhx(i,j,k-1,1))*(wimhxy(i+1,j  ,k-1)-wimhxy(i,j,k-1)) &
+                    - (dt4/hy)*(uimhy(i  ,j+1,k-1,2)+uimhy(i,j,k-1,2))*(wimhyx(i  ,j+1,k-1)-wimhyx(i,j,k-1))
                wmacr(i,j,k) = urz(i,j,k,3) &
-                    - (dt4/hx)*(uimhx(i+1,j,k,1)+uimhx(i,j,k,1))*(wimhxy(i+1,j,k)-wimhxy(i,j,k)) &
-                    - (dt4/hy)*(uimhy(i,j+1,k,2)+uimhy(i,j,k,2))*(wimhyx(i,j+1,k)-wimhyx(i,j,k))
+                    - (dt4/hx)*(uimhx(i+1,j  ,k  ,1)+uimhx(i,j,k  ,1))*(wimhxy(i+1,j  ,k  )-wimhxy(i,j,k  )) &
+                    - (dt4/hy)*(uimhy(i  ,j+1,k  ,2)+uimhy(i,j,k  ,2))*(wimhyx(i  ,j+1,k  )-wimhyx(i,j,k  ))
 
                ! if use_minion is true, we have already accounted for source terms
                ! in uly and ury; otherwise, we need to account for them here.

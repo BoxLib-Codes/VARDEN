@@ -367,12 +367,12 @@ contains
                      sedgelx(i) = slx(i,jp) &
                           - (dt2/hy)*(simhy(i-1,jc)*vmac(i-1,j) - simhy(i-1,jp)*vmac(i-1,j-1))
                      sedgerx(i) = srx(i,jp) &
-                          - (dt2/hy)*(simhy(i,  jc)*vmac(i,  j) - simhy(i,  jp)*vmac(i,  j-1))
+                          - (dt2/hy)*(simhy(i  ,jc)*vmac(i  ,j) - simhy(i  ,jp)*vmac(i  ,j-1))
                   else
                      sedgelx(i) = slx(i,jp) &
                           - (dt4/hy)*(vmac(i-1,j)+vmac(i-1,j-1))*(simhy(i-1,jc)-simhy(i-1,jp))
                      sedgerx(i) = srx(i,jp) &
-                          - (dt4/hy)*(vmac(i,  j)+vmac(i,  j-1))*(simhy(i,  jc)-simhy(i,  jp))
+                          - (dt4/hy)*(vmac(i  ,j)+vmac(i  ,j-1))*(simhy(i  ,jc)-simhy(i  ,jp))
                   endif
                   
                   ! if use_minion is true, we have already accounted for source terms
@@ -719,7 +719,7 @@ contains
                do i=is,ie+1
                   ! make slx, srx with 1D extrapolation
                   slx(i,j,kc) = s(i-1,j,k,n) + (HALF - dt2*umac(i,j,k)/hx)*slopex(i-1,j,k,n)
-                  srx(i,j,kc) = s(i  ,j,k,n) - (HALF + dt2*umac(i,j,k)/hx)*slopex(i,  j,k,n)
+                  srx(i,j,kc) = s(i  ,j,k,n) - (HALF + dt2*umac(i,j,k)/hx)*slopex(i  ,j,k,n)
                   
                   ! add s*u_x term where u_x = divu - v_y - w_z
                   if(is_conservative(n)) then
@@ -786,7 +786,7 @@ contains
                do i=is-1,ie+1
                   ! make sly, sry with 1D extrapolation
                   sly(i,j,kc) = s(i,j-1,k,n) + (HALF - dt2*vmac(i,j,k)/hy)*slopey(i,j-1,k,n)
-                  sry(i,j,kc) = s(i,j,  k,n) - (HALF + dt2*vmac(i,j,k)/hy)*slopey(i,j,  k,n)
+                  sry(i,j,kc) = s(i,j  ,k,n) - (HALF + dt2*vmac(i,j,k)/hy)*slopey(i,j  ,k,n)
                   
                   ! add s*v_y term where v_y = divu - u_x - w_z
                   if(is_conservative(n)) then
@@ -854,10 +854,10 @@ contains
                   ! make slxy, srxy by updating 1D extrapolation
                   if(is_conservative(n)) then
                      slxy(i,j,kc) = slx(i,j,kc) - (dt3/hy)*(simhy(i-1,j+1,kc)*vmac(i-1,j+1,k) - simhy(i-1,j,kc)*vmac(i-1,j,k))
-                     srxy(i,j,kc) = srx(i,j,kc) - (dt3/hy)*(simhy(i,  j+1,kc)*vmac(i,  j+1,k) - simhy(i,  j,kc)*vmac(i,  j,k))
+                     srxy(i,j,kc) = srx(i,j,kc) - (dt3/hy)*(simhy(i  ,j+1,kc)*vmac(i  ,j+1,k) - simhy(i  ,j,kc)*vmac(i  ,j,k))
                   else
                      slxy(i,j,kc) = slx(i,j,kc) - (dt6/hy)*(vmac(i-1,j+1,k)+vmac(i-1,j,k))*(simhy(i-1,j+1,kc)-simhy(i-1,j,kc))
-                     srxy(i,j,kc) = srx(i,j,kc) - (dt6/hy)*(vmac(i,  j+1,k)+vmac(i,  j,k))*(simhy(i,  j+1,kc)-simhy(i,  j,kc))
+                     srxy(i,j,kc) = srx(i,j,kc) - (dt6/hy)*(vmac(i  ,j+1,k)+vmac(i  ,j,k))*(simhy(i  ,j+1,kc)-simhy(i  ,j,kc))
                   endif
                   
                   ! impose lo side bc's
@@ -910,10 +910,10 @@ contains
                   ! make slyx, sryx by updating 1D extrapolation
                   if(is_conservative(n)) then
                      slyx(i,j,kc) = sly(i,j,kc) - (dt3/hx)*(simhx(i+1,j-1,kc)*umac(i+1,j-1,k) - simhx(i,j-1,kc)*umac(i,j-1,k))
-                     sryx(i,j,kc) = sry(i,j,kc) - (dt3/hx)*(simhx(i+1,j,  kc)*umac(i+1,j,  k) - simhx(i,j,  kc)*umac(i,j,  k))
+                     sryx(i,j,kc) = sry(i,j,kc) - (dt3/hx)*(simhx(i+1,j  ,kc)*umac(i+1,j  ,k) - simhx(i,j  ,kc)*umac(i,j  ,k))
                   else
                      slyx(i,j,kc) = sly(i,j,kc) - (dt6/hx)*(umac(i+1,j-1,k)+umac(i,j-1,k))*(simhx(i+1,j-1,kc)-simhx(i,j-1,kc))
-                     sryx(i,j,kc) = sry(i,j,kc) - (dt6/hx)*(umac(i+1,j,  k)+umac(i,j,  k))*(simhx(i+1,j,  kc)-simhx(i,j,  kc))
+                     sryx(i,j,kc) = sry(i,j,kc) - (dt6/hx)*(umac(i+1,j  ,k)+umac(i,j  ,k))*(simhx(i+1,j  ,kc)-simhx(i,j  ,kc))
                   endif
                   
                   ! impose lo side bc's
@@ -1230,10 +1230,10 @@ contains
                      ! make slxz, srxz by updating 1D extrapolation
                      if(is_conservative(n)) then
                         slxz(i,j,kp) = slx(i,j,kp) - (dt3/hz)*(simhz(i-1,j,kc)*wmac(i-1,j,k) - simhz(i-1,j,kp)*wmac(i-1,j,k-1))
-                        srxz(i,j,kp) = srx(i,j,kp) - (dt3/hz)*(simhz(i,  j,kc)*wmac(i,  j,k) - simhz(i,  j,kp)*wmac(i,  j,k-1))
+                        srxz(i,j,kp) = srx(i,j,kp) - (dt3/hz)*(simhz(i  ,j,kc)*wmac(i  ,j,k) - simhz(i  ,j,kp)*wmac(i  ,j,k-1))
                      else
                         slxz(i,j,kp) = slx(i,j,kp) - (dt6/hz)*(wmac(i-1,j,k)+wmac(i-1,j,k-1))*(simhz(i-1,j,kc)-simhz(i-1,j,kp))
-                        srxz(i,j,kp) = srx(i,j,kp) - (dt6/hz)*(wmac(i,  j,k)+wmac(i,  j,k-1))*(simhz(i,  j,kc)-simhz(i,  j,kp))
+                        srxz(i,j,kp) = srx(i,j,kp) - (dt6/hz)*(wmac(i  ,j,k)+wmac(i  ,j,k-1))*(simhz(i  ,j,kc)-simhz(i  ,j,kp))
                      endif
                      
                      ! impose lo side bc's
@@ -1286,10 +1286,10 @@ contains
                      ! make slyz, sryz by updating 1D extrapolation
                      if(is_conservative(n)) then
                         slyz(i,j,kp) = sly(i,j,kp) - (dt3/hz)*(simhz(i,j-1,kc)*wmac(i,j-1,k) - simhz(i,j-1,kp)*wmac(i,j-1,k-1))
-                        sryz(i,j,kp) = sry(i,j,kp) - (dt3/hz)*(simhz(i,j,  kc)*wmac(i,j,  k) - simhz(i,j,  kp)*wmac(i,j,  k-1))
+                        sryz(i,j,kp) = sry(i,j,kp) - (dt3/hz)*(simhz(i,j  ,kc)*wmac(i,j  ,k) - simhz(i,j  ,kp)*wmac(i,j  ,k-1))
                      else
                         slyz(i,j,kp) = sly(i,j,kp) - (dt6/hz)*(wmac(i,j-1,k)+wmac(i,j-1,k-1))*(simhz(i,j-1,kc)-simhz(i,j-1,kp))
-                        sryz(i,j,kp) = sry(i,j,kp) - (dt6/hz)*(wmac(i,j,  k)+wmac(i,j,  k-1))*(simhz(i,j,  kc)-simhz(i,j,  kp))
+                        sryz(i,j,kp) = sry(i,j,kp) - (dt6/hz)*(wmac(i,j  ,k)+wmac(i,j  ,k-1))*(simhz(i,j  ,kc)-simhz(i,j  ,kp))
                      endif
                      
                      ! impose lo side bc's
@@ -1345,15 +1345,15 @@ contains
                              - (dt2/hy)*(simhyz(i-1,j+1,kp)*vmac(i-1,j+1,k-1) - simhyz(i-1,j,kp)*vmac(i-1,j,k-1)) &
                              - (dt2/hz)*(simhzy(i-1,j  ,kc)*wmac(i-1,j  ,k  ) - simhzy(i-1,j,kp)*wmac(i-1,j,k-1))
                         sedgerx(i,j) = srx(i,j,kp) &
-                             - (dt2/hy)*(simhyz(i,  j+1,kp)*vmac(i,  j+1,k-1) - simhyz(i,  j,kp)*vmac(i,  j,k-1)) &
-                             - (dt2/hz)*(simhzy(i,  j  ,kc)*wmac(i,  j  ,k  ) - simhzy(i,  j,kp)*wmac(i,  j,k-1))
+                             - (dt2/hy)*(simhyz(i  ,j+1,kp)*vmac(i  ,j+1,k-1) - simhyz(i  ,j,kp)*vmac(i  ,j,k-1)) &
+                             - (dt2/hz)*(simhzy(i  ,j  ,kc)*wmac(i  ,j  ,k  ) - simhzy(i  ,j,kp)*wmac(i  ,j,k-1))
                      else
                         sedgelx(i,j) = slx(i,j,kp) &
                              - (dt4/hy)*(vmac(i-1,j+1,k-1)+vmac(i-1,j,k-1))*(simhyz(i-1,j+1,kp)-simhyz(i-1,j,kp)) &
                              - (dt4/hz)*(wmac(i-1,j  ,k  )+wmac(i-1,j,k-1))*(simhzy(i-1,j  ,kc)-simhzy(i-1,j,kp))
                         sedgerx(i,j) = srx(i,j,kp) &
-                             - (dt4/hy)*(vmac(i,  j+1,k-1)+vmac(i,  j,k-1))*(simhyz(i,  j+1,kp)-simhyz(i,  j,kp)) &
-                             - (dt4/hz)*(wmac(i,  j  ,k  )+wmac(i,  j,k-1))*(simhzy(i,  j  ,kc)-simhzy(i,  j,kp))
+                             - (dt4/hy)*(vmac(i  ,j+1,k-1)+vmac(i  ,j,k-1))*(simhyz(i  ,j+1,kp)-simhyz(i  ,j,kp)) &
+                             - (dt4/hz)*(wmac(i  ,j  ,k  )+wmac(i  ,j,k-1))*(simhzy(i  ,j  ,kc)-simhzy(i  ,j,kp))
                      endif
                      
                      ! if use_minion is true, we have already accounted for source terms
@@ -1425,15 +1425,15 @@ contains
                              - (dt2/hx)*(simhxz(i+1,j-1,kp)*umac(i+1,j-1,k-1) - simhxz(i,j-1,kp)*umac(i,j-1,k-1)) &
                              - (dt2/hz)*(simhzx(i  ,j-1,kc)*wmac(i  ,j-1,k  ) - simhzx(i,j-1,kp)*wmac(i,j-1,k-1))
                         sedgery(i,j) = sry(i,j,kp) &
-                             - (dt2/hx)*(simhxz(i+1,j,  kp)*umac(i+1,j,  k-1) - simhxz(i,j,  kp)*umac(i,j,  k-1)) &
-                             - (dt2/hz)*(simhzx(i  ,j,  kc)*wmac(i  ,j,  k  ) - simhzx(i,j,  kp)*wmac(i,j,  k-1))
+                             - (dt2/hx)*(simhxz(i+1,j  ,kp)*umac(i+1,j  ,k-1) - simhxz(i,j  ,kp)*umac(i,j  ,k-1)) &
+                             - (dt2/hz)*(simhzx(i  ,j  ,kc)*wmac(i  ,j  ,k  ) - simhzx(i,j  ,kp)*wmac(i,j  ,k-1))
                      else
                         sedgely(i,j) = sly(i,j,kp) &
                              - (dt4/hx)*(umac(i+1,j-1,k-1)+umac(i,j-1,k-1))*(simhxz(i+1,j-1,kp)-simhxz(i,j-1,kp)) &
                              - (dt4/hz)*(wmac(i  ,j-1,k  )+wmac(i,j-1,k-1))*(simhzx(i  ,j-1,kc)-simhzx(i,j-1,kp))
                         sedgery(i,j) = sry(i,j,kp) &
-                             - (dt4/hx)*(umac(i+1,j,  k-1)+umac(i,j,  k-1))*(simhxz(i+1,j,  kp)-simhxz(i,j,  kp)) &
-                             - (dt4/hz)*(wmac(i  ,j,  k  )+wmac(i,j,  k-1))*(simhzx(i  ,j,  kc)-simhzx(i,j,  kp))
+                             - (dt4/hx)*(umac(i+1,j  ,k-1)+umac(i,j  ,k-1))*(simhxz(i+1,j  ,kp)-simhxz(i,j  ,kp)) &
+                             - (dt4/hz)*(wmac(i  ,j  ,k  )+wmac(i,j  ,k-1))*(simhzx(i  ,j  ,kc)-simhzx(i,j  ,kp))
                      endif
                      
                      ! if use_minion is true, we have already accounted for source terms
