@@ -236,7 +236,7 @@ contains
                
                   ! add source terms
                   if(use_minion) then
-                     sly(i,jc) = sly(i,jc) + dt2*force(1,j-1,n)
+                     sly(i,jc) = sly(i,jc) + dt2*force(i,j-1,n)
                      sry(i,jc) = sry(i,jc) + dt2*force(i,j  ,n)
                   endif
                   
@@ -649,7 +649,7 @@ contains
                
                ! add source terms
                if(use_minion) then
-                  sly(i,j) = sly(i,j) + dt2*force(1,j-1,n)
+                  sly(i,j) = sly(i,j) + dt2*force(i,j-1,n)
                   sry(i,j) = sry(i,j) + dt2*force(i,j  ,n)
                endif
                
@@ -718,7 +718,7 @@ contains
                ! in slx and srx; otherwise, we need to account for them here.
                if(.not. use_minion) then
                   sedgelx(i,j) = sedgelx(i,j) + dt2*force(i-1,j,n)
-                  sedgerx(i,j) = sedgerx(i,j) + dt2*force(i,j,n)
+                  sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,n)
                endif
                
                ! make sedgex by solving Riemann problem
@@ -1131,7 +1131,7 @@ contains
 
                   ! add source terms
                   if(use_minion) then
-                     sly(i,j,k) = sly(i,j,k) + dt2*force(1,j-1,k,n)
+                     sly(i,j,k) = sly(i,j,k) + dt2*force(i,j-1,k,n)
                      sry(i,j,k) = sry(i,j,k) + dt2*force(i,j  ,k,n)
                   endif
 
@@ -1710,7 +1710,7 @@ contains
                   ! in sly and sry; otherwise, we need to account for them here.
                   if(.not. use_minion) then
                      sedgely(i,j,k) = sedgely(i,j,k) + dt2*force(i,j-1,k,n)
-                     sedgery(i,j,k) = sedgery(i,j,k) + dt2*force(i,j,k,n)
+                     sedgery(i,j,k) = sedgery(i,j,k) + dt2*force(i,j  ,k,n)
                   endif
                   
                   ! make sedgey by solving Riemann problem
@@ -2234,7 +2234,7 @@ contains
 
                   ! add source terms
                   if(use_minion) then
-                     sly(i,j,kc) = sly(i,j,kc) + dt2*force(1,j-1,k,n)
+                     sly(i,j,kc) = sly(i,j,kc) + dt2*force(i,j-1,k,n)
                      sry(i,j,kc) = sry(i,j,kc) + dt2*force(i,j  ,k,n)
                   endif
 
@@ -2416,7 +2416,7 @@ contains
                      ! add source terms
                      if(use_minion) then
                         slz(i,j,kc) = slz(i,j,kc) + dt2*force(i,j,k-1,n)
-                        srz(i,j,kc) = srz(i,j,kc) + dt2*force(i,j,k,n)
+                        srz(i,j,kc) = srz(i,j,kc) + dt2*force(i,j,k  ,n)
                      endif
                      
                      ! impose lo side bc's
