@@ -93,7 +93,7 @@ contains
       allocate(sedgely(lo(1):hi(1)))
       allocate(sedgery(lo(1):hi(1)))
 
-      abs_eps = 1.0e-8
+      abs_eps = 1.0d-8
 
       is = lo(1)
       ie = hi(1)
@@ -628,7 +628,7 @@ contains
       allocate(sedgelz(lo(1):hi(1),lo(2):hi(2)))
       allocate(sedgerz(lo(1):hi(1),lo(2):hi(2)))
 
-      abs_eps = 1.0e-8
+      abs_eps = 1.0d-8
 
       is = lo(1)
       ie = hi(1)

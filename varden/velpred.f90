@@ -76,7 +76,7 @@ contains
       call slopex_2d(u,slopex,lo,ng,2,adv_bc,slope_order)
       call slopey_2d(u,slopey,lo,ng,2,adv_bc,slope_order)
 
-      abs_eps = 1.0e-8
+      abs_eps = 1.0d-8
 
       is = lo(1)
       ie = hi(1)
@@ -472,7 +472,7 @@ contains
       end do
       call slopez_3d(u,slopez,lo,ng,3,adv_bc,slope_order)
 
-      abs_eps = 1.0e-8
+      abs_eps = 1.0d-8
 
       is = lo(1)
       ie = hi(1)

@@ -89,7 +89,7 @@ contains
       allocate(vmacl(lo(1):hi(1)))
       allocate(vmacr(lo(1):hi(1)))
 
-      abs_eps = 1.0e-8
+      abs_eps = 1.0d-8
 
       is = lo(1)
       ie = hi(1)
@@ -569,7 +569,7 @@ contains
       allocate(wmacl(lo(1):hi(1),lo(2):hi(2)))
       allocate(wmacr(lo(1):hi(1),lo(2):hi(2)))
 
-      abs_eps = 1.0e-8
+      abs_eps = 1.0d-8
 
       is = lo(1)
       ie = hi(1)
