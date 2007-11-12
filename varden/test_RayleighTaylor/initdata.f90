@@ -167,13 +167,19 @@ contains
 !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = -0.1d0
 
          ! add a density perturbation
-         s((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = TWO
-         s((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = TWO
+!         s((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = TWO
+!         s((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = TWO
 
          ! add a transverse velocity perturbation
 !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,2) = 0.1d0
 !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,2) = 0.1d0
       enddo
+
+      ! add a density perturbation
+      s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
+      s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
+      s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
+      s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
 
    end subroutine initdata_3d
 
