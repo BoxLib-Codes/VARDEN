@@ -4,7 +4,6 @@ module velocity_advance_module
   use multifab_module
   use viscous_module
   use mkflux_module
-  use mkflux_lowmemory_module
   use mkforce_module
   use update_module
 
@@ -16,7 +15,8 @@ contains
                                umac,uedge,gp,p, &
                                ext_force,dx,time,dt, &
                                the_bc_level, &
-                               visc_coef,verbose)
+                               visc_coef,verbose,use_godunov_debug, &
+                               use_minion)
  
       type(multifab) , intent(inout) :: uold
       type(multifab) , intent(inout) :: sold
@@ -33,6 +33,8 @@ contains
       real(kind=dp_t), intent(in   ) :: visc_coef
  
       integer        , intent(in   ) :: lev,verbose
+      logical        , intent(in)    :: use_godunov_debug
+      logical        , intent(in)    :: use_minion
  
       type(multifab) :: force
       type(multifab) :: divu
@@ -60,7 +62,6 @@ contains
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold%dim)
-      logical :: use_minion,make_divu, use_mkflux_lowmemory
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
 
@@ -71,8 +72,6 @@ contains
       dm      = uold%dim
 
       is_conservative = .false.
-      use_minion = .false.
-      use_mkflux_lowmemory = .true.
 
       irz = 0
 
@@ -130,15 +129,15 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
          case (2)
-            if(use_mkflux_lowmemory) then
-               call mkflux_lowmemory_2d(uop(:,:,1,:), uop(:,:,1,:), &
-                                        uepx(:,:,1,:), uepy(:,:,1,:), &
-                                        ump(:,:,1,1), vmp(:,:,1,1), &
-                                        fp(:,:,1,:), dp(:,:,1,1), &
-                                        lo, dx, dt, is_vel, &
-                                        the_bc_level%phys_bc_level_array(i,:,:), &
-                                        the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                                        ng_cell, use_minion, is_conservative)
+            if(use_godunov_debug) then
+               call mkflux_debug_2d(uop(:,:,1,:), uop(:,:,1,:), &
+                                    uepx(:,:,1,:), uepy(:,:,1,:), &
+                                    ump(:,:,1,1), vmp(:,:,1,1), &
+                                    fp(:,:,1,:), dp(:,:,1,1), &
+                                    lo, dx, dt, is_vel, &
+                                    the_bc_level%phys_bc_level_array(i,:,:), &
+                                    the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                    ng_cell, use_minion, is_conservative)
             else
                call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
                               uepx(:,:,1,:), uepy(:,:,1,:), &
@@ -152,15 +151,15 @@ contains
          case (3)
             uepz => dataptr(uedge(3), i)
             wmp  => dataptr(umac(3), i)
-            if(use_mkflux_lowmemory) then
-               call mkflux_lowmemory_3d(uop(:,:,:,:), uop(:,:,:,:), &
-                                        uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
-                                        ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                        fp(:,:,:,:), dp(:,:,:,1), &
-                                        lo, dx, dt, is_vel, &
-                                        the_bc_level%phys_bc_level_array(i,:,:), &
-                                        the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                                        ng_cell, use_minion, is_conservative)
+            if(use_godunov_debug) then
+               call mkflux_debug_3d(uop(:,:,:,:), uop(:,:,:,:), &
+                                    uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                                    ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                    fp(:,:,:,:), dp(:,:,:,1), &
+                                    lo, dx, dt, is_vel, &
+                                    the_bc_level%phys_bc_level_array(i,:,:), &
+                                    the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                    ng_cell, use_minion, is_conservative)
             else
                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                               uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &

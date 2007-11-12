@@ -54,6 +54,8 @@ subroutine varden()
   integer    :: comp,bc_comp
   logical    :: pmask_x,pmask_y,pmask_z
   integer    :: press_comp
+  logical    :: use_godunov_debug
+  logical    :: use_minion
 
   real(dp_t) :: prob_hi_x,prob_hi_y,prob_hi_z
 
@@ -144,6 +146,9 @@ subroutine varden()
   namelist /probin/ mg_verbose
   namelist /probin/ cg_verbose
   namelist /probin/ grav
+  namelist /probin/ use_godunov_debug
+  namelist /probin/ use_minion
+  
 
   ng_cell = 3
   ng_grow = 1
@@ -161,6 +166,9 @@ subroutine varden()
   nscal = 2
 
   grav = 0.0d0
+
+  use_godunov_debug = .false.
+  use_minion = .false.
 
   do_initial_projection  = 1
 
@@ -729,7 +737,8 @@ subroutine varden()
                                force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
-                               visc_coef)
+                               visc_coef,use_godunov_debug, &
+                               use_minion)
         end do
 
         do n=1,nlevs
@@ -752,7 +761,8 @@ subroutine varden()
                                 sforce(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
-                                diff_coef,verbose)
+                                diff_coef,verbose,use_godunov_debug, &
+                                use_minion)
         end do
 
         do n = 2, nlevs
@@ -781,7 +791,8 @@ subroutine varden()
                                  gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
-                                 visc_coef,verbose)
+                                 visc_coef,verbose,use_godunov_debug, &
+                                 use_minion)
         end do
 
         do n = 2, nlevs
@@ -1109,7 +1120,8 @@ subroutine varden()
                                gp(n),p(n),force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
-                               visc_coef)
+                               visc_coef,use_godunov_debug, &
+                               use_minion)
         end do
 
         do n=1,nlevs
@@ -1132,7 +1144,8 @@ subroutine varden()
                                 sforce(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
-                                diff_coef,verbose)
+                                diff_coef,verbose,use_godunov_debug, &
+                                use_minion)
         end do
 
         do n = 2, nlevs
@@ -1161,7 +1174,8 @@ subroutine varden()
                                  gp(n),p(n),force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
-                                 visc_coef,verbose)
+                                 visc_coef,verbose,use_godunov_debug, &
+                                 use_minion)
         end do
 
         do n = 2, nlevs
@@ -1276,6 +1290,11 @@ subroutine varden()
            farg = farg + 1
            call get_command_argument(farg, value = fname)
            read(fname, *) grav
+
+        case ('--use_godunov_debug')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) use_godunov_debug
 
         case ('--diff_coef')
            farg = farg + 1
