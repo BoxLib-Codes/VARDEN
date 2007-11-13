@@ -15,7 +15,7 @@
  stop_time = 1000.0
  cflfac = 0.95
 
- visc_coef = 0.0
+ visc_coef = 0.1
  diff_coef = 0.0
 
  grav = -9.8d0

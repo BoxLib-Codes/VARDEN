@@ -83,7 +83,10 @@ contains
 
 !     Local variables
       integer :: i, j
+      real(kind=dp_t) :: xloc,yloc,dist
 
+      ! zero initial velocity
+      ! density = 1
       do j=lo(2),hi(2)
          do i=lo(1),hi(1)
 
@@ -91,6 +94,24 @@ contains
             u(i,j,2) = ZERO
             s(i,j,1) = ONE
             s(i,j,2) = ZERO
+
+         enddo
+      enddo
+
+      ! add two "bubbles" of higher density
+      ! one centered over fine grid
+      ! one centered over coarse grid
+      do j=lo(2),hi(2)
+         do i=lo(1),hi(1)
+
+            xloc = (i+HALF)*dx(1)
+            yloc = (j+HALF)*dx(2)
+
+            dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2)
+            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
+
+            dist = sqrt((xloc-0.25d0)**2 + (yloc-0.5d0)**2)
+            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
 
          enddo
       enddo
