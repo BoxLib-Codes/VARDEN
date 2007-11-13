@@ -43,14 +43,13 @@ subroutine varden()
   real(dp_t) :: visc_coef
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
-  real(dp_t) :: time,dt,half_dt,dtold,dt_hold,dt_temp
+  real(dp_t) :: time,dt,dtold,dt_hold,dt_temp
   real(dp_t) :: visc_mu, pressure_inflow_val, grav
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: k,istep,ng_cell,ng_grow
   integer    :: i, d, n, nlevs, n_plot_comps, n_chk_comps, nscal
   integer    :: last_plt_written, last_chk_written
-  integer    :: init_step, edge_based
-  integer    :: iunit
+  integer    :: init_step
   integer    :: comp,bc_comp
   logical    :: pmask_x,pmask_y,pmask_z
   integer    :: press_comp
@@ -563,8 +562,6 @@ subroutine varden()
     if (time+dt > stop_time) dt = min(dt, stop_time - time)
   end if
 
-  half_dt = HALF * dt
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Begin the initial iterations to define an initial pressure field.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -719,8 +716,6 @@ subroutine varden()
            end if
 
         end do
-
-        half_dt = HALF * dt
 
         if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
