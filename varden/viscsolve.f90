@@ -54,8 +54,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
-                               mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
+     call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
   end do
 
   do d = 1,dm
