@@ -88,6 +88,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose)
   deallocate(phi)
   deallocate(alpha)
   deallocate(beta)
+  deallocate(fine_flx)
 
   contains
 
@@ -239,6 +240,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   deallocate(phi)
   deallocate(alpha)
   deallocate(beta)
+  deallocate(fine_flx)
 
   contains
 

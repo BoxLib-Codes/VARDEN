@@ -861,6 +861,11 @@ subroutine varden()
 
   call bc_tower_destroy(the_bc_tower)
 
+  call destroy(mla)
+  call destroy(mba)
+
+  deallocate(chkdata)
+
   contains
 
     subroutine make_new_grids(rho_crse,dx_crse,buf_wid)
