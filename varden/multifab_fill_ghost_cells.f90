@@ -195,6 +195,7 @@ contains
                                          cslope_lo, cslope_hi, lim_slope, lin_limit)
                 end select
    
+                deallocate(fp)
                 deallocate(cp)
                 deallocate(cvcx)
                 deallocate(fvcx)
