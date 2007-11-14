@@ -688,17 +688,17 @@ subroutine varden()
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
            call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,1,dm)
            call multifab_fill_ghost_cells(sold(n),sold(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,dm+1,nscal)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,dm+1,nscal)
            call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
-                                          ng_grow,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
+                ng_grow,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,1,dm)
         end do
 
         dtold = dt
@@ -742,7 +742,8 @@ subroutine varden()
            enddo
         enddo
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
+                        press_comp)
 
         do n=1,nlevs
            do d=1,dm
@@ -763,9 +764,9 @@ subroutine varden()
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
            call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,dm+1,nscal)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,dm+1,nscal)
         end do
 
         if (diff_coef > ZERO) then
@@ -773,7 +774,7 @@ subroutine varden()
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
-                                 mg_verbose,cg_verbose)
+                                 mg_verbose,cg_verbose,verbose)
         end if
 
         do n = 1,nlevs
@@ -793,14 +794,15 @@ subroutine varden()
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
            call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,1,dm)
         end do
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose,cg_verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose,cg_verbose, &
+                           verbose)
         end if
 
         do n = 1,nlevs
@@ -1101,17 +1103,17 @@ subroutine varden()
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
            call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,1,dm)
            call multifab_fill_ghost_cells(sold(n),sold(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,dm+1,nscal)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,dm+1,nscal)
            call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
-                                          ng_grow,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
+                ng_grow,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,1,dm)
         end do
 
         do n = 1,nlevs
@@ -1130,7 +1132,8 @@ subroutine varden()
            enddo
         enddo
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
+                        press_comp)
 
         do n=1,nlevs
            do d=1,dm
@@ -1151,9 +1154,9 @@ subroutine varden()
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
            call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,dm+1,nscal)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,dm+1,nscal)
         end do
 
         if (diff_coef > ZERO) then
@@ -1161,7 +1164,7 @@ subroutine varden()
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,&
-                                 mg_verbose,cg_verbose)
+                                 mg_verbose,cg_verbose,verbose)
         end if
 
         do n = 1,nlevs
@@ -1181,14 +1184,15 @@ subroutine varden()
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
            call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
+                ng_cell,mla%mba%rr(n-1,:), &
+                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                1,1,dm)
         end do
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose,cg_verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose, &
+                           cg_verbose,verbose)
         end if
 
         do n = 1,nlevs
