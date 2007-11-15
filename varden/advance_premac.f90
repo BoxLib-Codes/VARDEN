@@ -50,7 +50,6 @@ contains
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 !
-      integer :: edge_based
       integer :: lo(uold%dim),hi(uold%dim)
       integer :: dm,ng_cell
       integer :: i,n,comp
@@ -81,22 +80,25 @@ contains
          select case (dm)
             case (2)
               do n = 1,dm
-                call setbc_2d(uop(:,:,1,n), lo, ng_cell, the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
+                call setbc_2d(uop(:,:,1,n), lo, ng_cell, &
+                              the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
               end do
               n = dm+1
-                call setbc_2d(sop(:,:,1,1), lo, ng_cell, the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
+                call setbc_2d(sop(:,:,1,1), lo, ng_cell, &
+                              the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
             case (3)
               do n = 1,dm
-                call setbc_3d(uop(:,:,:,n), lo, ng_cell, the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
+                call setbc_3d(uop(:,:,:,n), lo, ng_cell, &
+                              the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
               end do
               n = dm+1
-                call setbc_3d(sop(:,:,:,1), lo, ng_cell, the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
+                call setbc_3d(sop(:,:,:,1), lo, ng_cell, &
+                              the_bc_level%adv_bc_level_array(i,:,:,n),dx,n)
          end select
       end do
 
 !     Create vel_force
       visc_fac = ONE
-      edge_based = 0
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
           fp => dataptr(vel_force, i)
