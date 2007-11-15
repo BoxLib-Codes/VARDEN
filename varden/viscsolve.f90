@@ -213,8 +213,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 
   allocate(fine_flx(2:nlevs))
   do n = 2,nlevs
-     call bndry_reg_rr_build_1(fine_flx(n),mla%la(n),mla%la(n-1), &
-                               mla%mba%rr(n-1,:),ml_layout_get_pd(mla,n-1))
+     call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
   end do
 
   call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
