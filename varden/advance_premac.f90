@@ -14,7 +14,7 @@ module pre_advance_module
 contains
 
    subroutine advance_premac(uold,sold,umac, &
-                             gp,p,ext_force, &
+                             gp,p,ext_vel_force, &
                              dx,time,dt, &
                              the_bc_level, &
                              visc_coef,use_godunov_debug, &
@@ -25,14 +25,14 @@ contains
       type(multifab) , intent(inout) :: umac(:)
       type(multifab) , intent(in   ) :: gp
       type(multifab) , intent(in   ) :: p
-      type(multifab) , intent(in   ) :: ext_force
+      type(multifab) , intent(in   ) :: ext_vel_force
       real(kind=dp_t), intent(in   ) :: dx(:),time,dt
       type(bc_level) , intent(in   ) :: the_bc_level
       real(kind=dp_t), intent(in   ) :: visc_coef
       logical        , intent(in)    :: use_godunov_debug
       logical        , intent(in)    :: use_minion
  
-      type(multifab) :: force
+      type(multifab) :: vel_force
  
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: ump(:,:,:,:)
@@ -66,7 +66,7 @@ contains
       ng_cell = uold%ng
       dm      = uold%dim
 
-      call multifab_build(     force,ext_force%la,dm,1)
+      call multifab_build(vel_force,ext_vel_force%la,dm,1)
 
       call multifab_fill_boundary(uold)
       call multifab_fill_boundary(sold)
@@ -94,13 +94,13 @@ contains
          end select
       end do
 
-!     Create force.
+!     Create vel_force
       visc_fac = ONE
       edge_based = 0
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
-          fp => dataptr(force, i)
-          ep => dataptr(ext_force, i)
+          fp => dataptr(vel_force, i)
+          ep => dataptr(ext_vel_force, i)
          gpp => dataptr(gp   , i)
           rp => dataptr(sold , i)
           up => dataptr(uold , i)
@@ -109,20 +109,20 @@ contains
          uop     => dataptr( uold, i)
          select case (dm)
             case (2)
-              call mkforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
-                              gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
-                              ng_cell, ng_cell, dx, &
-                              the_bc_level%ell_bc_level_array(i,:,:,:), &
-                              visc_coef, visc_fac)
+              call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
+                                 gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
+                                 ng_cell, ng_cell, dx, &
+                                 the_bc_level%ell_bc_level_array(i,:,:,:), &
+                                 visc_coef, visc_fac)
             case (3)
-              call mkforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
-                              gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
-                              ng_cell, ng_cell, dx, &
-                              the_bc_level%ell_bc_level_array(i,:,:,:), &
-                              visc_coef, visc_fac)
+              call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
+                                 gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
+                                 ng_cell, ng_cell, dx, &
+                                 the_bc_level%ell_bc_level_array(i,:,:,:), &
+                                 visc_coef, visc_fac)
          end select
       end do
-      call multifab_fill_boundary(force)
+      call multifab_fill_boundary(vel_force)
 
 !     Create the edge states to be used for the MAC velocity 
       do i = 1, uold%nboxes
@@ -130,7 +130,7 @@ contains
          uop  => dataptr(uold  , i)
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
-          fp  => dataptr(force , i)
+          fp  => dataptr(vel_force , i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
          select case (dm)
@@ -174,7 +174,7 @@ contains
          end select
       end do
 
-      call multifab_destroy(force)
+      call multifab_destroy(vel_force)
 
    end subroutine advance_premac
 

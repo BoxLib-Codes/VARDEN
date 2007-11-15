@@ -13,7 +13,7 @@ contains
 
    subroutine velocity_advance(lev,uold,unew,sold,rhohalf,&
                                umac,uedge,gp,p, &
-                               ext_force,dx,time,dt, &
+                               ext_vel_force,dx,time,dt, &
                                the_bc_level, &
                                visc_coef,verbose,use_godunov_debug, &
                                use_minion)
@@ -26,7 +26,7 @@ contains
       type(multifab) , intent(inout) :: rhohalf
       type(multifab) , intent(inout) :: gp
       type(multifab) , intent(inout) :: p
-      type(multifab) , intent(inout) :: ext_force
+      type(multifab) , intent(inout) :: ext_vel_force
 
       real(kind=dp_t), intent(inout) :: dx(:),time,dt
       type(bc_level) , intent(in   ) :: the_bc_level
@@ -36,7 +36,7 @@ contains
       logical        , intent(in)    :: use_godunov_debug
       logical        , intent(in)    :: use_minion
  
-      type(multifab) :: force
+      type(multifab) :: vel_force
       type(multifab) :: divu
  
       real(kind=dp_t), pointer:: uop(:,:,:,:)
@@ -75,8 +75,8 @@ contains
 
       irz = 0
 
-      call multifab_build(force,ext_force%la,dm,1)
-      call multifab_build(divu,force%la,1,1)
+      call multifab_build(vel_force,ext_vel_force%la,dm,1)
+      call multifab_build(divu,vel_force%la,1,1)
 
       call setval(divu,0.0_dp_t,all=.true.)
 
@@ -87,8 +87,8 @@ contains
       visc_fac = ONE
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
-          fp => dataptr(force, i)
-          ep => dataptr(ext_force, i)
+          fp => dataptr(vel_force, i)
+          ep => dataptr(ext_vel_force, i)
          gpp => dataptr(gp   , i)
           rp => dataptr(sold , i)
          uop => dataptr(uold , i)
@@ -97,20 +97,20 @@ contains
          uop     => dataptr( uold, i)
          select case (dm)
             case (2)
-              call mkforce_2d( fp(:,:,1,:), ep(:,:,1,:), &
-                              gpp(:,:,1,:), rp(:,:,1,1), uop(:,:,1,:), &
-                              ng_cell, ng_cell, dx, &
-                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                              visc_coef, visc_fac)
+              call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
+                                 gpp(:,:,1,:), rp(:,:,1,1), uop(:,:,1,:), &
+                                 ng_cell, ng_cell, dx, &
+                                 the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                 visc_coef, visc_fac)
             case (3)
-              call mkforce_3d( fp(:,:,:,:), ep(:,:,:,:), &
-                              gpp(:,:,:,:), rp(:,:,:,1), uop(:,:,:,:), &
-                              ng_cell, ng_cell, dx, &
-                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                              visc_coef, visc_fac)
+              call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
+                                 gpp(:,:,:,:), rp(:,:,:,1), uop(:,:,:,:), &
+                                 ng_cell, ng_cell, dx, &
+                                 the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                 visc_coef, visc_fac)
          end select
       end do
-      call multifab_fill_boundary(force)
+      call multifab_fill_boundary(vel_force)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the edge states of velocity using the MAC velocity 
@@ -123,7 +123,7 @@ contains
          uepy => dataptr(uedge(2), i)
          ump  => dataptr(umac(1), i)
          vmp  => dataptr(umac(2), i)
-          fp  => dataptr(force , i)
+          fp  => dataptr(vel_force , i)
           dp  => dataptr(divu, i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
@@ -174,13 +174,13 @@ contains
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!     Now create the force at half-time using rhohalf and half the viscous term.
+!     Now create vel_force at half-time using rhohalf and half the viscous term.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       visc_fac = HALF
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
-          fp => dataptr(force, i)
-          ep => dataptr(ext_force, i)
+          fp => dataptr(vel_force, i)
+          ep => dataptr(ext_vel_force, i)
          gpp => dataptr(gp   , i)
           rp => dataptr(rhohalf , i)
          uop => dataptr(uold , i)
@@ -188,20 +188,20 @@ contains
          hi =  upb(get_box(uold, i))
          select case (dm)
             case (2)
-              call mkforce_2d( fp(:,:,1,:), ep(:,:,1,:), &
-                              gpp(:,:,1,:), rp(:,:,1,1), uop(:,:,1,:), &
-                              ng_cell, ng_rho, dx, &
-                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                              visc_coef, visc_fac)
+              call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
+                                 gpp(:,:,1,:), rp(:,:,1,1), uop(:,:,1,:), &
+                                 ng_cell, ng_rho, dx, &
+                                 the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                 visc_coef, visc_fac)
             case (3)
-              call mkforce_3d( fp(:,:,:,:), ep(:,:,:,:), &
-                              gpp(:,:,:,:), rp(:,:,:,1), uop(:,:,:,:), &
-                              ng_cell, ng_rho, dx, &
-                              the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
-                              visc_coef, visc_fac)
+              call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
+                                 gpp(:,:,:,:), rp(:,:,:,1), uop(:,:,:,:), &
+                                 ng_cell, ng_rho, dx, &
+                                 the_bc_level%ell_bc_level_array(i,:,:,1:dm), &
+                                 visc_coef, visc_fac)
          end select
       end do
-      call multifab_fill_boundary(force)
+      call multifab_fill_boundary(vel_force)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the velocity with convective differencing
@@ -214,7 +214,7 @@ contains
          uepx => dataptr(uedge(1), i)
          uepy => dataptr(uedge(2), i)
          unp => dataptr(unew, i)
-          fp => dataptr(force, i)
+          fp => dataptr(vel_force, i)
           rp => dataptr(rhohalf, i)
          lo =  lwb(get_box(uold, i))
          hi =  upb(get_box(uold, i))
@@ -236,7 +236,7 @@ contains
          end select
       end do
 
-      call multifab_destroy(force)
+      call multifab_destroy(vel_force)
       call multifab_destroy(divu)
 
    end subroutine velocity_advance

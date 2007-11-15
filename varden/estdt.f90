@@ -7,9 +7,9 @@ module estdt_module
 
 contains
 
-   subroutine estdt (lev,u, s, gp, force, dx, cflfac, dtold, dt, verbose)
+   subroutine estdt (lev,u, s, gp, ext_vel_force, dx, cflfac, dtold, dt, verbose)
 
-      type(multifab) , intent( in) :: u,s,gp,force
+      type(multifab) , intent( in) :: u,s,gp,ext_vel_force
       real(kind=dp_t), intent( in) :: dx(:)
       real(kind=dp_t), intent( in) :: cflfac, dtold
       real(kind=dp_t), intent(out) :: dt
@@ -33,7 +33,7 @@ contains
          uop => dataptr(u, i)
          sop => dataptr(s, i)
          gpp => dataptr(gp, i)
-          fp => dataptr(force, i)
+          fp => dataptr(ext_vel_force, i)
          lo =  lwb(get_box(u, i))
          hi =  upb(get_box(u, i))
          select case (dm)
@@ -60,13 +60,14 @@ contains
 
    end subroutine estdt
 
-   subroutine estdt_2d (u,s,gp,force,lo,hi,ng,dx,dt)
+   subroutine estdt_2d (u,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
 
       integer, intent(in) :: lo(:), hi(:), ng
-      real (kind = dp_t), intent(in ) ::     u(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(in ) ::     s(lo(1)-ng:,lo(2)-ng:)  
-      real (kind = dp_t), intent(in ) ::    gp(lo(1)- 1:,lo(2)- 1:,:)  
-      real (kind = dp_t), intent(in ) :: force(lo(1)- 1:,lo(2)- 1:,:)  
+
+      real (kind = dp_t), intent(in ) :: u(lo(1)-ng:,lo(2)-ng:,:)  
+      real (kind = dp_t), intent(in ) :: s(lo(1)-ng:,lo(2)-ng:)  
+      real (kind = dp_t), intent(in ) :: gp(lo(1)-1:,lo(2)-1:,:)  
+      real (kind = dp_t), intent(in ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,:)  
       real (kind = dp_t), intent(in ) :: dx(:)
       real (kind = dp_t), intent(out) :: dt
 
@@ -87,8 +88,8 @@ contains
         do i = lo(1), hi(1)
           spdx    = max(spdx ,abs(u(i,j,1))/dx(1))
           spdy    = max(spdy ,abs(u(i,j,2))/dx(2))
-          pforcex = max(pforcex,abs(gp(i,j,1)/s(i,j)-force(i,j,1)))
-          pforcey = max(pforcey,abs(gp(i,j,2)/s(i,j)-force(i,j,2)))
+          pforcex = max(pforcex,abs(gp(i,j,1)/s(i,j)-ext_vel_force(i,j,1)))
+          pforcey = max(pforcey,abs(gp(i,j,2)/s(i,j)-ext_vel_force(i,j,2)))
         enddo
       enddo
 
@@ -112,13 +113,13 @@ contains
 
    end subroutine estdt_2d
 
-   subroutine estdt_3d (u,s,gp,force,lo,hi,ng,dx,dt)
+   subroutine estdt_3d (u,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
 
       integer, intent(in) :: lo(:), hi(:), ng
-      real (kind = dp_t), intent(in ) ::     u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(in ) ::     s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)  
-      real (kind = dp_t), intent(in ) ::    gp(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
-      real (kind = dp_t), intent(in ) :: force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
+      real (kind = dp_t), intent(in ) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
+      real (kind = dp_t), intent(in ) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)  
+      real (kind = dp_t), intent(in ) :: gp(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
+      real (kind = dp_t), intent(in ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)  
       real (kind = dp_t), intent(in ) :: dx(:)
       real (kind = dp_t), intent(out) :: dt
 
@@ -143,9 +144,9 @@ contains
           spdx    = max(spdx ,abs(u(i,j,k,1))/dx(1))
           spdy    = max(spdy ,abs(u(i,j,k,2))/dx(2))
           spdz    = max(spdz ,abs(u(i,j,k,3))/dx(3))
-          pforcex = max(pforcex,abs(gp(i,j,k,1)/s(i,j,k)-force(i,j,k,1)))
-          pforcey = max(pforcey,abs(gp(i,j,k,2)/s(i,j,k)-force(i,j,k,2)))
-          pforcez = max(pforcez,abs(gp(i,j,k,3)/s(i,j,k)-force(i,j,k,3)))
+          pforcex = max(pforcex,abs(gp(i,j,k,1)/s(i,j,k)-ext_vel_force(i,j,k,1)))
+          pforcey = max(pforcey,abs(gp(i,j,k,2)/s(i,j,k)-ext_vel_force(i,j,k,2)))
+          pforcez = max(pforcez,abs(gp(i,j,k,3)/s(i,j,k)-ext_vel_force(i,j,k,3)))
         enddo
       enddo
       enddo

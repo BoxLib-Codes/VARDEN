@@ -75,8 +75,8 @@ subroutine varden()
   type(multifab), allocatable ::  rhohalf(:)
   type(multifab), allocatable ::        p(:)
   type(multifab), allocatable ::     vort(:)
-  type(multifab), allocatable ::    force(:)
-  type(multifab), allocatable ::   sforce(:)
+  type(multifab), allocatable :: ext_vel_force(:)
+  type(multifab), allocatable :: ext_scal_force(:)
   type(multifab), allocatable :: plotdata(:)
   type(multifab), pointer     ::  chkdata(:)
   type(multifab), pointer     ::    chk_p(:)
@@ -291,7 +291,7 @@ subroutine varden()
 ! Allocate state and temp variables
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate(force(nlevs),sforce(nlevs))
+  allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
   allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
 
   allocate(unew(nlevs),snew(nlevs))
@@ -554,7 +554,8 @@ subroutine varden()
 
   dt_hold = dt
   do n = 1,nlevs
-     call estdt(n,uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt,verbose)
+     call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
+                cflfac,dtold,dt,verbose)
      dt = min(dt_hold,dt)
   end do
   if (restart < 0) dt = dt * init_shrink
@@ -709,7 +710,8 @@ subroutine varden()
            call multifab_fill_boundary(gp(n))
 
            if (istep > 1) then
-             call estdt(n,uold(n),sold(n),gp(n),force(n),dx(n,:),cflfac,dtold,dt,verbose)
+             call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:),cflfac,dtold,dt, &
+                        verbose)
              if (stop_time >= 0.d0) then
                if (time+dt > stop_time) dt = stop_time - time
              end if
@@ -729,7 +731,7 @@ subroutine varden()
            call advance_premac(uold(n),sold(n),&
                                umac(n,:), &
                                gp(n),p(n), &
-                               force(n), &
+                               ext_vel_force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
                                visc_coef,use_godunov_debug, &
@@ -754,7 +756,7 @@ subroutine varden()
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
                                 umac(n,:),sedge(n,:),&
-                                sforce(n),&
+                                ext_scal_force(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
                                 diff_coef,verbose,use_godunov_debug, &
@@ -784,7 +786,7 @@ subroutine varden()
         do n = 1,nlevs
            call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n),&
                                  umac(n,:),uedge(n,:), &
-                                 gp(n),p(n),force(n), &
+                                 gp(n),p(n),ext_vel_force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
                                  visc_coef,verbose,use_godunov_debug, &
@@ -1023,16 +1025,16 @@ subroutine varden()
         call multifab_build(   snew(n), mla_loc%la(n), nscal, ng_cell)
         call multifab_build(rhohalf(n), mla_loc%la(n),     1, 1)
         call multifab_build(   vort(n), mla_loc%la(n),     1, 0)
-        call multifab_build(  force(n), mla_loc%la(n),    dm, 1)
-        call multifab_build( sforce(n), mla_loc%la(n), nscal, 1)
+        call multifab_build(ext_vel_force(n),  mla_loc%la(n),    dm, 1)
+        call multifab_build(ext_scal_force(n), mla_loc%la(n), nscal, 1)
 
         call setval(   unew(n),ZERO, all=.true.)
         call setval(   snew(n),ZERO, all=.true.)
         call setval(   vort(n),ZERO, all=.true.)
         call setval(rhohalf(n),ONE, all=.true.)
-        call setval(  force(n),ZERO, 1,dm-1,all=.true.)
-        call setval(  force(n),grav,dm,   1,all=.true.)
-        call setval( sforce(n),ZERO, all=.true.)
+        call setval(ext_vel_force(n) ,ZERO, 1,dm-1,all=.true.)
+        call setval(ext_vel_force(n) ,grav,dm,   1,all=.true.)
+        call setval(ext_scal_force(n),ZERO, all=.true.)
    
         do i = 1,dm
           umac_nodal_flag = .false.
@@ -1065,8 +1067,8 @@ subroutine varden()
       do n = 1,nlevs
          call multifab_destroy(unew(n))
          call multifab_destroy(snew(n))
-         call multifab_destroy(force(n))
-         call multifab_destroy(sforce(n))
+         call multifab_destroy(ext_vel_force(n))
+         call multifab_destroy(ext_scal_force(n))
          do i = 1,dm
            call multifab_destroy(umac(n,i))
            call multifab_destroy(uedge(n,i))
@@ -1119,7 +1121,7 @@ subroutine varden()
         do n = 1,nlevs
            call advance_premac(uold(n),sold(n),&
                                umac(n,:), & 
-                               gp(n),p(n),force(n), &
+                               gp(n),p(n),ext_vel_force(n), &
                                dx(n,:),time,dt, &
                                the_bc_tower%bc_tower_array(n), &
                                visc_coef,use_godunov_debug, &
@@ -1144,7 +1146,7 @@ subroutine varden()
         do n = 1,nlevs
            call scalar_advance (n,uold(n),sold(n),snew(n),rhohalf(n),&
                                 umac(n,:),sedge(n,:), &
-                                sforce(n),&
+                                ext_scal_force(n),&
                                 dx(n,:),time,dt, &
                                 the_bc_tower%bc_tower_array(n), &
                                 diff_coef,verbose,use_godunov_debug, &
@@ -1174,7 +1176,7 @@ subroutine varden()
         do n = 1,nlevs
            call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n), &
                                  umac(n,:),uedge(n,:), &
-                                 gp(n),p(n),force(n), &
+                                 gp(n),p(n),ext_vel_force(n), &
                                  dx(n,:),time,dt, &
                                  the_bc_tower%bc_tower_array(n), &
                                  visc_coef,verbose,use_godunov_debug, &
