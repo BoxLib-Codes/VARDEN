@@ -60,7 +60,7 @@ contains
       integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel, make_divu
       logical, allocatable :: is_conservative(:)
-      real(kind=dp_t) :: visc_fac, diff_fac
+      real(kind=dp_t) :: diff_fac
       real(kind=dp_t) :: half_dt
 
       half_dt = HALF * dt
@@ -84,7 +84,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create scalar force at time n.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      visc_fac = ONE
+      diff_fac = ONE
       do i = 1, uold%nboxes
          if ( multifab_remote(uold, i) ) cycle
           fp => dataptr(scal_force, i)
@@ -97,12 +97,12 @@ contains
               call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
                                   ng_cell, dx, &
                                   the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, visc_fac)
+                                  diff_coef, diff_fac)
             case (3)
               call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
                                   ng_cell, dx, &
                                   the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, visc_fac)
+                                  diff_coef, diff_fac)
          end select
       end do
 
