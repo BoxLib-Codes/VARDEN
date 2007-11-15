@@ -119,6 +119,15 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
   call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr,verbose)
 
+!  print*,"printing umac(lev=1)"
+!  call print(umac(1,1))
+!  print*,"printing umac(lev=2)"
+!  call print(umac(2,1))
+!  print*,"printing vmac(lev=1)"
+!  call print(umac(1,2))
+!  print*,"printing vmac(lev=2)"
+!  call print(umac(2,2))
+
   if (use_rhs) then
     call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.,divu_rhs)
   else
@@ -922,7 +931,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       end if
 
       do j = 0,ny-1
-         umac( 0,j) = umac( 0,j) + lo_x_flx(1,j) * dx(1)
+         umac( 0,j) = umac( 0,j) - lo_x_flx(1,j) * dx(1)
          umac(nx,j) = umac(nx,j) + hi_x_flx(1,j) * dx(1)
          do i = 1,nx-1
             gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
@@ -932,7 +941,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
 
       do i = 0,nx-1
-         vmac(i, 0) = vmac(i, 0) + lo_y_flx(i,1) * dx(2)
+         vmac(i, 0) = vmac(i, 0) - lo_y_flx(i,1) * dx(2)
          vmac(i,ny) = vmac(i,ny) + hi_y_flx(i,1) * dx(2)
          do j = 1,ny-1
             gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
@@ -1168,7 +1177,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
       do k = 0,nz-1
       do j = 0,ny-1
-         umac( 0,j,k) = umac( 0,j,k) + lo_x_flx(1,j,k) * dx(1)
+         umac( 0,j,k) = umac( 0,j,k) - lo_x_flx(1,j,k) * dx(1)
          umac(nx,j,k) = umac(nx,j,k) + hi_x_flx(1,j,k) * dx(1)
          do i = 1,nx-1
             gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
@@ -1179,7 +1188,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
       do k = 0,nz-1
       do i = 0,nx-1
-         vmac(i, 0,k) = vmac(i, 0,k) + lo_y_flx(i,1,k) * dx(2)
+         vmac(i, 0,k) = vmac(i, 0,k) - lo_y_flx(i,1,k) * dx(2)
          vmac(i,ny,k) = vmac(i,ny,k) + hi_y_flx(i,1,k) * dx(2)
          do j = 1,ny-1
             gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
@@ -1190,7 +1199,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
       do j = 0,ny-1
       do i = 0,nx-1
-         wmac(i,j, 0) = wmac(i,j, 0) + lo_z_flx(i,j,1) * dx(3)
+         wmac(i,j, 0) = wmac(i,j, 0) - lo_z_flx(i,j,1) * dx(3)
          wmac(i,j,nz) = wmac(i,j,nz) + hi_z_flx(i,j,1) * dx(3)
          do k = 1,nz-1
             gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
