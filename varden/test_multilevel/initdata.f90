@@ -107,11 +107,16 @@ contains
             xloc = (i+HALF)*dx(1)
             yloc = (j+HALF)*dx(2)
 
-            dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2)
+            ! use this for one bubble problem
+            dist = sqrt((xloc-0.5d0)**2 + (yloc-0.5d0)**2)
             s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
 
-            dist = sqrt((xloc-0.25d0)**2 + (yloc-0.5d0)**2)
-            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
+
+            ! use this for two bubble problem            
+!            dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2)
+!            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
+!            dist = sqrt((xloc-0.25d0)**2 + (yloc-0.5d0)**2)
+!            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
 
          enddo
       enddo

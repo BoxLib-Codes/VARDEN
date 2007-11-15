@@ -6,7 +6,7 @@
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 50
+ max_step  = 35
  init_iter = 3
 
  plot_int  = 1
