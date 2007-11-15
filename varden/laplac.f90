@@ -9,8 +9,8 @@ contains
       subroutine laplac_2d(u,diff,dx,ng,bc)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(in   ) ::    u(1-ng:,1-ng:)
-      real(kind=dp_t), intent(inout) :: diff(:,:)
+      real(kind=dp_t), intent(in   ) :: u(1-ng:,1-ng:)
+      real(kind=dp_t), intent(inout) :: diff(0:,0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: bc(:,:)
 
@@ -25,8 +25,8 @@ contains
       nx = size(diff,dim=1)
       ny = size(diff,dim=2)
 
-      do j = 1,ny
-      do i = 1,nx
+      do j = 0,ny-1
+      do i = 0,nx-1
             ux_lft = (u(i,j) - u(i-1,j))
             ux_lft_wall = (-16.0_dp_t * u(0,j) + 20.0_dp_t * u(1,j) &
                             -5.0_dp_t * u(2,j) + u(3,j) ) * 0.2_dp_t
@@ -64,8 +64,8 @@ contains
       subroutine laplac_3d(u,diff,dx,ng,bc)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(in   ) ::    u(1-ng:,1-ng:,1-ng:)
-      real(kind=dp_t), intent(inout) :: diff(:,:,:)
+      real(kind=dp_t), intent(in   ) :: u(1-ng:,1-ng:,1-ng:)
+      real(kind=dp_t), intent(inout) :: diff(0:,0:,0:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: bc(:,:)
 
@@ -83,9 +83,9 @@ contains
       ny = size(diff,dim=2)
       nz = size(diff,dim=3)
 
-      do k = 1,nz
-      do j = 1,ny
-      do i = 1,nx
+      do k = 0,nz-1
+      do j = 0,ny-1
+      do i = 0,nx-1
             ux_lft = (u(i,j,k) - u(i-1,j,k))
             ux_lft_wall = (-16.0_dp_t * u(0,j,k) + 20.0_dp_t * u(1,j,k) &
                             -5.0_dp_t * u(2,j,k) + u(3,j,k) ) * 0.2_dp_t
