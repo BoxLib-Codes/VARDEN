@@ -59,11 +59,15 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
+      integer :: ir(uold(1)%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho,ilev
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
 
       allocate(vel_force(nlevs),divu(nlevs))
+
+      ! refinement ratio
+      ir = 2
 
       half_dt = HALF * dt
 
@@ -237,6 +241,12 @@ contains
       end do
 
       enddo ! do ilev=1,nlevs
+
+      ! use restriction so coarse cells are the average
+      ! of the corresponding fine cells
+      do ilev=2,nlevs
+         call ml_cc_restriction(unew(ilev-1),unew(ilev),ir)
+      enddo
 
       do ilev=1,nlevs
          call multifab_destroy(vel_force(ilev))

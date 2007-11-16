@@ -56,6 +56,7 @@ contains
 
       integer :: nscal
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
+      integer :: ir(uold(1)%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel,make_divu
       logical, allocatable :: is_conservative(:)
@@ -64,6 +65,9 @@ contains
       integer :: ilev
 
       allocate(scal_force(nlevs),divu(nlevs))
+
+      ! refinement ratio
+      ir = 2
 
       half_dt = HALF * dt
 
@@ -266,6 +270,12 @@ contains
       end do
       
       enddo ! do ilev=1,nlevs
+
+      ! use restriction so coarse cells are the average
+      ! of the corresponding fine cells
+      do ilev=2,nlevs
+         call ml_cc_restriction(snew(ilev-1),snew(ilev),ir)
+      enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
