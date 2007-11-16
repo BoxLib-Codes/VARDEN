@@ -753,11 +753,9 @@ subroutine varden()
            enddo
         enddo
 
-        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge, &
-                            ext_scal_force,dx,time,dt, &
-                            the_bc_tower%bc_tower_array, &
-                            diff_coef,verbose,use_godunov_debug, &
-                            use_minion)
+        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,ext_scal_force, &
+                            dx,time,dt,the_bc_tower%bc_tower_array, &
+                            diff_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
@@ -779,15 +777,9 @@ subroutine varden()
            call multifab_fill_boundary(snew(n))
         end do
 
-        do n = 1,nlevs
-           call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n),&
-                                 umac(n,:),uedge(n,:), &
-                                 gp(n),p(n),ext_vel_force(n), &
-                                 dx(n,:),time,dt, &
-                                 the_bc_tower%bc_tower_array(n), &
-                                 visc_coef,verbose,use_godunov_debug, &
-                                 use_minion)
-        end do
+        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,gp,p,ext_vel_force, &
+                              dx,time,dt,the_bc_tower%bc_tower_array, &
+                              visc_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
@@ -1139,11 +1131,9 @@ subroutine varden()
            enddo
         enddo
 
-        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge, &
-                            ext_scal_force,dx,time,dt, &
-                            the_bc_tower%bc_tower_array, &
-                            diff_coef,verbose,use_godunov_debug, &
-                            use_minion)
+        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,ext_scal_force, &
+                            dx,time,dt,the_bc_tower%bc_tower_array, &
+                            diff_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
@@ -1165,15 +1155,9 @@ subroutine varden()
            call multifab_fill_boundary(snew(n))
         end do
 
-        do n = 1,nlevs
-           call velocity_advance(n,uold(n),unew(n),sold(n),rhohalf(n), &
-                                 umac(n,:),uedge(n,:), &
-                                 gp(n),p(n),ext_vel_force(n), &
-                                 dx(n,:),time,dt, &
-                                 the_bc_tower%bc_tower_array(n), &
-                                 visc_coef,verbose,use_godunov_debug, &
-                                 use_minion)
-        end do
+        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,gp,p,ext_vel_force, &
+                              dx,time,dt,the_bc_tower%bc_tower_array, &
+                              visc_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
