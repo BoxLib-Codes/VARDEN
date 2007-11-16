@@ -12,40 +12,40 @@ module scalar_advance_module
 
 contains
 
-   subroutine scalar_advance (lev,uold,sold,snew,rhohalf,&
-                              umac,sedge, &
-                              ext_scal_force,&
+   subroutine scalar_advance (nlevs,uold,sold,snew,rhohalf, &
+                              umac,sedge,ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
                               diff_coef,&
                               verbose,use_godunov_debug, &
                               use_minion)
  
-      type(multifab) , intent(inout) :: uold
-      type(multifab) , intent(inout) :: sold
-      type(multifab) , intent(inout) :: snew
-      type(multifab) , intent(inout) :: rhohalf
-      type(multifab) , intent(inout) :: umac(:)
-      type(multifab) , intent(inout) :: sedge(:)
-      type(multifab) , intent(inout) :: ext_scal_force
-!
-      real(kind=dp_t), intent(inout) :: dx(:),time,dt
-      type(bc_level) , intent(in   ) :: the_bc_level
+      integer        , intent(in   ) :: nlevs
+      type(multifab) , intent(inout) :: uold(:)
+      type(multifab) , intent(inout) :: sold(:)
+      type(multifab) , intent(inout) :: snew(:)
+      type(multifab) , intent(inout) :: rhohalf(:)
+      type(multifab) , intent(inout) :: umac(:,:)
+      type(multifab) , intent(inout) :: sedge(:,:)
+      type(multifab) , intent(inout) :: ext_scal_force(:)
+
+      real(kind=dp_t), intent(inout) :: dx(:,:),time,dt
+      type(bc_level) , intent(in   ) :: the_bc_level(:)
       real(kind=dp_t), intent(in   ) :: diff_coef
+      integer        , intent(in   ) :: verbose
       logical        , intent(in)    :: use_godunov_debug
       logical        , intent(in)    :: use_minion
-! 
-      integer        , intent(in   ) :: lev,verbose
-! 
-      type(multifab) :: scal_force
-! 
+ 
+      ! local variables
+      type(multifab), allocatable :: scal_force(:), divu(:)
+ 
       real(kind=dp_t), pointer:: uop(:,:,:,:)
       real(kind=dp_t), pointer:: ump(:,:,:,:)
       real(kind=dp_t), pointer:: vmp(:,:,:,:)
       real(kind=dp_t), pointer:: wmp(:,:,:,:)
       real(kind=dp_t), pointer::  ep(:,:,:,:)
       real(kind=dp_t), pointer::  fp(:,:,:,:)
-!
+
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
       real(kind=dp_t), pointer::  rp(:,:,:,:) 
@@ -53,77 +53,83 @@ contains
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
       real(kind=dp_t), pointer:: sepz(:,:,:,:)
-!
-      type(multifab) :: divu
+
       integer :: nscal
-      integer :: lo(uold%dim),hi(uold%dim)
+      integer :: lo(uold(1)%dim),hi(uold(1)%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
-      logical :: is_vel, make_divu
+      logical :: is_vel,make_divu
       logical, allocatable :: is_conservative(:)
       real(kind=dp_t) :: diff_fac
       real(kind=dp_t) :: half_dt
+      integer :: ilev
+
+      allocate(scal_force(nlevs),divu(nlevs))
 
       half_dt = HALF * dt
 
-      ng_cell = uold%ng
-      ng_rho  = rhohalf%ng
-      dm      = uold%dim
+      ng_cell = uold(1)%ng
+      ng_rho  = rhohalf(1)%ng
+      dm      = uold(1)%dim
 
-      nscal   = ncomp(sold)
+      nscal   = ncomp(sold(1))
       is_vel  = .false.
 
       allocate(is_conservative(nscal))
       is_conservative(1) = .true.
       is_conservative(2) = .false.
 
-      call multifab_build(scal_force,ext_scal_force%la,nscal,1)
-      call multifab_build(divu,scal_force%la,1,1)
+      do ilev=1,nlevs
+         call multifab_build(scal_force(ilev),ext_scal_force(ilev)%la,nscal,1)
+         call multifab_build(divu(ilev),scal_force(ilev)%la,1,1)
 
-      call setval(divu,0.0_dp_t,all=.true.)
+         call setval(divu(ilev),0.0_dp_t,all=.true.)
+      enddo
+
+      do ilev=1,nlevs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create scalar force at time n.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       diff_fac = ONE
-      do i = 1, uold%nboxes
-         if ( multifab_remote(uold, i) ) cycle
-          fp => dataptr(scal_force, i)
-          ep => dataptr(ext_scal_force, i)
-         sop => dataptr(sold , i)
-         lo =  lwb(get_box(sold, i))
-         hi =  upb(get_box(sold, i))
+      do i = 1, uold(ilev)%nboxes
+         if ( multifab_remote(uold(ilev), i) ) cycle
+         fp  => dataptr(scal_force(ilev), i)
+         ep  => dataptr(ext_scal_force(ilev), i)
+         sop => dataptr(sold(ilev), i)
+         lo = lwb(get_box(sold(ilev), i))
+         hi = upb(get_box(sold(ilev), i))
          select case (dm)
-            case (2)
-              call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
-                                  ng_cell, dx, &
-                                  the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, diff_fac)
-            case (3)
-              call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
-                                  ng_cell, dx, &
-                                  the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, diff_fac)
+         case (2)
+            call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
+                                ng_cell, dx(ilev,:), &
+                                the_bc_level(ilev)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                diff_coef, diff_fac)
+         case (3)
+            call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
+                                ng_cell, dx(ilev,:), &
+                                the_bc_level(ilev)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                diff_coef, diff_fac)
          end select
       end do
 
-      call multifab_fill_boundary(scal_force)
+      call multifab_fill_boundary(scal_force(ilev))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the edge states of scalar using the MAC velocity 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      do i = 1, sold%nboxes
-         if ( multifab_remote(sold, i) ) cycle
-         sop  => dataptr(sold, i)
-         uop  => dataptr(uold, i)
-         sepx => dataptr(sedge(1), i)
-         sepy => dataptr(sedge(2), i)
-         ump  => dataptr(umac(1), i)
-         vmp  => dataptr(umac(2), i)
-          fp  => dataptr(scal_force , i)
-          dp  => dataptr(divu, i)
-         lo =  lwb(get_box(uold, i))
-         hi =  upb(get_box(uold, i))
+      do i = 1, sold(ilev)%nboxes
+         if ( multifab_remote(sold(ilev), i) ) cycle
+         sop  => dataptr(sold(ilev), i)
+         uop  => dataptr(uold(ilev), i)
+         sepx => dataptr(sedge(ilev,1), i)
+         sepy => dataptr(sedge(ilev,2), i)
+         ump  => dataptr(umac(ilev,1), i)
+         vmp  => dataptr(umac(ilev,2), i)
+         fp   => dataptr(scal_force(ilev) , i)
+         dp   => dataptr(divu(ilev), i)
+         lo = lwb(get_box(uold(ilev), i))
+         hi = upb(get_box(uold(ilev), i))
          select case (dm)
          case (2)
             if(use_godunov_debug) then
@@ -131,40 +137,40 @@ contains
                                     sepx(:,:,1,:), sepy(:,:,1,:), &
                                     ump(:,:,1,1), vmp(:,:,1,1), &
                                     fp(:,:,1,:), dp(:,:,1,1), &
-                                    lo, dx, dt, is_vel, &
-                                    the_bc_level%phys_bc_level_array(i,:,:), &
-                                    the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                    lo, dx(ilev,:), dt, is_vel, &
+                                    the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
+                                    the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                     ng_cell, use_minion, is_conservative)
             else
                call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                               sepx(:,:,1,:), sepy(:,:,1,:), &
                               ump(:,:,1,1), vmp(:,:,1,1), &
                               fp(:,:,1,:), dp(:,:,1,1), &
-                              lo, dx, dt, is_vel, &
-                              the_bc_level%phys_bc_level_array(i,:,:), &
-                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                              lo, dx(ilev,:), dt, is_vel, &
+                              the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
+                              the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                               ng_cell, use_minion, is_conservative)
             endif
          case (3)
-            sepz => dataptr(sedge(3), i)
-            wmp  => dataptr(umac(3), i)
+            sepz => dataptr(sedge(ilev,3), i)
+            wmp  => dataptr(umac(ilev,3), i)
             if(use_godunov_debug) then
                call mkflux_debug_3d(sop(:,:,:,:), uop(:,:,:,:), &
                                     sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                                     ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                     fp(:,:,:,:), dp(:,:,:,1), &
-                                    lo, dx, dt, is_vel, &
-                                    the_bc_level%phys_bc_level_array(i,:,:), &
-                                    the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                    lo, dx(ilev,:), dt, is_vel, &
+                                    the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
+                                    the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                     ng_cell, use_minion, is_conservative)
             else
                call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                               sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                               ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                               fp(:,:,:,:), dp(:,:,:,1), &
-                              lo, dx, dt, is_vel, &
-                              the_bc_level%phys_bc_level_array(i,:,:), &
-                              the_bc_level%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                              lo, dx(ilev,:), dt, is_vel, &
+                              the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
+                              the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
                               ng_cell, use_minion, is_conservative)
             endif
          end select
@@ -174,90 +180,101 @@ contains
 !     Create scalar force at time n+1/2.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       diff_fac = HALF
-      do i = 1, uold%nboxes
-         if ( multifab_remote(uold, i) ) cycle
-          fp => dataptr(scal_force, i)
-          ep => dataptr(ext_scal_force, i)
-          sop => dataptr(sold , i)
-         lo =  lwb(get_box(sold, i))
-         hi =  upb(get_box(sold, i))
+      do i = 1, uold(ilev)%nboxes
+         if ( multifab_remote(uold(ilev), i) ) cycle
+         fp  => dataptr(scal_force(ilev), i)
+         ep  => dataptr(ext_scal_force(ilev), i)
+         sop => dataptr(sold(ilev) , i)
+         lo =  lwb(get_box(sold(ilev), i))
+         hi =  upb(get_box(sold(ilev), i))
          select case (dm)
-            case (2)
-              call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
-                                  ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, diff_fac)
-            case (3)
-              call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
-                                  ng_cell, dx, the_bc_level%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                  diff_coef, diff_fac)
+         case (2)
+            call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
+                                ng_cell, dx(ilev,:), &
+                                the_bc_level(ilev)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                diff_coef, diff_fac)
+         case (3)
+            call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
+                                ng_cell, dx(ilev,:), &
+                                the_bc_level(ilev)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
+                                diff_coef, diff_fac)
          end select
       end do
-      call multifab_fill_boundary(scal_force)
+      call multifab_fill_boundary(scal_force(ilev))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the scalars with conservative or convective differencing.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      do i = 1, sold%nboxes
-         if ( multifab_remote(uold, i) ) cycle
-         sop => dataptr(sold, i)
-         ump => dataptr(umac(1), i)
-         vmp => dataptr(umac(2), i)
-         sepx => dataptr(sedge(1), i)
-         sepy => dataptr(sedge(2), i)
-         snp => dataptr(snew, i)
-          rp => dataptr(rhohalf, i)
-          fp => dataptr(scal_force , i)
-         lo =  lwb(get_box(uold, i))
-         hi =  upb(get_box(uold, i))
+      do i = 1, sold(ilev)%nboxes
+         if ( multifab_remote(uold(ilev), i) ) cycle
+         sop  => dataptr(sold(ilev), i)
+         ump  => dataptr(umac(ilev,1), i)
+         vmp  => dataptr(umac(ilev,2), i)
+         sepx => dataptr(sedge(ilev,1), i)
+         sepy => dataptr(sedge(ilev,2), i)
+         snp  => dataptr(snew(ilev), i)
+          rp  => dataptr(rhohalf(ilev), i)
+          fp  => dataptr(scal_force(ilev), i)
+         lo = lwb(get_box(uold(ilev), i))
+         hi = upb(get_box(uold(ilev), i))
          select case (dm)
-            case (2)
-              call update_2d(lev,sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
-                             sepx(:,:,1,:), sepy(:,:,1,:), &
-                             fp(:,:,1,:) , snp(:,:,1,:), &
-                             rp(:,:,1,1) , &
-                             lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
-            case (3)
-               wmp => dataptr(umac(3), i)
-               sepz => dataptr(sedge(3), i)
-              call update_3d(lev,sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                             sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
-                             fp(:,:,:,:) , snp(:,:,:,:), &
-                             rp(:,:,:,1) , &
-                             lo, hi, ng_cell,dx,dt,is_vel,is_conservative,verbose)
+         case (2)
+            call update_2d(ilev,sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+                           sepx(:,:,1,:), sepy(:,:,1,:), &
+                           fp(:,:,1,:) , snp(:,:,1,:), &
+                           rp(:,:,1,1) , &
+                           lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)
+         case (3)
+            wmp => dataptr(umac(ilev,3), i)
+            sepz => dataptr(sedge(ilev,3), i)
+            call update_3d(ilev,sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                           sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                           fp(:,:,:,:) , snp(:,:,:,:), &
+                           rp(:,:,:,1) , &
+                           lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)
          end select
       end do
-
-      call multifab_fill_boundary(rhohalf)
-      call multifab_fill_boundary(snew)
-
-      do i = 1, sold%nboxes
-         if ( multifab_remote(uold, i) ) cycle
-         snp => dataptr(snew, i)
-          rp => dataptr(rhohalf, i)
-         lo =  lwb(get_box(uold, i))
+      
+      call multifab_fill_boundary(rhohalf(ilev))
+      call multifab_fill_boundary(snew(ilev))
+      
+      do i = 1, sold(ilev)%nboxes
+         if ( multifab_remote(uold(ilev), i) ) cycle
+         snp => dataptr(snew(ilev), i)
+         rp  => dataptr(rhohalf(ilev), i)
+         lo = lwb(get_box(uold(ilev), i))
          select case (dm)
-            case (2)
-              do n = 1,nscal
-                call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
-                              the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
-              call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
-                            the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
-            case (3)
-              do n = 1,nscal
-                call setbc_3d(snp(:,:,:,n), lo, ng_cell, &
-                              the_bc_level%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
-              call setbc_3d(rp(:,:,:,1), lo, ng_rho, &
-                            the_bc_level%adv_bc_level_array(i,:,:,dm+1),dx,dm+1)
+         case (2)
+            do n = 1,nscal
+               call setbc_2d(snp(:,:,1,n), lo, ng_cell, &
+                             the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+n), &
+                             dx(ilev,:),dm+n)
+            end do
+            call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
+                          the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+1), &
+                          dx(ilev,:),dm+1)
+         case (3)
+            do n = 1,nscal
+               call setbc_3d(snp(:,:,:,n), lo, ng_cell, &
+                             the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+n), &
+                             dx(ilev,:),dm+n)
+            end do
+            call setbc_3d(rp(:,:,:,1), lo, ng_rho, &
+                          the_bc_level(ilev)%adv_bc_level_array(i,:,:,dm+1), &
+                          dx(ilev,:),dm+1)
          end select
       end do
+      
+      enddo ! do ilev=1,nlevs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       deallocate(is_conservative)
-      call multifab_destroy(scal_force)
-      call multifab_destroy(divu)
+
+      do ilev = 1,nlevs
+         call multifab_destroy(scal_force(ilev))
+         call multifab_destroy(divu(ilev))
+      enddo
 
    end subroutine scalar_advance
 
