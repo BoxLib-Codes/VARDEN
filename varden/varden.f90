@@ -1139,13 +1139,11 @@ subroutine varden()
            enddo
         enddo
 
-        do n = 1,nlevs
-           call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge, &
-                               ext_scal_force,dx,time,dt, &
-                               the_bc_tower%bc_tower_array, &
-                               diff_coef,verbose,use_godunov_debug, &
-                               use_minion)
-        end do
+        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge, &
+                            ext_scal_force,dx,time,dt, &
+                            the_bc_tower%bc_tower_array, &
+                            diff_coef,verbose,use_godunov_debug, &
+                            use_minion)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
