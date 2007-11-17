@@ -754,8 +754,8 @@ subroutine varden()
            enddo
         enddo
 
-        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,flux,ext_scal_force, &
-                            dx,time,dt,the_bc_tower%bc_tower_array, &
+        call scalar_advance(nlevs,mla,uold,sold,snew,rhohalf,umac,sedge,flux, &
+                            ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
@@ -778,7 +778,7 @@ subroutine varden()
            call multifab_fill_boundary(snew(n))
         end do
 
-        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
+        call velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
                               ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 
@@ -1135,8 +1135,8 @@ subroutine varden()
            enddo
         enddo
 
-        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,flux,ext_scal_force, &
-                            dx,time,dt,the_bc_tower%bc_tower_array, &
+        call scalar_advance(nlevs,mla,uold,sold,snew,rhohalf,umac,sedge,flux, &
+                            ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
@@ -1159,7 +1159,7 @@ subroutine varden()
            call multifab_fill_boundary(snew(n))
         end do
 
-        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
+        call velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
                               ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 

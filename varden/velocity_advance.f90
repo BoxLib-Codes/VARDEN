@@ -11,7 +11,7 @@ module velocity_advance_module
 
 contains
 
-   subroutine velocity_advance(nlevs,uold,unew,sold,rhohalf,&
+   subroutine velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,&
                                umac,uedge,flux,gp,p, &
                                ext_vel_force,dx,time,dt, &
                                the_bc_level, &
@@ -19,6 +19,7 @@ contains
                                use_minion)
  
       integer        , intent(in   ) :: nlevs
+      type(ml_layout), intent(inout) :: mla
       type(multifab) , intent(inout) :: uold(:)
       type(multifab) , intent(inout) :: sold(:)
       type(multifab) , intent(inout) :: umac(:,:)
@@ -63,15 +64,11 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-      integer :: ir(uold(1)%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho,ilev
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
 
       allocate(vel_force(nlevs),divu(nlevs))
-
-      ! refinement ratio
-      ir = 2
 
       half_dt = HALF * dt
 
@@ -195,7 +192,7 @@ contains
       ! updated with convective differencing
 !      do ilev=2,nlevs
 !         do n=1,dm
-!            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),ir,n)
+!            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),mla%mba%rr(ilev-1,:),n)
 !         enddo
 !      enddo
 
@@ -274,7 +271,7 @@ contains
       ! use restriction so coarse cells are the average
       ! of the corresponding fine cells
       do ilev=2,nlevs
-         call ml_cc_restriction(unew(ilev-1),unew(ilev),ir)
+         call ml_cc_restriction(unew(ilev-1),unew(ilev),mla%mba%rr(ilev-1,:))
       enddo
 
       do ilev=1,nlevs

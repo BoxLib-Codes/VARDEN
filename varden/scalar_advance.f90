@@ -12,7 +12,7 @@ module scalar_advance_module
 
 contains
 
-   subroutine scalar_advance (nlevs,uold,sold,snew,rhohalf, &
+   subroutine scalar_advance (nlevs,mla,uold,sold,snew,rhohalf, &
                               umac,sedge,flux,ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
@@ -21,6 +21,7 @@ contains
                               use_minion)
  
       integer        , intent(in   ) :: nlevs
+      type(ml_layout), intent(inout) :: mla
       type(multifab) , intent(inout) :: uold(:)
       type(multifab) , intent(inout) :: sold(:)
       type(multifab) , intent(inout) :: snew(:)
@@ -60,7 +61,6 @@ contains
 
       integer :: nscal
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-      integer :: ir(uold(1)%dim)
       integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel,make_divu
       logical, allocatable :: is_conservative(:)
@@ -69,9 +69,6 @@ contains
       integer :: ilev
 
       allocate(scal_force(nlevs),divu(nlevs))
-
-      ! refinement ratio
-      ir = 2
 
       half_dt = HALF * dt
 
@@ -196,7 +193,7 @@ contains
       ! sychronize fluxes
       do ilev=2,nlevs
          do n=1,dm
-            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),ir,n)
+            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),mla%mba%rr(ilev-1,:),n)
          enddo
       enddo
 
@@ -301,7 +298,7 @@ contains
       ! use restriction so coarse cells are the average
       ! of the corresponding fine cells
       do ilev=2,nlevs
-         call ml_cc_restriction(snew(ilev-1),snew(ilev),ir)
+         call ml_cc_restriction(snew(ilev-1),snew(ilev),mla%mba%rr(ilev-1,:))
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

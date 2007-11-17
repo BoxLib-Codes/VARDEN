@@ -69,6 +69,10 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
      end do
   end do
 
+  do n=2,nlevs
+     call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
+  enddo
+
   if (parallel_IOProcessor() .and. verbose .ge. 1) then
      do n = 1,nlevs
         print *,'BEFORE: MAX OF U AT LEVEL ',n,norm_inf(unew(n),1,1,all=.true.)
@@ -222,6 +226,10 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   do n = 1,nlevs
      call multifab_copy_c(snew(n),icomp,phi(n),1,1)
   end do
+
+  do n=2,nlevs
+     call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
+  enddo
 
   if (parallel_IOProcessor() .and. verbose .ge. 1) then
      do n = 1,nlevs
