@@ -13,7 +13,7 @@ module scalar_advance_module
 contains
 
    subroutine scalar_advance (nlevs,uold,sold,snew,rhohalf, &
-                              umac,sedge,ext_scal_force,&
+                              umac,sedge,flux,ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
                               diff_coef,&
@@ -27,6 +27,7 @@ contains
       type(multifab) , intent(inout) :: rhohalf(:)
       type(multifab) , intent(inout) :: umac(:,:)
       type(multifab) , intent(inout) :: sedge(:,:)
+      type(multifab) , intent(inout) :: flux(:,:)
       type(multifab) , intent(inout) :: ext_scal_force(:)
 
       real(kind=dp_t), intent(inout) :: dx(:,:),time,dt
@@ -53,6 +54,9 @@ contains
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
       real(kind=dp_t), pointer:: sepz(:,:,:,:)
+      real(kind=dp_t), pointer:: fluxpx(:,:,:,:)
+      real(kind=dp_t), pointer:: fluxpy(:,:,:,:)
+      real(kind=dp_t), pointer:: fluxpz(:,:,:,:)
 
       integer :: nscal
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
@@ -124,14 +128,16 @@ contains
 
       do i = 1, sold(ilev)%nboxes
          if ( multifab_remote(sold(ilev), i) ) cycle
-         sop  => dataptr(sold(ilev), i)
-         uop  => dataptr(uold(ilev), i)
-         sepx => dataptr(sedge(ilev,1), i)
-         sepy => dataptr(sedge(ilev,2), i)
-         ump  => dataptr(umac(ilev,1), i)
-         vmp  => dataptr(umac(ilev,2), i)
-         fp   => dataptr(scal_force(ilev) , i)
-         dp   => dataptr(divu(ilev), i)
+         sop    => dataptr(sold(ilev), i)
+         uop    => dataptr(uold(ilev), i)
+         sepx   => dataptr(sedge(ilev,1), i)
+         sepy   => dataptr(sedge(ilev,2), i)
+         fluxpx => dataptr(flux(ilev,1), i)
+         fluxpy => dataptr(flux(ilev,2), i)
+         ump    => dataptr(umac(ilev,1), i)
+         vmp    => dataptr(umac(ilev,2), i)
+         fp     => dataptr(scal_force(ilev) , i)
+         dp     => dataptr(divu(ilev), i)
          lo = lwb(get_box(uold(ilev), i))
          hi = upb(get_box(uold(ilev), i))
          select case (dm)
@@ -139,6 +145,7 @@ contains
             if(use_godunov_debug) then
                call mkflux_debug_2d(sop(:,:,1,:), uop(:,:,1,:), &
                                     sepx(:,:,1,:), sepy(:,:,1,:), &
+                                    fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                     ump(:,:,1,1), vmp(:,:,1,1), &
                                     fp(:,:,1,:), dp(:,:,1,1), &
                                     lo, dx(ilev,:), dt, is_vel, &
@@ -148,6 +155,7 @@ contains
             else
                call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                               sepx(:,:,1,:), sepy(:,:,1,:), &
+                              fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                               ump(:,:,1,1), vmp(:,:,1,1), &
                               fp(:,:,1,:), dp(:,:,1,1), &
                               lo, dx(ilev,:), dt, is_vel, &
@@ -156,11 +164,13 @@ contains
                               ng_cell, use_minion, is_conservative)
             endif
          case (3)
-            sepz => dataptr(sedge(ilev,3), i)
+            sepz   => dataptr(sedge(ilev,3), i)
+            fluxpz => dataptr(flux(ilev,3), i)
             wmp  => dataptr(umac(ilev,3), i)
             if(use_godunov_debug) then
                call mkflux_debug_3d(sop(:,:,:,:), uop(:,:,:,:), &
                                     sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                                    fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                     ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                     fp(:,:,:,:), dp(:,:,:,1), &
                                     lo, dx(ilev,:), dt, is_vel, &
@@ -170,6 +180,7 @@ contains
             else
                call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                               sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                              fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                               ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                               fp(:,:,:,:), dp(:,:,:,1), &
                               lo, dx(ilev,:), dt, is_vel, &
@@ -216,6 +227,8 @@ contains
          vmp  => dataptr(umac(ilev,2), i)
          sepx => dataptr(sedge(ilev,1), i)
          sepy => dataptr(sedge(ilev,2), i)
+         fluxpx => dataptr(flux(ilev,1), i)
+         fluxpy => dataptr(flux(ilev,2), i)
          snp  => dataptr(snew(ilev), i)
           rp  => dataptr(rhohalf(ilev), i)
           fp  => dataptr(scal_force(ilev), i)
@@ -225,14 +238,17 @@ contains
          case (2)
             call update_2d(ilev,sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                            sepx(:,:,1,:), sepy(:,:,1,:), &
+                           fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                            fp(:,:,1,:) , snp(:,:,1,:), &
                            rp(:,:,1,1) , &
                            lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)
          case (3)
             wmp => dataptr(umac(ilev,3), i)
             sepz => dataptr(sedge(ilev,3), i)
+            fluxpz => dataptr(flux(ilev,3), i)
             call update_3d(ilev,sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                            sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                           fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                            fp(:,:,:,:) , snp(:,:,:,:), &
                            rp(:,:,:,1) , &
                            lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)

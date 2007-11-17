@@ -9,7 +9,7 @@ module mkflux_module
 
 contains
 
-      subroutine mkflux_2d(s,u,sedgex,sedgey,umac,vmac, &
+      subroutine mkflux_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac, &
                             force,divu,lo,dx,dt,is_vel, &
                             phys_bc,adv_bc,ng,use_minion,is_conservative)
 
@@ -19,6 +19,8 @@ contains
       real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
       real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
       real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
+      real(kind=dp_t), intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,:)
+      real(kind=dp_t), intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,:)
       real(kind=dp_t), intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
@@ -351,6 +353,12 @@ contains
                         end if
                      endif
                   endif
+
+                  ! create fluxes
+                  if(is_conservative(n)) then
+                     fluxy(i,j,n) = sedgey(i,j,n)*vmac(i,j)
+                  endif
+
                enddo
 
             endif ! end if(j .gt. js-1)
@@ -428,6 +436,13 @@ contains
                   end if
                endif
 
+               ! create fluxes
+               if(is_conservative(n)) then
+                  do i=is,ie+1
+                     fluxx(i,j-1,n) = sedgex(i,j-1,n)*umac(i,j-1)
+                  enddo
+               endif
+
             endif ! end if(j .gt. js)
             
 !******************************************************************
@@ -458,7 +473,7 @@ contains
 
       end subroutine mkflux_2d
 
-      subroutine mkflux_debug_2d(s,u,sedgex,sedgey,umac,vmac, &
+      subroutine mkflux_debug_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac, &
                                  force,divu,lo,dx,dt,is_vel, &
                                  phys_bc,adv_bc,ng,use_minion,is_conservative)
 
@@ -468,6 +483,8 @@ contains
       real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
       real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
       real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
+      real(kind=dp_t), intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,:)
+      real(kind=dp_t), intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,:)
       real(kind=dp_t), intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:)
       real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
@@ -768,6 +785,15 @@ contains
                end if
             endif
          enddo
+
+         ! create fluxes
+         do j=js,je
+            do i=is,ie+1
+               if(is_conservative(n)) then
+                  fluxx(i,j,n) = sedgex(i,j,n)*umac(i,j)
+               endif
+            enddo
+         enddo
          
          ! loop over appropriate y-faces
          do j=js,je+1
@@ -840,6 +866,15 @@ contains
                end if
             endif
          enddo
+
+         ! create fluxes
+         do j=js,je+1
+            do i=is,ie
+               if(is_conservative(n)) then
+                  fluxy(i,j,n) = sedgey(i,j,n)*vmac(i,j)
+               endif
+            enddo
+         enddo
          
       enddo ! end loop over components
 
@@ -861,7 +896,8 @@ contains
 
       end subroutine mkflux_debug_2d
 
-      subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,&
+      subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez, &
+                           fluxx,fluxy,fluxz, &
                            umac,vmac,wmac, &
                            force,divu,lo,dx,dt,is_vel, &
                            phys_bc,adv_bc,ng,use_minion,is_conservative)
@@ -873,6 +909,9 @@ contains
       real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::  fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
       real(kind=dp_t),intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
       real(kind=dp_t),intent(in   ) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
@@ -1505,6 +1544,12 @@ contains
                            end if
                         endif
                      endif
+
+                     ! create fluxes
+                     if(is_conservative(n)) then
+                        fluxz(i,j,k,n) = sedgez(i,j,k,n)*wmac(i,j,k)
+                     endif
+
                   enddo
                enddo
                
@@ -1815,6 +1860,14 @@ contains
                   endif
                endif
 
+               ! create fluxes
+               do j=js,je
+                  do i=is,ie+1
+                     if(is_conservative(n)) then
+                        fluxx(i,j,k-1,n) = sedgex(i,j,k-1,n)*umac(i,j,k-1)
+                     endif
+                  enddo
+               enddo
 
 !******************************************************************
 ! 12.Compute sedgey(is  :ie  ,js  :je+1,k-1)
@@ -1895,6 +1948,15 @@ contains
                   endif
                endif
 
+               ! create fluxes
+               do j=js,je+1
+                  do i=is,ie
+                     if(is_conservative(n)) then
+                        fluxy(i,j,k-1,n) = sedgey(i,j,k-1,n)*vmac(i,j,k-1)
+                     endif
+                  enddo
+               enddo
+
             endif ! end if(k .gt. ks)
 
 !******************************************************************
@@ -1951,7 +2013,8 @@ contains
 
       end subroutine mkflux_3d
 
-      subroutine mkflux_debug_3d(s,u,sedgex,sedgey,sedgez,&
+      subroutine mkflux_debug_3d(s,u,sedgex,sedgey,sedgez, &
+                                 fluxx,fluxy,fluxz, &
                                  umac,vmac,wmac, &
                                  force,divu,lo,dx,dt,is_vel, &
                                  phys_bc,adv_bc,ng,use_minion,is_conservative)
@@ -1963,6 +2026,9 @@ contains
       real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)
+      real(kind=dp_t),intent(inout) ::  fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:)
       real(kind=dp_t),intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
       real(kind=dp_t),intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
       real(kind=dp_t),intent(in   ) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
@@ -2772,6 +2838,17 @@ contains
                endif
             enddo
          enddo
+
+         do k=ks,ke
+            do j=js,je
+               do i=is,ie+1
+                  ! make sedgelx, sedgerx
+                  if(is_conservative(n)) then
+                     fluxx(i,j,k,n) = sedgex(i,j,k,n)*umac(i,j,k)
+                  endif
+               enddo
+            enddo
+         enddo
          
          ! loop over appropriate y-faces
          do k=ks,ke
@@ -2853,6 +2930,18 @@ contains
             enddo
          enddo
 
+         ! loop over appropriate y-faces
+         do k=ks,ke
+            do j=js,je+1
+               do i=is,ie
+                  ! create fluxes
+                  if(is_conservative(n)) then
+                     fluxy(i,j,k,n) = sedgey(i,j,k,n)*vmac(i,j,k)
+                  endif
+               enddo
+            enddo
+         enddo
+
          ! loop over appropriate z-faces
          do k=ks,ke+1
             do j=js,je
@@ -2930,6 +3019,17 @@ contains
                      sedgez(i,j,ke+1,n) = sedgelz(i,j,ke+1)
                   end if
                endif
+            enddo
+         enddo
+
+         do k=ks,ke+1
+            do j=js,je
+               do i=is,ie
+                  ! create fluxes
+                  if(is_conservative(n)) then
+                     fluxz(i,j,k,n) = sedgez(i,j,k,n)*wmac(i,j,k)
+                  endif
+               enddo
             enddo
          enddo
 

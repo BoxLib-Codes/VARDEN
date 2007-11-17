@@ -12,7 +12,7 @@ module velocity_advance_module
 contains
 
    subroutine velocity_advance(nlevs,uold,unew,sold,rhohalf,&
-                               umac,uedge,gp,p, &
+                               umac,uedge,flux,gp,p, &
                                ext_vel_force,dx,time,dt, &
                                the_bc_level, &
                                visc_coef,verbose,use_godunov_debug, &
@@ -23,6 +23,7 @@ contains
       type(multifab) , intent(inout) :: sold(:)
       type(multifab) , intent(inout) :: umac(:,:)
       type(multifab) , intent(inout) :: uedge(:,:)
+      type(multifab) , intent(inout) :: flux(:,:)
       type(multifab) , intent(inout) :: unew(:)
       type(multifab) , intent(inout) :: rhohalf(:)
       type(multifab) , intent(inout) :: gp(:)
@@ -50,6 +51,9 @@ contains
       real(kind=dp_t), pointer:: uepx(:,:,:,:)
       real(kind=dp_t), pointer:: uepy(:,:,:,:)
       real(kind=dp_t), pointer:: uepz(:,:,:,:)
+      real(kind=dp_t), pointer:: fluxpx(:,:,:,:)
+      real(kind=dp_t), pointer:: fluxpy(:,:,:,:)
+      real(kind=dp_t), pointer:: fluxpz(:,:,:,:)
 
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
@@ -125,6 +129,8 @@ contains
          uop  => dataptr(uold(ilev), i)
          uepx => dataptr(uedge(ilev,1), i)
          uepy => dataptr(uedge(ilev,2), i)
+         fluxpx => dataptr(flux(ilev,1), i)
+         fluxpy => dataptr(flux(ilev,2), i)
          ump  => dataptr(umac(ilev,1), i)
          vmp  => dataptr(umac(ilev,2), i)
          fp   => dataptr(vel_force(ilev), i)
@@ -136,6 +142,7 @@ contains
             if(use_godunov_debug) then
                call mkflux_debug_2d(uop(:,:,1,:), uop(:,:,1,:), &
                                     uepx(:,:,1,:), uepy(:,:,1,:), &
+                                    fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                     ump(:,:,1,1), vmp(:,:,1,1), &
                                     fp(:,:,1,:), dp(:,:,1,1), &
                                     lo, dx(ilev,:), dt, is_vel, &
@@ -145,6 +152,7 @@ contains
             else
                call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
                               uepx(:,:,1,:), uepy(:,:,1,:), &
+                              fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                               ump(:,:,1,1), vmp(:,:,1,1), &
                               fp(:,:,1,:), dp(:,:,1,1), &
                               lo, dx(ilev,:), dt, is_vel, &
@@ -154,10 +162,12 @@ contains
             endif
          case (3)
             uepz => dataptr(uedge(ilev,3), i)
+            fluxpz => dataptr(flux(ilev,3), i)
             wmp  => dataptr(umac(ilev,3), i)
             if(use_godunov_debug) then
                call mkflux_debug_3d(uop(:,:,:,:), uop(:,:,:,:), &
                                     uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                                    fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                     ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                     fp(:,:,:,:), dp(:,:,:,1), &
                                     lo, dx(ilev,:), dt, is_vel, &
@@ -167,6 +177,7 @@ contains
             else
                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
                               uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                              fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                               ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                               fp(:,:,:,:), dp(:,:,:,1), &
                               lo, dx(ilev,:), dt, is_vel, &
@@ -217,6 +228,8 @@ contains
          vmp  => dataptr(umac(ilev,2), i)
          uepx => dataptr(uedge(ilev,1), i)
          uepy => dataptr(uedge(ilev,2), i)
+         fluxpx => dataptr(flux(ilev,1), i)
+         fluxpy => dataptr(flux(ilev,2), i)
          unp  => dataptr(unew(ilev), i)
          fp   => dataptr(vel_force(ilev), i)
          rp   => dataptr(rhohalf(ilev), i)
@@ -226,14 +239,17 @@ contains
          case (2)
             call update_2d(ilev,uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                            uepx(:,:,1,:), uepy(:,:,1,:), &
+                           fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                            fp(:,:,1,:), unp(:,:,1,:), &
                            rp(:,:,1,1), &
                            lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)
          case (3)
             wmp => dataptr(umac(ilev,3), i)
             uepz => dataptr(uedge(ilev,3), i)
+            fluxpz => dataptr(flux(ilev,3), i)
             call update_3d(ilev,uop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                            uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
+                           fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                            fp(:,:,:,:), unp(:,:,:,:), &
                            rp(:,:,:,1), &
                            lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)

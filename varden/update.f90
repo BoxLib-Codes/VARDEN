@@ -9,7 +9,7 @@ module update_module
 
   contains
 
-   subroutine update_2d (lev,sold,umac,vmac,sedgex,sedgey,force,snew,rhohalf, &
+   subroutine update_2d (lev,sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,rhohalf, &
                          lo,hi,ng,dx,dt,is_vel,is_cons,verbose)
 
       implicit none
@@ -21,6 +21,8 @@ module update_module
       real (kind = dp_t), intent(in   ) ::    vmac(lo(1)- 1:,lo(2)- 1:)  
       real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)   :,lo(2)   :,:)  
       real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)   :,lo(2)   :,:)  
+      real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)   :,lo(2)   :,:)  
+      real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)   :,lo(2)   :,:) 
       real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,:)  
       real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:)
       real (kind = dp_t), intent(in   ) :: dx(:)
@@ -41,11 +43,8 @@ module update_module
          if (is_cons(n)) then
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             divsu = (umac(i+1,j) * sedgex(i+1,j,n) &
-                     -umac(i  ,j) * sedgex(i  ,j,n) ) / dx(1) + &
-                     (vmac(i,j+1) * sedgey(i,j+1,n) &
-                     -vmac(i,j  ) * sedgey(i,j  ,n) ) / dx(2)
-
+             divsu = (fluxx(i+1,j,n)-fluxx(i,j,n))/dx(1) &
+                   + (fluxy(i,j+1,n)-fluxy(i,j,n))/dx(2)
              snew(i,j,n) = sold(i,j,n) - dt * divsu + dt * force(i,j,n)
              if (n.eq.1) rhohalf(i,j) = HALF * (sold(i,j,1) + snew(i,j,1))
            enddo
@@ -131,8 +130,8 @@ module update_module
 
    end subroutine update_2d
 
-   subroutine update_3d (lev,sold,umac,vmac,wmac,sedgex,sedgey,sedgez,force,snew,rhohalf, &
-                         lo,hi,ng,dx,dt,is_vel,is_cons,verbose)
+   subroutine update_3d (lev,sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
+                         force,snew,rhohalf,lo,hi,ng,dx,dt,is_vel,is_cons,verbose)
 
       implicit none
 
@@ -145,6 +144,9 @@ module update_module
       real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)  
       real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)  
       real (kind = dp_t), intent(in   ) ::  sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)  
+      real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)   :,lo(2)   :,lo(3)   :,:)  
+      real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)  
+      real (kind = dp_t), intent(in   ) ::   fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:) 
       real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
       real (kind = dp_t), intent(in   ) :: dx(:)
@@ -167,14 +169,9 @@ module update_module
            do k = lo(3), hi(3)
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-
-             divsu = (umac(i+1,j,k) * sedgex(i+1,j,k,n) &
-                     -umac(i  ,j,k) * sedgex(i  ,j,k,n) ) / dx(1) &
-                    +(vmac(i,j+1,k) * sedgey(i,j+1,k,n) &
-                     -vmac(i,j  ,k) * sedgey(i,j  ,k,n) ) / dx(2) &
-                    +(wmac(i,j,k+1) * sedgez(i,j,k+1,n) &
-                     -wmac(i,j,k  ) * sedgez(i,j,k  ,n) ) / dx(3)
-
+             divsu = (fluxx(i+1,j,k,n)-fluxx(i,j,k,n))/dx(1) &
+                   + (fluxy(i,j+1,k,n)-fluxy(i,j,k,n))/dx(2) &
+                   + (fluxz(i,j,k+1,n)-fluxz(i,j,k,n))/dx(3)
              snew(i,j,k,n) = sold(i,j,k,n) - dt * divsu + dt * force(i,j,k,n)
              if (n.eq.1)  rhohalf(i,j,k) = HALF * (sold(i,j,k,1) + snew(i,j,k,1))
            enddo

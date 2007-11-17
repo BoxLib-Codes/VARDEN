@@ -91,6 +91,7 @@ subroutine varden()
   type(multifab), allocatable ::   umac(:,:)
   type(multifab), allocatable ::  uedge(:,:)
   type(multifab), allocatable ::  sedge(:,:)
+  type(multifab), allocatable ::   flux(:,:)
 
   real(kind=dp_t), pointer :: uop(:,:,:,:)
   real(kind=dp_t), pointer :: sop(:,:,:,:)
@@ -296,7 +297,7 @@ subroutine varden()
 
   allocate(unew(nlevs),snew(nlevs))
   allocate(umac(nlevs,dm))
-  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
+  allocate(uedge(nlevs,dm),sedge(nlevs,dm),flux(nlevs,dm))
   allocate(rhohalf(nlevs),vort(nlevs))
 
   allocate(plotdata(nlevs),chkdata(nlevs))
@@ -753,7 +754,7 @@ subroutine varden()
            enddo
         enddo
 
-        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,ext_scal_force, &
+        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,flux,ext_scal_force, &
                             dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
@@ -777,8 +778,8 @@ subroutine varden()
            call multifab_fill_boundary(snew(n))
         end do
 
-        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,gp,p,ext_vel_force, &
-                              dx,time,dt,the_bc_tower%bc_tower_array, &
+        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
+                              ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
@@ -1030,10 +1031,12 @@ subroutine varden()
           call multifab_build(  umac(n,i), mla_loc%la(n),    1, 1, nodal = umac_nodal_flag)
           call multifab_build( uedge(n,i), mla_loc%la(n),   dm, 0, nodal = umac_nodal_flag)
           call multifab_build( sedge(n,i), mla_loc%la(n),nscal, 0, nodal = umac_nodal_flag)
+          call multifab_build(  flux(n,i), mla_loc%la(n),nscal, 0, nodal = umac_nodal_flag)
 
           call setval(  umac(n,i),ZERO, all=.true.)
           call setval( uedge(n,i),ZERO, all=.true.)
           call setval( sedge(n,i),ZERO, all=.true.)
+          call setval(  flux(n,i),ZERO, all=.true.)
         end do
 
      end do
@@ -1061,6 +1064,7 @@ subroutine varden()
            call multifab_destroy(umac(n,i))
            call multifab_destroy(uedge(n,i))
            call multifab_destroy(sedge(n,i))
+           call multifab_destroy(flux(n,i))
          end do
          call multifab_destroy(rhohalf(n))
          call multifab_destroy(vort(n))
@@ -1131,7 +1135,7 @@ subroutine varden()
            enddo
         enddo
 
-        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,ext_scal_force, &
+        call scalar_advance(nlevs,uold,sold,snew,rhohalf,umac,sedge,flux,ext_scal_force, &
                             dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
@@ -1155,8 +1159,8 @@ subroutine varden()
            call multifab_fill_boundary(snew(n))
         end do
 
-        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,gp,p,ext_vel_force, &
-                              dx,time,dt,the_bc_tower%bc_tower_array, &
+        call velocity_advance(nlevs,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
+                              ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 
         do n = 2, nlevs
