@@ -188,6 +188,19 @@ contains
          end select
       end do
 
+      enddo ! do ilev=1,nlevs
+
+      ! synchronize fluxes
+      ! for now we don't call ml_edge restriction because currently the velocity is
+      ! updated with convective differencing
+!      do ilev=2,nlevs
+!         do n=1,dm
+!            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),ir,n)
+!         enddo
+!      enddo
+
+      do ilev=1,nlevs
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Now create vel_force at half-time using rhohalf and half the viscous term.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

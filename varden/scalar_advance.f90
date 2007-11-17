@@ -191,6 +191,17 @@ contains
          end select
       end do
 
+      enddo ! do ilev=1,nlevs
+
+      ! sychronize fluxes
+      do ilev=2,nlevs
+         do n=1,dm
+            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),ir,n)
+         enddo
+      enddo
+
+      do ilev=1,nlevs
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create scalar force at time n+1/2.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
