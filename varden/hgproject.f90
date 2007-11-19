@@ -12,6 +12,7 @@ module hgproject_module
   use ml_restriction_module
   use proj_parameters
   use fabio_module
+  use multifab_fill_ghost_module
 
   implicit none
 
@@ -46,6 +47,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
   real(dp_t)                  :: umin,umax,vmin,vmax,wmin,wmax
   integer                     :: stencil_type
   logical                     :: use_div_coeff_1d, use_div_coeff_3d
+  type(box)                   :: fine_domain
 
 ! stencil_type = ST_DENSE
   stencil_type = ST_CROSS
@@ -189,6 +191,14 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
      call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
   end do
 
+  do n = 2, nlevs
+     fine_domain = layout_get_pd(mla%la(n))
+     call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
+          1,mla%mba%rr(n-1,:), &
+          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+          1,1,dm)
+  end do
+
   if (verbose .ge. 1) then
      umin = 1.d30
      vmin = 1.d30
@@ -271,7 +281,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine create_uvec_for_projection
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mkgphi(gphi,phi,dx)
 
@@ -302,7 +312,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine mkgphi
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine hg_update(proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt)
 
@@ -339,10 +349,12 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
           ph => dataptr( phi, i)
          select case (dm)
             case (2)
-              call hg_update_2d(proj_type, upn(:,:,1,:), uon(:,:,1,:), gpp(:,:,1,:), gph(:,:,1,:),rp(:,:,1,1), &
-                                pp(:,:,1,1), ph(:,:,1,1), ng, dt)
+               call hg_update_2d(proj_type, upn(:,:,1,:), uon(:,:,1,:), gpp(:,:,1,:), &
+                                 gph(:,:,1,:),rp(:,:,1,1), &
+                                 pp(:,:,1,1), ph(:,:,1,1), ng, dt)
             case (3)
-              call hg_update_3d(proj_type, upn(:,:,:,:), uon(:,:,:,:), gpp(:,:,:,:), gph(:,:,:,:),rp(:,:,:,1), &
+              call hg_update_3d(proj_type, upn(:,:,:,:), uon(:,:,:,:), gpp(:,:,:,:), &
+                                gph(:,:,:,:),rp(:,:,:,1), &
                                 pp(:,:,:,1), ph(:,:,:,1), ng, dt)
          end select
       end do
@@ -353,7 +365,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine hg_update
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
 
@@ -383,7 +395,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine enforce_outflow_on_divu_rhs
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine enforce_outflow_2d(divu_rhs,phys_bc)
 
@@ -401,7 +413,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine enforce_outflow_2d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine enforce_outflow_3d(divu_rhs,phys_bc)
 
@@ -422,7 +434,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine enforce_outflow_3d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine create_uvec_2d(u,rhohalf,gp,dt,phys_bc,ng)
 
@@ -452,7 +464,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine create_uvec_2d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine create_uvec_3d(u,rhohalf,gp,dt,phys_bc,ng)
 
@@ -492,7 +504,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine create_uvec_3d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mkgphi_2d(gp,phi,dx)
 
@@ -516,7 +528,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine mkgphi_2d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mkgphi_3d(gp,phi,dx)
 
@@ -551,7 +563,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine mkgphi_3d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine hg_update_2d(proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt)
 
@@ -601,7 +613,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
     end subroutine hg_update_2d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine hg_update_3d(proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt)
 
@@ -658,8 +670,9 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 end subroutine hgproject
 
-subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
-                        divu_verbose,mg_verbose,cg_verbose,press_comp,stencil_type,divu_rhs,eps_in)
+subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
+                        divu_verbose,mg_verbose,cg_verbose,press_comp,stencil_type, &
+                        divu_rhs,eps_in)
   use BoxLib
   use omp_module
   use f2kcli
@@ -782,7 +795,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
      pd = layout_get_pd(mla%la(n))
 
      call mg_tower_build(mgt(n), mla%la(n), pd, &
-                         the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
+          the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
           dh = dx(n,:), &
           ns = ns, &
           smoother = smoother, &
@@ -895,7 +908,7 @@ subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,&
 
 end subroutine hg_multigrid
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mkcoeffs(rho,coeffs)
 
@@ -923,7 +936,7 @@ end subroutine hg_multigrid
 
     end subroutine mkcoeffs
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mkcoeffs_2d(coeffs,rho,ng)
 
@@ -945,7 +958,7 @@ end subroutine hg_multigrid
 
     end subroutine mkcoeffs_2d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mkcoeffs_3d(coeffs,rho,ng)
 
@@ -970,7 +983,7 @@ end subroutine hg_multigrid
 
     end subroutine mkcoeffs_3d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mult_by_1d_coeff(u,div_coeff,do_mult)
 
@@ -1046,7 +1059,7 @@ end subroutine hg_multigrid
 
     end subroutine mult_by_1d_coeff_3d
 
-!   ********************************************************************************************* !
+!   *************************************************************************************** !
 
     subroutine mult_by_3d_coeff(u,div_coeff,do_mult)
 
