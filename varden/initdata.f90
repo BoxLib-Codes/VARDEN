@@ -22,7 +22,7 @@ contains
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
-      integer :: i,n
+      integer :: i,comp
       logical :: is_vel
 
       ng = u%ng
@@ -52,20 +52,24 @@ contains
          sop => dataptr(s, i)
          lo =  lwb(get_box(u, i))
          select case (dm)
-            case (2)
-              do n = 1,dm
-                call setbc_2d(uop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
-              end do
-              do n = 1,nscal
-                call setbc_2d(sop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
-            case (3)
-              do n = 1,dm
-                call setbc_3d(uop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
-              end do
-              do n = 1,nscal
-                call setbc_3d(sop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
+         case (2)
+            do comp = 1,dm
+               call setbc_2d(uop(:,:,1,comp),lo,ng,bc%adv_bc_level_array(i,:,:,comp), &
+                             dx,comp)
+            end do
+            do comp = 1,nscal
+               call setbc_2d(sop(:,:,1,comp),lo,ng,bc%adv_bc_level_array(i,:,:,dm+comp), &
+                             dx,dm+comp)
+            end do
+         case (3)
+            do comp = 1,dm
+               call setbc_3d(uop(:,:,:,comp),lo,ng,bc%adv_bc_level_array(i,:,:,comp), &
+                             dx,comp)
+            end do
+            do comp = 1,nscal
+               call setbc_3d(sop(:,:,:,comp),lo,ng,bc%adv_bc_level_array(i,:,:,dm+comp), &
+                             dx,dm+comp)
+            end do
          end select
       end do
 
@@ -82,7 +86,7 @@ contains
       real (kind = dp_t), intent(in ) :: prob_hi(:)
 
 !     Local variables
-      integer :: i, j, n, jhalf
+      integer :: i, j, comp, jhalf
       real (kind = dp_t) :: x,y,r,cpx,cpy,spx,spy,Pi
       real (kind = dp_t) :: velfact
       real (kind = dp_t) :: ro,r_pert
@@ -201,14 +205,14 @@ contains
       end if
 
       if (size(s,dim=3).gt.2) then
-        do n = 3, size(s,dim=3)
+        do comp = 3, size(s,dim=3)
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
-!          s(i,j,n) = ONE
+!          s(i,j,comp) = ONE
            y = (float(j)+HALF) * dx(2) / prob_hi(2)
            x = (float(i)+HALF) * dx(1) / prob_hi(1)
            r = sqrt((x-HALF)**2 + (y-HALF)**2)
-           s(i,j,n) = r
+           s(i,j,comp) = r
         end do
         end do
         end do
@@ -227,7 +231,7 @@ contains
       real (kind = dp_t), intent(in ) :: prob_hi(:)
     
 !     Local variables
-      integer :: i, j, k, n
+      integer :: i, j, k, comp
       integer :: imid,jmid,kmid
       real (kind = dp_t) :: Pi
       real (kind = dp_t) :: x,y,z
@@ -277,11 +281,11 @@ contains
       enddo
 
       if (size(s,dim=4).gt.1) then
-        do n = 2, size(s,dim=4)
+        do comp = 2, size(s,dim=4)
         do k = lo(3), hi(3)
         do j = lo(2), hi(2)
         do i = lo(1), hi(1)
-           s(i,j,k,n) = ONE
+           s(i,j,k,comp) = ONE
         end do
         end do
         end do
