@@ -23,11 +23,15 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
   type(bndry_reg), pointer    :: fine_flx(:) => Null()
-  integer                     :: n,nlevs,d,dm,stencil_order
-  integer                     :: bc_comp
+  real(kind=dp_t), pointer    :: unp(:,:,:,:)
+  integer                     :: n,nlevs,d,dm,i,comp
+  integer                     :: bc_comp,stencil_order,ng_cell
+  type(box)                   :: fine_domain
+  integer                     :: lo(unew(1)%dim)
 
   nlevs = mla%nlevel
   dm    = mla%dim
+  ng_cell = unew(1)%ng
 
   allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
@@ -69,9 +73,43 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
      end do
   end do
 
-  do n=2,nlevs
+  do n = 1, nlevs
+     call multifab_fill_boundary(unew(n))
+  enddo
+
+  do n = 1, nlevs
+     do i = 1, unew(n)%nboxes
+        if ( multifab_remote(unew(n), i) ) cycle
+        unp => dataptr(unew(n), i)
+        lo = lwb(get_box(unew(n), i))
+        select case (dm)
+        case (2)
+           do comp = 1, dm
+              call setbc_2d(unp(:,:,1,comp), lo, ng_cell, &
+                            the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,comp), &
+                            dx(n,:),comp)
+           end do
+        case (3)
+           do comp = 1, dm
+              call setbc_3d(unp(:,:,:,comp), lo, ng_cell, &
+                            the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,comp), &
+                            dx(n,:),comp)
+           end do
+        end select
+     enddo
+  enddo
+
+  do n = 2, nlevs
      call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
   enddo
+
+  do n = 2, nlevs
+     fine_domain = layout_get_pd(mla%la(n))
+     call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+          ng_cell,mla%mba%rr(n-1,:), &
+          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+          1,1,dm)
+  end do
 
   if (parallel_IOProcessor() .and. verbose .ge. 1) then
      do n = 1,nlevs
@@ -81,10 +119,6 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
      print *,'...   end viscous solves  ... '
      print *,' '
   endif
-
-  do n = 1, nlevs
-     call multifab_fill_boundary(unew(n))
-  enddo
 
   do n = 1, nlevs
      call multifab_destroy(rh(n))
@@ -189,10 +223,14 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 ! Local  
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
   type(bndry_reg), pointer    :: fine_flx(:) => Null()
-  integer                     :: n,nlevs,dm,stencil_order
+  real(kind=dp_t), pointer    :: snp(:,:,:,:)
+  integer                     :: i,n,nlevs,dm,stencil_order
+  type(box)                   :: fine_domain
+  integer                     :: lo(snew(1)%dim),ng_cell
 
   nlevs = mla%nlevel
   dm    = mla%dim
+  ng_cell = snew(1)%ng
 
   allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
@@ -246,6 +284,37 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   do n = 1, nlevs
      call multifab_fill_boundary(snew(n))
   enddo
+
+  do n = 1, nlevs
+     do i = 1, snew(n)%nboxes
+        if ( multifab_remote(snew(n), i) ) cycle
+        snp => dataptr(snew(n), i)
+        lo = lwb(get_box(snew(n), i))
+        select case (dm)
+        case (2)
+           call setbc_2d(snp(:,:,1,2), lo, ng_cell, &
+                         the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,2), &
+                         dx(n,:),dm+2)
+        case (3)
+           call setbc_3d(snp(:,:,:,2), lo, ng_cell, &
+                         the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,2), &
+                         dx(n,:),dm+2)
+
+        end select
+     enddo
+  enddo
+
+  do n = 2, nlevs
+     call ml_cc_restriction_c(snew(n-1),2,snew(n),2,mla%mba%rr(n-1,:), 1)
+  enddo
+
+  do n = 2, nlevs
+     fine_domain = layout_get_pd(mla%la(n))
+     call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
+          ng_cell,mla%mba%rr(n-1,:), &
+          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+          1,dm+2,1)
+  end do
 
   do n = 1, nlevs
      call multifab_destroy(rh(n))
