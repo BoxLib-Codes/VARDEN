@@ -149,7 +149,6 @@ subroutine varden()
   namelist /probin/ use_godunov_debug
   namelist /probin/ use_minion
   
-
   ng_cell = 3
   ng_grow = 1
 
@@ -597,95 +596,92 @@ subroutine varden()
 ! Begin the real integration.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if ( (max_step >= init_step) .and. &
-       (time < stop_time .or. stop_time < 0.d0) ) then
+  if ((max_step >= init_step) .and. (time < stop_time .or. stop_time < 0.d0)) then
 
-     do istep = init_step,max_step
+     do istep = init_step, max_step
 
         if (nlevs > 1 .and. regrid_int > 0 .and. mod(istep-1,regrid_int) .eq. 0) then
-          call delete_temps()
-          call make_new_grids(sold(1),dx(1,1),regrid_int)
+           call delete_temps()
+           call make_new_grids(sold(1),dx(1,1),regrid_int)
+           
+           ! Build the arrays for each grid from the domain_bc arrays.
+           call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
+           
+           call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
+           
+           do n = 2, nlevs
+              fine_domain = layout_get_pd(mla_new%la(n))
+              call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
+                             ng_cell,mla_new%mba%rr(n-1,:), &
+                             the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                             1,1,dm)
+              call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
+                             ng_cell,mla_new%mba%rr(n-1,:), &
+                             the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                             1,dm+1,nscal)
+              call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
+                             ng_grow,mla_new%mba%rr(n-1,:), &
+                             the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                             1,1,dm)
+           end do
+           
+           do n = 1,nlevs
+              call multifab_copy_c(uold_rg(n),1,uold(n),1,dm   )
+              call multifab_copy_c(sold_rg(n),1,sold(n),1,nscal)
+              call multifab_copy_c(gp_rg(n)  ,1,gp(n),  1,dm   )
+              call multifab_copy_c(p_rg(n)   ,1,p(n),   1,1    )
+           end do
 
-          ! Build the arrays for each grid from the domain_bc arrays.
-          call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
+           call delete_state(uold,sold,gp,p)
 
-          call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
-
-          do n = 2, nlevs
-             fine_domain = layout_get_pd(mla_new%la(n))
-             call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
-                            ng_cell,mla_new%mba%rr(n-1,:), &
-                            the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                            1,1,dm)
-             call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
-                            ng_cell,mla_new%mba%rr(n-1,:), &
-                            the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                            1,dm+1,nscal)
-             call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
-                            ng_grow,mla_new%mba%rr(n-1,:), &
-                            the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                            1,1,dm)
-          end do
-
-          do n = 1,nlevs
-            call multifab_copy_c(  uold_rg(n),1,  uold(n),1,   dm)
-            call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
-            call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
-            call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
-          end do
-
-          call delete_state(uold,sold,gp,p)
-
-            uold = uold_rg
-            sold = sold_rg
-              gp =   gp_rg
-               p =    p_rg
-
-          do n = 1,nlevs
-
-             call multifab_fill_boundary(uold(n))
-             call multifab_fill_boundary(sold(n))
-
-             bc = the_bc_tower%bc_tower_array(n)
-             do i = 1, uold(n)%nboxes
-               if ( multifab_remote(uold(n), i) ) cycle
-               uop => dataptr(uold(n), i)
-               sop => dataptr(sold(n), i)
-               lo =  lwb(get_box(uold(n), i))
-               hi =  upb(get_box(uold(n), i))
-               select case (dm)
-                  case (2) 
+           uold = uold_rg
+           sold = sold_rg
+           gp   = gp_rg
+           p    = p_rg
+           
+           do n = 1,nlevs
+              call multifab_fill_boundary(uold(n))
+              call multifab_fill_boundary(sold(n))
+              
+              bc = the_bc_tower%bc_tower_array(n)
+              do i = 1, uold(n)%nboxes
+                 if ( multifab_remote(uold(n), i) ) cycle
+                 uop => dataptr(uold(n), i)
+                 sop => dataptr(sold(n), i)
+                 lo =  lwb(get_box(uold(n), i))
+                 hi =  upb(get_box(uold(n), i))
+                 select case (dm)
+                 case (2) 
                     do comp = 1,dm
-                      call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,comp), &
-                                    dx(n,:),comp)
-                    end do 
-                    do comp = 1,nscal
-                      call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,dm+comp), &
-                                    dx(n,:),dm+comp)
+                       call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                                     bc%adv_bc_level_array(i,:,:,comp), &
+                                     dx(n,:),comp)
                     end do
-                  case (3) 
-                    do comp = 1,dm
-                      call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,comp), &
-                                    dx(n,:),comp)
-                    end do 
                     do comp = 1,nscal
-                      call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,dm+comp), &
-                                    dx(n,:),dm+comp)
+                       call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
+                                     bc%adv_bc_level_array(i,:,:,dm+comp), &
+                                     dx(n,:),dm+comp)
+                    end do
+                 case (3) 
+                    do comp = 1,dm
+                       call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                                     bc%adv_bc_level_array(i,:,:,comp), &
+                                     dx(n,:),comp)
+                    end do
+                    do comp = 1,nscal
+                       call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
+                                     bc%adv_bc_level_array(i,:,:,dm+comp), &
+                                     dx(n,:),dm+comp)
                     end do
                  end select
-             end do
-          end do
+              end do
+           end do
 
-          call make_temps(mla_new)
-
-          call destroy(mla)
-          mla = mla_new
-
-        end if
+           call make_temps(mla_new)
+           
+           call destroy(mla)
+           mla = mla_new
+        end if ! end if (nlevs > 1 .and. regrid_int > 0 .and. mod(istep-1,regrid_int) .eq. 0)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
@@ -705,21 +701,19 @@ subroutine varden()
 
         dtold = dt
         do n = 1,nlevs
-
            call multifab_fill_boundary(uold(n))
            call multifab_fill_boundary(sold(n))
            call multifab_fill_boundary(gp(n))
-
+           
            if (istep > 1) then
-             call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:),cflfac,dtold,dt, &
-                        verbose)
-             if (stop_time >= 0.d0) then
-               if (time+dt > stop_time) dt = stop_time - time
-             end if
+              call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
+                   cflfac,dtold,dt,verbose)
+              if (stop_time >= 0.d0) then
+                 if (time+dt > stop_time) dt = stop_time - time
+              end if
            end if
-
         end do
-
+        
         if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
               write(6,1001) n,time,norm_inf(uold(n),1,1),norm_inf(uold(n),2,1)
@@ -752,8 +746,8 @@ subroutine varden()
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose,cg_verbose, &
-                           verbose)
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose, &
+                           cg_verbose,verbose)
         end if
 
         ! Project the new velocity field.
@@ -790,7 +784,7 @@ subroutine varden()
           if (time >= stop_time) goto 999
         end if
 
-     end do
+     end do ! end do istep = init_step,max_step
 
  999   continue
        if (istep > max_step) istep = max_step
@@ -1081,7 +1075,7 @@ subroutine varden()
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp,&
+          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
                                  mg_verbose,cg_verbose,verbose)
         end if
 
@@ -1098,7 +1092,6 @@ subroutine varden()
         ! Project the new velocity field.
         call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                        the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
-
 
         if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
