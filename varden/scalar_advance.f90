@@ -301,6 +301,7 @@ contains
       ! of the corresponding fine cells
       do n = 2, nlevs
          call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
+         call ml_cc_restriction(rhohalf(n-1),rhohalf(n),mla%mba%rr(n-1,:))
       enddo
 
       do n = 2, nlevs
@@ -309,6 +310,10 @@ contains
               ng_cell,mla%mba%rr(n-1,:), &
               the_bc_level(n-1)%adv_bc_level_array(0,:,:,:), &
               1,dm+1,nscal)
+         call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),fine_domain, &
+              ng_rho,mla%mba%rr(n-1,:), &
+              the_bc_level(n-1)%adv_bc_level_array(0,:,:,:), &
+              1,dm+1,1)
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

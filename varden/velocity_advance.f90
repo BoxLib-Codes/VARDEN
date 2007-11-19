@@ -64,7 +64,7 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-      integer :: i,n,comp,dm,ng_cell,ng_rho
+      integer :: i,n,dm,d,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
       type(box) :: fine_domain
@@ -267,6 +267,28 @@ contains
          end select
       end do
 
+      call multifab_fill_boundary(unew(n))
+
+      do i = 1, unew(n)%nboxes
+         if ( multifab_remote(unew(n), i) ) cycle
+         unp => dataptr(unew(n), i)
+         lo = lwb(get_box(unew(n), i))
+         select case (dm)
+         case (2)
+            do d = 1, dm
+               call setbc_2d(unp(:,:,1,d), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,d), &
+                             dx(n,:),d)
+            end do
+         case (3)
+            do d = 1, dm
+               call setbc_3d(unp(:,:,:,d), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,d), &
+                             dx(n,:),d)
+            end do
+         end select
+      end do
+
       enddo ! do n = 1, nlevs
 
       ! use restriction so coarse cells are the average
@@ -275,13 +297,13 @@ contains
          call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
       enddo
 
-        do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
-                                          ng_cell,mla%mba%rr(n-1,:), &
-                                          the_bc_level(n-1)%adv_bc_level_array(0,:,:,:), &
-                                          1,1,dm)
-        end do
+      do n = 2, nlevs
+         fine_domain = layout_get_pd(mla%la(n))
+         call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+                                        ng_cell,mla%mba%rr(n-1,:), &
+                                        the_bc_level(n-1)%adv_bc_level_array(0,:,:,:), &
+                                        1,1,dm)
+      end do
 
       do n = 1, nlevs
          call multifab_destroy(vel_force(n))
