@@ -98,7 +98,7 @@ module define_bc_module
        phys_bc_level(i,d,2) = domain_bc(d,2)
     end do
 
-    do n = 1,layout_nboxes(la_level)
+    do i = 1,layout_nboxes(la_level)
        bx = layout_get_box(la_level,i)
        do d = 1,layout_dim(la_level)
           if (bx%lo(d) == pd%lo(d)) phys_bc_level(i,d,1) = domain_bc(d,1)
