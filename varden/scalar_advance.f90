@@ -61,7 +61,7 @@ contains
       real(kind=dp_t), pointer:: fluxpy(:,:,:,:)
       real(kind=dp_t), pointer:: fluxpz(:,:,:,:)
 
-      integer :: nscal,dm,d,n
+      integer :: nscal,comp,dm,face,n
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
       integer :: i,ng_cell,ng_rho
       logical :: is_vel,make_divu
@@ -192,10 +192,15 @@ contains
 
       enddo ! do n = 1, nlevs
 
-      ! sychronize fluxes
+      ! synchronize fluxes
       do n = 2, nlevs
-         do d = 1, dm
-            call ml_edge_restriction(flux(n-1,d),flux(n,d),mla%mba%rr(n-1,:),d)
+         do comp = 1, nscal
+            if(is_conservative(comp)) then
+               do face = 1, dm
+                  call ml_edge_restriction_c(flux(n-1,face),comp,flux(n,face),comp, &
+                                             mla%mba%rr(n-1,:),face,1)
+               enddo
+            endif
          enddo
       enddo
 
@@ -275,19 +280,19 @@ contains
          lo = lwb(get_box(uold(n), i))
          select case (dm)
          case (2)
-            do d = 1,nscal
-               call setbc_2d(snp(:,:,1,d), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,dm+d), &
-                             dx(n,:),dm+d)
+            do comp = 1,nscal
+               call setbc_2d(snp(:,:,1,comp), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,dm+comp), &
+                             dx(n,:),dm+comp)
             end do
             call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
                           the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1), &
                           dx(n,:),dm+1)
          case (3)
-            do d = 1,nscal
-               call setbc_3d(snp(:,:,:,d), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,dm+d), &
-                             dx(n,:),dm+d)
+            do comp = 1,nscal
+               call setbc_3d(snp(:,:,:,comp), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,dm+comp), &
+                             dx(n,:),dm+comp)
             end do
             call setbc_3d(rp(:,:,:,1), lo, ng_rho, &
                           the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1), &

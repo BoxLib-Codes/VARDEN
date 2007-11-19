@@ -47,7 +47,7 @@ subroutine varden()
   real(dp_t) :: visc_mu, pressure_inflow_val, grav
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: k,istep,ng_cell,ng_grow
-  integer    :: i, d, n, nlevs, n_plot_comps, n_chk_comps, nscal
+  integer    :: i, n, nlevs, n_plot_comps, n_chk_comps, nscal
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step
   integer    :: comp,bc_comp
@@ -438,26 +438,26 @@ subroutine varden()
           hi =  upb(get_box(uold_rg(n), i))
           select case (dm)
              case (2) 
-               do d = 1,dm
-                 call setbc_2d(uop(:,:,1,d), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,d), &
-                               dx(n,:),d)
+               do comp = 1,dm
+                 call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,comp), &
+                               dx(n,:),comp)
                end do 
-               do d = 1,nscal
-                 call setbc_2d(sop(:,:,1,d), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,dm+d), &
-                               dx(n,:),dm+d)
+               do comp = 1,nscal
+                 call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,dm+comp), &
+                               dx(n,:),dm+comp)
                end do
              case (3) 
-               do d = 1,dm
-                 call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,d), &
-                               dx(n,:),d)
+               do comp = 1,dm
+                 call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,comp), &
+                               dx(n,:),comp)
                end do 
-               do d = 1,nscal
-                 call setbc_3d(sop(:,:,:,d), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,dm+d), &
-                               dx(n,:),dm+d)
+               do comp = 1,nscal
+                 call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,dm+comp), &
+                               dx(n,:),dm+comp)
                end do
             end select
         end do
@@ -521,26 +521,26 @@ subroutine varden()
        hi =  upb(get_box(uold(n), i))
        select case (dm)
           case (2)
-            do d = 1,dm
-              call setbc_2d(uop(:,:,1,d), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,d), &
-                            dx(n,:),d)
+            do comp = 1,dm
+              call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                            bc%adv_bc_level_array(i,:,:,comp), &
+                            dx(n,:),comp)
             end do
-            do d = 1,nscal
-              call setbc_2d(sop(:,:,1,d), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,dm+d), &
-                            dx(n,:),dm+d)
+            do comp = 1,nscal
+              call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
+                            bc%adv_bc_level_array(i,:,:,dm+comp), &
+                            dx(n,:),dm+comp)
             end do
           case (3)
-            do d = 1,dm
-              call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,d), &
-                            dx(n,:),d)
+            do comp = 1,dm
+              call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                            bc%adv_bc_level_array(i,:,:,comp), &
+                            dx(n,:),comp)
             end do
-            do d = 1,nscal
-              call setbc_3d(sop(:,:,:,d), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,dm+d), &
-                            dx(n,:),dm+d)
+            do comp = 1,nscal
+              call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
+                            bc%adv_bc_level_array(i,:,:,dm+comp), &
+                            dx(n,:),dm+comp)
             end do
          end select
      end do
@@ -655,26 +655,26 @@ subroutine varden()
                hi =  upb(get_box(uold(n), i))
                select case (dm)
                   case (2) 
-                    do d = 1,dm
-                      call setbc_2d(uop(:,:,1,d), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,d), &
-                                    dx(n,:),d)
+                    do comp = 1,dm
+                      call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                                    bc%adv_bc_level_array(i,:,:,comp), &
+                                    dx(n,:),comp)
                     end do 
-                    do d = 1,nscal
-                      call setbc_2d(sop(:,:,1,d), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,dm+d), &
-                                    dx(n,:),dm+d)
+                    do comp = 1,nscal
+                      call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
+                                    bc%adv_bc_level_array(i,:,:,dm+comp), &
+                                    dx(n,:),dm+comp)
                     end do
                   case (3) 
-                    do d = 1,dm
-                      call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,d), &
-                                    dx(n,:),d)
+                    do comp = 1,dm
+                      call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                                    bc%adv_bc_level_array(i,:,:,comp), &
+                                    dx(n,:),comp)
                     end do 
-                    do d = 1,nscal
-                      call setbc_3d(sop(:,:,:,d), lo, ng_cell, &
-                                    bc%adv_bc_level_array(i,:,:,dm+d), &
-                                    dx(n,:),dm+d)
+                    do comp = 1,nscal
+                      call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
+                                    bc%adv_bc_level_array(i,:,:,dm+comp), &
+                                    dx(n,:),dm+comp)
                     end do
                  end select
              end do

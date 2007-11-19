@@ -52,7 +52,7 @@ contains
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
       integer :: dm,ng_cell
-      integer :: i,n,d
+      integer :: i,n,comp
       logical :: is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac, visc_mu
       real(kind=dp_t) :: half_dt
@@ -86,21 +86,21 @@ contains
          hi =  upb(get_box(uold(n), i))
          select case (dm)
          case (2)
-            do d = 1, dm
-               call setbc_2d(uop(:,:,1,d), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,d),dx(n,:),d)
+            do comp = 1, dm
+               call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,comp),dx(n,:),comp)
             end do
-            d = dm+1
+            comp = dm+1
             call setbc_2d(sop(:,:,1,1), lo, ng_cell, &
-                          the_bc_level(n)%adv_bc_level_array(i,:,:,d),dx(n,:),d)
+                          the_bc_level(n)%adv_bc_level_array(i,:,:,comp),dx(n,:),comp)
          case (3)
-            do d = 1, dm
-               call setbc_3d(uop(:,:,:,d), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,d),dx(n,:),d)
+            do comp = 1, dm
+               call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,comp),dx(n,:),comp)
             end do
-            d = dm+1
+            comp = dm+1
             call setbc_3d(sop(:,:,:,1), lo, ng_cell, &
-                          the_bc_level(n)%adv_bc_level_array(i,:,:,d),dx(n,:),d)
+                          the_bc_level(n)%adv_bc_level_array(i,:,:,comp),dx(n,:),comp)
          end select
       end do
       
@@ -182,8 +182,8 @@ contains
          end select
       end do
       
-      do d = 1, dm
-         call multifab_fill_boundary(umac(n,d))
+      do comp = 1, dm
+         call multifab_fill_boundary(umac(n,comp))
       enddo
       
       enddo ! do n = 1, nlevs

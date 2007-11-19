@@ -64,7 +64,7 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-      integer :: i,n,dm,d,ng_cell,ng_rho
+      integer :: i,n,dm,face,comp,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
       type(box) :: fine_domain
@@ -189,13 +189,16 @@ contains
       enddo ! do n = 1, nlevs
 
       ! synchronize fluxes
-      ! for now we don't call ml_edge restriction because currently the velocity is
-      ! updated with convective differencing
-!      do n = 2, nlevs
-!         do d = 1, dm
-!            call ml_edge_restriction(flux(n-1,d),flux(n,d),mla%mba%rr(n-1,:),d)
-!         enddo
-!      enddo
+      do n = 2, nlevs
+         do comp = 1, dm
+            if(is_conservative(comp)) then
+               do face = 1, dm
+                  call ml_edge_restriction_c(flux(n-1,face),comp,flux(n,face),comp, &
+                                             mla%mba%rr(n-1,:),face,1)
+               enddo
+            endif
+         enddo
+      enddo
 
       do n = 1, nlevs
 
@@ -275,16 +278,16 @@ contains
          lo = lwb(get_box(unew(n), i))
          select case (dm)
          case (2)
-            do d = 1, dm
-               call setbc_2d(unp(:,:,1,d), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,d), &
-                             dx(n,:),d)
+            do comp = 1, dm
+               call setbc_2d(unp(:,:,1,comp), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,comp), &
+                             dx(n,:),comp)
             end do
          case (3)
-            do d = 1, dm
-               call setbc_3d(unp(:,:,:,d), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,d), &
-                             dx(n,:),d)
+            do comp = 1, dm
+               call setbc_3d(unp(:,:,:,comp), lo, ng_cell, &
+                             the_bc_level(n)%adv_bc_level_array(i,:,:,comp), &
+                             dx(n,:),comp)
             end do
          end select
       end do
