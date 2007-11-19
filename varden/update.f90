@@ -31,7 +31,7 @@ module update_module
       logical           , intent(in   ) :: is_cons(:)
       integer           , intent(in   ) :: verbose
 
-      integer :: i, j, n
+      integer :: i, j, comp
       real (kind = dp_t) ubar,vbar
       real (kind = dp_t) ugradu,ugradv,ugrads
       real (kind = dp_t) :: divsu
@@ -39,22 +39,22 @@ module update_module
 
       if (.not. is_vel) then
 
-        do n = 1,size(sold,dim=3)
-         if (is_cons(n)) then
+        do comp = 1,size(sold,dim=3)
+         if (is_cons(comp)) then
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             divsu = (fluxx(i+1,j,n)-fluxx(i,j,n))/dx(1) &
-                   + (fluxy(i,j+1,n)-fluxy(i,j,n))/dx(2)
-             snew(i,j,n) = sold(i,j,n) - dt * divsu + dt * force(i,j,n)
-             if (n.eq.1) rhohalf(i,j) = HALF * (sold(i,j,1) + snew(i,j,1))
+             divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
+                   + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
+             snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
+             if (comp.eq.1) rhohalf(i,j) = HALF * (sold(i,j,1) + snew(i,j,1))
            enddo
            enddo
-           smax = snew(lo(1),lo(2),n) 
-           smin = snew(lo(1),lo(2),n) 
+           smax = snew(lo(1),lo(2),comp) 
+           smin = snew(lo(1),lo(2),comp) 
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             smax = max(smax,snew(i,j,n))
-             smin = min(smin,snew(i,j,n))
+             smax = max(smax,snew(i,j,comp))
+             smin = min(smin,snew(i,j,comp))
            enddo
            enddo
            if (parallel_IOProcessor() .and. verbose .ge. 1) then
@@ -65,17 +65,17 @@ module update_module
            do i = lo(1), hi(1)
              ubar = HALF*(umac(i,j) + umac(i+1,j))
              vbar = HALF*(vmac(i,j) + vmac(i,j+1))
-             ugrads = ubar*(sedgex(i+1,j,n) - sedgex(i,j,n))/dx(1) + &
-                      vbar*(sedgey(i,j+1,n) - sedgey(i,j,n))/dx(2)
-             snew(i,j,n) = sold(i,j,n) - dt * ugrads + dt * force(i,j,n)
+             ugrads = ubar*(sedgex(i+1,j,comp) - sedgex(i,j,comp))/dx(1) + &
+                      vbar*(sedgey(i,j+1,comp) - sedgey(i,j,comp))/dx(2)
+             snew(i,j,comp) = sold(i,j,comp) - dt * ugrads + dt * force(i,j,comp)
            enddo
            enddo
-           smax = snew(lo(1),lo(2),n) 
-           smin = snew(lo(1),lo(2),n) 
+           smax = snew(lo(1),lo(2),comp) 
+           smin = snew(lo(1),lo(2),comp) 
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             smax = max(smax,snew(i,j,n))
-             smin = min(smin,snew(i,j,n))
+             smax = max(smax,snew(i,j,comp))
+             smin = min(smin,snew(i,j,comp))
            enddo
            enddo
            if (parallel_IOProcessor() .and. verbose .ge. 1) then
@@ -156,7 +156,7 @@ module update_module
       integer           , intent(in   ) :: verbose
 
 !     Local variables
-      integer :: i, j, k, n
+      integer :: i, j, k, comp
       real (kind = dp_t) ubar,vbar,wbar
       real (kind = dp_t) :: ugradu,ugradv,ugradw,ugrads
       real (kind = dp_t) :: divsu
@@ -164,26 +164,26 @@ module update_module
 
       if (.not. is_vel) then
 
-        do n = 1,size(sold,dim=4)
-         if (is_cons(n)) then
+        do comp = 1,size(sold,dim=4)
+         if (is_cons(comp)) then
            do k = lo(3), hi(3)
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             divsu = (fluxx(i+1,j,k,n)-fluxx(i,j,k,n))/dx(1) &
-                   + (fluxy(i,j+1,k,n)-fluxy(i,j,k,n))/dx(2) &
-                   + (fluxz(i,j,k+1,n)-fluxz(i,j,k,n))/dx(3)
-             snew(i,j,k,n) = sold(i,j,k,n) - dt * divsu + dt * force(i,j,k,n)
-             if (n.eq.1)  rhohalf(i,j,k) = HALF * (sold(i,j,k,1) + snew(i,j,k,1))
+             divsu = (fluxx(i+1,j,k,comp)-fluxx(i,j,k,comp))/dx(1) &
+                   + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
+                   + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
+             snew(i,j,k,comp) = sold(i,j,k,comp) - dt * divsu + dt * force(i,j,k,comp)
+             if (comp.eq.1)  rhohalf(i,j,k) = HALF * (sold(i,j,k,1) + snew(i,j,k,1))
            enddo
            enddo
            enddo
-           smin = snew(lo(1),lo(2),lo(3),n) 
-           smax = snew(lo(1),lo(2),lo(3),n) 
+           smin = snew(lo(1),lo(2),lo(3),comp) 
+           smax = snew(lo(1),lo(2),lo(3),comp) 
            do k = lo(3), hi(3)
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             smax = max(smax,snew(i,j,k,n))
-             smin = min(smin,snew(i,j,k,n))
+             smax = max(smax,snew(i,j,k,comp))
+             smin = min(smin,snew(i,j,k,comp))
            enddo
            enddo
            enddo
@@ -198,20 +198,20 @@ module update_module
              ubar = half*(umac(i,j,k) + umac(i+1,j,k))
              vbar = half*(vmac(i,j,k) + vmac(i,j+1,k))
              wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
-             ugrads = ubar*(sedgex(i+1,j,k,n) - sedgex(i,j,k,n))/dx(1) + &
-                      vbar*(sedgey(i,j+1,k,n) - sedgey(i,j,k,n))/dx(2) + &
-                      wbar*(sedgez(i,j,k+1,n) - sedgez(i,j,k,n))/dx(3)
-             snew(i,j,k,n) = sold(i,j,k,n) - dt * ugrads + dt * force(i,j,k,n)
+             ugrads = ubar*(sedgex(i+1,j,k,comp) - sedgex(i,j,k,comp))/dx(1) + &
+                      vbar*(sedgey(i,j+1,k,comp) - sedgey(i,j,k,comp))/dx(2) + &
+                      wbar*(sedgez(i,j,k+1,comp) - sedgez(i,j,k,comp))/dx(3)
+             snew(i,j,k,comp) = sold(i,j,k,comp) - dt * ugrads + dt * force(i,j,k,comp)
            enddo
            enddo
            enddo
-           smin = snew(lo(1),lo(2),lo(3),n) 
-           smax = snew(lo(1),lo(2),lo(3),n) 
+           smin = snew(lo(1),lo(2),lo(3),comp) 
+           smax = snew(lo(1),lo(2),lo(3),comp) 
            do k = lo(3), hi(3)
            do j = lo(2), hi(2)
            do i = lo(1), hi(1)
-             smax = max(smax,snew(i,j,k,n))
-             smin = min(smin,snew(i,j,k,n))
+             smax = max(smax,snew(i,j,k,comp))
+             smin = min(smin,snew(i,j,k,comp))
            enddo
            enddo
            enddo
