@@ -64,7 +64,7 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-      integer :: i,n,dm,face,comp,ng_cell,ng_rho
+      integer :: i,n,dm,d,comp,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
       type(box) :: fine_domain
@@ -192,9 +192,9 @@ contains
       do n = 2, nlevs
          do comp = 1, dm
             if(is_conservative(comp)) then
-               do face = 1, dm
-                  call ml_edge_restriction_c(flux(n-1,face),comp,flux(n,face),comp, &
-                                             mla%mba%rr(n-1,:),face,1)
+               do d = 1, dm
+                  call ml_edge_restriction_c(flux(n-1,d),comp,flux(n,d),comp, &
+                                             mla%mba%rr(n-1,:),d,1)
                enddo
             endif
          enddo

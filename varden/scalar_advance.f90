@@ -61,7 +61,7 @@ contains
       real(kind=dp_t), pointer:: fluxpy(:,:,:,:)
       real(kind=dp_t), pointer:: fluxpz(:,:,:,:)
 
-      integer :: nscal,comp,dm,face,n
+      integer :: nscal,comp,dm,d,n
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
       integer :: i,ng_cell,ng_rho
       logical :: is_vel,make_divu
@@ -196,9 +196,9 @@ contains
       do n = 2, nlevs
          do comp = 1, nscal
             if(is_conservative(comp)) then
-               do face = 1, dm
-                  call ml_edge_restriction_c(flux(n-1,face),comp,flux(n,face),comp, &
-                                             mla%mba%rr(n-1,:),face,1)
+               do d = 1, dm
+                  call ml_edge_restriction_c(flux(n-1,d),comp,flux(n,d),comp, &
+                                             mla%mba%rr(n-1,:),d,1)
                enddo
             endif
          enddo
