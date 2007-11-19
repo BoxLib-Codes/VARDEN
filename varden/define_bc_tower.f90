@@ -40,26 +40,26 @@ module define_bc_module
     bct%dim     = mla%dim
 
     allocate(bct%bc_tower_array(bct%nlevels))
-    do i = 1,bct%nlevels
-       ngrids = layout_nboxes(mla%la(i))
-       bct%bc_tower_array(i)%dim    = bct%dim
-       bct%bc_tower_array(i)%ngrids = ngrids
-       bct%bc_tower_array(i)%domain = domain_box(i)
+    do n = 1,bct%nlevels
+       ngrids = layout_nboxes(mla%la(n))
+       bct%bc_tower_array(n)%dim    = bct%dim
+       bct%bc_tower_array(n)%ngrids = ngrids
+       bct%bc_tower_array(n)%domain = domain_box(n)
 
-       allocate(bct%bc_tower_array(i)%phys_bc_level_array(0:ngrids,bct%dim,2))
+       allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,bct%dim,2))
        default_value = INTERIOR
-       call phys_bc_level_build(bct%bc_tower_array(i)%phys_bc_level_array,mla%la(i), &
+       call phys_bc_level_build(bct%bc_tower_array(n)%phys_bc_level_array,mla%la(n), &
                                 domain_bc,default_value)
 
-       allocate(bct%bc_tower_array(i)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
+       allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
        default_value = INTERIOR
-       call adv_bc_level_build(bct%bc_tower_array(i)%adv_bc_level_array, &
-                               bct%bc_tower_array(i)%phys_bc_level_array,default_value)
+       call adv_bc_level_build(bct%bc_tower_array(n)%adv_bc_level_array, &
+                               bct%bc_tower_array(n)%phys_bc_level_array,default_value)
 
-       allocate(bct%bc_tower_array(i)%ell_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
+       allocate(bct%bc_tower_array(n)%ell_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
        default_value = BC_INT
-       call ell_bc_level_build(bct%bc_tower_array(i)%ell_bc_level_array, &
-                               bct%bc_tower_array(i)%phys_bc_level_array,default_value)
+       call ell_bc_level_build(bct%bc_tower_array(n)%ell_bc_level_array, &
+                               bct%bc_tower_array(n)%phys_bc_level_array,default_value)
     end do
 
   end subroutine bc_tower_build
@@ -68,12 +68,12 @@ module define_bc_module
 
     type(bc_tower), intent(inout) :: bct
 
-    integer :: i
+    integer :: d
 
-    do i = 1,bct%nlevels
-       deallocate(bct%bc_tower_array(i)%phys_bc_level_array)
-       deallocate(bct%bc_tower_array(i)%adv_bc_level_array)
-       deallocate(bct%bc_tower_array(i)%ell_bc_level_array)
+    do n = 1,bct%nlevels
+       deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
+       deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
+       deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
     end do
     deallocate(bct%bc_tower_array)
 
@@ -86,23 +86,23 @@ module define_bc_module
     type(layout), intent(in   ) :: la_level
     integer     , intent(in   ) :: default_value
     type(box) :: bx,pd
-    integer :: i,dm
+    integer :: d
 
     pd = layout_get_pd(la_level) 
 
     phys_bc_level = default_value
 
     i = 0
-    do dm = 1,layout_dim(la_level)
-       phys_bc_level(i,dm,1) = domain_bc(dm,1)
-       phys_bc_level(i,dm,2) = domain_bc(dm,2)
+    do d = 1,layout_dim(la_level)
+       phys_bc_level(i,d,1) = domain_bc(d,1)
+       phys_bc_level(i,d,2) = domain_bc(d,2)
     end do
 
-    do i = 1,layout_nboxes(la_level)
+    do n = 1,layout_nboxes(la_level)
        bx = layout_get_box(la_level,i)
-       do dm = 1,layout_dim(la_level)
-          if (bx%lo(dm) == pd%lo(dm)) phys_bc_level(i,dm,1) = domain_bc(dm,1)
-          if (bx%hi(dm) == pd%hi(dm)) phys_bc_level(i,dm,2) = domain_bc(dm,2)
+       do d = 1,layout_dim(la_level)
+          if (bx%lo(d) == pd%lo(d)) phys_bc_level(i,d,1) = domain_bc(d,1)
+          if (bx%hi(d) == pd%hi(d)) phys_bc_level(i,d,2) = domain_bc(d,2)
        end do
     end do
 
@@ -115,7 +115,7 @@ module define_bc_module
     integer  , intent(in   ) :: default_value
 
     integer :: dm
-    integer :: n,d,i
+    integer :: comp,d,lohi
 
     adv_bc_level = default_value
 
@@ -134,40 +134,40 @@ module define_bc_module
 
     dm = size(adv_bc_level,dim=2)
 
-    do n  = 0,size(adv_bc_level,dim=1)-1
-    do d  = 1,dm
-    do i  = 1,2
-       if (phys_bc_level(n,d,i) == SLIP_WALL) then
-          adv_bc_level(n,d,i,1:dm) = HOEXTRAP      ! tangential vel.
-          adv_bc_level(n,d,i,   d) = EXT_DIR       ! normal vel.
-          adv_bc_level(n,d,i,dm+1) = HOEXTRAP      ! density
-          adv_bc_level(n,d,i,dm+2) = HOEXTRAP      ! tracer
-          adv_bc_level(n,d,i,dm+3) = FOEXTRAP      ! pressure
+    do comp = 0, size(adv_bc_level,dim=1)-1
+    do d = 1, dm
+    do lohi = 1, 2
+       if (phys_bc_level(comp,d,lohi) == SLIP_WALL) then
+          adv_bc_level(comp,d,lohi,1:dm) = HOEXTRAP      ! tangential vel.
+          adv_bc_level(comp,d,lohi,   d) = EXT_DIR       ! normal vel.
+          adv_bc_level(comp,d,lohi,dm+1) = HOEXTRAP      ! density
+          adv_bc_level(comp,d,lohi,dm+2) = HOEXTRAP      ! tracer
+          adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
 
-       else if (phys_bc_level(n,d,i) == NO_SLIP_WALL) then
-          adv_bc_level(n,d,i,1:dm) = EXT_DIR       ! vel.
-          adv_bc_level(n,d,i,dm+1) = HOEXTRAP      ! density
-          adv_bc_level(n,d,i,dm+2) = HOEXTRAP      ! tracer
-          adv_bc_level(n,d,i,dm+3) = FOEXTRAP      ! pressure
+       else if (phys_bc_level(comp,d,lohi) == NO_SLIP_WALL) then
+          adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
+          adv_bc_level(comp,d,lohi,dm+1) = HOEXTRAP      ! density
+          adv_bc_level(comp,d,lohi,dm+2) = HOEXTRAP      ! tracer
+          adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
    
-       else if (phys_bc_level(n,d,i) == INLET) then
-          adv_bc_level(n,d,i,1:dm) = EXT_DIR       ! vel.
-          adv_bc_level(n,d,i,dm+1) = EXT_DIR       ! density
-          adv_bc_level(n,d,i,dm+2) = EXT_DIR       ! tracer
-          adv_bc_level(n,d,i,dm+3) = FOEXTRAP      ! pressure
+       else if (phys_bc_level(comp,d,lohi) == INLET) then
+          adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
+          adv_bc_level(comp,d,lohi,dm+1) = EXT_DIR       ! density
+          adv_bc_level(comp,d,lohi,dm+2) = EXT_DIR       ! tracer
+          adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
 
-       else if (phys_bc_level(n,d,i) == OUTLET) then
-          adv_bc_level(n,d,i,1:dm) = FOEXTRAP      ! vel.
-          adv_bc_level(n,d,i,dm+1) = FOEXTRAP      ! density
-          adv_bc_level(n,d,i,dm+2) = FOEXTRAP      ! tracer
-          adv_bc_level(n,d,i,dm+3) = EXT_DIR       ! pressure
+       else if (phys_bc_level(comp,d,lohi) == OUTLET) then
+          adv_bc_level(comp,d,lohi,1:dm) = FOEXTRAP      ! vel.
+          adv_bc_level(comp,d,lohi,dm+1) = FOEXTRAP      ! density
+          adv_bc_level(comp,d,lohi,dm+2) = FOEXTRAP      ! tracer
+          adv_bc_level(comp,d,lohi,dm+3) = EXT_DIR       ! pressure
 
-       else if (phys_bc_level(n,d,i) == SYMMETRY) then
-          adv_bc_level(n,d,i,1:dm) = REFLECT_EVEN  ! tangential vel.
-          adv_bc_level(n,d,i,   d) = REFLECT_ODD   ! normal vel.
-          adv_bc_level(n,d,i,dm+1) = REFLECT_EVEN  ! density
-          adv_bc_level(n,d,i,dm+2) = REFLECT_EVEN  ! tracer
-          adv_bc_level(n,d,i,dm+3) = REFLECT_EVEN  ! pressure
+       else if (phys_bc_level(comp,d,lohi) == SYMMETRY) then
+          adv_bc_level(comp,d,lohi,1:dm) = REFLECT_EVEN  ! tangential vel.
+          adv_bc_level(comp,d,lohi,   d) = REFLECT_ODD   ! normal vel.
+          adv_bc_level(comp,d,lohi,dm+1) = REFLECT_EVEN  ! density
+          adv_bc_level(comp,d,lohi,dm+2) = REFLECT_EVEN  ! tracer
+          adv_bc_level(comp,d,lohi,dm+3) = REFLECT_EVEN  ! pressure
        end if
     end do
     end do
@@ -182,7 +182,7 @@ module define_bc_module
     integer  , intent(in   ) :: default_value
 
     integer :: dm
-    integer :: n,d,i
+    integer :: comp,d,lohi
 
     ell_bc_level = default_value
 
@@ -203,42 +203,42 @@ module define_bc_module
 
     dm = size(ell_bc_level,dim=2)
 
-    do n = 0,size(ell_bc_level,dim=1)-1
-    do d = 1,dm
-    do i = 1,2
-       if (phys_bc_level(n,d,i) == SLIP_WALL) then
-          ell_bc_level(n,d,i,1:dm) = BC_NEU   ! tangential vel.
-          ell_bc_level(n,d,i,   d) = BC_DIR   ! normal vel.
-          ell_bc_level(n,d,i,dm+1) = BC_NEU   ! density
-          ell_bc_level(n,d,i,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(n,d,i,dm+3) = BC_NEU   ! pressure
-       else if (phys_bc_level(n,d,i) == NO_SLIP_WALL) then
-          ell_bc_level(n,d,i,1:dm) = BC_DIR   ! vel.
-          ell_bc_level(n,d,i,dm+1) = BC_NEU   ! density
-          ell_bc_level(n,d,i,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(n,d,i,dm+3) = BC_NEU   ! pressure
-       else if (phys_bc_level(n,d,i) == INLET) then
-          ell_bc_level(n,d,i,1:dm) = BC_DIR   ! vel.
-          ell_bc_level(n,d,i,dm+1) = BC_DIR   ! density
-          ell_bc_level(n,d,i,dm+2) = BC_DIR   ! tracer
-          ell_bc_level(n,d,i,dm+3) = BC_NEU   ! pressure
-       else if (phys_bc_level(n,d,i) == OUTLET) then
-          ell_bc_level(n,d,i,1:dm) = BC_NEU   ! vel.
-          ell_bc_level(n,d,i,dm+1) = BC_NEU   ! density
-          ell_bc_level(n,d,i,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(n,d,i,dm+3) = BC_DIR   ! pressure
-       else if (phys_bc_level(n,d,i) == SYMMETRY) then
-          ell_bc_level(n,d,i,1:dm) = BC_NEU   ! tangential vel.
-          ell_bc_level(n,d,i,   d) = BC_DIR   ! normal vel.
-          ell_bc_level(n,d,i,dm+1) = BC_NEU   ! density
-          ell_bc_level(n,d,i,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(n,d,i,dm+3) = BC_NEU   ! pressure
-       else if (phys_bc_level(n,d,i) == PERIODIC) then
-          ell_bc_level(n,d,i,1:dm) = BC_PER   ! tangential vel.
-          ell_bc_level(n,d,i,   d) = BC_PER   ! normal vel.
-          ell_bc_level(n,d,i,dm+1) = BC_PER   ! density
-          ell_bc_level(n,d,i,dm+2) = BC_PER   ! tracer
-          ell_bc_level(n,d,i,dm+3) = BC_PER   ! pressure
+    do comp = 0, size(ell_bc_level,dim=1)-1
+    do d = 1, dm
+    do lohi = 1, 2
+       if (phys_bc_level(comp,d,lohi) == SLIP_WALL) then
+          ell_bc_level(comp,d,lohi,1:dm) = BC_NEU   ! tangential vel.
+          ell_bc_level(comp,d,lohi,   d) = BC_DIR   ! normal vel.
+          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
+          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
+          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+       else if (phys_bc_level(comp,d,lohi) == NO_SLIP_WALL) then
+          ell_bc_level(comp,d,lohi,1:dm) = BC_DIR   ! vel.
+          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
+          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
+          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+       else if (phys_bc_level(comp,d,lohi) == INLET) then
+          ell_bc_level(comp,d,lohi,1:dm) = BC_DIR   ! vel.
+          ell_bc_level(comp,d,lohi,dm+1) = BC_DIR   ! density
+          ell_bc_level(comp,d,lohi,dm+2) = BC_DIR   ! tracer
+          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+       else if (phys_bc_level(comp,d,lohi) == OUTLET) then
+          ell_bc_level(comp,d,lohi,1:dm) = BC_NEU   ! vel.
+          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
+          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
+          ell_bc_level(comp,d,lohi,dm+3) = BC_DIR   ! pressure
+       else if (phys_bc_level(comp,d,lohi) == SYMMETRY) then
+          ell_bc_level(comp,d,lohi,1:dm) = BC_NEU   ! tangential vel.
+          ell_bc_level(comp,d,lohi,   d) = BC_DIR   ! normal vel.
+          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
+          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
+          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+       else if (phys_bc_level(comp,d,lohi) == PERIODIC) then
+          ell_bc_level(comp,d,lohi,1:dm) = BC_PER   ! tangential vel.
+          ell_bc_level(comp,d,lohi,   d) = BC_PER   ! normal vel.
+          ell_bc_level(comp,d,lohi,dm+1) = BC_PER   ! density
+          ell_bc_level(comp,d,lohi,dm+2) = BC_PER   ! tracer
+          ell_bc_level(comp,d,lohi,dm+3) = BC_PER   ! pressure
        end if
     end do
     end do
