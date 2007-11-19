@@ -35,7 +35,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
   type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
   type(bndry_reg), pointer    :: fine_flx(:) => Null()
   real(dp_t)     ,allocatable :: umac_norm(:)
-  integer                     :: dm,stencil_order,i,n
+  integer                     :: d,dm,stencil_order,i,n
   integer                     :: ng,nc
   integer                     :: nlevs,nscal
   logical                     :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
@@ -143,6 +143,12 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
        call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d(n),ml_layout_get_pd(mla,n),.false.)
     end do
   end if
+
+  do n = 1, nlevs
+     do d=1,dm
+        call multifab_fill_boundary(umac(n,d))
+     enddo
+  enddo
 
   do n = 1, nlevs
      call multifab_destroy(rh(n))

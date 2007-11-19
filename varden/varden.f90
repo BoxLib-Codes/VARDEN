@@ -727,44 +727,16 @@ subroutine varden()
            print *,' '
         end if
 
-        do n = 1,nlevs
-
-           call advance_premac(uold(n),sold(n),&
-                               umac(n,:), &
-                               gp(n),p(n), &
-                               ext_vel_force(n), &
-                               dx(n,:),time,dt, &
-                               the_bc_tower%bc_tower_array(n), &
-                               visc_coef,use_godunov_debug, &
-                               use_minion)
-        end do
-
-        do n=1,nlevs
-           do d=1,dm
-              call multifab_fill_boundary(umac(n,d))
-           enddo
-        enddo
+        call advance_premac(nlevs,uold,sold,umac,gp,ext_vel_force, &
+                            dx,time,dt,the_bc_tower%bc_tower_array, &
+                            visc_coef,use_godunov_debug,use_minion)
 
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
                         press_comp)
 
-        do n=1,nlevs
-           do d=1,dm
-              call multifab_fill_boundary(umac(n,d))
-           enddo
-        enddo
-
         call scalar_advance(nlevs,mla,uold,sold,snew,rhohalf,umac,sedge,flux, &
                             ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
-
-        do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                1,dm+1,nscal)
-        end do
 
         if (diff_coef > ZERO) then
           comp = 2
@@ -774,21 +746,9 @@ subroutine varden()
                                  mg_verbose,cg_verbose,verbose)
         end if
 
-        do n = 1,nlevs
-           call multifab_fill_boundary(snew(n))
-        end do
-
         call velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
                               ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
-
-        do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                1,1,dm)
-        end do
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
@@ -796,11 +756,7 @@ subroutine varden()
                            verbose)
         end if
 
-        do n = 1,nlevs
-           call multifab_fill_boundary(unew(n))
-        end do
-
-!       Project the new velocity field.
+        ! Project the new velocity field.
         call hgproject(regular_timestep,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                        the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
@@ -1110,42 +1066,16 @@ subroutine varden()
                 1,1,dm)
         end do
 
-        do n = 1,nlevs
-           call advance_premac(uold(n),sold(n),&
-                               umac(n,:), & 
-                               gp(n),p(n),ext_vel_force(n), &
-                               dx(n,:),time,dt, &
-                               the_bc_tower%bc_tower_array(n), &
-                               visc_coef,use_godunov_debug, &
-                               use_minion)
-        end do
-
-        do n=1,nlevs
-           do d=1,dm
-              call multifab_fill_boundary(umac(n,d))
-           enddo
-        enddo
+        call advance_premac(nlevs,uold,sold,umac,gp,ext_vel_force, &
+                            dx,time,dt,the_bc_tower%bc_tower_array, &
+                            visc_coef,use_godunov_debug,use_minion)
 
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
                         press_comp)
 
-        do n=1,nlevs
-           do d=1,dm
-              call multifab_fill_boundary(umac(n,d))
-           enddo
-        enddo
-
         call scalar_advance(nlevs,mla,uold,sold,snew,rhohalf,umac,sedge,flux, &
                             ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
-
-        do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                1,dm+1,nscal)
-        end do
 
         if (diff_coef > ZERO) then
           comp = 2
@@ -1155,21 +1085,9 @@ subroutine varden()
                                  mg_verbose,cg_verbose,verbose)
         end if
 
-        do n = 1,nlevs
-           call multifab_fill_boundary(snew(n))
-        end do
-
         call velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
                               ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
-
-        do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                1,1,dm)
-        end do
 
         if (visc_coef > ZERO) then
            visc_mu = HALF*dt*visc_coef
@@ -1177,11 +1095,7 @@ subroutine varden()
                            cg_verbose,verbose)
         end if
 
-        do n = 1,nlevs
-           call multifab_fill_boundary(unew(n))
-        end do
-
-!       Project the new velocity field.
+        ! Project the new velocity field.
         call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                        the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 

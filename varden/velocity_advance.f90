@@ -64,9 +64,10 @@ contains
       real(kind=dp_t), pointer:: sepy(:,:,:,:)
 
       integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-      integer :: i,n,comp,dm,ng_cell,ng_rho,ilev
+      integer :: i,n,comp,dm,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
+      type(box) :: fine_domain
 
       allocate(vel_force(nlevs),divu(nlevs))
 
@@ -78,62 +79,62 @@ contains
 
       is_conservative = .false.
       
-      do ilev=1,nlevs
-         call multifab_build(vel_force(ilev),ext_vel_force(ilev)%la,dm,1)
-         call multifab_build(divu(ilev),vel_force(ilev)%la,1,1)
-         call setval(divu(ilev),0.0_dp_t,all=.true.)
+      do n = 1, nlevs
+         call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)
+         call multifab_build(divu(n),vel_force(n)%la,1,1)
+         call setval(divu(n),0.0_dp_t,all=.true.)
       enddo
 
-      do ilev=1,nlevs
+      do n = 1, nlevs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the velocity forcing term at time n using rho and the full viscous term.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       visc_fac = ONE
-      do i = 1, uold(ilev)%nboxes
-         if ( multifab_remote(uold(ilev), i) ) cycle
-         fp  => dataptr(vel_force(ilev), i)
-         ep  => dataptr(ext_vel_force(ilev), i)
-         gpp => dataptr(gp(ilev), i)
-         rp  => dataptr(sold(ilev), i)
-         uop => dataptr(uold(ilev), i)
-         lo = lwb(get_box(uold(ilev), i))
-         hi = upb(get_box(uold(ilev), i))
+      do i = 1, uold(n)%nboxes
+         if ( multifab_remote(uold(n), i) ) cycle
+         fp  => dataptr(vel_force(n), i)
+         ep  => dataptr(ext_vel_force(n), i)
+         gpp => dataptr(gp(n), i)
+         rp  => dataptr(sold(n), i)
+         uop => dataptr(uold(n), i)
+         lo = lwb(get_box(uold(n), i))
+         hi = upb(get_box(uold(n), i))
          select case (dm)
          case (2)
             call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
                                gpp(:,:,1,:), rp(:,:,1,1), uop(:,:,1,:), &
-                               ng_cell, ng_cell, dx(ilev,:), &
-                               the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                               ng_cell, ng_cell, dx(n,:), &
+                               the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                                visc_coef, visc_fac)
          case (3)
             call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
                                gpp(:,:,:,:), rp(:,:,:,1), uop(:,:,:,:), &
-                               ng_cell, ng_cell, dx(ilev,:), &
-                               the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                               ng_cell, ng_cell, dx(n,:), &
+                               the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                                visc_coef, visc_fac)
          end select
       end do
-      call multifab_fill_boundary(vel_force(ilev))
+      call multifab_fill_boundary(vel_force(n))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Create the edge states of velocity using the MAC velocity 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       is_vel = .true.
-      do i = 1, uold(ilev)%nboxes
-         if ( multifab_remote(uold(ilev), i) ) cycle
-         uop  => dataptr(uold(ilev), i)
-         uepx => dataptr(uedge(ilev,1), i)
-         uepy => dataptr(uedge(ilev,2), i)
-         fluxpx => dataptr(flux(ilev,1), i)
-         fluxpy => dataptr(flux(ilev,2), i)
-         ump  => dataptr(umac(ilev,1), i)
-         vmp  => dataptr(umac(ilev,2), i)
-         fp   => dataptr(vel_force(ilev), i)
-         dp   => dataptr(divu(ilev), i)
-         lo = lwb(get_box(uold(ilev), i))
-         hi = upb(get_box(uold(ilev), i))
+      do i = 1, uold(n)%nboxes
+         if ( multifab_remote(uold(n), i) ) cycle
+         uop  => dataptr(uold(n), i)
+         uepx => dataptr(uedge(n,1), i)
+         uepy => dataptr(uedge(n,2), i)
+         fluxpx => dataptr(flux(n,1), i)
+         fluxpy => dataptr(flux(n,2), i)
+         ump  => dataptr(umac(n,1), i)
+         vmp  => dataptr(umac(n,2), i)
+         fp   => dataptr(vel_force(n), i)
+         dp   => dataptr(divu(n), i)
+         lo = lwb(get_box(uold(n), i))
+         hi = upb(get_box(uold(n), i))
          select case (dm)
          case (2)
             if(use_godunov_debug) then
@@ -142,9 +143,9 @@ contains
                                     fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                     ump(:,:,1,1), vmp(:,:,1,1), &
                                     fp(:,:,1,:), dp(:,:,1,1), &
-                                    lo, dx(ilev,:), dt, is_vel, &
-                                    the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
-                                    the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                                    lo, dx(n,:), dt, is_vel, &
+                                    the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                    the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                                     ng_cell, use_minion, is_conservative)
             else
                call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
@@ -152,24 +153,24 @@ contains
                               fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                               ump(:,:,1,1), vmp(:,:,1,1), &
                               fp(:,:,1,:), dp(:,:,1,1), &
-                              lo, dx(ilev,:), dt, is_vel, &
-                              the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
-                              the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                              lo, dx(n,:), dt, is_vel, &
+                              the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                              the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                               ng_cell, use_minion, is_conservative)
             endif
          case (3)
-            uepz => dataptr(uedge(ilev,3), i)
-            fluxpz => dataptr(flux(ilev,3), i)
-            wmp  => dataptr(umac(ilev,3), i)
+            uepz => dataptr(uedge(n,3), i)
+            fluxpz => dataptr(flux(n,3), i)
+            wmp  => dataptr(umac(n,3), i)
             if(use_godunov_debug) then
                call mkflux_debug_3d(uop(:,:,:,:), uop(:,:,:,:), &
                                     uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                                     fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                     ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                     fp(:,:,:,:), dp(:,:,:,1), &
-                                    lo, dx(ilev,:), dt, is_vel, &
-                                    the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
-                                    the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                                    lo, dx(n,:), dt, is_vel, &
+                                    the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                    the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                                     ng_cell, use_minion, is_conservative)
             else
                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
@@ -177,106 +178,114 @@ contains
                               fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                               ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                               fp(:,:,:,:), dp(:,:,:,1), &
-                              lo, dx(ilev,:), dt, is_vel, &
-                              the_bc_level(ilev)%phys_bc_level_array(i,:,:), &
-                              the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                              lo, dx(n,:), dt, is_vel, &
+                              the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                              the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                               ng_cell, use_minion, is_conservative)
             endif
          end select
       end do
 
-      enddo ! do ilev=1,nlevs
+      enddo ! do n = 1, nlevs
 
       ! synchronize fluxes
       ! for now we don't call ml_edge restriction because currently the velocity is
       ! updated with convective differencing
-!      do ilev=2,nlevs
-!         do n=1,dm
-!            call ml_edge_restriction(flux(ilev-1,n),flux(ilev,n),mla%mba%rr(ilev-1,:),n)
+!      do n = 2, nlevs
+!         do d = 1, dm
+!            call ml_edge_restriction(flux(n-1,d),flux(n,d),mla%mba%rr(n-1,:),d)
 !         enddo
 !      enddo
 
-      do ilev=1,nlevs
+      do n = 1, nlevs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Now create vel_force at half-time using rhohalf and half the viscous term.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       visc_fac = HALF
-      do i = 1, uold(ilev)%nboxes
-         if ( multifab_remote(uold(ilev), i) ) cycle
-         fp  => dataptr(vel_force(ilev), i)
-         ep  => dataptr(ext_vel_force(ilev), i)
-         gpp => dataptr(gp(ilev), i)
-         rp  => dataptr(rhohalf(ilev), i)
-         uop => dataptr(uold(ilev), i)
-         lo = lwb(get_box(uold(ilev), i))
-         hi = upb(get_box(uold(ilev), i))
+      do i = 1, uold(n)%nboxes
+         if ( multifab_remote(uold(n), i) ) cycle
+         fp  => dataptr(vel_force(n), i)
+         ep  => dataptr(ext_vel_force(n), i)
+         gpp => dataptr(gp(n), i)
+         rp  => dataptr(rhohalf(n), i)
+         uop => dataptr(uold(n), i)
+         lo = lwb(get_box(uold(n), i))
+         hi = upb(get_box(uold(n), i))
          select case (dm)
          case (2)
             call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
                                gpp(:,:,1,:), rp(:,:,1,1), uop(:,:,1,:), &
-                               ng_cell, ng_rho, dx(ilev,:), &
-                               the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                               ng_cell, ng_rho, dx(n,:), &
+                               the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                                visc_coef, visc_fac)
          case (3)
             call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
                                gpp(:,:,:,:), rp(:,:,:,1), uop(:,:,:,:), &
-                               ng_cell, ng_rho, dx(ilev,:), &
-                               the_bc_level(ilev)%ell_bc_level_array(i,:,:,1:dm), &
+                               ng_cell, ng_rho, dx(n,:), &
+                               the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
                                visc_coef, visc_fac)
          end select
       end do
-      call multifab_fill_boundary(vel_force(ilev))
+      call multifab_fill_boundary(vel_force(n))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the velocity with convective differencing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      do i = 1, uold(ilev)%nboxes
-         if ( multifab_remote(uold(ilev), i) ) cycle
-         uop  => dataptr(uold(ilev), i)
-         ump  => dataptr(umac(ilev,1), i)
-         vmp  => dataptr(umac(ilev,2), i)
-         uepx => dataptr(uedge(ilev,1), i)
-         uepy => dataptr(uedge(ilev,2), i)
-         fluxpx => dataptr(flux(ilev,1), i)
-         fluxpy => dataptr(flux(ilev,2), i)
-         unp  => dataptr(unew(ilev), i)
-         fp   => dataptr(vel_force(ilev), i)
-         rp   => dataptr(rhohalf(ilev), i)
-         lo = lwb(get_box(uold(ilev), i))
-         hi = upb(get_box(uold(ilev), i))
+      do i = 1, uold(n)%nboxes
+         if ( multifab_remote(uold(n), i) ) cycle
+         uop  => dataptr(uold(n), i)
+         ump  => dataptr(umac(n,1), i)
+         vmp  => dataptr(umac(n,2), i)
+         uepx => dataptr(uedge(n,1), i)
+         uepy => dataptr(uedge(n,2), i)
+         fluxpx => dataptr(flux(n,1), i)
+         fluxpy => dataptr(flux(n,2), i)
+         unp  => dataptr(unew(n), i)
+         fp   => dataptr(vel_force(n), i)
+         rp   => dataptr(rhohalf(n), i)
+         lo = lwb(get_box(uold(n), i))
+         hi = upb(get_box(uold(n), i))
          select case (dm)
          case (2)
-            call update_2d(ilev,uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+            call update_2d(n,uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
                            uepx(:,:,1,:), uepy(:,:,1,:), &
                            fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                            fp(:,:,1,:), unp(:,:,1,:), &
                            rp(:,:,1,1), &
-                           lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)
+                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative,verbose)
          case (3)
-            wmp => dataptr(umac(ilev,3), i)
-            uepz => dataptr(uedge(ilev,3), i)
-            fluxpz => dataptr(flux(ilev,3), i)
-            call update_3d(ilev,uop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+            wmp => dataptr(umac(n,3), i)
+            uepz => dataptr(uedge(n,3), i)
+            fluxpz => dataptr(flux(n,3), i)
+            call update_3d(n,uop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                            uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
                            fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                            fp(:,:,:,:), unp(:,:,:,:), &
                            rp(:,:,:,1), &
-                           lo, hi, ng_cell,dx(ilev,:),dt,is_vel,is_conservative,verbose)
+                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative,verbose)
          end select
       end do
 
-      enddo ! do ilev=1,nlevs
+      enddo ! do n = 1, nlevs
 
       ! use restriction so coarse cells are the average
       ! of the corresponding fine cells
-      do ilev=2,nlevs
-         call ml_cc_restriction(unew(ilev-1),unew(ilev),mla%mba%rr(ilev-1,:))
+      do n = 2, nlevs
+         call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
       enddo
 
-      do ilev=1,nlevs
-         call multifab_destroy(vel_force(ilev))
-         call multifab_destroy(divu(ilev))
+        do n = 2, nlevs
+           fine_domain = layout_get_pd(mla%la(n))
+           call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_level(n-1)%adv_bc_level_array(0,:,:,:), &
+                                          1,1,dm)
+        end do
+
+      do n = 1, nlevs
+         call multifab_destroy(vel_force(n))
+         call multifab_destroy(divu(n))
       enddo
 
    end subroutine velocity_advance

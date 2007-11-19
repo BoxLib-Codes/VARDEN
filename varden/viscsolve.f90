@@ -82,7 +82,11 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
      print *,' '
   endif
 
-  do n = 1,nlevs
+  do n = 1, nlevs
+     call multifab_fill_boundary(unew(n))
+  enddo
+
+  do n = 1, nlevs
      call multifab_destroy(rh(n))
      call multifab_destroy(phi(n))
      call multifab_destroy(alpha(n))
@@ -239,7 +243,11 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
      print *,'...   end diffusive solve  ... '
   endif
 
-  do n = 1,nlevs
+  do n = 1, nlevs
+     call multifab_fill_boundary(snew(n))
+  enddo
+
+  do n = 1, nlevs
      call multifab_destroy(rh(n))
      call multifab_destroy(phi(n))
      call multifab_destroy(alpha(n))
