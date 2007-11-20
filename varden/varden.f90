@@ -562,11 +562,12 @@ subroutine varden()
 
   dtold = dt
 
-  dt_hold = dt
+  dt_hold = 1.d20
   do n = 1,nlevs
      call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
                 cflfac,dtold,dt,verbose)
      dt = min(dt_hold,dt)
+     dt_hold = dt
   end do
   if (restart < 0) dt = dt * init_shrink
   if (stop_time >= 0.d0) then
