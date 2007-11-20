@@ -75,8 +75,14 @@ subroutine varden()
   type(multifab), allocatable ::  rhohalf(:)
   type(multifab), allocatable ::        p(:)
   type(multifab), allocatable ::     vort(:)
+  type(multifab), allocatable :: lapu(:)
   type(multifab), allocatable :: ext_vel_force(:)
+  type(multifab), allocatable :: laps(:)
   type(multifab), allocatable :: ext_scal_force(:)
+  type(multifab), allocatable :: phi(:)
+  type(multifab), allocatable :: Lphi(:)
+  type(multifab), allocatable :: alpha(:)
+  type(multifab), allocatable :: beta(:) 
   type(multifab), allocatable :: plotdata(:)
   type(multifab), pointer     ::  chkdata(:)
   type(multifab), pointer     ::    chk_p(:)
@@ -105,6 +111,7 @@ subroutine varden()
   integer :: un, ierr
   integer :: restart
   integer :: do_initial_projection
+  integer :: stencil_order
   logical :: lexist
   logical :: need_inputs
 
@@ -113,7 +120,6 @@ subroutine varden()
   type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
-
   type(bc_level) ::  bc
 
   namelist /probin/ dim_in
@@ -151,6 +157,8 @@ subroutine varden()
   
   ng_cell = 3
   ng_grow = 1
+
+  stencil_order = 2
 
   narg = command_argument_count()
 
@@ -292,6 +300,9 @@ subroutine varden()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
+  allocate(lapu(nlevs),laps(nlevs))
+  allocate(phi(nlevs),Lphi(nlevs))
+  allocate(alpha(nlevs),beta(nlevs))
   allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
 
   allocate(unew(nlevs),snew(nlevs))
@@ -400,67 +411,66 @@ subroutine varden()
 
    else
 
-     do n = 2, nlevs
-        fine_domain = layout_get_pd(mla_new%la(n))
-        call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
-                       ng_cell,mla_new%mba%rr(n-1,:), &
-                       the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                       1,1,dm)
-        call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
-                       ng_cell,mla_new%mba%rr(n-1,:), &
-                       the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                       1,dm+1,nscal)
-        call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
-                       ng_grow,mla_new%mba%rr(n-1,:), &
-                       the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
-                       1,1,dm)
-     end do
+      do n = 2, nlevs
+         fine_domain = layout_get_pd(mla_new%la(n))
+         call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
+                        ng_cell,mla_new%mba%rr(n-1,:), &
+                        the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                        1,1,dm)
+         call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
+                        ng_cell,mla_new%mba%rr(n-1,:), &
+                        the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                        1,dm+1,nscal)
+         call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
+                        ng_grow,mla_new%mba%rr(n-1,:), &
+                        the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+                        1,1,dm)
+      end do
+      
+      do n = 1,nlevs
+         call multifab_copy_c(  uold_rg(n),1,  uold(n),1,   dm)
+         call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
+         call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
+         call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
+      end do
+      
+      do n = 1,nlevs
+         call multifab_fill_boundary(uold(n))
+         call multifab_fill_boundary(sold(n))
 
-     do n = 1,nlevs
-       call multifab_copy_c(  uold_rg(n),1,  uold(n),1,   dm)
-       call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
-       call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
-       call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
-     end do
-
-     do n = 1,nlevs
-
-        call multifab_fill_boundary(uold(n))
-        call multifab_fill_boundary(sold(n))
-
-        bc = the_bc_tower%bc_tower_array(n)
-        do i = 1, uold_rg(n)%nboxes
-          if ( multifab_remote(uold_rg(n), i) ) cycle
-          uop => dataptr(uold_rg(n), i)
-          sop => dataptr(sold_rg(n), i)
-          lo =  lwb(get_box(uold_rg(n), i))
-          hi =  upb(get_box(uold_rg(n), i))
-          select case (dm)
-             case (2) 
+         bc = the_bc_tower%bc_tower_array(n)
+         do i = 1, uold_rg(n)%nboxes
+            if ( multifab_remote(uold_rg(n), i) ) cycle
+            uop => dataptr(uold_rg(n), i)
+            sop => dataptr(sold_rg(n), i)
+            lo =  lwb(get_box(uold_rg(n), i))
+            hi =  upb(get_box(uold_rg(n), i))
+            select case (dm)
+            case (2) 
                do comp = 1,dm
-                 call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,comp), &
-                               dx(n,:),comp)
-               end do 
-               do comp = 1,nscal
-                 call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,dm+comp), &
-                               dx(n,:),dm+comp)
+                  call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                                bc%adv_bc_level_array(i,:,:,comp), &
+                                dx(n,:),comp)
                end do
-             case (3) 
-               do comp = 1,dm
-                 call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,comp), &
-                               dx(n,:),comp)
-               end do 
                do comp = 1,nscal
-                 call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,dm+comp), &
-                               dx(n,:),dm+comp)
+                  call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
+                                bc%adv_bc_level_array(i,:,:,dm+comp), &
+                                dx(n,:),dm+comp)
+               end do
+            case (3) 
+               do comp = 1,dm
+                  call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                                bc%adv_bc_level_array(i,:,:,comp), &
+                                dx(n,:),comp)
+               end do
+               do comp = 1,nscal
+                  call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
+                                bc%adv_bc_level_array(i,:,:,dm+comp), &
+                                dx(n,:),dm+comp)
                end do
             end select
-        end do
-     end do
+         end do
+      end do
 
    end if
 
@@ -468,8 +478,8 @@ subroutine varden()
 
      uold = uold_rg
      sold = sold_rg
-       gp =   gp_rg
-        p =    p_rg
+       gp = gp_rg
+        p = p_rg
 
    call make_temps(mla_new)
 
@@ -484,17 +494,17 @@ subroutine varden()
 
   if (restart < 0) then
 
-!    Note that we use rhohalf, filled with 1 at this point, as a temporary
-!       in order to do a constant-density initial projection.
+     ! Note that we use rhohalf, filled with 1 at this point, as a temporary
+     ! in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
-       call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,dt_temp, &
-                      the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
-       do n = 1,nlevs
-          call setval( p(n)  ,0.0_dp_t, all=.true.)
-          call setval(gp(n)  ,0.0_dp_t, all=.true.)
-       end do
+        call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,dt_temp, &
+                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+        do n = 1,nlevs
+           call setval( p(n)  ,0.0_dp_t, all=.true.)
+           call setval(gp(n)  ,0.0_dp_t, all=.true.)
+        end do
      end if
- 
+     
      if (bcy_lo == OUTLET) then
         pressure_inflow_val = .16
         call impose_pressure_bcs(p,mla,pressure_inflow_val)
@@ -721,14 +731,40 @@ subroutine varden()
            print *,' '
         end if
 
-        call advance_premac(nlevs,uold,sold,umac,gp,ext_vel_force, &
+        ! compute Lapu
+        if(visc_coef .gt. ZERO) then
+           do comp = 1, dm
+              do n = 1, nlevs
+                 call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
+              enddo
+              call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
+                   stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+              do n = 1, nlevs
+                 call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
+              enddo
+           enddo
+        endif
+
+        ! compute Laps for passive scalar only
+        if(diff_coef .gt. ZERO) then
+           do n = 1, nlevs
+              call multifab_copy_c(phi(n),1,sold(n),2,1,1)
+           enddo
+           call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
+                stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+           do n = 1, nlevs
+              call multifab_copy_c(Laps(n),2,Lphi(n),1)
+           enddo
+        endif
+
+        call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force, &
                             dx,time,dt,the_bc_tower%bc_tower_array, &
                             visc_coef,use_godunov_debug,use_minion)
 
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
                         press_comp)
 
-        call scalar_advance(nlevs,mla,uold,sold,snew,rhohalf,umac,sedge,flux, &
+        call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,flux, &
                             ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
@@ -740,7 +776,7 @@ subroutine varden()
                                  mg_verbose,cg_verbose,verbose)
         end if
 
-        call velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
+        call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,flux,gp,p, &
                               ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 
@@ -966,6 +1002,12 @@ subroutine varden()
         call multifab_build(   vort(n), mla_loc%la(n),     1, 0)
         call multifab_build(ext_vel_force(n),  mla_loc%la(n),    dm, 1)
         call multifab_build(ext_scal_force(n), mla_loc%la(n), nscal, 1)
+        call multifab_build(lapu(n), mla_loc%la(n),    dm, 0)
+        call multifab_build(laps(n), mla_loc%la(n), nscal, 0)
+        call multifab_build(phi(n), mla_loc%la(n),  1, 1)
+        call multifab_build(Lphi(n), mla_loc%la(n),  1, 0)
+        call multifab_build(alpha(n), mla_loc%la(n),  1, 1)
+        call multifab_build(beta(n) , mla_loc%la(n), dm, 1)
 
         call setval(   unew(n),ZERO, all=.true.)
         call setval(   snew(n),ZERO, all=.true.)
@@ -974,6 +1016,12 @@ subroutine varden()
         call setval(ext_vel_force(n) ,ZERO, 1,dm-1,all=.true.)
         call setval(ext_vel_force(n) ,grav,dm,   1,all=.true.)
         call setval(ext_scal_force(n),ZERO, all=.true.)
+        call setval(lapu(n), ZERO, all=.true.)
+        call setval(laps(n), ZERO, all=.true.)
+        call setval(phi(n),  ZERO, all=.true.)
+        call setval(Lphi(n),  ZERO, all=.true.)
+        call setval(alpha(n),  ZERO, all=.true.)
+        call setval(beta(n) , 1.0d0, all=.true.)
    
         do i = 1,dm
           umac_nodal_flag = .false.
@@ -1010,6 +1058,12 @@ subroutine varden()
          call multifab_destroy(snew(n))
          call multifab_destroy(ext_vel_force(n))
          call multifab_destroy(ext_scal_force(n))
+         call multifab_destroy(lapu(n))
+         call multifab_destroy(laps(n))
+         call multifab_destroy(phi(n))
+         call multifab_destroy(Lphi(n))
+         call multifab_destroy(alpha(n))
+         call multifab_destroy(beta(n))
          do i = 1,dm
            call multifab_destroy(umac(n,i))
            call multifab_destroy(uedge(n,i))
@@ -1060,14 +1114,40 @@ subroutine varden()
                 1,1,dm)
         end do
 
-        call advance_premac(nlevs,uold,sold,umac,gp,ext_vel_force, &
+        ! compute Lapu
+        if(visc_coef .gt. ZERO) then
+           do comp = 1, dm
+              do n = 1, nlevs
+                 call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
+              enddo
+              call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
+                   stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+              do n = 1, nlevs
+                 call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
+              enddo
+           enddo
+        endif
+
+        ! compute Laps for passive scalar only
+        if(diff_coef .gt. ZERO) then
+           do n = 1, nlevs
+              call multifab_copy_c(phi(n),1,sold(n),2,1,1)
+           enddo
+           call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
+                stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+           do n = 1, nlevs
+              call multifab_copy_c(Laps(n),2,Lphi(n),1)
+           enddo
+        endif
+
+        call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force, &
                             dx,time,dt,the_bc_tower%bc_tower_array, &
                             visc_coef,use_godunov_debug,use_minion)
 
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
                         press_comp)
 
-        call scalar_advance(nlevs,mla,uold,sold,snew,rhohalf,umac,sedge,flux, &
+        call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,flux, &
                             ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
@@ -1079,7 +1159,7 @@ subroutine varden()
                                  mg_verbose,cg_verbose,verbose)
         end if
 
-        call velocity_advance(nlevs,mla,uold,unew,sold,rhohalf,umac,uedge,flux,gp,p, &
+        call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,flux,gp,p, &
                               ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 

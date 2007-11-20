@@ -13,7 +13,7 @@ module pre_advance_module
 
 contains
 
-   subroutine advance_premac(nlevs,uold,sold,umac, &
+   subroutine advance_premac(nlevs,uold,sold,lapu,umac, &
                              gp,ext_vel_force, &
                              dx,time,dt, &
                              the_bc_level, &
@@ -23,6 +23,7 @@ contains
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: uold(:)
       type(multifab) , intent(inout) :: sold(:)
+      type(multifab) , intent(in   ) :: lapu(:)
       type(multifab) , intent(inout) :: umac(:,:)
       type(multifab) , intent(in   ) :: gp(:)
       type(multifab) , intent(in   ) :: ext_vel_force(:)
@@ -44,6 +45,7 @@ contains
 
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
+      real(kind=dp_t), pointer:: lapup(:,:,:,:)
       real(kind=dp_t), pointer::  rp(:,:,:,:) 
       real(kind=dp_t), pointer::  up(:,:,:,:)
       real(kind=dp_t), pointer::  sp(:,:,:,:)
@@ -108,23 +110,26 @@ contains
       visc_fac = ONE
       do i = 1, uold(n)%nboxes
          if ( multifab_remote(uold(n), i) ) cycle
-         fp  => dataptr(vel_force(n), i)
-         ep  => dataptr(ext_vel_force(n), i)
-         gpp => dataptr(gp(n), i)
-         rp  => dataptr(sold(n), i)
-         up  => dataptr(uold(n), i)
+         fp    => dataptr(vel_force(n), i)
+         ep    => dataptr(ext_vel_force(n), i)
+         gpp   => dataptr(gp(n), i)
+         rp    => dataptr(sold(n), i)
+         up    => dataptr(uold(n), i)
+         lapup => dataptr(lapu(n), i)
          lo = lwb(get_box(uold(n), i))
          hi = upb(get_box(uold(n), i))
          select case (dm)
             case (2)
               call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), &
                                  gpp(:,:,1,:), rp(:,:,1,1), up(:,:,1,:), &
+                                 lapup(:,:,1,:), &
                                  ng_cell, ng_cell, dx(n,:), &
                                  the_bc_level(n)%ell_bc_level_array(i,:,:,:), &
                                  visc_coef, visc_fac)
             case (3)
               call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), &
                                  gpp(:,:,:,:), rp(:,:,:,1), up(:,:,:,:), &
+                                 lapup(:,:,:,:), &
                                  ng_cell, ng_cell, dx(n,:), &
                                  the_bc_level(n)%ell_bc_level_array(i,:,:,:), &
                                  visc_coef, visc_fac)

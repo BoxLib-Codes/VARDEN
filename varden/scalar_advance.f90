@@ -13,7 +13,7 @@ module scalar_advance_module
 
 contains
 
-   subroutine scalar_advance (nlevs,mla,uold,sold,snew,rhohalf, &
+   subroutine scalar_advance (nlevs,mla,uold,sold,snew,laps,rhohalf, &
                               umac,sedge,flux,ext_scal_force,&
                               dx,time,dt, &
                               the_bc_level, &
@@ -26,6 +26,7 @@ contains
       type(multifab) , intent(inout) :: uold(:)
       type(multifab) , intent(inout) :: sold(:)
       type(multifab) , intent(inout) :: snew(:)
+      type(multifab) , intent(inout) :: laps(:)
       type(multifab) , intent(inout) :: rhohalf(:)
       type(multifab) , intent(inout) :: umac(:,:)
       type(multifab) , intent(inout) :: sedge(:,:)
@@ -52,6 +53,7 @@ contains
 
       real(kind=dp_t), pointer:: sop(:,:,:,:)
       real(kind=dp_t), pointer:: snp(:,:,:,:)
+      real(kind=dp_t), pointer:: lapsp(:,:,:,:)
       real(kind=dp_t), pointer::  rp(:,:,:,:) 
       real(kind=dp_t), pointer::  dp(:,:,:,:) 
       real(kind=dp_t), pointer:: sepx(:,:,:,:)
@@ -100,19 +102,22 @@ contains
       diff_fac = ONE
       do i = 1, uold(n)%nboxes
          if ( multifab_remote(uold(n), i) ) cycle
-         fp  => dataptr(scal_force(n), i)
-         ep  => dataptr(ext_scal_force(n), i)
-         sop => dataptr(sold(n), i)
+         fp    => dataptr(scal_force(n), i)
+         lapsp => dataptr(laps(n), i)
+         ep    => dataptr(ext_scal_force(n), i)
+         sop   => dataptr(sold(n), i)
          lo = lwb(get_box(sold(n), i))
          hi = upb(get_box(sold(n), i))
          select case (dm)
          case (2)
             call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
+                                lapsp(:,:,1,:), &
                                 ng_cell, dx(n,:), &
                                 the_bc_level(n)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                 diff_coef, diff_fac)
          case (3)
             call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
+                                lapsp(:,:,:,:), &
                                 ng_cell, dx(n,:), &
                                 the_bc_level(n)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                 diff_coef, diff_fac)
@@ -212,19 +217,22 @@ contains
       diff_fac = HALF
       do i = 1, uold(n)%nboxes
          if ( multifab_remote(uold(n), i) ) cycle
-         fp  => dataptr(scal_force(n), i)
-         ep  => dataptr(ext_scal_force(n), i)
-         sop => dataptr(sold(n) , i)
+         fp    => dataptr(scal_force(n), i)
+         ep    => dataptr(ext_scal_force(n), i)
+         sop   => dataptr(sold(n), i)
+         lapsp => dataptr(laps(n), i)
          lo =  lwb(get_box(sold(n), i))
          hi =  upb(get_box(sold(n), i))
          select case (dm)
          case (2)
             call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sop(:,:,1,:), &
+                                lapsp(:,:,1,:), &
                                 ng_cell, dx(n,:), &
                                 the_bc_level(n)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                 diff_coef, diff_fac)
          case (3)
             call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sop(:,:,:,:), &
+                                lapsp(:,:,:,:), &
                                 ng_cell, dx(n,:), &
                                 the_bc_level(n)%ell_bc_level_array(i,:,:,dm+1:dm+nscal), &
                                 diff_coef, diff_fac)
