@@ -43,7 +43,7 @@ subroutine varden()
   real(dp_t) :: visc_coef
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
-  real(dp_t) :: time,dt,dtold,dt_hold,dt_temp
+  real(dp_t) :: time,dt,dtold,dt_lev,dt_temp
   real(dp_t) :: visc_mu, pressure_inflow_val, grav
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: k,istep,ng_cell,ng_grow
@@ -561,13 +561,11 @@ subroutine varden()
   end do
 
   dtold = dt
-
-  dt_hold = 1.d20
+  dt = 1.d20
   do n = 1,nlevs
      call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                cflfac,dtold,dt,verbose)
-     dt = min(dt_hold,dt)
-     dt_hold = dt
+                cflfac,dtold,dt_lev,verbose)
+     dt = min(dt,dt_lev)
   end do
   if (restart < 0) dt = dt * init_shrink
   if (stop_time >= 0.d0) then
@@ -710,20 +708,24 @@ subroutine varden()
                 1,1,dm)
         end do
 
-        dtold = dt
         do n = 1,nlevs
            call multifab_fill_boundary(uold(n))
            call multifab_fill_boundary(sold(n))
            call multifab_fill_boundary(gp(n))
-           
-           if (istep > 1) then
-              call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                   cflfac,dtold,dt,verbose)
-              if (stop_time >= 0.d0) then
-                 if (time+dt > stop_time) dt = stop_time - time
-              end if
-           end if
         end do
+           
+        if (istep > 1) then
+           dtold = dt
+           dt = 1.d20
+           do n = 1,nlevs
+              call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
+                         cflfac,dtold,dt_lev,verbose)
+              dt = min(dt,dt_lev)
+           end do
+           if (stop_time >= 0.d0) then
+              if (time+dt > stop_time) dt = stop_time - time
+           end if
+        end if
         
         if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
