@@ -39,7 +39,7 @@ subroutine varden()
   integer    :: plot_int, chk_int, regrid_int
   integer    :: verbose, mg_verbose, cg_verbose
   integer    :: dim_in,dm
-  real(dp_t) :: cflfac,init_shrink
+  real(dp_t) :: cflfac,init_shrink,fixed_dt
   real(dp_t) :: visc_coef
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
@@ -134,6 +134,7 @@ subroutine varden()
   namelist /probin/ init_iter
   namelist /probin/ cflfac
   namelist /probin/ init_shrink
+  namelist /probin/ fixed_dt
   namelist /probin/ visc_coef
   namelist /probin/ diff_coef
   namelist /probin/ fixed_grids
@@ -170,6 +171,7 @@ subroutine varden()
   chk_int  = 0
 
   init_shrink = 1.0
+  fixed_dt = -1.0
   nscal = 2
 
   grav = 0.0d0
@@ -568,6 +570,7 @@ subroutine varden()
      dt = min(dt,dt_lev)
   end do
   if (restart < 0) dt = dt * init_shrink
+  if (fixed_dt > 0.d0) dt = fixed_dt
   if (stop_time >= 0.d0) then
     if (time+dt > stop_time) dt = min(dt, stop_time - time)
   end if
@@ -722,6 +725,7 @@ subroutine varden()
                          cflfac,dtold,dt_lev,verbose)
               dt = min(dt,dt_lev)
            end do
+           if (fixed_dt > 0.d0) dt = fixed_dt
            if (stop_time >= 0.d0) then
               if (time+dt > stop_time) dt = stop_time - time
            end if
@@ -1256,6 +1260,11 @@ subroutine varden()
            farg = farg + 1
            call get_command_argument(farg, value = fname)
            read(fname, *) init_shrink
+
+        case ('--fixed_dt')
+           farg = farg + 1
+           call get_command_argument(farg, value = fname)
+           read(fname, *) fixed_dt
 
         case ('--visc_coef')
            farg = farg + 1
