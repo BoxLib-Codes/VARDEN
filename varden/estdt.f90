@@ -60,11 +60,11 @@ contains
 
    end subroutine estdt
 
-   subroutine estdt_2d (u,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
+   subroutine estdt_2d (vel,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
 
       integer, intent(in) :: lo(:), hi(:), ng
 
-      real (kind = dp_t), intent(in ) :: u(lo(1)-ng:,lo(2)-ng:,:)  
+      real (kind = dp_t), intent(in ) :: vel(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(in ) :: s(lo(1)-ng:,lo(2)-ng:)  
       real (kind = dp_t), intent(in ) :: gp(lo(1)-1:,lo(2)-1:,:)  
       real (kind = dp_t), intent(in ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,:)  
@@ -72,51 +72,46 @@ contains
       real (kind = dp_t), intent(out) :: dt
 
 !     Local variables
-      real (kind = dp_t)  spdx,spdy
-      real (kind = dp_t)  pforcex,pforcey
-      real (kind = dp_t)  eps
+      real (kind = dp_t)  u,v,fx,fy
+      real (kind = dp_t)  eps,dt_start
       integer :: i, j
 
       eps = 1.0e-8
 
-      spdx  = 0.0D0 
-      spdy  = 0.0D0 
-      pforcex = 0.0D0 
-      pforcey = 0.0D0 
+      u  = 0.0D0 
+      v  = 0.0D0 
+      fx = 0.0D0 
+      fy = 0.0D0 
 
       do j = lo(2), hi(2)
         do i = lo(1), hi(1)
-          spdx    = max(spdx ,abs(u(i,j,1))/dx(1))
-          spdy    = max(spdy ,abs(u(i,j,2))/dx(2))
-          pforcex = max(pforcex,abs(gp(i,j,1)/s(i,j)-ext_vel_force(i,j,1)))
-          pforcey = max(pforcey,abs(gp(i,j,2)/s(i,j)-ext_vel_force(i,j,2)))
+          u  = max(u ,abs(vel(i,j,1)))
+          v  = max(v ,abs(vel(i,j,2)))
+          fx = max(fx,abs(gp(i,j,1)/s(i,j)-ext_vel_force(i,j,1)))
+          fy = max(fy,abs(gp(i,j,2)/s(i,j)-ext_vel_force(i,j,2)))
         enddo
       enddo
 
-      if (spdx < eps .and. spdy < eps) then
+      dt_start = 1.0D+20
+      dt = dt_start
 
-        dt = min(dx(1),dx(2))
+      if (u .gt. eps) dt = min(dt,dx(1)/u)
+      if (v .gt. eps) dt = min(dt,dx(2)/v)
 
-      else
+      if (fx > eps) &
+        dt = min(dt,sqrt(2.0D0 *dx(1)/fx))
 
-        dt = 1.0D0  / max(spdx,spdy)
+      if (fy > eps) &
+        dt = min(dt,sqrt(2.0D0 *dx(2)/fy))
 
-      endif
-
-      if (pforcex > eps) then
-        dt = min(dt,sqrt(2.0D0 *dx(1)/pforcex))
-      endif
-
-      if (pforcey > eps) then
-        dt = min(dt,sqrt(2.0D0 *dx(2)/pforcey))
-      endif
+      if (dt .eq. dt_start) dt = min(dx(1),dx(2))
 
    end subroutine estdt_2d
 
-   subroutine estdt_3d (u,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
+   subroutine estdt_3d (vel,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
 
       integer, intent(in) :: lo(:), hi(:), ng
-      real (kind = dp_t), intent(in ) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
+      real (kind = dp_t), intent(in ) :: vel(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(in ) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)  
       real (kind = dp_t), intent(in ) :: gp(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
       real (kind = dp_t), intent(in ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)  
@@ -124,54 +119,49 @@ contains
       real (kind = dp_t), intent(out) :: dt
 
 !     Local variables
-      real (kind = dp_t)  spdx,spdy,spdz
-      real (kind = dp_t)  pforcex,pforcey,pforcez
-      real (kind = dp_t)  eps
+      real (kind = dp_t)  u,v,w,fx,fy,fz
+      real (kind = dp_t)  eps,dt_start
       integer :: i, j, k
 
       eps = 1.0e-8
 
-      spdx  = 0.0D0 
-      spdy  = 0.0D0 
-      spdz  = 0.0D0
-      pforcex = 0.0D0 
-      pforcey = 0.0D0 
-      pforcez = 0.0D0 
+      u  = 0.0D0 
+      v  = 0.0D0 
+      w  = 0.0D0
+      fx = 0.0D0 
+      fy = 0.0D0 
+      fz = 0.0D0 
 
       do k = lo(3), hi(3)
       do j = lo(2), hi(2)
         do i = lo(1), hi(1)
-          spdx    = max(spdx ,abs(u(i,j,k,1))/dx(1))
-          spdy    = max(spdy ,abs(u(i,j,k,2))/dx(2))
-          spdz    = max(spdz ,abs(u(i,j,k,3))/dx(3))
-          pforcex = max(pforcex,abs(gp(i,j,k,1)/s(i,j,k)-ext_vel_force(i,j,k,1)))
-          pforcey = max(pforcey,abs(gp(i,j,k,2)/s(i,j,k)-ext_vel_force(i,j,k,2)))
-          pforcez = max(pforcez,abs(gp(i,j,k,3)/s(i,j,k)-ext_vel_force(i,j,k,3)))
+          u  = max(u ,abs(vel(i,j,k,1)))
+          v  = max(v ,abs(vel(i,j,k,2)))
+          w  = max(w ,abs(vel(i,j,k,3)))
+          fx = max(fx,abs(gp(i,j,k,1)/s(i,j,k)-ext_vel_force(i,j,k,1)))
+          fy = max(fy,abs(gp(i,j,k,2)/s(i,j,k)-ext_vel_force(i,j,k,2)))
+          fz = max(fz,abs(gp(i,j,k,3)/s(i,j,k)-ext_vel_force(i,j,k,3)))
         enddo
       enddo
       enddo
 
-      if (spdx < eps .and. spdy < eps .and. spdz < eps) then
+      dt_start = 1.0D+20
+      dt = dt_start
 
-        dt = min(dx(1),dx(2),dx(3))
+      if (u .gt. eps) dt = min(dt,dx(1)/u)
+      if (v .gt. eps) dt = min(dt,dx(2)/v)
+      if (w .gt. eps) dt = min(dt,dx(3)/w)
 
-      else
+      if (fx > eps) &
+        dt = min(dt,sqrt(2.0D0 *dx(1)/fx))
 
-        dt = 1.0D0  / max(spdx,spdy,spdz)
+      if (fy > eps) &
+        dt = min(dt,sqrt(2.0D0 *dx(2)/fy))
 
-      endif
+      if (fz > eps) &
+        dt = min(dt,sqrt(2.0D0 *dx(3)/fz))
 
-      if (pforcex > eps) then
-        dt = min(dt,sqrt(2.0D0*dx(1)/pforcex))
-      endif
-
-      if (pforcey > eps) then
-        dt = min(dt,sqrt(2.0D0*dx(2)/pforcey))
-      endif
-
-      if (pforcez > eps) then
-        dt = min(dt,sqrt(2.0D0*dx(3)/pforcez))
-      endif
+      if (dt .eq. dt_start) dt = min(min(dx(1),dx(2)),dx(3))
 
    end subroutine estdt_3d
 
