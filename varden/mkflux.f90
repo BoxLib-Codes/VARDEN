@@ -163,18 +163,16 @@ contains
                slx(i,jc) = s(i-1,j,n) + (HALF - dt2*umac(i,j)/hx)*slopex(i-1,j,n)
                srx(i,jc) = s(i  ,j,n) - (HALF + dt2*umac(i,j)/hx)*slopex(i  ,j,n)
 
-               ! add s*u_x term where u_x = divu - v_y
-               if(is_conservative(n)) then
-                  slx(i,jc) = slx(i,jc) - dt2*s(i-1,j,n)*(divu(i-1,j) &
-                       - (vmac(i-1,j+1)-vmac(i-1,j))/hy)
-                  srx(i,jc) = srx(i,jc) - dt2*s(i  ,j,n)*(divu(i  ,j) &
-                       - (vmac(i  ,j+1)-vmac(i  ,j))/hy)
-               endif
-
                ! add source terms
                if(use_minion) then
                   slx(i,jc) = slx(i,jc) + dt2*force(i-1,j,n)
                   srx(i,jc) = srx(i,jc) + dt2*force(i  ,j,n)
+               endif
+
+               ! add divu contribution
+               if(use_minion .and. is_conservative(n)) then
+                  slx(i,jc) = slx(i,jc) - dt2*s(i-1,j,n)*divu(i-1,j)
+                  srx(i,jc) = srx(i,jc) - dt2*s(i  ,j,n)*divu(i  ,j)
                endif
 
                ! impose lo side bc's
@@ -227,14 +225,6 @@ contains
                   ! make sly, sry with 1D extrapolation
                   sly(i,jc) = s(i,j-1,n) + (HALF - dt2*vmac(i,j)/hy)*slopey(i,j-1,n)
                   sry(i,jc) = s(i,j  ,n) - (HALF + dt2*vmac(i,j)/hy)*slopey(i,j  ,n)
-
-                  ! add s*v_y term where v_y = divu - u_x
-                  if(is_conservative(n)) then
-                     sly(i,jc) = sly(i,jc) - dt2*s(i,j-1,n)*(divu(i,j-1) &
-                          - (umac(i+1,j-1)-umac(i,j-1))/hx)
-                     sry(i,jc) = sry(i,jc) - dt2*s(i,j  ,n)*(divu(i,j  ) &
-                          - (umac(i+1,j  )-umac(i,j  ))/hx)
-                  endif
                
                   ! add source terms
                   if(use_minion) then
@@ -242,6 +232,12 @@ contains
                      sry(i,jc) = sry(i,jc) + dt2*force(i,j  ,n)
                   endif
                   
+                  ! add divu contribution
+                  if(use_minion .and. is_conservative(n)) then
+                     sly(i,jc) = sly(i,jc) - dt2*s(i,j-1,n)*divu(i,j-1)
+                     sry(i,jc) = sry(i,jc) - dt2*s(i,j  ,n)*divu(i,j  )
+                  endif
+
                   ! impose lo side bc's
                   if(j .eq. js) then
                      sly(i,jc) = merge(s(is,j-1,n),sly(i,jc),phys_bc(2,1) .eq. INLET)
@@ -290,9 +286,11 @@ contains
                   ! make sedgely, sedgery
                   if(is_conservative(n)) then
                      sedgely(i) = sly(i,jc) &
-                          - (dt2/hx)*(simhx(i+1,jp)*umac(i+1,j-1) - simhx(i,jp)*umac(i,j-1))
+                          - (dt2/hx)*(simhx(i+1,jp)*umac(i+1,j-1) - simhx(i,jp)*umac(i,j-1)) &
+                          + (dt2/hx)*s(i,j-1,n)*(umac(i+1,j-1)-umac(i,j-1))
                      sedgery(i) = sry(i,jc) &
-                          - (dt2/hx)*(simhx(i+1,jc)*umac(i+1,j  ) - simhx(i,jc)*umac(i,j  ))
+                          - (dt2/hx)*(simhx(i+1,jc)*umac(i+1,j  ) - simhx(i,jc)*umac(i,j  )) &
+                          + (dt2/hx)*s(i,j  ,n)*(umac(i+1,j  )-umac(i,j  ))
                   else
                      sedgely(i) = sly(i,jc) &
                           - (dt4/hx)*(umac(i+1,j-1)+umac(i,j-1))*(simhx(i+1,jp)-simhx(i,jp))
@@ -305,6 +303,13 @@ contains
                   if(.not. use_minion) then
                      sedgely(i) = sedgely(i) + dt2*force(i,j-1,n)
                      sedgery(i) = sedgery(i) + dt2*force(i,j  ,n)
+                  endif
+
+                  ! if use_minion .and. is_conservative, we have already accounted for divu
+                  ! in slx and srx; otherwise, we account for it here
+                  if(.not.(use_minion .and. is_conservative(n))) then
+                     sedgely(i) = sedgely(i) - dt2*s(i,j-1,n)*divu(i,j-1)
+                     sedgery(i) = sedgery(i) - dt2*s(i,j  ,n)*divu(i,j  )
                   endif
                   
                   ! make sedgey by solving Riemann problem
@@ -373,9 +378,11 @@ contains
                   ! make sedgelx, sedgerx
                   if(is_conservative(n)) then
                      sedgelx(i) = slx(i,jp) &
-                          - (dt2/hy)*(simhy(i-1,jc)*vmac(i-1,j) - simhy(i-1,jp)*vmac(i-1,j-1))
+                          - (dt2/hy)*(simhy(i-1,jc)*vmac(i-1,j) - simhy(i-1,jp)*vmac(i-1,j-1)) &
+                          + (dt2/hy)*s(i-1,j-1,n)*(vmac(i-1,j)-vmac(i-1,j-1))
                      sedgerx(i) = srx(i,jp) &
-                          - (dt2/hy)*(simhy(i  ,jc)*vmac(i  ,j) - simhy(i  ,jp)*vmac(i  ,j-1))
+                          - (dt2/hy)*(simhy(i  ,jc)*vmac(i  ,j) - simhy(i  ,jp)*vmac(i  ,j-1)) &
+                          + (dt2/hy)*s(i  ,j-1,n)*(vmac(i  ,j)-vmac(i  ,j-1))
                   else
                      sedgelx(i) = slx(i,jp) &
                           - (dt4/hy)*(vmac(i-1,j)+vmac(i-1,j-1))*(simhy(i-1,jc)-simhy(i-1,jp))
@@ -389,7 +396,14 @@ contains
                      sedgelx(i) = sedgelx(i) + dt2*force(i-1,j-1,n)
                      sedgerx(i) = sedgerx(i) + dt2*force(i  ,j-1,n)
                   endif
-                  
+
+                  ! if use_minion .and. is_conservative, we have already accounted for divu
+                  ! in slx and srx; otherwise, we account for it here
+                  if(.not.(use_minion .and. is_conservative(n))) then
+                     sedgelx(i) = sedgelx(i) - dt2*s(i-1,j-1,n)*divu(i-1,j-1)
+                     sedgerx(i) = sedgerx(i) - dt2*s(i  ,j-1,n)*divu(i  ,j-1)
+                  endif
+                                    
                   ! make sedgex by solving Riemann problem
                   ! boundary conditions enforced outside of i,j loop
                   sedgex(i,j-1,n) = merge(sedgelx(i),sedgerx(i),umac(i,j-1) .gt. ZERO)
@@ -593,18 +607,16 @@ contains
                slx(i,j) = s(i-1,j,n) + (HALF - dt2*umac(i,j)/hx)*slopex(i-1,j,n)
                srx(i,j) = s(i  ,j,n) - (HALF + dt2*umac(i,j)/hx)*slopex(i  ,j,n)
                
-               ! add s*u_x term where u_x = divu - v_y
-               if(is_conservative(n)) then
-                  slx(i,j) = slx(i,j) - dt2*s(i-1,j,n)*(divu(i-1,j) &
-                       - (vmac(i-1,j+1)-vmac(i-1,j))/hy)
-                  srx(i,j) = srx(i,j) - dt2*s(i  ,j,n)*(divu(i  ,j) &
-                       - (vmac(i  ,j+1)-vmac(i  ,j))/hy)
-               endif
-               
                ! add source terms
                if(use_minion) then
                   slx(i,j) = slx(i,j) + dt2*force(i-1,j,n)
                   srx(i,j) = srx(i,j) + dt2*force(i  ,j,n)
+               endif
+
+               ! add divu contribution
+               if(use_minion .and. is_conservative(n)) then
+                  slx(i,j) = slx(i,j) - dt2*s(i-1,j,n)*divu(i-1,j)
+                  srx(i,j) = srx(i,j) - dt2*s(i  ,j,n)*divu(i  ,j)
                endif
                
                ! impose lo side bc's
@@ -655,20 +667,18 @@ contains
                sly(i,j) = s(i,j-1,n) + (HALF - dt2*vmac(i,j)/hy)*slopey(i,j-1,n)
                sry(i,j) = s(i,j  ,n) - (HALF + dt2*vmac(i,j)/hy)*slopey(i,j  ,n)
                
-               ! add s*v_y term where v_y = divu - u_x
-               if(is_conservative(n)) then
-                  sly(i,j) = sly(i,j) - dt2*s(i,j-1,n)*(divu(i,j-1) &
-                       - (umac(i+1,j-1)-umac(i,j-1))/hx)
-                  sry(i,j) = sry(i,j) - dt2*s(i,j  ,n)*(divu(i,j  ) &
-                       - (umac(i+1,j  )-umac(i,j  ))/hx)
-               endif
-               
                ! add source terms
                if(use_minion) then
                   sly(i,j) = sly(i,j) + dt2*force(i,j-1,n)
                   sry(i,j) = sry(i,j) + dt2*force(i,j  ,n)
                endif
-               
+ 
+               ! add divu contribution
+               if(use_minion .and. is_conservative(n)) then
+                  sly(i,j) = sly(i,j) - dt2*s(i,j-1,n)*divu(i,j-1)
+                  sry(i,j) = sry(i,j) - dt2*s(i,j  ,n)*divu(i,j  )
+               endif
+              
                ! impose lo side bc's
                if(j .eq. js) then
                   sly(i,j) = merge(s(is,j-1,n),sly(i,j),phys_bc(2,1) .eq. INLET)
@@ -720,9 +730,11 @@ contains
                ! make sedgelx, sedgerx
                if(is_conservative(n)) then
                   sedgelx(i,j) = slx(i,j) &
-                       - (dt2/hy)*(simhy(i-1,j+1)*vmac(i-1,j+1) - simhy(i-1,j)*vmac(i-1,j))
+                       - (dt2/hy)*(simhy(i-1,j+1)*vmac(i-1,j+1) - simhy(i-1,j)*vmac(i-1,j)) &
+                       + (dt2/hy)*s(i-1,j,n)*(vmac(i-1,j+1)-vmac(i-1,j))
                   sedgerx(i,j) = srx(i,j) &
-                       - (dt2/hy)*(simhy(i  ,j+1)*vmac(i  ,j+1) - simhy(i  ,j)*vmac(i  ,j))
+                       - (dt2/hy)*(simhy(i  ,j+1)*vmac(i  ,j+1) - simhy(i  ,j)*vmac(i  ,j)) &
+                       + (dt2/hy)*s(i  ,j,n)*(vmac(i  ,j+1)-vmac(i  ,j))
                else
                   sedgelx(i,j) = slx(i,j) &
                        - (dt4/hy)*(vmac(i-1,j+1)+vmac(i-1,j))*(simhy(i-1,j+1)-simhy(i-1,j))
@@ -737,6 +749,13 @@ contains
                   sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,n)
                endif
                
+               ! if use_minion .and. is_conservative, we have already accounted for divu
+               ! in slx and srx; otherwise, we account for it here
+               if(.not.(use_minion .and. is_conservative(n))) then
+                  sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,n)*divu(i-1,j)
+                  sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,n)*divu(i  ,j)
+               endif
+
                ! make sedgex by solving Riemann problem
                ! boundary conditions enforced outside of i,j loop
                sedgex(i,j,n) = merge(sedgelx(i,j),sedgerx(i,j),umac(i,j) .gt. ZERO)
@@ -801,9 +820,11 @@ contains
                ! make sedgely, sedgery
                if(is_conservative(n)) then
                   sedgely(i,j) = sly(i,j) &
-                       - (dt2/hx)*(simhx(i+1,j-1)*umac(i+1,j-1) - simhx(i,j-1)*umac(i,j-1))
+                       - (dt2/hx)*(simhx(i+1,j-1)*umac(i+1,j-1) - simhx(i,j-1)*umac(i,j-1)) &
+                       + (dt2/hx)*s(i,j-1,n)*(umac(i+1,j-1)-umac(i,j-1))
                   sedgery(i,j) = sry(i,j) &
-                       - (dt2/hx)*(simhx(i+1,j  )*umac(i+1,j  ) - simhx(i,j  )*umac(i,j  ))
+                       - (dt2/hx)*(simhx(i+1,j  )*umac(i+1,j  ) - simhx(i,j  )*umac(i,j  )) &
+                       + (dt2/hx)*s(i,j  ,n)*(umac(i+1,j  )-umac(i,j  ))
                else
                   sedgely(i,j) = sly(i,j) &
                        - (dt4/hx)*(umac(i+1,j-1)+umac(i,j-1))*(simhx(i+1,j-1)-simhx(i,j-1))
@@ -816,6 +837,13 @@ contains
                if(.not. use_minion) then
                   sedgely(i,j) = sedgely(i,j) + dt2*force(i,j-1,n)
                   sedgery(i,j) = sedgery(i,j) + dt2*force(i,j  ,n)
+               endif
+
+               ! if use_minion .and. is_conservative, we have already accounted for divu
+               ! in slx and srx; otherwise, we account for it here
+               if(.not.(use_minion .and. is_conservative(n))) then
+                  sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,n)*divu(i,j-1)
+                  sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,n)*divu(i,j  )
                endif
                
                ! make sedgey by solving Riemann problem
