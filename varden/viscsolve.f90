@@ -99,7 +99,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
      enddo
   enddo
 
-  do n = 2, nlevs
+  do n = nlevs, 2, -1
      call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
   enddo
 
@@ -269,7 +269,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
      call multifab_copy_c(snew(n),icomp,phi(n),1,1)
   end do
 
-  do n=2,nlevs
+  do n = nlevs, 2, -1
      call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
   enddo
 
@@ -304,7 +304,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
      enddo
   enddo
 
-  do n = 2, nlevs
+  do n = nlevs, 2, -1
      call ml_cc_restriction_c(snew(n-1),2,snew(n),2,mla%mba%rr(n-1,:), 1)
   enddo
 

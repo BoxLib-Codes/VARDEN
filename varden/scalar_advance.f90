@@ -198,7 +198,7 @@ contains
       enddo ! do n = 1, nlevs
 
       ! synchronize fluxes
-      do n = 2, nlevs
+      do n = nlevs, 2, -1
          do comp = 1, nscal
             if(is_conservative(comp)) then
                do d = 1, dm
@@ -312,7 +312,7 @@ contains
 
       ! use restriction so coarse cells are the average
       ! of the corresponding fine cells
-      do n = 2, nlevs
+      do n = nlevs, 2, -1
          call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
          call ml_cc_restriction(rhohalf(n-1),rhohalf(n),mla%mba%rr(n-1,:))
       enddo
