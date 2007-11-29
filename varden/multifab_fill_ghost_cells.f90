@@ -7,12 +7,13 @@ module multifab_fill_ghost_module
   use bc_module
   use setbc_module
   use interp_module
+  use fillpatch_module
 
   implicit none
 
 contains
 
-  subroutine multifab_fill_ghost_cells(fine,crse,fine_domain,ng,ir,bc,icomp,bc_comp,nc)
+  subroutine multifab_fill_ghost_cells_new(fine,crse,fine_domain,ng,ir,bc,icomp,bcomp,nc)
 
     type(multifab), intent(inout) :: fine
     type(multifab), intent(inout) :: crse
@@ -20,7 +21,51 @@ contains
     integer       , intent(in   ) :: ng
     integer       , intent(in   ) :: ir(:)
     integer       , intent(in   ) :: bc(:,:,:)
-    integer       , intent(in   ) :: icomp,bc_comp,nc
+    integer       , intent(in   ) :: icomp,bcomp,nc
+
+    integer        :: i, j
+    type(multifab) :: tfine
+    type(box)      :: bx
+    type(boxarray) :: ba
+
+    real(kind=dp_t), pointer :: src(:,:,:,:), dst(:,:,:,:)
+
+    call build(tfine, fine%la, nc, ng)
+
+    call fillpatch(tfine, crse, fine_domain, ng, ir, bc, 1, bcomp, nc)
+    !
+    ! Copy ghost cells in tfine to fine.
+    !
+    do i = 1, nboxes(fine)
+
+       if ( remote(fine, i) ) cycle
+
+       call boxarray_box_diff(ba, get_pbox(tfine,i), get_ibox(tfine,i))
+
+       do j = 1, nboxes(ba)
+          bx  =  get_box(ba, j)
+          src => dataptr(tfine, i, bx, 1,     nc)
+          dst => dataptr(fine,  i, bx, icomp, nc)
+          dst =  src
+       end do
+
+       call destroy(ba)
+
+    end do
+
+    call destroy(tfine)
+
+  end subroutine
+
+  subroutine multifab_fill_ghost_cells(fine,crse,fine_domain,ng,ir,bc,icomp,bcomp,nc)
+
+    type(multifab), intent(inout) :: fine
+    type(multifab), intent(inout) :: crse
+    type(box     ), intent(in   ) :: fine_domain
+    integer       , intent(in   ) :: ng
+    integer       , intent(in   ) :: ir(:)
+    integer       , intent(in   ) :: bc(:,:,:)
+    integer       , intent(in   ) :: icomp,bcomp,nc
 
     type(box) :: fbox,fstrip,cstrip
     type(box) :: crse_domain
@@ -82,25 +127,25 @@ contains
                 interior_lo(1:dm) = lwb(cstrip)
 
                 if (cstrip%lo(1) == crse_domain%lo(1)) then
-                   local_bc(1,1,1:nc) = bc(1,1,bc_comp:bc_comp+nc-1)
+                   local_bc(1,1,1:nc) = bc(1,1,bcomp:bcomp+nc-1)
                 end if
                 if (cstrip%hi(1) == crse_domain%hi(1)) then
-                   local_bc(1,2,1:nc) = bc(1,2,bc_comp:bc_comp+nc-1)
+                   local_bc(1,2,1:nc) = bc(1,2,bcomp:bcomp+nc-1)
                 end if
                 if (dm > 1) then
                    if (cstrip%lo(2) == crse_domain%lo(2)) then
-                      local_bc(2,1,1:nc) = bc(2,1,bc_comp:bc_comp+nc-1)
+                      local_bc(2,1,1:nc) = bc(2,1,bcomp:bcomp+nc-1)
                    end if
                    if (cstrip%hi(2) == crse_domain%hi(2)) then
-                      local_bc(2,2,1:nc) = bc(2,2,bc_comp:bc_comp+nc-1)
+                      local_bc(2,2,1:nc) = bc(2,2,bcomp:bcomp+nc-1)
                    end if
                 end if
                 if (dm > 2) then
                    if (cstrip%lo(3) == crse_domain%lo(3)) then
-                      local_bc(3,1,1:nc) = bc(3,1,bc_comp:bc_comp+nc-1)
+                      local_bc(3,1,1:nc) = bc(3,1,bcomp:bcomp+nc-1)
                    end if
                    if (cstrip%hi(3) == crse_domain%hi(3)) then
-                      local_bc(3,2,1:nc) = bc(3,2,bc_comp:bc_comp+nc-1)
+                      local_bc(3,2,1:nc) = bc(3,2,bcomp:bcomp+nc-1)
                    end if
                 end if
 
@@ -166,7 +211,7 @@ contains
 
                    ng_of_crse = interior_lo(1) - lo_c(1)
                    do n = 1,nc
-                      call setbc_2d(cp(:,:,1,n),interior_lo,ng_of_crse,local_bc(:,:,n),dx,bc_comp+n-1)
+                      call setbc_2d(cp(:,:,1,n),interior_lo,ng_of_crse,local_bc(:,:,n),dx,bcomp+n-1)
                    end do
 
                    fvcx_lo = lo_f(1)
@@ -179,7 +224,7 @@ contains
                                          cslope_lo, cslope_hi, lim_slope, lin_limit)
                 case (3)
                    do n = 1,nc
-                      call setbc_3d(cp(:,:,:,n),interior_lo,1,local_bc(:,:,n),dx,bc_comp+n-1)
+                      call setbc_3d(cp(:,:,:,n),interior_lo,1,local_bc(:,:,n),dx,bcomp+n-1)
                    end do
 
                    fvcx_lo = lo_f(1)
@@ -220,6 +265,6 @@ contains
        end do
      end do
 
-  end subroutine multifab_fill_ghost_cells
+  end subroutine
 
 end module multifab_fill_ghost_module
