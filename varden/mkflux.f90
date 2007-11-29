@@ -1191,16 +1191,6 @@ contains
                   slx(i,j,kc) = s(i-1,j,k,n) + (HALF - dt2*umac(i,j,k)/hx)*slopex(i-1,j,k,n)
                   srx(i,j,kc) = s(i  ,j,k,n) - (HALF + dt2*umac(i,j,k)/hx)*slopex(i  ,j,k,n)
                   
-!                  ! add s*u_x term where u_x = divu - v_y - w_z
-!                  if(is_conservative(n)) then
-!                     slx(i,j,kc) = slx(i,j,kc) - dt2*s(i-1,j,k,n)*(divu(i-1,j,k) &
-!                          - (vmac(i-1,j+1,k)-vmac(i-1,j,k))/hy &
-!                          - (wmac(i-1,j,k+1)-wmac(i-1,j,k))/hz)
-!                     srx(i,j,kc) = srx(i,j,kc) - dt2*s(i  ,j,k,n)*(divu(i  ,j,k) &
-!                          - (vmac(i  ,j+1,k)-vmac(i  ,j,k))/hy &
-!                          - (wmac(i  ,j,k+1)-wmac(i  ,j,k))/hz)
-!                  endif
-                  
                   ! add source terms
                   if(use_minion) then
                      slx(i,j,kc) = slx(i,j,kc) + dt2*force(i-1,j,k,n)
@@ -1264,16 +1254,6 @@ contains
                   sly(i,j,kc) = s(i,j-1,k,n) + (HALF - dt2*vmac(i,j,k)/hy)*slopey(i,j-1,k,n)
                   sry(i,j,kc) = s(i,j  ,k,n) - (HALF + dt2*vmac(i,j,k)/hy)*slopey(i,j  ,k,n)
                   
-!                  ! add s*v_y term where v_y = divu - u_x - w_z
-!                  if(is_conservative(n)) then
-!                     sly(i,j,kc) = sly(i,j,kc) - dt2*s(i,j-1,k,n)*(divu(i,j-1,k) &
-!                          - (umac(i+1,j-1,k)-umac(i,j-1,k))/hx &
-!                          - (wmac(i,j-1,k+1)-wmac(i,j-1,k))/hz)
-!                     sry(i,j,kc) = sry(i,j,kc) - dt2*s(i,j  ,k,n)*(divu(i,j  ,k) &
-!                          - (umac(i+1,j  ,k)-umac(i,j  ,k))/hx &
-!                          - (wmac(i,j  ,k+1)-wmac(i,j  ,k))/hz) 
-!                  endif
-
                   ! add source terms
                   if(use_minion) then
                      sly(i,j,kc) = sly(i,j,kc) + dt2*force(i,j-1,k,n)
@@ -1450,16 +1430,6 @@ contains
                      ! make slz, srz with 1D extrapolation
                      slz(i,j,kc) = s(i,j,k-1,n) + (HALF - dt2*wmac(i,j,k)/hz)*slopez(i,j,k-1,n)
                      srz(i,j,kc) = s(i,j,k,  n) - (HALF + dt2*wmac(i,j,k)/hz)*slopez(i,j,k,  n)
-                     
-!                     ! add s*w_z term where w_z = divu - u_x - w_y
-!                     if(is_conservative(n)) then
-!                        slz(i,j,kc) = slz(i,j,kc) - dt2*s(i,j,k-1,n)*(divu(i,j,k-1) &
-!                             - (umac(i+1,j,k-1)-umac(i,j,k-1))/hx &
-!                             - (vmac(i,j+1,k-1)-vmac(i,j,k-1))/hy)
-!                        srz(i,j,kc) = srz(i,j,kc) - dt2*s(i,j,k,n)*(divu(i,j,k) &
-!                             - (umac(i+1,j,k)-umac(i,j,k))/hx &
-!                             - (vmac(i,j+1,k)-vmac(i,j,k))/hy)     
-!                     endif
                      
                      ! add source terms
                      if(use_minion) then
