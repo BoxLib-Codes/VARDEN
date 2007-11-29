@@ -840,7 +840,7 @@ contains
                endif
 
                ! if use_minion .and. is_conservative, we have already accounted for divu
-               ! in slx and srx; otherwise, we account for it here
+               ! in sly and sry; otherwise, we account for it here
                if(.not.(use_minion .and. is_conservative(n))) then
                   sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,n)*divu(i,j-1)
                   sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,n)*divu(i,j  )
@@ -1191,20 +1191,26 @@ contains
                   slx(i,j,kc) = s(i-1,j,k,n) + (HALF - dt2*umac(i,j,k)/hx)*slopex(i-1,j,k,n)
                   srx(i,j,kc) = s(i  ,j,k,n) - (HALF + dt2*umac(i,j,k)/hx)*slopex(i  ,j,k,n)
                   
-                  ! add s*u_x term where u_x = divu - v_y - w_z
-                  if(is_conservative(n)) then
-                     slx(i,j,kc) = slx(i,j,kc) - dt2*s(i-1,j,k,n)*(divu(i-1,j,k) &
-                          - (vmac(i-1,j+1,k)-vmac(i-1,j,k))/hy &
-                          - (wmac(i-1,j,k+1)-wmac(i-1,j,k))/hz)
-                     srx(i,j,kc) = srx(i,j,kc) - dt2*s(i  ,j,k,n)*(divu(i  ,j,k) &
-                          - (vmac(i  ,j+1,k)-vmac(i  ,j,k))/hy &
-                          - (wmac(i  ,j,k+1)-wmac(i  ,j,k))/hz)
-                  endif
+!                  ! add s*u_x term where u_x = divu - v_y - w_z
+!                  if(is_conservative(n)) then
+!                     slx(i,j,kc) = slx(i,j,kc) - dt2*s(i-1,j,k,n)*(divu(i-1,j,k) &
+!                          - (vmac(i-1,j+1,k)-vmac(i-1,j,k))/hy &
+!                          - (wmac(i-1,j,k+1)-wmac(i-1,j,k))/hz)
+!                     srx(i,j,kc) = srx(i,j,kc) - dt2*s(i  ,j,k,n)*(divu(i  ,j,k) &
+!                          - (vmac(i  ,j+1,k)-vmac(i  ,j,k))/hy &
+!                          - (wmac(i  ,j,k+1)-wmac(i  ,j,k))/hz)
+!                  endif
                   
                   ! add source terms
                   if(use_minion) then
                      slx(i,j,kc) = slx(i,j,kc) + dt2*force(i-1,j,k,n)
                      srx(i,j,kc) = srx(i,j,kc) + dt2*force(i  ,j,k,n)
+                  endif
+
+                  ! add divu contribution
+                  if(use_minion .and. is_conservative(n)) then
+                     slx(i,j,kc) = slx(i,j,kc) - dt2*s(i-1,j,k,n)*divu(i-1,j,k)
+                     srx(i,j,kc) = srx(i,j,kc) - dt2*s(i  ,j,k,n)*divu(i  ,j,k)
                   endif
                   
                   ! impose lo side bc's
@@ -1258,20 +1264,26 @@ contains
                   sly(i,j,kc) = s(i,j-1,k,n) + (HALF - dt2*vmac(i,j,k)/hy)*slopey(i,j-1,k,n)
                   sry(i,j,kc) = s(i,j  ,k,n) - (HALF + dt2*vmac(i,j,k)/hy)*slopey(i,j  ,k,n)
                   
-                  ! add s*v_y term where v_y = divu - u_x - w_z
-                  if(is_conservative(n)) then
-                     sly(i,j,kc) = sly(i,j,kc) - dt2*s(i,j-1,k,n)*(divu(i,j-1,k) &
-                          - (umac(i+1,j-1,k)-umac(i,j-1,k))/hx &
-                          - (wmac(i,j-1,k+1)-wmac(i,j-1,k))/hz)
-                     sry(i,j,kc) = sry(i,j,kc) - dt2*s(i,j  ,k,n)*(divu(i,j  ,k) &
-                          - (umac(i+1,j  ,k)-umac(i,j  ,k))/hx &
-                          - (wmac(i,j  ,k+1)-wmac(i,j  ,k))/hz) 
-                  endif
+!                  ! add s*v_y term where v_y = divu - u_x - w_z
+!                  if(is_conservative(n)) then
+!                     sly(i,j,kc) = sly(i,j,kc) - dt2*s(i,j-1,k,n)*(divu(i,j-1,k) &
+!                          - (umac(i+1,j-1,k)-umac(i,j-1,k))/hx &
+!                          - (wmac(i,j-1,k+1)-wmac(i,j-1,k))/hz)
+!                     sry(i,j,kc) = sry(i,j,kc) - dt2*s(i,j  ,k,n)*(divu(i,j  ,k) &
+!                          - (umac(i+1,j  ,k)-umac(i,j  ,k))/hx &
+!                          - (wmac(i,j  ,k+1)-wmac(i,j  ,k))/hz) 
+!                  endif
 
                   ! add source terms
                   if(use_minion) then
                      sly(i,j,kc) = sly(i,j,kc) + dt2*force(i,j-1,k,n)
                      sry(i,j,kc) = sry(i,j,kc) + dt2*force(i,j  ,k,n)
+                  endif
+
+                  ! add divu contribution
+                  if(use_minion .and. is_conservative(n)) then
+                     sly(i,j,kc) = sly(i,j,kc) - dt2*s(i,j-1,k,n)*divu(i,j-1,k)
+                     sry(i,j,kc) = sry(i,j,kc) - dt2*s(i,j  ,k,n)*divu(i,j  ,k)
                   endif
 
                   ! impose lo side bc's
@@ -1439,20 +1451,26 @@ contains
                      slz(i,j,kc) = s(i,j,k-1,n) + (HALF - dt2*wmac(i,j,k)/hz)*slopez(i,j,k-1,n)
                      srz(i,j,kc) = s(i,j,k,  n) - (HALF + dt2*wmac(i,j,k)/hz)*slopez(i,j,k,  n)
                      
-                     ! add s*w_z term where w_z = divu - u_x - w_y
-                     if(is_conservative(n)) then
-                        slz(i,j,kc) = slz(i,j,kc) - dt2*s(i,j,k-1,n)*(divu(i,j,k-1) &
-                             - (umac(i+1,j,k-1)-umac(i,j,k-1))/hx &
-                             - (vmac(i,j+1,k-1)-vmac(i,j,k-1))/hy)
-                        srz(i,j,kc) = srz(i,j,kc) - dt2*s(i,j,k,n)*(divu(i,j,k) &
-                             - (umac(i+1,j,k)-umac(i,j,k))/hx &
-                             - (vmac(i,j+1,k)-vmac(i,j,k))/hy)     
-                     endif
+!                     ! add s*w_z term where w_z = divu - u_x - w_y
+!                     if(is_conservative(n)) then
+!                        slz(i,j,kc) = slz(i,j,kc) - dt2*s(i,j,k-1,n)*(divu(i,j,k-1) &
+!                             - (umac(i+1,j,k-1)-umac(i,j,k-1))/hx &
+!                             - (vmac(i,j+1,k-1)-vmac(i,j,k-1))/hy)
+!                        srz(i,j,kc) = srz(i,j,kc) - dt2*s(i,j,k,n)*(divu(i,j,k) &
+!                             - (umac(i+1,j,k)-umac(i,j,k))/hx &
+!                             - (vmac(i,j+1,k)-vmac(i,j,k))/hy)     
+!                     endif
                      
                      ! add source terms
                      if(use_minion) then
                         slz(i,j,kc) = slz(i,j,kc) + dt2*force(i,j,k-1,n)
                         srz(i,j,kc) = srz(i,j,kc) + dt2*force(i,j,k  ,n)
+                     endif
+
+                     ! add divu contribution
+                     if(use_minion .and. is_conservative(n)) then
+                        slz(i,j,kc) = slz(i,j,kc) - dt2*s(i,j,k-1,n)*divu(i,j,k-1)
+                        srz(i,j,kc) = srz(i,j,kc) - dt2*s(i,j,k  ,n)*divu(i,j,k  )
                      endif
                      
                      ! impose lo side bc's
@@ -1506,10 +1524,14 @@ contains
                      if(is_conservative(n)) then
                         sedgelz(i,j) = slz(i,j,kc) &
                              - (dt2/hx)*(simhxy(i+1,j,kp)*umac(i+1,j,k-1) - simhxy(i,j,kp)*umac(i,j,k-1)) &
-                             - (dt2/hy)*(simhyx(i,j+1,kp)*vmac(i,j+1,k-1) - simhyx(i,j,kp)*vmac(i,j,k-1))
+                             - (dt2/hy)*(simhyx(i,j+1,kp)*vmac(i,j+1,k-1) - simhyx(i,j,kp)*vmac(i,j,k-1)) &
+                             + (dt2/hx)*s(i,j,k-1,n)*(umac(i+1,j  ,k-1)-umac(i,j,k-1)) &
+                             + (dt2/hy)*s(i,j,k-1,n)*(vmac(i  ,j+1,k-1)-vmac(i,j,k-1))
                         sedgerz(i,j) = srz(i,j,kc) &
                              - (dt2/hx)*(simhxy(i+1,j,kc)*umac(i+1,j,k  ) - simhxy(i,j,kc)*umac(i,j,k  )) &
-                             - (dt2/hy)*(simhyx(i,j+1,kc)*vmac(i,j+1,k  ) - simhyx(i,j,kc)*vmac(i,j,k  ))
+                             - (dt2/hy)*(simhyx(i,j+1,kc)*vmac(i,j+1,k  ) - simhyx(i,j,kc)*vmac(i,j,k  )) &
+                             + (dt2/hx)*s(i,j,k  ,n)*(umac(i+1,j  ,k  )-umac(i,j,k  )) &
+                             + (dt2/hy)*s(i,j,k  ,n)*(vmac(i  ,j+1,k  )-vmac(i,j,k  ))
                      else
                         sedgelz(i,j) = slz(i,j,kc) &
                              - (dt4/hx)*(umac(i+1,j,k-1)+umac(i,j,k-1))*(simhxy(i+1,j,kp)-simhxy(i,j,kp)) &
@@ -1524,6 +1546,13 @@ contains
                      if(.not. use_minion) then
                         sedgelz(i,j) = sedgelz(i,j) + dt2*force(i,j,k-1,n)
                         sedgerz(i,j) = sedgerz(i,j) + dt2*force(i,j,k  ,n)
+                     endif
+
+                     ! if use_minion .and. is_conservative, we have already accounted for divu
+                     ! in slz and srz; otherwise, we account for it here
+                     if(.not.(use_minion .and. is_conservative(n))) then
+                        sedgelz(i,j) = sedgelz(i,j) - dt2*s(i,j,k-1,n)*divu(i,j,k-1)
+                        sedgerz(i,j) = sedgerz(i,j) - dt2*s(i,j,k  ,n)*divu(i,j,k  )
                      endif
                      
                      ! make sedgez by solving Riemann problem
@@ -1819,10 +1848,14 @@ contains
                      if(is_conservative(n)) then
                         sedgelx(i,j) = slx(i,j,kp) &
                              - (dt2/hy)*(simhyz(i-1,j+1,kp)*vmac(i-1,j+1,k-1) - simhyz(i-1,j,kp)*vmac(i-1,j,k-1)) &
-                             - (dt2/hz)*(simhzy(i-1,j  ,kc)*wmac(i-1,j  ,k  ) - simhzy(i-1,j,kp)*wmac(i-1,j,k-1))
+                             - (dt2/hz)*(simhzy(i-1,j  ,kc)*wmac(i-1,j  ,k  ) - simhzy(i-1,j,kp)*wmac(i-1,j,k-1)) &
+                             + (dt2/hy)*s(i-1,j,k-1,n)*(vmac(i-1,j+1,k-1)-vmac(i-1,j,k-1)) &
+                             + (dt2/hz)*s(i-1,j,k-1,n)*(wmac(i-1,j  ,k  )-wmac(i-1,j,k-1))
                         sedgerx(i,j) = srx(i,j,kp) &
                              - (dt2/hy)*(simhyz(i  ,j+1,kp)*vmac(i  ,j+1,k-1) - simhyz(i  ,j,kp)*vmac(i  ,j,k-1)) &
-                             - (dt2/hz)*(simhzy(i  ,j  ,kc)*wmac(i  ,j  ,k  ) - simhzy(i  ,j,kp)*wmac(i  ,j,k-1))
+                             - (dt2/hz)*(simhzy(i  ,j  ,kc)*wmac(i  ,j  ,k  ) - simhzy(i  ,j,kp)*wmac(i  ,j,k-1)) &
+                             + (dt2/hy)*s(i  ,j,k-1,n)*(vmac(i  ,j+1,k-1)-vmac(i  ,j,k-1)) &
+                             + (dt2/hz)*s(i  ,j,k-1,n)*(wmac(i  ,j  ,k  )-wmac(i  ,j,k-1))
                      else
                         sedgelx(i,j) = slx(i,j,kp) &
                              - (dt4/hy)*(vmac(i-1,j+1,k-1)+vmac(i-1,j,k-1))*(simhyz(i-1,j+1,kp)-simhyz(i-1,j,kp)) &
@@ -1838,7 +1871,14 @@ contains
                         sedgelx(i,j) = sedgelx(i,j) + dt2*force(i-1,j,k-1,n)
                         sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,k-1,n)
                      endif
-                     
+
+                     ! if use_minion .and. is_conservative, we have already accounted for divu
+                     ! in slx and srx; otherwise, we account for it here
+                     if(.not.(use_minion .and. is_conservative(n))) then
+                        sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,k-1,n)*divu(i-1,j,k-1)
+                        sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,k-1,n)*divu(i  ,j,k-1)
+                     endif
+
                      ! make sedgex by solving Riemann problem
                      ! boundary conditions enforced outside of i,j,k loop
                      sedgex(i,j,k-1,n) = merge(sedgelx(i,j),sedgerx(i,j),umac(i,j,k-1) .gt. ZERO)
@@ -1907,10 +1947,14 @@ contains
                      if(is_conservative(n)) then
                         sedgely(i,j) = sly(i,j,kp) &
                              - (dt2/hx)*(simhxz(i+1,j-1,kp)*umac(i+1,j-1,k-1) - simhxz(i,j-1,kp)*umac(i,j-1,k-1)) &
-                             - (dt2/hz)*(simhzx(i  ,j-1,kc)*wmac(i  ,j-1,k  ) - simhzx(i,j-1,kp)*wmac(i,j-1,k-1))
+                             - (dt2/hz)*(simhzx(i  ,j-1,kc)*wmac(i  ,j-1,k  ) - simhzx(i,j-1,kp)*wmac(i,j-1,k-1)) &
+                             + (dt2/hx)*s(i,j-1,k-1,n)*(umac(i+1,j-1,k-1)-umac(i,j-1,k-1)) &
+                             + (dt2/hz)*s(i,j-1,k-1,n)*(wmac(i  ,j-1,k  )-wmac(i,j-1,k-1))
                         sedgery(i,j) = sry(i,j,kp) &
                              - (dt2/hx)*(simhxz(i+1,j  ,kp)*umac(i+1,j  ,k-1) - simhxz(i,j  ,kp)*umac(i,j  ,k-1)) &
-                             - (dt2/hz)*(simhzx(i  ,j  ,kc)*wmac(i  ,j  ,k  ) - simhzx(i,j  ,kp)*wmac(i,j  ,k-1))
+                             - (dt2/hz)*(simhzx(i  ,j  ,kc)*wmac(i  ,j  ,k  ) - simhzx(i,j  ,kp)*wmac(i,j  ,k-1)) &
+                             + (dt2/hx)*s(i,j  ,k-1,n)*(umac(i+1,j  ,k-1)-umac(i,j  ,k-1)) &
+                             + (dt2/hz)*s(i,j  ,k-1,n)*(wmac(i  ,j  ,k  )-wmac(i,j  ,k-1))
                      else
                         sedgely(i,j) = sly(i,j,kp) &
                              - (dt4/hx)*(umac(i+1,j-1,k-1)+umac(i,j-1,k-1))*(simhxz(i+1,j-1,kp)-simhxz(i,j-1,kp)) &
@@ -1926,7 +1970,13 @@ contains
                         sedgely(i,j) = sedgely(i,j) + dt2*force(i,j-1,k-1,n)
                         sedgery(i,j) = sedgery(i,j) + dt2*force(i,j  ,k-1,n)
                      endif
-                     
+
+                     ! if use_minion .and. is_conservative, we have already accounted for divu
+                     ! in sly and sry; otherwise, we account for it here
+                     if(.not.(use_minion .and. is_conservative(n))) then
+                        sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,k-1,n)*divu(i,j-1,k-1)
+                        sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,k-1,n)*divu(i,j  ,k-1)
+                     endif
                      ! make sedgey by solving Riemann problem
                      ! boundary conditions enforced outside of i,j,k loop
                      sedgey(i,j,k-1,n) = merge(sedgely(i,j),sedgery(i,j),vmac(i,j,k-1) .gt. ZERO)
@@ -2234,21 +2284,17 @@ contains
                   ! make slx, srx with 1D extrapolation
                   slx(i,j,k) = s(i-1,j,k,n) + (HALF - dt2*umac(i,j,k)/hx)*slopex(i-1,j,k,n)
                   srx(i,j,k) = s(i  ,j,k,n) - (HALF + dt2*umac(i,j,k)/hx)*slopex(i  ,j,k,n)
-                  
-                  ! add s*u_x term where u_x = divu - v_y - w_z
-                  if(is_conservative(n)) then
-                     slx(i,j,k) = slx(i,j,k) - dt2*s(i-1,j,k,n)*(divu(i-1,j,k) &
-                          - (vmac(i-1,j+1,  k)-vmac(i-1,j,k))/hy &
-                          - (wmac(i-1,j  ,k+1)-wmac(i-1,j,k))/hz)
-                     srx(i,j,k) = srx(i,j,k) - dt2*s(i  ,j,k,n)*(divu(i  ,j,k) &
-                          - (vmac(i  ,j+1,k  )-vmac(i  ,j,k))/hy &
-                          - (wmac(i  ,j  ,k+1)-wmac(i  ,j,k))/hz)
-                  endif
 
                   ! add source terms
                   if(use_minion) then
                      slx(i,j,k) = slx(i,j,k) + dt2*force(i-1,j,k,n)
                      srx(i,j,k) = srx(i,j,k) + dt2*force(i  ,j,k,n)
+                  endif
+
+                  ! add divu contribution
+                  if(use_minion .and. is_conservative(n)) then
+                     slx(i,j,k) = slx(i,j,k) - dt2*s(i-1,j,k,n)*divu(i-1,j,k)
+                     srx(i,j,k) = srx(i,j,k) - dt2*s(i  ,j,k,n)*divu(i  ,j,k)
                   endif
                   
                   ! impose lo side bc's
@@ -2300,21 +2346,17 @@ contains
                   ! make sly, sry with 1D extrapolation
                   sly(i,j,k) = s(i,j-1,k,n) + (HALF - dt2*vmac(i,j,k)/hy)*slopey(i,j-1,k,n)
                   sry(i,j,k) = s(i,j  ,k,n) - (HALF + dt2*vmac(i,j,k)/hy)*slopey(i,j  ,k,n)
-                  
-                  ! add s*v_y term where v_y = divu - u_x - w_z
-                  if(is_conservative(n)) then
-                     sly(i,j,k) = sly(i,j,k) - dt2*s(i,j-1,k,n)*(divu(i,j-1,k) &
-                          - (umac(i+1,j-1,k  )-umac(i,j-1,k))/hx &
-                          - (wmac(i  ,j-1,k+1)-wmac(i,j-1,k))/hz)
-                     sry(i,j,k) = sry(i,j,k) - dt2*s(i,j  ,k,n)*(divu(i,j  ,k) &
-                          - (umac(i+1,j  ,k  )-umac(i,j  ,k))/hx &
-                          - (wmac(i  ,j  ,k+1)-wmac(i,j  ,k))/hz) 
-                  endif
 
                   ! add source terms
                   if(use_minion) then
                      sly(i,j,k) = sly(i,j,k) + dt2*force(i,j-1,k,n)
                      sry(i,j,k) = sry(i,j,k) + dt2*force(i,j  ,k,n)
+                  endif
+
+                  ! add divu contribution
+                  if(use_minion .and. is_conservative(n)) then
+                     sly(i,j,k) = sly(i,j,k) - dt2*s(i,j-1,k,n)*divu(i,j-1,k)
+                     sry(i,j,k) = sry(i,j,k) - dt2*s(i,j  ,k,n)*divu(i,j  ,k)
                   endif
 
                   ! impose lo side bc's
@@ -2366,21 +2408,17 @@ contains
                   ! make slz, srz with 1D extrapolation
                   slz(i,j,k) = s(i,j,k-1,n) + (HALF - dt2*wmac(i,j,k)/hz)*slopez(i,j,k-1,n)
                   srz(i,j,k) = s(i,j,k  ,n) - (HALF + dt2*wmac(i,j,k)/hz)*slopez(i,j,k  ,n)
-                  
-                  ! add s*w_z term where w_z = divu - u_x - w_y
-                  if(is_conservative(n)) then
-                     slz(i,j,k) = slz(i,j,k) - dt2*s(i,j,k-1,n)*(divu(i,j,k-1) &
-                          - (umac(i+1,j  ,k-1)-umac(i,j,k-1))/hx &
-                          - (vmac(i  ,j+1,k-1)-vmac(i,j,k-1))/hy)
-                     srz(i,j,k) = srz(i,j,k) - dt2*s(i,j,k  ,n)*(divu(i,j,k  ) &
-                          - (umac(i+1,j  ,k  )-umac(i,j,k  ))/hx &
-                          - (vmac(i  ,j+1,k  )-vmac(i,j,k  ))/hy)     
-                  endif
 
                   ! add source terms
                   if(use_minion) then
                      slz(i,j,k) = slz(i,j,k) + dt2*force(i,j,k-1,n)
                      srz(i,j,k) = srz(i,j,k) + dt2*force(i,j,k  ,n)
+                  endif
+
+                  ! add divu contribution
+                  if(use_minion .and. is_conservative(n)) then
+                     slz(i,j,k) = slz(i,j,k) - dt2*s(i,j,k-1,n)*divu(i,j,k-1)
+                     srz(i,j,k) = srz(i,j,k) - dt2*s(i,j,k  ,n)*divu(i,j,k  )
                   endif
 
                   ! impose lo side bc's
@@ -2795,10 +2833,14 @@ contains
                   if(is_conservative(n)) then
                      sedgelx(i,j,k) = slx(i,j,k) &
                           - (dt2/hy)*(simhyz(i-1,j+1,k  )*vmac(i-1,j+1,k  ) - simhyz(i-1,j,k)*vmac(i-1,j,k)) &
-                          - (dt2/hz)*(simhzy(i-1,j  ,k+1)*wmac(i-1,j  ,k+1) - simhzy(i-1,j,k)*wmac(i-1,j,k))
+                          - (dt2/hz)*(simhzy(i-1,j  ,k+1)*wmac(i-1,j  ,k+1) - simhzy(i-1,j,k)*wmac(i-1,j,k)) &
+                          + (dt2/hy)*s(i-1,j,k,n)*(vmac(i-1,j+1,  k)-vmac(i-1,j,k)) &
+                          + (dt2/hz)*s(i-1,j,k,n)*(wmac(i-1,j  ,k+1)-wmac(i-1,j,k))
                      sedgerx(i,j,k) = srx(i,j,k) &
                           - (dt2/hy)*(simhyz(i  ,j+1,k  )*vmac(i  ,j+1,  k) - simhyz(i  ,j,k)*vmac(i  ,j,k)) &
-                          - (dt2/hz)*(simhzy(i  ,j  ,k+1)*wmac(i  ,j  ,k+1) - simhzy(i  ,j,k)*wmac(i  ,j,k))
+                          - (dt2/hz)*(simhzy(i  ,j  ,k+1)*wmac(i  ,j  ,k+1) - simhzy(i  ,j,k)*wmac(i  ,j,k)) &
+                          + (dt2/hy)*s(i  ,j,k,n)*(vmac(i  ,j+1,k  )-vmac(i  ,j,k)) &
+                          + (dt2/hz)*s(i  ,j,k,n)*(wmac(i  ,j  ,k+1)-wmac(i  ,j,k))
                   else
                      sedgelx(i,j,k) = slx(i,j,k) &
                           - (dt4/hy)*(vmac(i-1,j+1,k  )+vmac(i-1,j,k))*(simhyz(i-1,j+1,k  )-simhyz(i-1,j,k)) &
@@ -2813,6 +2855,13 @@ contains
                   if(.not. use_minion) then
                      sedgelx(i,j,k) = sedgelx(i,j,k) + dt2*force(i-1,j,k,n)
                      sedgerx(i,j,k) = sedgerx(i,j,k) + dt2*force(i  ,j,k,n)
+                  endif
+
+                  ! if use_minion .and. is_conservative, we have already accounted for divu
+                  ! in slx and srx; otherwise, we account for it here
+                  if(.not.(use_minion .and. is_conservative(n))) then
+                     sedgelx(i,j,k) = sedgelx(i,j,k) - dt2*s(i-1,j,k,n)*divu(i-1,j,k)
+                     sedgerx(i,j,k) = sedgerx(i,j,k) - dt2*s(i  ,j,k,n)*divu(i  ,j,k)
                   endif
 
                   ! make sedgex by solving Riemann problem
@@ -2886,10 +2935,14 @@ contains
                   if(is_conservative(n)) then
                      sedgely(i,j,k) = sly(i,j,k) &
                           - (dt2/hx)*(simhxz(i+1,j-1,k  )*umac(i+1,j-1,k  ) - simhxz(i,j-1,k)*umac(i,j-1,k)) &
-                          - (dt2/hz)*(simhzx(i  ,j-1,k+1)*wmac(i  ,j-1,k+1) - simhzx(i,j-1,k)*wmac(i,j-1,k))
+                          - (dt2/hz)*(simhzx(i  ,j-1,k+1)*wmac(i  ,j-1,k+1) - simhzx(i,j-1,k)*wmac(i,j-1,k)) &
+                          + (dt2/hx)*s(i,j-1,k,n)*(umac(i+1,j-1,k  )-umac(i,j-1,k)) &
+                          + (dt2/hz)*s(i,j-1,k,n)*(wmac(i  ,j-1,k+1)-wmac(i,j-1,k))
                      sedgery(i,j,k) = sry(i,j,k) &
                           - (dt2/hx)*(simhxz(i+1,j  ,k  )*umac(i+1,j  ,k  ) - simhxz(i,j  ,k)*umac(i,j  ,k)) &
-                          - (dt2/hz)*(simhzx(i  ,j  ,k+1)*wmac(i  ,j  ,k+1) - simhzx(i,j  ,k)*wmac(i,j  ,k))
+                          - (dt2/hz)*(simhzx(i  ,j  ,k+1)*wmac(i  ,j  ,k+1) - simhzx(i,j  ,k)*wmac(i,j  ,k)) &
+                          + (dt2/hx)*s(i,j  ,k,n)*(umac(i+1,j  ,k  )-umac(i,j  ,k)) &
+                          + (dt2/hz)*s(i,j  ,k,n)*(wmac(i  ,j  ,k+1)-wmac(i,j  ,k))
                   else
                      sedgely(i,j,k) = sly(i,j,k) &
                           - (dt4/hx)*(umac(i+1,j-1,k  )+umac(i,j-1,k))*(simhxz(i+1,j-1,k  )-simhxz(i,j-1,k)) &
@@ -2904,6 +2957,13 @@ contains
                   if(.not. use_minion) then
                      sedgely(i,j,k) = sedgely(i,j,k) + dt2*force(i,j-1,k,n)
                      sedgery(i,j,k) = sedgery(i,j,k) + dt2*force(i,j  ,k,n)
+                  endif
+
+                  ! if use_minion .and. is_conservative, we have already accounted for divu
+                  ! in sly and sry; otherwise, we account for it here
+                  if(.not.(use_minion .and. is_conservative(n))) then
+                     sedgely(i,j,k) = sedgely(i,j,k) - dt2*s(i,j-1,k,n)*divu(i,j-1,k)
+                     sedgery(i,j,k) = sedgery(i,j,k) - dt2*s(i,j  ,k,n)*divu(i,j  ,k)
                   endif
                   
                   ! make sedgey by solving Riemann problem
@@ -2978,10 +3038,14 @@ contains
                   if(is_conservative(n)) then
                      sedgelz(i,j,k) = slz(i,j,k) &
                           - (dt2/hx)*(simhxy(i+1,j  ,k-1)*umac(i+1,j  ,k-1) - simhxy(i,j,k-1)*umac(i,j,k-1)) &
-                          - (dt2/hy)*(simhyx(i  ,j+1,k-1)*vmac(i  ,j+1,k-1) - simhyx(i,j,k-1)*vmac(i,j,k-1))
+                          - (dt2/hy)*(simhyx(i  ,j+1,k-1)*vmac(i  ,j+1,k-1) - simhyx(i,j,k-1)*vmac(i,j,k-1)) &
+                          + (dt2/hx)*s(i,j,k-1,n)*(umac(i+1,j  ,k-1)-umac(i,j,k-1)) &
+                          + (dt2/hy)*s(i,j,k-1,n)*(vmac(i  ,j+1,k-1)-vmac(i,j,k-1))
                      sedgerz(i,j,k) = srz(i,j,k) &
                           - (dt2/hx)*(simhxy(i+1,j  ,k  )*umac(i+1,j  ,k  ) - simhxy(i,j,k  )*umac(i,j,k  )) &
-                          - (dt2/hy)*(simhyx(i  ,j+1,k  )*vmac(i  ,j+1,k  ) - simhyx(i,j,k  )*vmac(i,j,k  ))
+                          - (dt2/hy)*(simhyx(i  ,j+1,k  )*vmac(i  ,j+1,k  ) - simhyx(i,j,k  )*vmac(i,j,k  )) &
+                          + (dt2/hx)*s(i,j,k  ,n)*(umac(i+1,j  ,k  )-umac(i,j,k  )) &
+                          + (dt2/hy)*s(i,j,k  ,n)*(vmac(i  ,j+1,k  )-vmac(i,j,k  ))
                   else
                      sedgelz(i,j,k) = slz(i,j,k) &
                           - (dt4/hx)*(umac(i+1,j  ,k-1)+umac(i,j,k-1))*(simhxy(i+1,j  ,k-1)-simhxy(i,j,k-1)) &
@@ -2996,6 +3060,13 @@ contains
                   if(.not. use_minion) then
                      sedgelz(i,j,k) = sedgelz(i,j,k) + dt2*force(i,j,k-1,n)
                      sedgerz(i,j,k) = sedgerz(i,j,k) + dt2*force(i,j,k  ,n)
+                  endif
+
+                  ! if use_minion .and. is_conservative, we have already accounted for divu
+                  ! in slz and srz; otherwise, we account for it here
+                  if(.not.(use_minion .and. is_conservative(n))) then
+                     sedgelz(i,j,k) = sedgelz(i,j,k) - dt2*s(i,j,k-1,n)*divu(i,j,k-1)
+                     sedgerz(i,j,k) = sedgerz(i,j,k) - dt2*s(i,j,k  ,n)*divu(i,j,k  )
                   endif
                   
                   ! make sedgez by solving Riemann problem
