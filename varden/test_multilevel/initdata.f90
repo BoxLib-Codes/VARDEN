@@ -135,16 +135,43 @@ contains
     
 !     Local variables
       integer :: i, j, k
+      real(kind=dp_t) :: xloc,yloc,zloc,dist
 
+      ! zero initial velocity
+      ! density = 1
       do k=lo(3),hi(3)
          do j=lo(2),hi(2)
             do i=lo(1),hi(1)
 
                u(i,j,k,1) = ZERO
                u(i,j,k,2) = ZERO
-               u(i,j,k,3) = ZERO
                s(i,j,k,1) = ONE
                s(i,j,k,2) = ZERO
+
+            enddo
+         enddo
+      enddo
+
+      ! add two "bubbles" of higher density
+      ! one centered over fine grid
+      ! one centered over coarse grid
+      do k=lo(3),hi(3)
+         do j=lo(2),hi(2)
+            do i=lo(1),hi(1)
+
+               xloc = (i+HALF)*dx(1)
+               yloc = (j+HALF)*dx(2)
+               zloc = (k+HALF)*dx(3)
+               
+               ! use this for one bubble problem
+               dist = sqrt((xloc-0.5d0)**2 + (yloc-0.5d0)**2 + (zloc-0.5d0)**2)
+               s(i,j,k,1) = s(i,j,k,1) + (1.0d0 - tanh(dist/0.05d0))
+
+               ! use this for two bubble problem            
+!               dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2 + (zloc-0.5d0)**2)
+!               s(i,j,k,1) = s(i,j,k,1) + (1.0d0 - tanh(dist/0.05d0))
+!               dist = sqrt((xloc-0.25d0)**2 + (yloc-0.5d0)**2 + (zloc-0.5d0)**2)
+!               s(i,j,k,1) = s(i,j,k,1) + (1.0d0 - tanh(dist/0.05d0))
 
             enddo
          enddo
