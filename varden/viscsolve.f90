@@ -107,7 +107,8 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
      fine_domain = layout_get_pd(mla%la(n))
      call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
           ng_cell,mla%mba%rr(n-1,:), &
-          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+          the_bc_tower%bc_tower_array(n-1), &
+          the_bc_tower%bc_tower_array(n  ), &
           1,1,dm)
   end do
 
@@ -312,7 +313,8 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
      fine_domain = layout_get_pd(mla%la(n))
      call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
           ng_cell,mla%mba%rr(n-1,:), &
-          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+          the_bc_tower%bc_tower_array(n-1), &
+          the_bc_tower%bc_tower_array(n  ), &
           1,dm+2,1)
   end do
 

@@ -195,7 +195,8 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
      fine_domain = layout_get_pd(mla%la(n))
      call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
           1,mla%mba%rr(n-1,:), &
-          the_bc_tower%bc_tower_array(n-1)%adv_bc_level_array(0,:,:,:), &
+          the_bc_tower%bc_tower_array(n-1), &
+          the_bc_tower%bc_tower_array(n  ), &
           1,1,dm)
   end do
 
