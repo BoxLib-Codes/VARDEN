@@ -615,91 +615,94 @@ subroutine varden()
 
      do istep = init_step, max_step
 
-        if (nlevs > 1 .and. regrid_int > 0 .and. mod(istep-1,regrid_int) .eq. 0) then
-           call delete_temps()
-           call make_new_grids(sold(1),dx(1,1),regrid_int)
-           
-           ! Build the arrays for each grid from the domain_bc arrays.
-           call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
-           
-           call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
-           
-           do n = 2, nlevs
-              fine_domain = layout_get_pd(mla_new%la(n))
-              call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
-                             ng_cell,mla_new%mba%rr(n-1,:), &
-                             the_bc_tower%bc_tower_array(n-1), &
-                             the_bc_tower%bc_tower_array(n  ), &
-                             1,1,dm)
-              call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
-                             ng_cell,mla_new%mba%rr(n-1,:), &
-                             the_bc_tower%bc_tower_array(n-1), &
-                             the_bc_tower%bc_tower_array(n  ), &
-                             1,dm+1,nscal)
-              call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
-                             ng_grow,mla_new%mba%rr(n-1,:), &
-                             the_bc_tower%bc_tower_array(n-1), &
-                             the_bc_tower%bc_tower_array(n  ), &
-                             1,1,dm)
-           end do
-           
-           do n = 1,nlevs
-              call multifab_copy_c(uold_rg(n),1,uold(n),1,dm   )
-              call multifab_copy_c(sold_rg(n),1,sold(n),1,nscal)
-              call multifab_copy_c(gp_rg(n)  ,1,gp(n),  1,dm   )
-              call multifab_copy_c(p_rg(n)   ,1,p(n),   1,1    )
-           end do
+        if (nlevs > 1 .and. regrid_int > 0) then
 
-           call delete_state(uold,sold,gp,p)
+           if (mod(istep-1,regrid_int) .eq. 0) then
+              call delete_temps()
+              call make_new_grids(sold(1),dx(1,1),regrid_int)
 
-           uold = uold_rg
-           sold = sold_rg
-           gp   = gp_rg
-           p    = p_rg
-           
-           do n = 1,nlevs
-              call multifab_fill_boundary(uold(n))
-              call multifab_fill_boundary(sold(n))
-              
-              bc = the_bc_tower%bc_tower_array(n)
-              do i = 1, uold(n)%nboxes
-                 if ( multifab_remote(uold(n), i) ) cycle
-                 uop => dataptr(uold(n), i)
-                 sop => dataptr(sold(n), i)
-                 lo =  lwb(get_box(uold(n), i))
-                 hi =  upb(get_box(uold(n), i))
-                 select case (dm)
-                 case (2) 
-                    do comp = 1,dm
-                       call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
-                                     bc%adv_bc_level_array(i,:,:,comp), &
-                                     dx(n,:),comp)
-                    end do
-                    do comp = 1,nscal
-                       call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
-                                     bc%adv_bc_level_array(i,:,:,dm+comp), &
-                                     dx(n,:),dm+comp)
-                    end do
-                 case (3) 
-                    do comp = 1,dm
-                       call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
-                                     bc%adv_bc_level_array(i,:,:,comp), &
-                                     dx(n,:),comp)
-                    end do
-                    do comp = 1,nscal
-                       call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
-                                     bc%adv_bc_level_array(i,:,:,dm+comp), &
-                                     dx(n,:),dm+comp)
-                    end do
-                 end select
+              ! Build the arrays for each grid from the domain_bc arrays.
+              call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
+
+              call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
+
+              do n = 2, nlevs
+                 fine_domain = layout_get_pd(mla_new%la(n))
+                 call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
+                      ng_cell,mla_new%mba%rr(n-1,:), &
+                      the_bc_tower%bc_tower_array(n-1), &
+                      the_bc_tower%bc_tower_array(n  ), &
+                      1,1,dm)
+                 call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
+                      ng_cell,mla_new%mba%rr(n-1,:), &
+                      the_bc_tower%bc_tower_array(n-1), &
+                      the_bc_tower%bc_tower_array(n  ), &
+                      1,dm+1,nscal)
+                 call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
+                      ng_grow,mla_new%mba%rr(n-1,:), &
+                      the_bc_tower%bc_tower_array(n-1), &
+                      the_bc_tower%bc_tower_array(n  ), &
+                      1,1,dm)
               end do
-           end do
 
-           call make_temps(mla_new)
-           
-           call destroy(mla)
-           mla = mla_new
-        end if ! end if (nlevs > 1 .and. regrid_int > 0 .and. mod(istep-1,regrid_int) .eq. 0)
+              do n = 1,nlevs
+                 call multifab_copy_c(uold_rg(n),1,uold(n),1,dm   )
+                 call multifab_copy_c(sold_rg(n),1,sold(n),1,nscal)
+                 call multifab_copy_c(gp_rg(n)  ,1,gp(n),  1,dm   )
+                 call multifab_copy_c(p_rg(n)   ,1,p(n),   1,1    )
+              end do
+
+              call delete_state(uold,sold,gp,p)
+
+              uold = uold_rg
+              sold = sold_rg
+              gp   = gp_rg
+              p    = p_rg
+
+              do n = 1,nlevs
+                 call multifab_fill_boundary(uold(n))
+                 call multifab_fill_boundary(sold(n))
+
+                 bc = the_bc_tower%bc_tower_array(n)
+                 do i = 1, uold(n)%nboxes
+                    if ( multifab_remote(uold(n), i) ) cycle
+                    uop => dataptr(uold(n), i)
+                    sop => dataptr(sold(n), i)
+                    lo =  lwb(get_box(uold(n), i))
+                    hi =  upb(get_box(uold(n), i))
+                    select case (dm)
+                    case (2) 
+                       do comp = 1,dm
+                          call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,comp), &
+                               dx(n,:),comp)
+                       end do
+                       do comp = 1,nscal
+                          call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,dm+comp), &
+                               dx(n,:),dm+comp)
+                       end do
+                    case (3) 
+                       do comp = 1,dm
+                          call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,comp), &
+                               dx(n,:),comp)
+                       end do
+                       do comp = 1,nscal
+                          call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
+                               bc%adv_bc_level_array(i,:,:,dm+comp), &
+                               dx(n,:),dm+comp)
+                       end do
+                    end select
+                 end do
+              end do
+
+              call make_temps(mla_new)
+
+              call destroy(mla)
+              mla = mla_new
+           end if !  end if mod(istep-1,regrid_int) .eq. 0)
+        end if  ! end if (nlevs > 1 .and. regrid_int > 0)
 
         do n = 2, nlevs
            fine_domain = layout_get_pd(mla%la(n))
@@ -822,14 +825,18 @@ subroutine varden()
            call multifab_copy_c(sold(n),1,snew(n),1,nscal)
         end do
 
-        if (plot_int > 0 .and. mod(istep,plot_int) .eq. 0) then
-           call write_plotfile(istep)
-           last_plt_written = istep
+        if (plot_int > 0) then
+           if (mod(istep,plot_int) .eq. 0) then
+              call write_plotfile(istep)
+              last_plt_written = istep
+           end if
         end if
 
-        if (chk_int > 0 .and. mod(istep,chk_int) .eq. 0) then
-           call write_checkfile(istep)
-           last_chk_written = istep
+        if (chk_int > 0) then
+           if (mod(istep,chk_int) .eq. 0) then
+              call write_checkfile(istep)
+              last_chk_written = istep
+           end if
         end if
 
         if (stop_time >= 0.d0) then
