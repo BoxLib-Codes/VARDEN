@@ -332,6 +332,9 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   deallocate(phi)
   deallocate(alpha)
   deallocate(beta)
+  do n = 2,nlevs
+     call bndry_reg_destroy(fine_flx(n))
+  end do
   deallocate(fine_flx)
 
   contains
