@@ -132,6 +132,9 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
   deallocate(phi)
   deallocate(alpha)
   deallocate(beta)
+  do n = 2,nlevs
+     call bndry_reg_destroy(fine_flx(n))
+  end do
   deallocate(fine_flx)
 
   contains
