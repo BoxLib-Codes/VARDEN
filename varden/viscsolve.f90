@@ -28,6 +28,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
   integer                     :: bc_comp,stencil_order,ng_cell
   type(box)                   :: fine_domain
   integer                     :: lo(unew(1)%dim)
+  real(kind=dp_t)             :: norm1(mla%nlevel), norm2(mla%nlevel)
 
   nlevs = mla%nlevel
   dm    = mla%dim
@@ -47,13 +48,19 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
 
   stencil_order = 2
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
-     print *,' '
-     print *,'... begin viscous solves  ... '
+  if (verbose .ge. 1) then
      do n = 1,nlevs
-        print *,'BEFORE: MAX OF U AT LEVEL ',n,norm_inf(unew(n),1,1,all=.true.)
-        print *,'BEFORE: MAX OF V AT LEVEL ',n,norm_inf(unew(n),2,1,all=.true.)
+        norm1(n) = norm_inf(unew(n),1,1,all=.true.)
+        norm2(n) = norm_inf(unew(n),2,1,all=.true.)
      end do
+     if (parallel_IOProcessor()) then
+        print *,' '
+        print *,'... begin viscous solves  ... '
+        do n = 1,nlevs
+           print *,'BEFORE: MAX OF U AT LEVEL ',n,norm1(n)
+           print *,'BEFORE: MAX OF V AT LEVEL ',n,norm2(n)
+        end do
+     end if
   endif
 
   allocate(fine_flx(2:nlevs))
@@ -112,13 +119,19 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
           1,1,dm)
   end do
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (verbose .ge. 1) then
      do n = 1,nlevs
-        print *,'BEFORE: MAX OF U AT LEVEL ',n,norm_inf(unew(n),1,1,all=.true.)
-        print *,'BEFORE: MAX OF V AT LEVEL ',n,norm_inf(unew(n),2,1,all=.true.)
+        norm1(n) = norm_inf(unew(n),1,1,all=.true.)
+        norm2(n) = norm_inf(unew(n),2,1,all=.true.)
      end do
-     print *,'...   end viscous solves  ... '
-     print *,' '
+     if (parallel_IOProcessor()) then
+        do n = 1,nlevs
+           print *,'BEFORE: MAX OF U AT LEVEL ',n,norm1(n)
+           print *,'BEFORE: MAX OF V AT LEVEL ',n,norm2(n)
+        end do
+        print *,'...   end viscous solves  ... '
+        print *,' '
+     end if
   endif
 
   do n = 1, nlevs
@@ -231,6 +244,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   integer                     :: i,n,nlevs,dm,stencil_order
   type(box)                   :: fine_domain
   integer                     :: lo(snew(1)%dim),ng_cell
+  real(kind=dp_t)             :: norm1(mla%nlevel)
 
   nlevs = mla%nlevel
   dm    = mla%dim
@@ -247,12 +261,17 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
      call setval( beta(n), mu,all=.true.)
   end do
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
-     print *,' '
-     print *,'... begin diffusive solve  ... '
+  if (verbose .ge. 1) then
      do n = 1,nlevs
-        print *,'BEFORE: MAX OF S AT LEVEL ',n,norm_inf(snew(n),icomp,1,all=.true.)
+        norm1(n) = norm_inf(snew(n),icomp,1,all=.true.)
      end do
+     if (parallel_IOProcessor()) then
+        print *,' '
+        print *,'... begin diffusive solve  ... '
+        do n = 1,nlevs
+           print *,'BEFORE: MAX OF S AT LEVEL ',n,norm1(n)
+        end do
+     end if
   endif
 
   do n = 1,nlevs
@@ -277,12 +296,17 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
      call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
   enddo
 
-  if (parallel_IOProcessor() .and. verbose .ge. 1) then
+  if (verbose .ge. 1) then
      do n = 1,nlevs
-        print *,'AFTER: MAX OF S AT LEVEL ',n,norm_inf(snew(n),icomp,1,all=.true.)
+        norm1(n) = norm_inf(snew(n),icomp,1,all=.true.)
      end do
-     print *,' '
-     print *,'...   end diffusive solve  ... '
+     if (parallel_IOProcessor()) then
+        do n = 1,nlevs
+           print *,'AFTER: MAX OF S AT LEVEL ',n,norm1(n)
+        end do
+        print *,' '
+        print *,'...   end diffusive solve  ... '
+     end if
   endif
 
   do n = 1, nlevs
