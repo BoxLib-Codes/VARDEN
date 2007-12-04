@@ -129,7 +129,7 @@ contains
       !     if(j .gt. js) then
       !        4. Compute umac(is:ie+1,j-1)
       !     endif
-      !     5. Cycle indeces
+      !     5. Cycle indices
       !  enddo
       !
       !*************************************
@@ -368,7 +368,7 @@ contains
          endif ! end if(j .gt. js)
 
 !******************************************************************
-! 5. Cycle indeces
+! 5. Cycle indices
 !******************************************************************
 
          jc = 3 - jc
@@ -1799,7 +1799,7 @@ contains
       !        11.Compute umac  (is  :ie+1,js  :je,  k-1)
       !        12.Compute vmac  (is  :ie  ,js  :je+1,k-1)
       !     endif
-      !     13. Cycle indeces
+      !     13. Cycle indices
       !  enddo
       !
       !*************************************
@@ -2446,7 +2446,7 @@ contains
          endif ! end if(k .gt. ks)
 
 !******************************************************************
-! 13. Cycle indeces
+! 13. Cycle indices
 !******************************************************************
 
          kc = 3 - kc
