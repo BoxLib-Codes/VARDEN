@@ -50,8 +50,8 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
 
   if (verbose .ge. 1) then
      do n = 1,nlevs
-        norm1(n) = norm_inf(unew(n),1,1,all=.true.)
-        norm2(n) = norm_inf(unew(n),2,1,all=.true.)
+        norm1(n) = norm_inf(unew(n),1,1)
+        norm2(n) = norm_inf(unew(n),2,1)
      end do
      if (parallel_IOProcessor()) then
         print *,' '
@@ -121,13 +121,13 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
 
   if (verbose .ge. 1) then
      do n = 1,nlevs
-        norm1(n) = norm_inf(unew(n),1,1,all=.true.)
-        norm2(n) = norm_inf(unew(n),2,1,all=.true.)
+        norm1(n) = norm_inf(unew(n),1,1)
+        norm2(n) = norm_inf(unew(n),2,1)
      end do
      if (parallel_IOProcessor()) then
         do n = 1,nlevs
-           print *,'BEFORE: MAX OF U AT LEVEL ',n,norm1(n)
-           print *,'BEFORE: MAX OF V AT LEVEL ',n,norm2(n)
+           print *,' AFTER: MAX OF U AT LEVEL ',n,norm1(n)
+           print *,' AFTER: MAX OF V AT LEVEL ',n,norm2(n)
         end do
         print *,'...   end viscous solves  ... '
         print *,' '
@@ -263,7 +263,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 
   if (verbose .ge. 1) then
      do n = 1,nlevs
-        norm1(n) = norm_inf(snew(n),icomp,1,all=.true.)
+        norm1(n) = norm_inf(snew(n),icomp,1)
      end do
      if (parallel_IOProcessor()) then
         print *,' '
@@ -298,7 +298,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 
   if (verbose .ge. 1) then
      do n = 1,nlevs
-        norm1(n) = norm_inf(snew(n),icomp,1,all=.true.)
+        norm1(n) = norm_inf(snew(n),icomp,1)
      end do
      if (parallel_IOProcessor()) then
         do n = 1,nlevs
