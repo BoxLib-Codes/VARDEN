@@ -69,7 +69,6 @@ contains
       integer :: i,n,dm,d,comp,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
-      type(box) :: fine_domain
 
       allocate(vel_force(nlevs),divu(nlevs))
 
@@ -309,8 +308,7 @@ contains
       enddo
 
       do n = 2, nlevs
-         fine_domain = layout_get_pd(mla%la(n))
-         call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+         call multifab_fill_ghost_cells(unew(n),unew(n-1), &
                                         ng_cell,mla%mba%rr(n-1,:), &
                                         the_bc_level(n-1), the_bc_level(n), &
                                         1,1,dm)

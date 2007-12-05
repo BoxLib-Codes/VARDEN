@@ -26,7 +26,6 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
   real(kind=dp_t), pointer    :: unp(:,:,:,:)
   integer                     :: n,nlevs,d,dm,i,comp
   integer                     :: bc_comp,stencil_order,ng_cell
-  type(box)                   :: fine_domain
   integer                     :: lo(unew(1)%dim)
   real(kind=dp_t)             :: norm1(mla%nlevel), norm2(mla%nlevel)
 
@@ -111,8 +110,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
   enddo
 
   do n = 2, nlevs
-     fine_domain = layout_get_pd(mla%la(n))
-     call multifab_fill_ghost_cells(unew(n),unew(n-1),fine_domain, &
+     call multifab_fill_ghost_cells(unew(n),unew(n-1), &
           ng_cell,mla%mba%rr(n-1,:), &
           the_bc_tower%bc_tower_array(n-1), &
           the_bc_tower%bc_tower_array(n  ), &
@@ -242,7 +240,6 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   type(bndry_reg), pointer    :: fine_flx(:) => Null()
   real(kind=dp_t), pointer    :: snp(:,:,:,:)
   integer                     :: i,n,nlevs,dm,stencil_order
-  type(box)                   :: fine_domain
   integer                     :: lo(snew(1)%dim),ng_cell
   real(kind=dp_t)             :: norm1(mla%nlevel)
 
@@ -337,8 +334,7 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
   enddo
 
   do n = 2, nlevs
-     fine_domain = layout_get_pd(mla%la(n))
-     call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
+     call multifab_fill_ghost_cells(snew(n),snew(n-1), &
           ng_cell,mla%mba%rr(n-1,:), &
           the_bc_tower%bc_tower_array(n-1), &
           the_bc_tower%bc_tower_array(n  ), &

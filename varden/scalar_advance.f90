@@ -69,7 +69,6 @@ contains
       logical :: is_vel,make_divu
       real(kind=dp_t) :: diff_fac
       real(kind=dp_t) :: half_dt
-      type(box) :: fine_domain
 
       nscal = ncomp(sold(1))
 
@@ -318,12 +317,11 @@ contains
       enddo
 
       do n = 2, nlevs
-         fine_domain = layout_get_pd(mla%la(n))
-         call multifab_fill_ghost_cells(snew(n),snew(n-1),fine_domain, &
+         call multifab_fill_ghost_cells(snew(n),snew(n-1), &
               ng_cell,mla%mba%rr(n-1,:), &
               the_bc_level(n-1), the_bc_level(n), &
               1,dm+1,nscal)
-         call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),fine_domain, &
+         call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1), &
               ng_rho,mla%mba%rr(n-1,:), &
               the_bc_level(n-1), the_bc_level(n), &
               1,dm+1,1)

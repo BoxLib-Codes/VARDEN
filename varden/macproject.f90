@@ -625,7 +625,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
       type(multifab ), intent(inout) :: beta(:)
       type(bc_tower ), intent(in   ) :: the_bc_tower
  
-      type(box )               :: fine_domain
       real(kind=dp_t), pointer :: bp(:,:,:,:) 
       real(kind=dp_t), pointer :: rp(:,:,:,:) 
       integer :: i,dm,ng,ng_fill
@@ -635,8 +634,7 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
       ng_fill = 1
       do n = 2, nlevs
-         fine_domain = layout_get_pd(mla%la(n))
-         call multifab_fill_ghost_cells(rho(n),rho(n-1),fine_domain, &
+         call multifab_fill_ghost_cells(rho(n),rho(n-1), &
                                         ng_fill,mla%mba%rr(n-1,:), &
                                         the_bc_tower%bc_tower_array(n-1), &
                                         the_bc_tower%bc_tower_array(n  ), &

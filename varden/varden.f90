@@ -116,7 +116,6 @@ subroutine varden()
   logical :: need_inputs
 
   type(layout)    :: la
-  type(box)       :: fine_domain
   type(ml_boxarray) :: mba
 
   type(bc_tower) ::  the_bc_tower
@@ -414,18 +413,17 @@ subroutine varden()
    else
 
       do n = 2, nlevs
-         fine_domain = layout_get_pd(mla_new%la(n))
-         call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
+         call fillpatch(uold_rg(n),uold(n-1), &
                         ng_cell,mla_new%mba%rr(n-1,:), &
                         the_bc_tower%bc_tower_array(n-1), &
                         the_bc_tower%bc_tower_array(n  ), &
                         1,1,dm)
-         call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
+         call fillpatch(sold_rg(n),sold(n-1), &
                         ng_cell,mla_new%mba%rr(n-1,:), &
                         the_bc_tower%bc_tower_array(n-1), &
                         the_bc_tower%bc_tower_array(n  ), &
                         1,dm+1,nscal)
-         call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
+         call fillpatch(gp_rg(n),gp(n-1), &
                         ng_grow,mla_new%mba%rr(n-1,:), &
                         the_bc_tower%bc_tower_array(n-1), &
                         the_bc_tower%bc_tower_array(n  ), &
@@ -627,18 +625,17 @@ subroutine varden()
               call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
 
               do n = 2, nlevs
-                 fine_domain = layout_get_pd(mla_new%la(n))
-                 call fillpatch(uold_rg(n),uold(n-1),fine_domain, &
+                 call fillpatch(uold_rg(n),uold(n-1), &
                       ng_cell,mla_new%mba%rr(n-1,:), &
                       the_bc_tower%bc_tower_array(n-1), &
                       the_bc_tower%bc_tower_array(n  ), &
                       1,1,dm)
-                 call fillpatch(sold_rg(n),sold(n-1),fine_domain, &
+                 call fillpatch(sold_rg(n),sold(n-1), &
                       ng_cell,mla_new%mba%rr(n-1,:), &
                       the_bc_tower%bc_tower_array(n-1), &
                       the_bc_tower%bc_tower_array(n  ), &
                       1,dm+1,nscal)
-                 call fillpatch(gp_rg(n),gp(n-1),fine_domain, &
+                 call fillpatch(gp_rg(n),gp(n-1), &
                       ng_grow,mla_new%mba%rr(n-1,:), &
                       the_bc_tower%bc_tower_array(n-1), &
                       the_bc_tower%bc_tower_array(n  ), &
@@ -705,18 +702,17 @@ subroutine varden()
         end if  ! end if (nlevs > 1 .and. regrid_int > 0)
 
         do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
+           call multifab_fill_ghost_cells(uold(n),uold(n-1), &
                 ng_cell,mla%mba%rr(n-1,:), &
                 the_bc_tower%bc_tower_array(n-1), &
                 the_bc_tower%bc_tower_array(n  ), &
                 1,1,dm)
-           call multifab_fill_ghost_cells(sold(n),sold(n-1),fine_domain, &
+           call multifab_fill_ghost_cells(sold(n),sold(n-1), &
                 ng_cell,mla%mba%rr(n-1,:), &
                 the_bc_tower%bc_tower_array(n-1), &
                 the_bc_tower%bc_tower_array(n  ), &
                 1,dm+1,nscal)
-           call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
+           call multifab_fill_ghost_cells(gp(n),gp(n-1), &
                 ng_grow,mla%mba%rr(n-1,:), &
                 the_bc_tower%bc_tower_array(n-1), &
                 the_bc_tower%bc_tower_array(n  ), &
@@ -1122,18 +1118,17 @@ subroutine varden()
        do istep = 1,init_iter
 
         do n = 2, nlevs
-           fine_domain = layout_get_pd(mla%la(n))
-           call multifab_fill_ghost_cells(uold(n),uold(n-1),fine_domain, &
+           call multifab_fill_ghost_cells(uold(n),uold(n-1), &
                 ng_cell,mla%mba%rr(n-1,:), &
                 the_bc_tower%bc_tower_array(n-1), &
                 the_bc_tower%bc_tower_array(n  ), &
                 1,1,dm)
-           call multifab_fill_ghost_cells(sold(n),sold(n-1),fine_domain, &
+           call multifab_fill_ghost_cells(sold(n),sold(n-1), &
                 ng_cell,mla%mba%rr(n-1,:), &
                 the_bc_tower%bc_tower_array(n-1), &
                 the_bc_tower%bc_tower_array(n  ), &
                 1,dm+1,nscal)
-           call multifab_fill_ghost_cells(gp(n),gp(n-1),fine_domain, &
+           call multifab_fill_ghost_cells(gp(n),gp(n-1), &
                 ng_grow,mla%mba%rr(n-1,:), &
                 the_bc_tower%bc_tower_array(n-1), &
                 the_bc_tower%bc_tower_array(n  ), &
