@@ -2,6 +2,7 @@ module mkforce_module
 
   use bl_types
   use laplac_module
+  use multifab_module
 
   implicit none
 
@@ -146,7 +147,52 @@ contains
     
   end subroutine mkvelforce_3d
   
-  subroutine mkscalforce_2d(scal_force,ext_scal_force,s,laps,ng,dx,bc,diff_coef,diff_fac)
+  subroutine mkscalforce(nlevs,scal_force,ext_scal_force,s,laps,dx,diff_coef,diff_fac)
+    
+    integer        , intent(in   ) :: nlevs
+    type(multifab) , intent(inout) :: scal_force(:)
+    type(multifab) , intent(in   ) :: ext_scal_force(:)
+    type(multifab) , intent(in   ) :: s(:)
+    type(multifab) , intent(in   ) :: laps(:)
+    real(kind=dp_t), intent(in   ) :: dx(:,:)
+    real(kind=dp_t), intent(in   ) :: diff_coef,diff_fac
+
+    ! local
+    integer :: i,n,ng_cell,dm
+    integer :: lo(s(1)%dim),hi(s(1)%dim)
+    real(kind=dp_t), pointer :: fp(:,:,:,:)
+    real(kind=dp_t), pointer :: lp(:,:,:,:)
+    real(kind=dp_t), pointer :: ep(:,:,:,:)
+    real(kind=dp_t), pointer :: sp(:,:,:,:)
+
+    dm = s(1)%dim
+    ng_cell = s(1)%ng
+
+    do n=1,nlevs
+       do i = 1, s(n)%nboxes
+          if ( multifab_remote(s(n),i) ) cycle
+          fp => dataptr(scal_force(n),i)
+          lp => dataptr(laps(n),i)
+          ep => dataptr(ext_scal_force(n),i)
+          sp => dataptr(s(n),i)
+          lo = lwb(get_box(s(n),i))
+          hi = upb(get_box(s(n),i))
+          select case (dm)
+          case (2)
+             call mkscalforce_2d(fp(:,:,1,:),ep(:,:,1,:),sp(:,:,1,:),lp(:,:,1,:), &
+                                 ng_cell,dx(n,:),diff_coef,diff_fac)
+          case (3)
+             call mkscalforce_3d(fp(:,:,:,:),ep(:,:,:,:),sp(:,:,:,:),lp(:,:,:,:), &
+                                 ng_cell,dx(n,:),diff_coef,diff_fac)
+          end select
+       end do
+
+       call multifab_fill_boundary(scal_force(n))
+    enddo
+
+  end subroutine mkscalforce
+
+  subroutine mkscalforce_2d(scal_force,ext_scal_force,s,laps,ng,dx,diff_coef,diff_fac)
     
     integer        , intent(in   ) :: ng
     real(kind=dp_t), intent(  out) :: scal_force(0:,0:,:)
@@ -154,8 +200,7 @@ contains
     real(kind=dp_t), intent(in   ) :: s(1-ng:,1-ng:,:)
     real(kind=dp_t), intent(in   ) :: laps(1:,1:,:)
     real(kind=dp_t), intent(in   ) :: dx(:)
-    integer        , intent(in   ) :: bc(:,:,:) 
-    real(kind=dp_t), intent(in   ) :: diff_coef, diff_fac
+    real(kind=dp_t), intent(in   ) :: diff_coef,diff_fac
     
     real(kind=dp_t) :: laps_local
     integer :: i,j,is,ie,js,je,n
@@ -195,7 +240,7 @@ contains
     
   end subroutine mkscalforce_2d
   
-  subroutine mkscalforce_3d(scal_force,ext_scal_force,s,laps,ng,dx,bc,diff_coef,diff_fac)
+  subroutine mkscalforce_3d(scal_force,ext_scal_force,s,laps,ng,dx,diff_coef,diff_fac)
     
     integer        , intent(in   ) :: ng
     real(kind=dp_t), intent(  out) :: scal_force(0:,0:,0:,:)
@@ -203,7 +248,6 @@ contains
     real(kind=dp_t), intent(in   ) :: s(1-ng:,1-ng:,1-ng:,:)
     real(kind=dp_t), intent(in   ) :: laps(1:,1:,1:,:)
     real(kind=dp_t), intent(in   ) :: dx(:)
-    integer        , intent(in   ) :: bc(:,:,:) 
     real(kind=dp_t), intent(in   ) :: diff_coef, diff_fac
 
     real(kind=dp_t) :: laps_local
