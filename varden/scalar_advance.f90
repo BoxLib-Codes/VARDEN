@@ -188,34 +188,11 @@ contains
     diff_fac = HALF
     call mkscalforce(nlevs,scal_force,ext_scal_force,sold,laps,dx,diff_coef,diff_fac)
 
-    do n = 1, nlevs
-
-       !***********************************
-       ! Update the scalars with conservative or convective differencing.
-       !***********************************
-       
-       call update(sold(n),umac(n,:),sedge(n,:),flux(n,:),scal_force(n),snew(n), &
-                   rhohalf(n),dx(n,:),dt,is_vel,is_conservative,the_bc_level(n))
-
-    enddo ! do n = 1, nlevs
-
-    ! use restriction so coarse cells are the average
-    ! of the corresponding fine cells
-    do n = nlevs, 2, -1
-       call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
-       call ml_cc_restriction(rhohalf(n-1),rhohalf(n),mla%mba%rr(n-1,:))
-    enddo
-
-    do n = 2, nlevs
-       call multifab_fill_ghost_cells(snew(n),snew(n-1), &
-                                      ng_cell,mla%mba%rr(n-1,:), &
-                                      the_bc_level(n-1), the_bc_level(n), &
-                                      1,dm+1,nscal)
-       call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1), &
-                                      ng_rho,mla%mba%rr(n-1,:), &
-                                      the_bc_level(n-1), the_bc_level(n), &
-                                      1,dm+1,1)
-    end do
+    !***********************************
+    ! Update the scalars with conservative or convective differencing.
+    !***********************************
+    call update(nlevs,sold,umac,sedge,flux,scal_force,snew,rhohalf,dx,dt,is_vel, &
+                is_conservative,the_bc_level,mla)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs

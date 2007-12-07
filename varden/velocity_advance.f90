@@ -183,29 +183,11 @@ contains
     call mkvelforce(nlevs,vel_force,ext_vel_force,rhohalf,gp,uold,lapu,dx, &
                     visc_coef,visc_fac)
 
-    do n = 1, nlevs
-
-       !********************************************************
-       ! Update the velocity with convective differencing
-       !********************************************************
-
-       call update(uold(n),umac(n,:),uedge(n,:),flux(n,:),vel_force(n),unew(n),rhohalf(n), &
-                   dx(n,:),dt,is_vel,is_conservative,the_bc_level(n))
-
-    enddo ! do n = 1, nlevs
-
-    ! use restriction so coarse cells are the average
-    ! of the corresponding fine cells
-    do n = nlevs, 2, -1
-       call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
-    enddo
-
-    do n = 2, nlevs
-       call multifab_fill_ghost_cells(unew(n),unew(n-1), &
-                                      ng_cell,mla%mba%rr(n-1,:), &
-                                      the_bc_level(n-1), the_bc_level(n), &
-                                      1,1,dm)
-    end do
+    !********************************************************
+    ! Update the velocity with convective differencing
+    !********************************************************
+    call update(nlevs,uold,umac,uedge,flux,vel_force,unew,rhohalf,dx,dt,is_vel, &
+                is_conservative,the_bc_level,mla)
 
     do n = 1, nlevs
        call multifab_destroy(vel_force(n))
