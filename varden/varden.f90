@@ -350,13 +350,25 @@ subroutine varden()
 ! Put the bc values from the inputs file into domain_phys_bc
   domain_phys_bc(1,1) = bcx_lo
   domain_phys_bc(1,2) = bcx_hi
+  if (pmask(1)) then
+    if (bcx_lo .ne. -1 .or. bcx_hi .ne. -1) &
+        call bl_error('MUST HAVE BCX = -1 if PMASK = T')
+  end if
   if (dm > 1) then
      domain_phys_bc(2,1) = bcy_lo
      domain_phys_bc(2,2) = bcy_hi
+     if (pmask(2)) then
+       if (bcy_lo .ne. -1 .or. bcy_hi .ne. -1) &
+           call bl_error('MUST HAVE BCY = -1 if PMASK = T') 
+     end if
   end if
   if (dm > 2) then
      domain_phys_bc(3,1) = bcz_lo
      domain_phys_bc(3,2) = bcz_hi
+     if (pmask(3)) then
+       if (bcz_lo .ne. -1 .or. bcz_hi .ne. -1) &
+           call bl_error('MUST HAVE BCZ = -1 if PMASK = T')
+     end if
   end if
 
   do i = 1, dm
@@ -384,8 +396,7 @@ subroutine varden()
         call ml_cc_restriction(sold(n-1),sold(n),mba%rr(n-1,:))
      end do
 
-  end if
-
+  end if 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Regrid before starting the calculation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
