@@ -69,6 +69,7 @@ contains
       logical :: is_vel,make_divu
       real(kind=dp_t) :: diff_fac
       real(kind=dp_t) :: half_dt
+      real(kind=dp_t) :: smin, smax
 
       nscal = ncomp(sold(1))
 
@@ -263,7 +264,7 @@ contains
                            fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                            fp(:,:,1,:) , snp(:,:,1,:), &
                            rp(:,:,1,1) , &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative,verbose)
+                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
          case (3)
             wmp => dataptr(umac(n,3), i)
             sepz => dataptr(sedge(n,3), i)
@@ -273,7 +274,7 @@ contains
                            fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                            fp(:,:,:,:) , snp(:,:,:,:), &
                            rp(:,:,:,1) , &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative,verbose)
+                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
          end select
       end do
       
@@ -329,12 +330,31 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+      if (verbose .ge. 1) then
+        do n = 1, nlevs
+          do comp = 1, nscal
+             smin = multifab_min_c(snew(n),comp) 
+             smax = multifab_max_c(snew(n),comp)
+             if (comp .eq. 1) then
+               if (parallel_IOProcessor()) write(6,2000) n,smin,smax
+             else if (comp .eq. 2) then
+               if (parallel_IOProcessor()) write(6,2001) n,smin,smax
+             end if
+          end do
+        end do
+       end if
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       deallocate(is_conservative)
 
       do n = 1,nlevs
          call multifab_destroy(scal_force(n))
          call multifab_destroy(divu(n))
       enddo
+
+2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
+2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)
 
    end subroutine scalar_advance
 

@@ -69,6 +69,7 @@ contains
       integer :: i,n,dm,d,comp,ng_cell,ng_rho
       logical :: is_vel,is_conservative(uold(1)%dim)
       real(kind=dp_t) :: visc_fac,visc_mu,half_dt
+      real(kind=dp_t) :: umin,umax
 
       allocate(vel_force(nlevs),divu(nlevs))
 
@@ -263,7 +264,7 @@ contains
                            fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                            fp(:,:,1,:), unp(:,:,1,:), &
                            rp(:,:,1,1), &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative,verbose)
+                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
          case (3)
             wmp => dataptr(umac(n,3), i)
             uepz => dataptr(uedge(n,3), i)
@@ -273,7 +274,7 @@ contains
                            fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                            fp(:,:,:,:), unp(:,:,:,:), &
                            rp(:,:,:,1), &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative,verbose)
+                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
          end select
       end do
 
@@ -318,6 +319,26 @@ contains
          call multifab_destroy(vel_force(n))
          call multifab_destroy(divu(n))
       enddo
+
+      if (verbose .ge. 1) then
+        do n = 1, nlevs
+          do comp = 1, dm
+             umin = multifab_min_c(unew(n),comp) 
+             umax = multifab_max_c(unew(n),comp)
+             if (comp .eq. 1) then
+               if (parallel_IOProcessor()) write(6,2001) n,umin,umax
+             else if (comp .eq. 2) then
+               if (parallel_IOProcessor()) write(6,2002) n,umin,umax
+             else if (comp .eq. 3) then
+               if (parallel_IOProcessor()) write(6,2003) n,umin,umax
+             end if
+          end do
+        end do
+       end if
+
+2001 format('... level ', i2,' new min/max : x-vel           ',e17.10,2x,e17.10)
+2002 format('... level ', i2,' new min/max : y-vel           ',e17.10,2x,e17.10)
+2003 format('... level ', i2,' new min/max : z-vel           ',e17.10,2x,e17.10)
 
    end subroutine velocity_advance
 
