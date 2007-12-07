@@ -2,19 +2,118 @@ module update_module
 
   use bl_types
   use multifab_module
+  use multifab_physbc_module
+  use define_bc_module
 
   implicit none
 
   real (kind = dp_t), private, parameter :: HALF  = 0.5_dp_t
 
+  private
+  public :: update
+
   contains
 
-   subroutine update_2d (lev,sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,rhohalf, &
+   subroutine update(sold,umac,sedge,flux,force,snew,rhohalf, &
+                     dx,dt,is_vel,is_cons,the_bc_level)
+
+    implicit none
+
+    type(multifab)    , intent(in   ) :: sold
+    type(multifab)    , intent(in   ) :: umac(:)
+    type(multifab)    , intent(in   ) :: sedge(:)
+    type(multifab)    , intent(in   ) :: flux(:)
+    type(multifab)    , intent(in   ) :: force
+    type(multifab)    , intent(inout) :: snew
+    type(multifab)    , intent(inout) :: rhohalf
+    real(kind = dp_t) , intent(in   ) :: dx(:),dt
+    logical           , intent(in   ) :: is_vel, is_cons(:)
+    type(bc_level)    , intent(in   ) :: the_bc_level
+    
+    ! local
+    real(kind=dp_t), pointer :: sop(:,:,:,:)
+    real(kind=dp_t), pointer :: snp(:,:,:,:)
+    real(kind=dp_t), pointer :: ump(:,:,:,:)
+    real(kind=dp_t), pointer :: vmp(:,:,:,:)
+    real(kind=dp_t), pointer :: wmp(:,:,:,:)
+    real(kind=dp_t), pointer :: sepx(:,:,:,:)
+    real(kind=dp_t), pointer :: sepy(:,:,:,:)
+    real(kind=dp_t), pointer :: sepz(:,:,:,:)
+    real(kind=dp_t), pointer :: fluxpx(:,:,:,:)
+    real(kind=dp_t), pointer :: fluxpy(:,:,:,:)
+    real(kind=dp_t), pointer :: fluxpz(:,:,:,:)
+    real(kind=dp_t), pointer :: rp(:,:,:,:)
+    real(kind=dp_t), pointer :: fp(:,:,:,:)
+    real(kind=dp_t), pointer :: w0p(:,:,:,:)
+    real(kind=dp_t), pointer :: s0op(:,:,:,:)
+    real(kind=dp_t), pointer :: s0np(:,:,:,:)
+
+    integer :: lo(sold%dim),hi(sold%dim)
+    integer :: i,ng,dm,bc_comp,nscal
+
+    dm = sold%dim
+    ng = sold%ng
+
+    do i = 1, sold%nboxes
+         if ( multifab_remote(sold, i) ) cycle
+         sop  => dataptr(sold, i)
+         snp  => dataptr(snew, i)
+         ump  => dataptr(umac(1), i)
+         vmp  => dataptr(umac(2), i)
+         sepx => dataptr(sedge(1), i)
+         sepy => dataptr(sedge(2), i)
+         fluxpx => dataptr(flux(1), i)
+         fluxpy => dataptr(flux(2), i)
+          rp  => dataptr(rhohalf, i)
+          fp  => dataptr(force, i)
+         lo = lwb(get_box(sold, i))
+         hi = upb(get_box(sold, i))
+         select case (dm)
+         case (2)
+            call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+                           sepx(:,:,1,:), sepy(:,:,1,:), &
+                           fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
+                           fp(:,:,1,:) , snp(:,:,1,:), &
+                           rp(:,:,1,1) , &
+                           lo, hi, ng, dx,dt,is_vel,is_cons)
+         case (3)
+            wmp    => dataptr( umac(3), i)
+            sepz   => dataptr(sedge(3), i)
+            fluxpz => dataptr( flux(3), i)
+            call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                           sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                           fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
+                           fp(:,:,:,:) , snp(:,:,:,:), &
+                           rp(:,:,:,1) , &
+                           lo, hi, ng, dx,dt,is_vel,is_cons)
+         end select
+      end do
+
+      if (.not. is_vel) then
+
+         call multifab_fill_boundary(snew)
+         call multifab_fill_boundary(rhohalf)
+
+         bc_comp = dm+1
+         nscal = multifab_ncomp(snew)
+         call multifab_physbc(snew   ,1,bc_comp,nscal,dx,the_bc_level)
+         call multifab_physbc(rhohalf,1,bc_comp,    1,dx,the_bc_level)
+
+      else if (is_vel) then
+
+         call multifab_fill_boundary(snew)
+         call multifab_physbc(snew,1,1,dm,dx,the_bc_level)
+
+      end if
+
+   end subroutine update
+
+   subroutine update_2d (sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,rhohalf, &
                          lo,hi,ng,dx,dt,is_vel,is_cons)
 
       implicit none
 
-      integer           , intent(in   ) :: lev, lo(:), hi(:), ng
+      integer           , intent(in   ) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:)  
@@ -83,12 +182,12 @@ module update_module
 
    end subroutine update_2d
 
-   subroutine update_3d (lev,sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
+   subroutine update_3d (sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
                          force,snew,rhohalf,lo,hi,ng,dx,dt,is_vel,is_cons)
 
       implicit none
 
-      integer           , intent(in   ) :: lev, lo(:), hi(:), ng
+      integer           , intent(in   ) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
       real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  

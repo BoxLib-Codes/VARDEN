@@ -243,71 +243,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the scalars with conservative or convective differencing.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      do i = 1, sold(n)%nboxes
-         if ( multifab_remote(uold(n), i) ) cycle
-         sop  => dataptr(sold(n), i)
-         ump  => dataptr(umac(n,1), i)
-         vmp  => dataptr(umac(n,2), i)
-         sepx => dataptr(sedge(n,1), i)
-         sepy => dataptr(sedge(n,2), i)
-         fluxpx => dataptr(flux(n,1), i)
-         fluxpy => dataptr(flux(n,2), i)
-         snp  => dataptr(snew(n), i)
-          rp  => dataptr(rhohalf(n), i)
-          fp  => dataptr(scal_force(n), i)
-         lo = lwb(get_box(uold(n), i))
-         hi = upb(get_box(uold(n), i))
-         select case (dm)
-         case (2)
-            call update_2d(n,sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
-                           sepx(:,:,1,:), sepy(:,:,1,:), &
-                           fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                           fp(:,:,1,:) , snp(:,:,1,:), &
-                           rp(:,:,1,1) , &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
-         case (3)
-            wmp => dataptr(umac(n,3), i)
-            sepz => dataptr(sedge(n,3), i)
-            fluxpz => dataptr(flux(n,3), i)
-            call update_3d(n,sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                           sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
-                           fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                           fp(:,:,:,:) , snp(:,:,:,:), &
-                           rp(:,:,:,1) , &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
-         end select
-      end do
-      
-      call multifab_fill_boundary(rhohalf(n))
-      call multifab_fill_boundary(snew(n))
-      
-      do i = 1, sold(n)%nboxes
-         if ( multifab_remote(uold(n), i) ) cycle
-         snp => dataptr(snew(n), i)
-         rp  => dataptr(rhohalf(n), i)
-         lo = lwb(get_box(uold(n), i))
-         select case (dm)
-         case (2)
-            do comp = 1,nscal
-               call setbc_2d(snp(:,:,1,comp), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,dm+comp), &
-                             dx(n,:),dm+comp)
-            end do
-            call setbc_2d(rp(:,:,1,1), lo, ng_rho, &
-                          the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1), &
-                          dx(n,:),dm+1)
-         case (3)
-            do comp = 1,nscal
-               call setbc_3d(snp(:,:,:,comp), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,dm+comp), &
-                             dx(n,:),dm+comp)
-            end do
-            call setbc_3d(rp(:,:,:,1), lo, ng_rho, &
-                          the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1), &
-                          dx(n,:),dm+1)
-         end select
-      end do
-      
+        call update(sold(n),umac(n,:),sedge(n,:),flux(n,:),scal_force(n),snew(n),rhohalf(n), &
+                    dx(n,:),dt,is_vel,is_conservative,the_bc_level(n))
+
       enddo ! do n = 1, nlevs
 
       ! use restriction so coarse cells are the average

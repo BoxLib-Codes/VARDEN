@@ -243,62 +243,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     Update the velocity with convective differencing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      do i = 1, uold(n)%nboxes
-         if ( multifab_remote(uold(n), i) ) cycle
-         uop  => dataptr(uold(n), i)
-         ump  => dataptr(umac(n,1), i)
-         vmp  => dataptr(umac(n,2), i)
-         uepx => dataptr(uedge(n,1), i)
-         uepy => dataptr(uedge(n,2), i)
-         fluxpx => dataptr(flux(n,1), i)
-         fluxpy => dataptr(flux(n,2), i)
-         unp  => dataptr(unew(n), i)
-         fp   => dataptr(vel_force(n), i)
-         rp   => dataptr(rhohalf(n), i)
-         lo = lwb(get_box(uold(n), i))
-         hi = upb(get_box(uold(n), i))
-         select case (dm)
-         case (2)
-            call update_2d(n,uop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
-                           uepx(:,:,1,:), uepy(:,:,1,:), &
-                           fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                           fp(:,:,1,:), unp(:,:,1,:), &
-                           rp(:,:,1,1), &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
-         case (3)
-            wmp => dataptr(umac(n,3), i)
-            uepz => dataptr(uedge(n,3), i)
-            fluxpz => dataptr(flux(n,3), i)
-            call update_3d(n,uop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                           uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
-                           fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                           fp(:,:,:,:), unp(:,:,:,:), &
-                           rp(:,:,:,1), &
-                           lo, hi, ng_cell,dx(n,:),dt,is_vel,is_conservative)
-         end select
-      end do
 
-      call multifab_fill_boundary(unew(n))
-
-      do i = 1, unew(n)%nboxes
-         if ( multifab_remote(unew(n), i) ) cycle
-         unp => dataptr(unew(n), i)
-         lo = lwb(get_box(unew(n), i))
-         select case (dm)
-         case (2)
-            do comp = 1, dm
-               call setbc_2d(unp(:,:,1,comp), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,comp), &
-                             dx(n,:),comp)
-            end do
-         case (3)
-            do comp = 1, dm
-               call setbc_3d(unp(:,:,:,comp), lo, ng_cell, &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,comp), &
-                             dx(n,:),comp)
-            end do
-         end select
-      end do
+        call update(uold(n),umac(n,:),uedge(n,:),flux(n,:),vel_force(n),unew(n),rhohalf(n), &
+                    dx(n,:),dt,is_vel,is_conservative,the_bc_level(n))
 
       enddo ! do n = 1, nlevs
 
