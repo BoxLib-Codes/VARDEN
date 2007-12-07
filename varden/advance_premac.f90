@@ -13,7 +13,7 @@ module pre_advance_module
 
 contains
 
-  subroutine advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,time,dt, &
+  subroutine advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
                             the_bc_level,visc_coef,use_godunov_debug,use_minion)
 
     integer        , intent(in   ) :: nlevs
@@ -23,7 +23,7 @@ contains
     type(multifab) , intent(inout) :: umac(:,:)
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:),time,dt
+    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     real(kind=dp_t), intent(in   ) :: visc_coef
     logical        , intent(in)    :: use_godunov_debug
@@ -36,13 +36,13 @@ contains
     allocate(vel_force(nlevs))
 
     dm = uold(1)%dim
-    visc_fac = 1.0d0
 
     do n = 1, nlevs
        call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)
        call setval(vel_force(n),0.0_dp_t,all=.true.)
     enddo
 
+    visc_fac = 1.0d0
     call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,uold,lapu,dx,visc_coef,visc_fac)
 
     if(use_godunov_debug) then
