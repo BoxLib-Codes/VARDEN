@@ -15,6 +15,7 @@ f90sources += ml_solve.f90
 f90sources += multifab_fill_ghost_cells.f90
 f90sources += multifab_physbc.f90
 f90sources += proj_parameters.f90
+f90sources += regrid.f90
 f90sources += restart.f90
 f90sources += scalar_advance.f90  
 f90sources += setbc.f90
