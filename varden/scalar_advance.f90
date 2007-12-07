@@ -14,7 +14,7 @@ module scalar_advance_module
 contains
 
   subroutine scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,flux, &
-                            ext_scal_force,dx,time,dt,the_bc_level,diff_coef,verbose, &
+                            ext_scal_force,dx,dt,the_bc_level,diff_coef,verbose, &
                             use_godunov_debug,use_minion)
 
     integer        , intent(in   ) :: nlevs
@@ -28,8 +28,7 @@ contains
     type(multifab) , intent(inout) :: sedge(:,:)
     type(multifab) , intent(inout) :: flux(:,:)
     type(multifab) , intent(inout) :: ext_scal_force(:)
-
-    real(kind=dp_t), intent(inout) :: dx(:,:),time,dt
+    real(kind=dp_t), intent(inout) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     real(kind=dp_t), intent(in   ) :: diff_coef
     integer        , intent(in   ) :: verbose
@@ -38,34 +37,13 @@ contains
 
     ! local variables
     type(multifab), allocatable :: scal_force(:), divu(:)
-    logical, allocatable        :: is_conservative(:)
+    logical       , allocatable :: is_conservative(:)
 
-    real(kind=dp_t), pointer :: uop(:,:,:,:)
-    real(kind=dp_t), pointer :: ump(:,:,:,:)
-    real(kind=dp_t), pointer :: vmp(:,:,:,:)
-    real(kind=dp_t), pointer :: wmp(:,:,:,:)
-    real(kind=dp_t), pointer ::  ep(:,:,:,:)
-    real(kind=dp_t), pointer ::  fp(:,:,:,:)
-
-    real(kind=dp_t), pointer :: sop(:,:,:,:)
-    real(kind=dp_t), pointer :: snp(:,:,:,:)
-    real(kind=dp_t), pointer :: lapsp(:,:,:,:)
-    real(kind=dp_t), pointer ::  rp(:,:,:,:) 
-    real(kind=dp_t), pointer ::  dp(:,:,:,:) 
-    real(kind=dp_t), pointer :: sepx(:,:,:,:)
-    real(kind=dp_t), pointer :: sepy(:,:,:,:)
-    real(kind=dp_t), pointer :: sepz(:,:,:,:)
-    real(kind=dp_t), pointer :: fluxpx(:,:,:,:)
-    real(kind=dp_t), pointer :: fluxpy(:,:,:,:)
-    real(kind=dp_t), pointer :: fluxpz(:,:,:,:)
-
-    integer         :: nscal,comp,dm,d,n
+    integer         :: nscal,comp,d,n
     integer         :: lo(uold(1)%dim),hi(uold(1)%dim)
-    integer         :: i,ng_cell,ng_rho
-    logical         :: is_vel,make_divu
+    logical         :: is_vel
     real(kind=dp_t) :: diff_fac
-    real(kind=dp_t) :: half_dt
-    real(kind=dp_t) :: smin, smax
+    real(kind=dp_t) :: smin,smax
 
     nscal = ncomp(sold(1))
 
@@ -73,11 +51,6 @@ contains
     allocate(is_conservative(nscal))
     is_conservative(1) = .true.
     is_conservative(2) = .false.
-    half_dt = HALF * dt
-
-    ng_cell = uold(1)%ng
-    ng_rho  = rhohalf(1)%ng
-    dm      = uold(1)%dim
 
     is_vel  = .false.
 
@@ -96,90 +69,8 @@ contains
     diff_fac = ONE
     call mkscalforce(nlevs,scal_force,ext_scal_force,sold,laps,dx,diff_coef,diff_fac)
 
-    do n = 1, nlevs
-
-       !***********************************
-       ! Create the edge states of scalar using the MAC velocity 
-       !***********************************
-       
-       do i = 1, sold(n)%nboxes
-          if ( multifab_remote(sold(n), i) ) cycle
-          sop    => dataptr(sold(n), i)
-          uop    => dataptr(uold(n), i)
-          sepx   => dataptr(sedge(n,1), i)
-          sepy   => dataptr(sedge(n,2), i)
-          fluxpx => dataptr(flux(n,1), i)
-          fluxpy => dataptr(flux(n,2), i)
-          ump    => dataptr(umac(n,1), i)
-          vmp    => dataptr(umac(n,2), i)
-          fp     => dataptr(scal_force(n) , i)
-          dp     => dataptr(divu(n), i)
-          lo = lwb(get_box(uold(n), i))
-          hi = upb(get_box(uold(n), i))
-          select case (dm)
-          case (2)
-             if(use_godunov_debug) then
-                call mkflux_debug_2d(sop(:,:,1,:), uop(:,:,1,:), &
-                                     sepx(:,:,1,:), sepy(:,:,1,:), &
-                                     fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                                     ump(:,:,1,1), vmp(:,:,1,1), &
-                                     fp(:,:,1,:), dp(:,:,1,1), &
-                                     lo, dx(n,:), dt, is_vel, &
-                                     the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                     the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                     ng_cell, use_minion, is_conservative)
-             else
-                call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
-                               sepx(:,:,1,:), sepy(:,:,1,:), &
-                               fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                               ump(:,:,1,1), vmp(:,:,1,1), &
-                               fp(:,:,1,:), dp(:,:,1,1), &
-                               lo, dx(n,:), dt, is_vel, &
-                               the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                               the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                               ng_cell, use_minion, is_conservative)
-             endif
-          case (3)
-             sepz   => dataptr(sedge(n,3), i)
-             fluxpz => dataptr(flux(n,3), i)
-             wmp  => dataptr(umac(n,3), i)
-             if(use_godunov_debug) then
-                call mkflux_debug_3d(sop(:,:,:,:), uop(:,:,:,:), &
-                                     sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
-                                     fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                                     ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                     fp(:,:,:,:), dp(:,:,:,1), &
-                                     lo, dx(n,:), dt, is_vel, &
-                                     the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                     the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                                     ng_cell, use_minion, is_conservative)
-             else
-                call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
-                               sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
-                               fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                               ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                               fp(:,:,:,:), dp(:,:,:,1), &
-                               lo, dx(n,:), dt, is_vel, &
-                               the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                               the_bc_level(n)%adv_bc_level_array(i,:,:,dm+1:dm+nscal), &
-                               ng_cell, use_minion, is_conservative)
-             endif
-          end select
-       end do
-
-    enddo ! do n = 1, nlevs
-
-    ! synchronize fluxes
-    do n = nlevs, 2, -1
-       do comp = 1, nscal
-          if(is_conservative(comp)) then
-             do d = 1, dm
-                call ml_edge_restriction_c(flux(n-1,d),comp,flux(n,d),comp, &
-                                           mla%mba%rr(n-1,:),d,1)
-             enddo
-          endif
-       enddo
-    enddo
+    call mkflux(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt,the_bc_level,mla, &
+                is_vel,use_minion,is_conservative)
 
     !***********************************
     ! Create scalar force at time n+1/2.
@@ -191,6 +82,7 @@ contains
     !***********************************
     ! Update the scalars with conservative or convective differencing.
     !***********************************
+
     call update(nlevs,sold,umac,sedge,flux,scal_force,snew,rhohalf,dx,dt,is_vel, &
                 is_conservative,the_bc_level,mla)
 

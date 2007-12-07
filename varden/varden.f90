@@ -791,7 +791,7 @@ subroutine varden()
                         press_comp)
 
         call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,flux, &
-                            ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
+                            ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
         if (diff_coef > ZERO) then
@@ -1060,7 +1060,7 @@ subroutine varden()
                         press_comp)
 
         call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,flux, &
-                            ext_scal_force,dx,time,dt,the_bc_tower%bc_tower_array, &
+                            ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
 
         if (diff_coef > ZERO) then
