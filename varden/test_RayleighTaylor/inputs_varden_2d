@@ -15,7 +15,7 @@
  cflfac = 0.9
  init_shrink = 0.1
 
- visc_coef = 0.0
+ visc_coef = 0.01
  diff_coef = 0.0
 
  grav = -9.8d0
