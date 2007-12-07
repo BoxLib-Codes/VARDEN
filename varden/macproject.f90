@@ -119,15 +119,6 @@ subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose
 
   call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr,verbose)
 
-!  print*,"printing umac(lev=1)"
-!  call print(umac(1,1))
-!  print*,"printing umac(lev=2)"
-!  call print(umac(2,1))
-!  print*,"printing vmac(lev=1)"
-!  call print(umac(1,2))
-!  print*,"printing vmac(lev=2)"
-!  call print(umac(2,2))
-
   if (use_rhs) then
     call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.,divu_rhs)
   else
