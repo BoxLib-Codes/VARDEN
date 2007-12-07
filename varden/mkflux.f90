@@ -80,13 +80,114 @@ contains
                             fp(:,:,1,:), dp(:,:,1,1), &
                             lo, dx(n,:), dt, is_vel, &
                             the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp), &
+                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1), &
                             ng, use_minion, is_conservative)
           case (3)
              sepz   => dataptr(sedge(n,3), i)
              fluxpz => dataptr(flux(n,3), i)
              wmp  => dataptr(umac(n,3), i)
              call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
+                            sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                            fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
+                            ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                            fp(:,:,:,:), dp(:,:,:,1), &
+                            lo, dx(n,:), dt, is_vel, &
+                            the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1), &
+                            ng, use_minion, is_conservative)
+          end select
+       end do
+    enddo
+
+    do n = nlevs,2,-1
+       do comp = 1, ncomp
+          if(is_conservative(comp)) then
+             do i = 1, dm
+                call ml_edge_restriction_c(flux(n-1,i),comp,flux(n,i),comp, &
+                                           mla%mba%rr(n-1,:),i,1)
+             enddo
+          endif
+       enddo
+
+    enddo
+    
+  end subroutine mkflux
+
+
+  subroutine mkflux_debug(nlevs,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level, &
+                          mla,is_vel,use_minion,is_conservative)
+
+    integer        , intent(in   ) :: nlevs
+    type(multifab) , intent(in   ) :: sold(:)
+    type(multifab) , intent(in   ) :: uold(:)
+    type(multifab) , intent(inout) :: sedge(:,:)
+    type(multifab) , intent(inout) :: flux(:,:)
+    type(multifab) , intent(in   ) :: umac(:,:)
+    type(multifab) , intent(in   ) :: force(:)
+    type(multifab) , intent(in   ) :: divu(:)
+    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
+    type(bc_level) , intent(in   ) :: the_bc_level(:)
+    type(ml_layout), intent(inout) :: mla
+    logical        , intent(in   ) :: is_vel,use_minion,is_conservative(:)
+
+    ! local
+    integer                  :: n,i,dm,ng,comp,ncomp,bccomp
+    integer                  :: lo(sold(1)%dim),hi(sold(1)%dim)
+    real(kind=dp_t), pointer :: sop(:,:,:,:)
+    real(kind=dp_t), pointer :: uop(:,:,:,:)
+    real(kind=dp_t), pointer :: sepx(:,:,:,:)
+    real(kind=dp_t), pointer :: sepy(:,:,:,:)
+    real(kind=dp_t), pointer :: sepz(:,:,:,:)
+    real(kind=dp_t), pointer :: fluxpx(:,:,:,:)
+    real(kind=dp_t), pointer :: fluxpy(:,:,:,:)
+    real(kind=dp_t), pointer :: fluxpz(:,:,:,:)
+    real(kind=dp_t), pointer :: ump(:,:,:,:)
+    real(kind=dp_t), pointer :: vmp(:,:,:,:)
+    real(kind=dp_t), pointer :: wmp(:,:,:,:)
+    real(kind=dp_t), pointer :: fp(:,:,:,:)
+    real(kind=dp_t), pointer :: dp(:,:,:,:)
+
+    dm = sold(1)%dim
+    ng = sold(1)%ng
+    ncomp = multifab_ncomp(sold(1))
+
+    if(is_vel) then
+       bccomp = 1
+    else
+       bccomp = dm+1
+    endif
+
+    do n=1,nlevs
+       do i = 1, sold(n)%nboxes
+          if ( multifab_remote(sold(n), i) ) cycle
+          sop    => dataptr(sold(n), i)
+          uop    => dataptr(uold(n), i)
+          sepx   => dataptr(sedge(n,1), i)
+          sepy   => dataptr(sedge(n,2), i)
+          fluxpx => dataptr(flux(n,1), i)
+          fluxpy => dataptr(flux(n,2), i)
+          ump    => dataptr(umac(n,1), i)
+          vmp    => dataptr(umac(n,2), i)
+          fp     => dataptr(force(n) , i)
+          dp     => dataptr(divu(n), i)
+          lo = lwb(get_box(uold(n), i))
+          hi = upb(get_box(uold(n), i))
+          select case (dm)
+          case (2)
+             call mkflux_debug_2d(sop(:,:,1,:), uop(:,:,1,:), &
+                            sepx(:,:,1,:), sepy(:,:,1,:), &
+                            fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
+                            ump(:,:,1,1), vmp(:,:,1,1), &
+                            fp(:,:,1,:), dp(:,:,1,1), &
+                            lo, dx(n,:), dt, is_vel, &
+                            the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp), &
+                            ng, use_minion, is_conservative)
+          case (3)
+             sepz   => dataptr(sedge(n,3), i)
+             fluxpz => dataptr(flux(n,3), i)
+             wmp  => dataptr(umac(n,3), i)
+             call mkflux_debug_3d(sop(:,:,:,:), uop(:,:,:,:), &
                             sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                             fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                             ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
@@ -111,8 +212,7 @@ contains
 
     enddo
     
-
-  end subroutine mkflux
+  end subroutine mkflux_debug
 
 
   subroutine mkflux_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt,is_vel, &

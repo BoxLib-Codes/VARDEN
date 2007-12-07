@@ -69,8 +69,13 @@ contains
     diff_fac = ONE
     call mkscalforce(nlevs,scal_force,ext_scal_force,sold,laps,dx,diff_coef,diff_fac)
 
-    call mkflux(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt,the_bc_level,mla, &
-                is_vel,use_minion,is_conservative)
+    if(use_godunov_debug) then
+       call mkflux(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt,the_bc_level,mla, &
+                   is_vel,use_minion,is_conservative)
+    else
+       call mkflux_debug(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt, &
+                         the_bc_level,mla,is_vel,use_minion,is_conservative)
+    endif
 
     !***********************************
     ! Create scalar force at time n+1/2.
