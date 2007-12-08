@@ -112,31 +112,7 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 1003  format('... z-velocity before projection ',e17.10,2x,e17.10)
 1004  format(' ')
 
-  ! quantity projected is U
-  if (proj_type .eq. initial_projection) then
-
-  ! quantity projected is U
-  else if (proj_type .eq. divu_iters) then
-
-  ! quantity projected is (Ustar - Un) 
-  else if (proj_type .eq. pressure_iters) then
-
-     do n = 1,nlevs
-       call multifab_sub_sub(unew(n), uold(n), 1)
-       call multifab_div_div_s(unew(n), dt, 1)
-     end do
-
-  ! quantity projected is Ustar + dt * (1/rho) Gp
-  else if (proj_type .eq. regular_timestep) then
-
-    call create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
-
-  else 
-
-     print *,'No proj_type by this number ',proj_type
-     stop
-
-  end if
+  call create_uvec_for_projection(nlevs,unew,uold,rhohalf,gp,dt,the_bc_tower,proj_type)
 
   if (use_div_coeff_1d) then
      do n = 1, nlevs
@@ -239,18 +215,21 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
   contains
 
-    subroutine create_uvec_for_projection(nlevs,unew,rhohalf,gp,dt,the_bc_tower)
+    subroutine create_uvec_for_projection(nlevs,unew,uold,rhohalf,gp,dt,the_bc_tower,proj_type)
 
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: unew(:)
+      type(multifab) , intent(in   ) :: uold(:)
       type(multifab) , intent(in   ) :: rhohalf(:)
       type(multifab) , intent(inout) :: gp(:)
       real(kind=dp_t), intent(in   ) :: dt
       type(bc_tower) , intent(in   ) :: the_bc_tower
+      integer        , intent(in   ) :: proj_type
  
       type(bc_level) :: bc
 
       real(kind=dp_t), pointer :: unp(:,:,:,:) 
+      real(kind=dp_t), pointer :: uop(:,:,:,:) 
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
 
@@ -264,15 +243,16 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
          do i = 1, unew(n)%nboxes
             if ( multifab_remote(unew(n), i) ) cycle
             unp => dataptr(unew(n)     , i)
+            uop => dataptr(uold(n)     , i)
             gpp => dataptr(gp(n)       , i)
              rp => dataptr(  rhohalf(n), i)
             select case (dm)
                case (2)
-                 call create_uvec_2d(unp(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), dt, &
-                                     bc%phys_bc_level_array(i,:,:), ng)
+                 call create_uvec_2d(unp(:,:,1,:), uop(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), dt, &
+                                     bc%phys_bc_level_array(i,:,:), ng, proj_type)
                case (3)
-                 call create_uvec_3d(unp(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), dt, &
-                                     bc%phys_bc_level_array(i,:,:), ng)
+                 call create_uvec_3d(unp(:,:,:,:), uop(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), dt, &
+                                     bc%phys_bc_level_array(i,:,:), ng, proj_type)
             end select
          end do
          call multifab_fill_boundary(unew(n))
@@ -435,14 +415,16 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
 
 !   *************************************************************************************** !
 
-    subroutine create_uvec_2d(u,rhohalf,gp,dt,phys_bc,ng)
+    subroutine create_uvec_2d(unew,uold,rhohalf,gp,dt,phys_bc,ng,proj_type)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::       u(-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::    unew(-ng:,-ng:,:)
+      real(kind=dp_t), intent(in   ) ::    uold(-ng:,-ng:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf( -1:, -1:)
       real(kind=dp_t), intent(inout) ::      gp( -1:, -1:,:)
       real(kind=dp_t), intent(in   ) :: dt
       integer        , intent(in   ) :: phys_bc(:,:)
+      integer        , intent(in   ) :: proj_type
 
       integer :: nx,ny
       nx = size(gp,dim=1) - 2
@@ -453,26 +435,49 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
       if (phys_bc(2,1) .eq. INLET) gp(-1:nx,-1,:) = ZERO
       if (phys_bc(2,2) .eq. INLET) gp(-1:nx,ny,:) = ZERO
 
-      u(-1:nx,-1:ny,1) = u(-1:nx,-1:ny,1) + dt*gp(-1:nx,-1:ny,1)/rhohalf(-1:nx,-1:ny)
-      u(-1:nx,-1:ny,2) = u(-1:nx,-1:ny,2) + dt*gp(-1:nx,-1:ny,2)/rhohalf(-1:nx,-1:ny)
+      ! quantity projected is U
+      if (proj_type .eq. initial_projection) then
 
-      if (phys_bc(1,1)==SLIP_WALL .or. phys_bc(1,1)==NO_SLIP_WALL) u(-1,:,:) = ZERO
-      if (phys_bc(1,2)==SLIP_WALL .or. phys_bc(1,2)==NO_SLIP_WALL) u(nx,:,:) = ZERO
-      if (phys_bc(2,1)==SLIP_WALL .or. phys_bc(2,1)==NO_SLIP_WALL) u(:,-1,:) = ZERO
-      if (phys_bc(2,2)==SLIP_WALL .or. phys_bc(2,2)==NO_SLIP_WALL) u(:,ny,:) = ZERO
+      ! quantity projected is U
+      else if (proj_type .eq. divu_iters) then
+
+      ! quantity projected is (Ustar - Un)
+      else if (proj_type .eq. pressure_iters) then
+
+         unew(-1:nx,-1:ny,1) = ( unew(-1:nx,-1:ny,1) - uold(-1:nx,-1:ny,1) ) / dt
+         unew(-1:nx,-1:ny,2) = ( unew(-1:nx,-1:ny,2) - uold(-1:nx,-1:ny,2) ) / dt
+     
+      ! quantity projected is Ustar + dt * (1/rho) Gp
+      else if (proj_type .eq. regular_timestep) then
+
+         unew(-1:nx,-1:ny,1) = unew(-1:nx,-1:ny,1) + dt*gp(-1:nx,-1:ny,1)/rhohalf(-1:nx,-1:ny)
+         unew(-1:nx,-1:ny,2) = unew(-1:nx,-1:ny,2) + dt*gp(-1:nx,-1:ny,2)/rhohalf(-1:nx,-1:ny)
+
+       else
+     
+          call bl_error('No proj_type by this number ')
+
+      end if
+
+      if (phys_bc(1,1)==SLIP_WALL .or. phys_bc(1,1)==NO_SLIP_WALL) unew(-1,:,:) = ZERO
+      if (phys_bc(1,2)==SLIP_WALL .or. phys_bc(1,2)==NO_SLIP_WALL) unew(nx,:,:) = ZERO
+      if (phys_bc(2,1)==SLIP_WALL .or. phys_bc(2,1)==NO_SLIP_WALL) unew(:,-1,:) = ZERO
+      if (phys_bc(2,2)==SLIP_WALL .or. phys_bc(2,2)==NO_SLIP_WALL) unew(:,ny,:) = ZERO
 
     end subroutine create_uvec_2d
 
 !   *************************************************************************************** !
 
-    subroutine create_uvec_3d(u,rhohalf,gp,dt,phys_bc,ng)
+    subroutine create_uvec_3d(unew,uold,rhohalf,gp,dt,phys_bc,ng,proj_type)
 
       integer        , intent(in   ) :: ng
-      real(kind=dp_t), intent(inout) ::       u(-ng:,-ng:,-ng:,:)
+      real(kind=dp_t), intent(inout) ::    unew(-ng:,-ng:,-ng:,:)
+      real(kind=dp_t), intent(in   ) ::    uold(-ng:,-ng:,-ng:,:)
       real(kind=dp_t), intent(inout) ::      gp( -1:, -1:, -1:,:)
       real(kind=dp_t), intent(in   ) :: rhohalf( -1:, -1:, -1:)
       real(kind=dp_t), intent(in   ) :: dt
       integer        , intent(in   ) :: phys_bc(:,:)
+      integer        , intent(in   ) :: proj_type
 
       integer :: nx,ny,nz
 
@@ -487,19 +492,39 @@ subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
       if (phys_bc(3,1) .eq. INLET) gp(-1:nx,-1:ny,-1,:) = ZERO
       if (phys_bc(3,2) .eq. INLET) gp(-1:nx,-1:ny,nz,:) = ZERO
 
-      u(-1:nx,-1:ny,-1:nz,1) = u(-1:nx,-1:ny,-1:nz,1) + &
-                           dt*gp(-1:nx,-1:ny,-1:nz,1)/rhohalf(-1:nx,-1:ny,-1:nz)
-      u(-1:nx,-1:ny,-1:nz,2) = u(-1:nx,-1:ny,-1:nz,2) + &
-                           dt*gp(-1:nx,-1:ny,-1:nz,2)/rhohalf(-1:nx,-1:ny,-1:nz)
-      u(-1:nx,-1:ny,-1:nz,3) = u(-1:nx,-1:ny,-1:nz,3) + &
-                           dt*gp(-1:nx,-1:ny,-1:nz,3)/rhohalf(-1:nx,-1:ny,-1:nz)
+      ! quantity projected is U
+      if (proj_type .eq. initial_projection) then
 
-      if (phys_bc(1,1)==SLIP_WALL .or. phys_bc(1,1)==NO_SLIP_WALL) u(-1,:,:,:) = ZERO
-      if (phys_bc(1,2)==SLIP_WALL .or. phys_bc(1,2)==NO_SLIP_WALL) u(nx,:,:,:) = ZERO
-      if (phys_bc(2,1)==SLIP_WALL .or. phys_bc(2,1)==NO_SLIP_WALL) u(:,-1,:,:) = ZERO
-      if (phys_bc(2,2)==SLIP_WALL .or. phys_bc(2,2)==NO_SLIP_WALL) u(:,ny,:,:) = ZERO
-      if (phys_bc(3,1)==SLIP_WALL .or. phys_bc(3,1)==NO_SLIP_WALL) u(:,:,-1,:) = ZERO
-      if (phys_bc(3,2)==SLIP_WALL .or. phys_bc(3,2)==NO_SLIP_WALL) u(:,:,nz,:) = ZERO
+      ! quantity projected is U
+      else if (proj_type .eq. divu_iters) then
+
+      ! quantity projected is (Ustar - Un)
+      else if (proj_type .eq. pressure_iters) then
+
+         unew(-1:nx,-1:ny,-1:nz,:) = ( unew(-1:nx,-1:ny,-1:nz,:) - uold(-1:nx,-1:ny,-1:nz,:) ) / dt
+
+      ! quantity projected is Ustar + dt * (1/rho) Gp
+      else if (proj_type .eq. regular_timestep) then
+
+         unew(-1:nx,-1:ny,-1:nz,1) = unew(-1:nx,-1:ny,-1:nz,1) + &
+                                    dt*gp(-1:nx,-1:ny,-1:nz,1)/rhohalf(-1:nx,-1:ny,-1:nz)
+         unew(-1:nx,-1:ny,-1:nz,2) = unew(-1:nx,-1:ny,-1:nz,2) + &
+                                    dt*gp(-1:nx,-1:ny,-1:nz,2)/rhohalf(-1:nx,-1:ny,-1:nz)
+         unew(-1:nx,-1:ny,-1:nz,3) = unew(-1:nx,-1:ny,-1:nz,3) + &
+                                    dt*gp(-1:nx,-1:ny,-1:nz,3)/rhohalf(-1:nx,-1:ny,-1:nz)
+
+      else
+
+          call bl_error('No proj_type by this number ')
+
+      end if
+
+      if (phys_bc(1,1)==SLIP_WALL .or. phys_bc(1,1)==NO_SLIP_WALL) unew(-1,:,:,:) = ZERO
+      if (phys_bc(1,2)==SLIP_WALL .or. phys_bc(1,2)==NO_SLIP_WALL) unew(nx,:,:,:) = ZERO
+      if (phys_bc(2,1)==SLIP_WALL .or. phys_bc(2,1)==NO_SLIP_WALL) unew(:,-1,:,:) = ZERO
+      if (phys_bc(2,2)==SLIP_WALL .or. phys_bc(2,2)==NO_SLIP_WALL) unew(:,ny,:,:) = ZERO
+      if (phys_bc(3,1)==SLIP_WALL .or. phys_bc(3,1)==NO_SLIP_WALL) unew(:,:,-1,:) = ZERO
+      if (phys_bc(3,2)==SLIP_WALL .or. phys_bc(3,2)==NO_SLIP_WALL) unew(:,:,nz,:) = ZERO
 
     end subroutine create_uvec_3d
 
