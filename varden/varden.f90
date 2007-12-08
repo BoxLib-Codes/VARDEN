@@ -803,7 +803,7 @@ subroutine varden()
         end if
 
         call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,flux,gp,p, &
-                              ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
+                              ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 
         if (visc_coef > ZERO) then
@@ -1072,7 +1072,7 @@ subroutine varden()
         end if
 
         call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,flux,gp,p, &
-                              ext_vel_force,dx,time,dt,the_bc_tower%bc_tower_array, &
+                              ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
                               visc_coef,verbose,use_godunov_debug,use_minion)
 
         if (visc_coef > ZERO) then

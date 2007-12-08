@@ -12,7 +12,7 @@ module velocity_advance_module
 contains
 
   subroutine velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,flux,gp,p, &
-                              ext_vel_force,dx,time,dt,the_bc_level,visc_coef,verbose, &
+                              ext_vel_force,dx,dt,the_bc_level,visc_coef,verbose, &
                               use_godunov_debug,use_minion)
 
     integer        , intent(in   ) :: nlevs
@@ -28,7 +28,7 @@ contains
     type(multifab) , intent(inout) :: gp(:)
     type(multifab) , intent(inout) :: p(:)
     type(multifab) , intent(inout) :: ext_vel_force(:)
-    real(kind=dp_t), intent(inout) :: dx(:,:),time,dt
+    real(kind=dp_t), intent(inout) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     real(kind=dp_t), intent(in   ) :: visc_coef
     integer        , intent(in   ) :: verbose
@@ -39,42 +39,14 @@ contains
     type(multifab), allocatable :: vel_force(:)
     type(multifab), allocatable :: divu(:)
 
-    real(kind=dp_t), pointer:: uop(:,:,:,:)
-    real(kind=dp_t), pointer:: unp(:,:,:,:)
-    real(kind=dp_t), pointer:: ump(:,:,:,:)
-    real(kind=dp_t), pointer:: vmp(:,:,:,:)
-    real(kind=dp_t), pointer:: wmp(:,:,:,:)
-    real(kind=dp_t), pointer:: gpp(:,:,:,:)
-    real(kind=dp_t), pointer::  fp(:,:,:,:)
-    real(kind=dp_t), pointer::  ep(:,:,:,:)
-    real(kind=dp_t), pointer:: uepx(:,:,:,:)
-    real(kind=dp_t), pointer:: uepy(:,:,:,:)
-    real(kind=dp_t), pointer:: uepz(:,:,:,:)
-    real(kind=dp_t), pointer:: fluxpx(:,:,:,:)
-    real(kind=dp_t), pointer:: fluxpy(:,:,:,:)
-    real(kind=dp_t), pointer:: fluxpz(:,:,:,:)
-
-    real(kind=dp_t), pointer:: lapup(:,:,:,:)
-    real(kind=dp_t), pointer:: sop(:,:,:,:)
-    real(kind=dp_t), pointer:: snp(:,:,:,:)
-    real(kind=dp_t), pointer::  rp(:,:,:,:) 
-    real(kind=dp_t), pointer::  dp(:,:,:,:) 
-    real(kind=dp_t), pointer:: sepx(:,:,:,:)
-    real(kind=dp_t), pointer:: sepy(:,:,:,:)
-
-    integer :: lo(uold(1)%dim),hi(uold(1)%dim)
-    integer :: i,n,dm,d,comp,ng_cell,ng_rho
+    integer :: n,dm,comp
     logical :: is_vel,is_conservative(uold(1)%dim)
-    real(kind=dp_t) :: visc_fac,visc_mu,half_dt
+    real(kind=dp_t) :: visc_fac
     real(kind=dp_t) :: umin,umax
 
     allocate(vel_force(nlevs),divu(nlevs))
 
-    half_dt = HALF * dt
-
-    ng_cell = uold(1)%ng
-    ng_rho  = rhohalf(1)%ng
-    dm      = uold(1)%dim
+    dm = uold(1)%dim
 
     is_conservative = .false.
     is_vel = .true.
@@ -85,13 +57,16 @@ contains
        call setval(divu(n),0.0_dp_t,all=.true.)
     enddo
 
-
     !********************************************************
     ! Create the velocity forcing term at time n using rho and the full viscous term.
     !********************************************************
+
     visc_fac = ONE
     call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,uold,lapu,dx,visc_coef,visc_fac)
 
+    !********************************************************
+    ! Create the edge state velocities
+    !********************************************************
 
     if(use_godunov_debug) then
        call mkflux_debug(nlevs,uold,uold,uedge,flux,umac,vel_force,divu,dx,dt, &
@@ -104,6 +79,7 @@ contains
     !********************************************************
     ! Now create vel_force at half-time using rhohalf and half the viscous term.
     !********************************************************
+
     visc_fac = HALF
     call mkvelforce(nlevs,vel_force,ext_vel_force,rhohalf,gp,uold,lapu,dx, &
                     visc_coef,visc_fac)
@@ -111,6 +87,7 @@ contains
     !********************************************************
     ! Update the velocity with convective differencing
     !********************************************************
+
     call update(nlevs,uold,umac,uedge,flux,vel_force,unew,rhohalf,dx,dt,is_vel, &
                 is_conservative,the_bc_level,mla)
 

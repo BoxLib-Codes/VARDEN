@@ -69,6 +69,10 @@ contains
     diff_fac = ONE
     call mkscalforce(nlevs,scal_force,ext_scal_force,sold,laps,dx,diff_coef,diff_fac)
 
+    !***********************************
+    ! Create edge state scalars/fluxes
+    !***********************************
+
     if(use_godunov_debug) then
        call mkflux_debug(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt, &
                          the_bc_level,mla,is_vel,use_minion,is_conservative)
