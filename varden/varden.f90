@@ -310,7 +310,7 @@ subroutine varden()
   allocate(unew(nlevs),snew(nlevs))
   allocate(umac(nlevs,dm))
   allocate(uedge(nlevs,dm),sedge(nlevs,dm))
-  allocate(uflux(nlevs,dm),xflux(nlevs,dm))
+  allocate(uflux(nlevs,dm),sflux(nlevs,dm))
   allocate(rhohalf(nlevs),vort(nlevs))
 
   allocate(plotdata(nlevs),chkdata(nlevs))
