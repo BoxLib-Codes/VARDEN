@@ -11,142 +11,125 @@ module viscous_module
 
 contains 
 
-subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verbose)
+  subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verbose)
 
-  type(ml_layout), intent(inout) :: mla
-  type(multifab ), intent(inout) :: unew(:)
-  type(multifab ), intent(in   ) :: rho(:)
-  real(dp_t)     , intent(in   ) :: dx(:,:),mu
-  type(bc_tower ), intent(in   ) :: the_bc_tower
-  integer        , intent(in   ) :: mg_verbose,cg_verbose,verbose
+    type(ml_layout), intent(inout) :: mla
+    type(multifab ), intent(inout) :: unew(:)
+    type(multifab ), intent(in   ) :: rho(:)
+    real(dp_t)     , intent(in   ) :: dx(:,:),mu
+    type(bc_tower ), intent(in   ) :: the_bc_tower
+    integer        , intent(in   ) :: mg_verbose,cg_verbose,verbose
 
-! Local  
-  type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-  type(bndry_reg), pointer    :: fine_flx(:) => Null()
-  real(kind=dp_t), pointer    :: unp(:,:,:,:)
-  integer                     :: n,nlevs,d,dm,i,comp
-  integer                     :: bc_comp,stencil_order,ng_cell
-  integer                     :: lo(unew(1)%dim)
-  real(kind=dp_t)             :: norm1(mla%nlevel), norm2(mla%nlevel)
+    ! Local  
+    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
+    type(bndry_reg), pointer    :: fine_flx(:) => Null()
+    real(kind=dp_t), pointer    :: unp(:,:,:,:)
+    integer                     :: n,nlevs,d,dm,i,comp
+    integer                     :: bc_comp,stencil_order,ng_cell
+    integer                     :: lo(unew(1)%dim)
+    real(kind=dp_t)             :: norm1(mla%nlevel), norm2(mla%nlevel)
 
-  nlevs = mla%nlevel
-  dm    = mla%dim
-  ng_cell = unew(1)%ng
+    nlevs = mla%nlevel
+    dm    = mla%dim
+    ng_cell = unew(1)%ng
 
-  allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
+    allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
-  do n = 1,nlevs
-     call multifab_build(   rh(n), mla%la(n),  1, 0)
-     call multifab_build(  phi(n), mla%la(n),  1, 1)
-     call multifab_build(alpha(n), mla%la(n),  1, 1)
-     call multifab_build( beta(n), mla%la(n), dm, 1)
+    do n = 1,nlevs
+       call multifab_build(   rh(n), mla%la(n),  1, 0)
+       call multifab_build(  phi(n), mla%la(n),  1, 1)
+       call multifab_build(alpha(n), mla%la(n),  1, 1)
+       call multifab_build( beta(n), mla%la(n), dm, 1)
 
-     call multifab_copy_c(alpha(n),1,rho(n),1,1)
-     call setval(beta(n),mu,all=.true.)
-  end do
+       call multifab_copy_c(alpha(n),1,rho(n),1,1)
+       call setval(beta(n),mu,all=.true.)
+    end do
 
-  stencil_order = 2
+    stencil_order = 2
 
-  if (verbose .ge. 1) then
-     do n = 1,nlevs
-        norm1(n) = norm_inf(unew(n),1,1)
-        norm2(n) = norm_inf(unew(n),2,1)
-     end do
-     if (parallel_IOProcessor()) then
-        print *,' '
-        print *,'... begin viscous solves  ... '
-        do n = 1,nlevs
-           print *,'BEFORE: MAX OF U AT LEVEL ',n,norm1(n)
-           print *,'BEFORE: MAX OF V AT LEVEL ',n,norm2(n)
-        end do
-     end if
-  endif
+    if (verbose .ge. 1) then
+       do n = 1,nlevs
+          norm1(n) = norm_inf(unew(n),1,1)
+          norm2(n) = norm_inf(unew(n),2,1)
+       end do
+       if (parallel_IOProcessor()) then
+          print *,' '
+          print *,'... begin viscous solves  ... '
+          do n = 1,nlevs
+             print *,'BEFORE: MAX OF U AT LEVEL ',n,norm1(n)
+             print *,'BEFORE: MAX OF V AT LEVEL ',n,norm2(n)
+          end do
+       end if
+    endif
 
-  allocate(fine_flx(2:nlevs))
-  do n = 2,nlevs
-     call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
-  end do
+    allocate(fine_flx(2:nlevs))
+    do n = 2,nlevs
+       call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
+    end do
 
-  do d = 1,dm
-     do n = 1,nlevs
-        call mkrhs(rh(n),unew(n),rho(n),phi(n),d)
-     end do
-     bc_comp = d
-     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                        the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-     do n = 1,nlevs
-        call multifab_copy_c(unew(n),d,phi(n),1,1)
-     end do
-  end do
+    do d = 1,dm
+       do n = 1,nlevs
+          call mkrhs(rh(n),unew(n),rho(n),phi(n),d)
+       end do
+       bc_comp = d
+       call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
+                          the_bc_tower,bc_comp,stencil_order,mla%mba%rr, &
+                          mg_verbose,cg_verbose)
+       do n = 1,nlevs
+          call multifab_copy_c(unew(n),d,phi(n),1,1)
+       end do
+    end do
 
-  do n = 1, nlevs
-     call multifab_fill_boundary(unew(n))
-  enddo
+    do n = 1, nlevs
+       call multifab_fill_boundary(unew(n))
+    enddo
 
-  do n = 1, nlevs
-     do i = 1, unew(n)%nboxes
-        if ( multifab_remote(unew(n), i) ) cycle
-        unp => dataptr(unew(n), i)
-        lo = lwb(get_box(unew(n), i))
-        select case (dm)
-        case (2)
-           do comp = 1, dm
-              call setbc_2d(unp(:,:,1,comp), lo, ng_cell, &
-                            the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,comp), &
-                            dx(n,:),comp)
-           end do
-        case (3)
-           do comp = 1, dm
-              call setbc_3d(unp(:,:,:,comp), lo, ng_cell, &
-                            the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,comp), &
-                            dx(n,:),comp)
-           end do
-        end select
-     enddo
-  enddo
+    do n = 1, nlevs
+       call multifab_physbc(unew(n),1,1,dm,dx(n,:),the_bc_tower%bc_tower_array(n))
+    enddo
 
-  do n = nlevs, 2, -1
-     call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
-  enddo
+    do n = nlevs, 2, -1
+       call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
+    enddo
 
-  do n = 2, nlevs
-     call multifab_fill_ghost_cells(unew(n),unew(n-1), &
-          ng_cell,mla%mba%rr(n-1,:), &
-          the_bc_tower%bc_tower_array(n-1), &
-          the_bc_tower%bc_tower_array(n  ), &
-          1,1,dm)
-  end do
+    do n = 2, nlevs
+       call multifab_fill_ghost_cells(unew(n),unew(n-1), &
+                                      ng_cell,mla%mba%rr(n-1,:), &
+                                      the_bc_tower%bc_tower_array(n-1), &
+                                      the_bc_tower%bc_tower_array(n  ), &
+                                      1,1,dm)
+    end do
 
-  if (verbose .ge. 1) then
-     do n = 1,nlevs
-        norm1(n) = norm_inf(unew(n),1,1)
-        norm2(n) = norm_inf(unew(n),2,1)
-     end do
-     if (parallel_IOProcessor()) then
-        do n = 1,nlevs
-           print *,' AFTER: MAX OF U AT LEVEL ',n,norm1(n)
-           print *,' AFTER: MAX OF V AT LEVEL ',n,norm2(n)
-        end do
-        print *,'...   end viscous solves  ... '
-        print *,' '
-     end if
-  endif
+    if (verbose .ge. 1) then
+       do n = 1,nlevs
+          norm1(n) = norm_inf(unew(n),1,1)
+          norm2(n) = norm_inf(unew(n),2,1)
+       end do
+       if (parallel_IOProcessor()) then
+          do n = 1,nlevs
+             print *,' AFTER: MAX OF U AT LEVEL ',n,norm1(n)
+             print *,' AFTER: MAX OF V AT LEVEL ',n,norm2(n)
+          end do
+          print *,'...   end viscous solves  ... '
+          print *,' '
+       end if
+    endif
 
-  do n = 1, nlevs
-     call multifab_destroy(rh(n))
-     call multifab_destroy(phi(n))
-     call multifab_destroy(alpha(n))
-     call multifab_destroy(beta(n))
-  end do
+    do n = 1, nlevs
+       call multifab_destroy(rh(n))
+       call multifab_destroy(phi(n))
+       call multifab_destroy(alpha(n))
+       call multifab_destroy(beta(n))
+    end do
 
-  deallocate(rh)
-  deallocate(phi)
-  deallocate(alpha)
-  deallocate(beta)
-  do n = 2,nlevs
-     call bndry_reg_destroy(fine_flx(n))
-  end do
-  deallocate(fine_flx)
+    deallocate(rh)
+    deallocate(phi)
+    deallocate(alpha)
+    deallocate(beta)
+    do n = 2,nlevs
+       call bndry_reg_destroy(fine_flx(n))
+    end do
+    deallocate(fine_flx)
 
   contains
 
@@ -170,15 +153,15 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
          if ( multifab_remote(unew, i) ) cycle
          rhp => dataptr(rh  , i)
          unp => dataptr(unew, i)
-          rp => dataptr(rho , i)
-          pp => dataptr(phi , i)
+         rp => dataptr(rho , i)
+         pp => dataptr(phi , i)
          select case (dm)
-            case (2)
-              call mkrhs_2d(rhp(:,:,1,1), unp(:,:,1,comp), rp(:,:,1,1), &
-                            pp(:,:,1,1), ng_u, ng_rho)
-            case (3)
-              call mkrhs_3d(rhp(:,:,:,1), unp(:,:,:,comp), rp(:,:,:,1), &
-                            pp(:,:,:,1), ng_u, ng_rho)
+         case (2)
+            call mkrhs_2d(rhp(:,:,1,1), unp(:,:,1,comp), rp(:,:,1,1), &
+                          pp(:,:,1,1), ng_u, ng_rho)
+         case (3)
+            call mkrhs_3d(rhp(:,:,:,1), unp(:,:,:,comp), rp(:,:,:,1), &
+                          pp(:,:,:,1), ng_u, ng_rho)
          end select
       end do
 
@@ -197,7 +180,7 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
 
-       rh(1:nx  ,1:ny  ) = unew(1:nx  ,1:ny  ) * rho(1:nx,1:ny)
+      rh(1:nx  ,1:ny  ) = unew(1:nx  ,1:ny  ) * rho(1:nx,1:ny)
       phi(0:nx+1,0:ny+1) = unew(0:nx+1,0:ny+1)
 
     end subroutine mkrhs_2d
@@ -217,145 +200,130 @@ subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verb
       nz = size(rh,dim=3)
 
       phi(0:nx+1,0:ny+1,0:nz+1) = unew(0:nx+1,0:ny+1,0:nz+1)
-       rh(1:nx  ,1:ny  ,1:nz  ) = unew(1:nx  ,1:ny  ,1:nz  ) * &
-                                   rho(1:nx  ,1:ny  ,1:nz  )
+      rh(1:nx  ,1:ny  ,1:nz  ) = unew(1:nx  ,1:ny  ,1:nz  ) * &
+           rho(1:nx  ,1:ny  ,1:nz  )
 
     end subroutine mkrhs_3d
 
-end subroutine visc_solve
+  end subroutine visc_solve
 
-subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose, &
-                             cg_verbose,verbose)
+  subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose, &
+                               cg_verbose,verbose)
 
-  type(ml_layout), intent(inout) :: mla
-  type(multifab ), intent(inout) :: snew(:)
-  real(dp_t)     , intent(in   ) :: dx(:,:)
-  real(dp_t)     , intent(in   ) :: mu
-  type(bc_tower ), intent(in   ) :: the_bc_tower
-  integer        , intent(in   ) :: icomp,bc_comp
-  integer        , intent(in   ) :: mg_verbose, cg_verbose, verbose
+    type(ml_layout), intent(inout) :: mla
+    type(multifab ), intent(inout) :: snew(:)
+    real(dp_t)     , intent(in   ) :: dx(:,:)
+    real(dp_t)     , intent(in   ) :: mu
+    type(bc_tower ), intent(in   ) :: the_bc_tower
+    integer        , intent(in   ) :: icomp,bc_comp
+    integer        , intent(in   ) :: mg_verbose, cg_verbose, verbose
 
-! Local  
-  type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-  type(bndry_reg), pointer    :: fine_flx(:) => Null()
-  real(kind=dp_t), pointer    :: snp(:,:,:,:)
-  integer                     :: i,n,nlevs,dm,stencil_order
-  integer                     :: lo(snew(1)%dim),ng_cell
-  real(kind=dp_t)             :: norm1(mla%nlevel)
+    ! Local  
+    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
+    type(bndry_reg), pointer    :: fine_flx(:) => Null()
+    real(kind=dp_t), pointer    :: snp(:,:,:,:)
+    integer                     :: i,n,nlevs,dm,stencil_order
+    integer                     :: lo(snew(1)%dim),ng_cell
+    real(kind=dp_t)             :: norm1(mla%nlevel)
 
-  nlevs = mla%nlevel
-  dm    = mla%dim
-  ng_cell = snew(1)%ng
+    nlevs = mla%nlevel
+    dm    = mla%dim
+    ng_cell = snew(1)%ng
 
-  allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
+    allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
-  do n = 1,nlevs
-     call multifab_build(   rh(n), mla%la(n),  1, 0)
-     call multifab_build(  phi(n), mla%la(n),  1, 1)
-     call multifab_build(alpha(n), mla%la(n),  1, 1)
-     call multifab_build( beta(n), mla%la(n), dm, 1)
-     call setval(alpha(n),ONE,all=.true.)
-     call setval( beta(n), mu,all=.true.)
-  end do
+    do n = 1,nlevs
+       call multifab_build(   rh(n), mla%la(n),  1, 0)
+       call multifab_build(  phi(n), mla%la(n),  1, 1)
+       call multifab_build(alpha(n), mla%la(n),  1, 1)
+       call multifab_build( beta(n), mla%la(n), dm, 1)
+       call setval(alpha(n),ONE,all=.true.)
+       call setval( beta(n), mu,all=.true.)
+    end do
 
-  if (verbose .ge. 1) then
-     do n = 1,nlevs
-        norm1(n) = norm_inf(snew(n),icomp,1)
-     end do
-     if (parallel_IOProcessor()) then
-        print *,' '
-        print *,'... begin diffusive solve  ... '
-        do n = 1,nlevs
-           print *,'BEFORE: MAX OF S AT LEVEL ',n,norm1(n)
-        end do
-     end if
-  endif
+    if (verbose .ge. 1) then
+       do n = 1,nlevs
+          norm1(n) = norm_inf(snew(n),icomp,1)
+       end do
+       if (parallel_IOProcessor()) then
+          print *,' '
+          print *,'... begin diffusive solve  ... '
+          do n = 1,nlevs
+             print *,'BEFORE: MAX OF S AT LEVEL ',n,norm1(n)
+          end do
+       end if
+    endif
 
-  do n = 1,nlevs
-     call mkrhs(rh(n),snew(n),phi(n),icomp)
-  end do
+    do n = 1,nlevs
+       call mkrhs(rh(n),snew(n),phi(n),icomp)
+    end do
 
-  stencil_order = 2
+    stencil_order = 2
 
-  allocate(fine_flx(2:nlevs))
-  do n = 2,nlevs
-     call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
-  end do
+    allocate(fine_flx(2:nlevs))
+    do n = 2,nlevs
+       call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
+    end do
 
-  call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                     the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+    call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
+                       the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
 
-  do n = 1,nlevs
-     call multifab_copy_c(snew(n),icomp,phi(n),1,1)
-  end do
+    do n = 1,nlevs
+       call multifab_copy_c(snew(n),icomp,phi(n),1,1)
+    end do
 
-  do n = nlevs, 2, -1
-     call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
-  enddo
+    do n = nlevs, 2, -1
+       call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
+    enddo
 
-  if (verbose .ge. 1) then
-     do n = 1,nlevs
-        norm1(n) = norm_inf(snew(n),icomp,1)
-     end do
-     if (parallel_IOProcessor()) then
-        do n = 1,nlevs
-           print *,'AFTER: MAX OF S AT LEVEL ',n,norm1(n)
-        end do
-        print *,' '
-        print *,'...   end diffusive solve  ... '
-     end if
-  endif
+    if (verbose .ge. 1) then
+       do n = 1,nlevs
+          norm1(n) = norm_inf(snew(n),icomp,1)
+       end do
+       if (parallel_IOProcessor()) then
+          do n = 1,nlevs
+             print *,'AFTER: MAX OF S AT LEVEL ',n,norm1(n)
+          end do
+          print *,' '
+          print *,'...   end diffusive solve  ... '
+       end if
+    endif
 
-  do n = 1, nlevs
-     call multifab_fill_boundary(snew(n))
-  enddo
+    do n = 1, nlevs
+       call multifab_fill_boundary(snew(n))
+    enddo
 
-  do n = 1, nlevs
-     do i = 1, snew(n)%nboxes
-        if ( multifab_remote(snew(n), i) ) cycle
-        snp => dataptr(snew(n), i)
-        lo = lwb(get_box(snew(n), i))
-        select case (dm)
-        case (2)
-           call setbc_2d(snp(:,:,1,2), lo, ng_cell, &
-                         the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,2), &
-                         dx(n,:),dm+2)
-        case (3)
-           call setbc_3d(snp(:,:,:,2), lo, ng_cell, &
-                         the_bc_tower%bc_tower_array(n)%adv_bc_level_array(i,:,:,2), &
-                         dx(n,:),dm+2)
+    do n = 1, nlevs
+       call multifab_physbc(snew(n),2,dm+1,1,dx(n,:),the_bc_tower%bc_tower_array(n))
+    enddo
 
-        end select
-     enddo
-  enddo
+    do n = nlevs, 2, -1
+       call ml_cc_restriction_c(snew(n-1),2,snew(n),2,mla%mba%rr(n-1,:), 1)
+    enddo
 
-  do n = nlevs, 2, -1
-     call ml_cc_restriction_c(snew(n-1),2,snew(n),2,mla%mba%rr(n-1,:), 1)
-  enddo
+    do n = 2, nlevs
+       call multifab_fill_ghost_cells(snew(n),snew(n-1), &
+                                      ng_cell,mla%mba%rr(n-1,:), &
+                                      the_bc_tower%bc_tower_array(n-1), &
+                                      the_bc_tower%bc_tower_array(n  ), &
+                                      1,dm+2,1)
+    end do
 
-  do n = 2, nlevs
-     call multifab_fill_ghost_cells(snew(n),snew(n-1), &
-          ng_cell,mla%mba%rr(n-1,:), &
-          the_bc_tower%bc_tower_array(n-1), &
-          the_bc_tower%bc_tower_array(n  ), &
-          1,dm+2,1)
-  end do
+    do n = 1, nlevs
+       call multifab_destroy(rh(n))
+       call multifab_destroy(phi(n))
+       call multifab_destroy(alpha(n))
+       call multifab_destroy(beta(n))
+    end do
 
-  do n = 1, nlevs
-     call multifab_destroy(rh(n))
-     call multifab_destroy(phi(n))
-     call multifab_destroy(alpha(n))
-     call multifab_destroy(beta(n))
-  end do
-
-  deallocate(rh)
-  deallocate(phi)
-  deallocate(alpha)
-  deallocate(beta)
-  do n = 2,nlevs
-     call bndry_reg_destroy(fine_flx(n))
-  end do
-  deallocate(fine_flx)
+    deallocate(rh)
+    deallocate(phi)
+    deallocate(alpha)
+    deallocate(beta)
+    do n = 2,nlevs
+       call bndry_reg_destroy(fine_flx(n))
+    end do
+    deallocate(fine_flx)
 
   contains
 
@@ -379,10 +347,10 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
          pp => dataptr(phi , i)
          sp => dataptr(snew, i)
          select case (dm)
-            case (2)
-              call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), pp(:,:,1,1), ng)
-            case (3)
-              call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), pp(:,:,:,1), ng)
+         case (2)
+            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), pp(:,:,1,1), ng)
+         case (3)
+            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), pp(:,:,:,1), ng)
          end select
       end do
 
@@ -423,6 +391,6 @@ subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbos
 
     end subroutine mkrhs_3d
 
-end subroutine diff_scalar_solve
+  end subroutine diff_scalar_solve
 
 end module viscous_module
