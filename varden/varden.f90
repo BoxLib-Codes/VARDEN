@@ -155,7 +155,7 @@ subroutine varden()
   namelist /probin/ grav
   namelist /probin/ use_godunov_debug
   namelist /probin/ use_minion
-  
+
   ng_cell = 3
   ng_grow = 1
 
@@ -163,7 +163,7 @@ subroutine varden()
 
   narg = command_argument_count()
 
-! Defaults
+  ! Defaults
   max_step  = 1
   init_iter = 4
   plot_int  = 0
@@ -244,7 +244,7 @@ subroutine varden()
   nodal = .true.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Set up plot_names for writing plot files.
+  ! Set up plot_names for writing plot files.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(plot_names(2*dm+nscal+1))
@@ -260,7 +260,7 @@ subroutine varden()
   if (dm > 2) plot_names(dm+nscal+4) = "gpz"
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Initialize the arrays and read the restart data if restart >= 0
+  ! Initialize the arrays and read the restart data if restart >= 0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (restart >= 0) then
@@ -269,36 +269,36 @@ subroutine varden()
      nlevs = mba%nlevel
      allocate(uold(nlevs),sold(nlevs),gp(nlevs),p(nlevs))
      do n = 1,nlevs
-       call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
-       call multifab_build(   sold(n), mla%la(n), nscal, ng_cell)
-       call multifab_build(     gp(n), mla%la(n),    dm,  1)
-       call multifab_build(      p(n), mla%la(n),     1,  1, nodal)
+        call multifab_build(   uold(n), mla%la(n),    dm, ng_cell)
+        call multifab_build(   sold(n), mla%la(n), nscal, ng_cell)
+        call multifab_build(     gp(n), mla%la(n),    dm,  1)
+        call multifab_build(      p(n), mla%la(n),     1,  1, nodal)
      end do
-    do n = 1,nlevs
-       call multifab_copy_c(uold(n),1,chkdata(n),1         ,dm)
-       call multifab_copy_c(sold(n),1,chkdata(n),1+dm      ,nscal)
-       call multifab_copy_c(  gp(n),1,chkdata(n),1+dm+nscal,dm)
-       call multifab_copy_c(   p(n),1,  chk_p(n),1         ,1)
-       call multifab_destroy(chkdata(n))
-       call multifab_destroy(chk_p(n))
-    end do
-    deallocate(chkdata,chk_p)
+     do n = 1,nlevs
+        call multifab_copy_c(uold(n),1,chkdata(n),1         ,dm)
+        call multifab_copy_c(sold(n),1,chkdata(n),1+dm      ,nscal)
+        call multifab_copy_c(  gp(n),1,chkdata(n),1+dm+nscal,dm)
+        call multifab_copy_c(   p(n),1,  chk_p(n),1         ,1)
+        call multifab_destroy(chkdata(n))
+        call multifab_destroy(chk_p(n))
+     end do
+     deallocate(chkdata,chk_p)
   else if (fixed_grids /= '') then
      call read_a_hgproj_grid(mba, fixed_grids)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mla%nlevel
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
      call make_new_state(mla,uold,sold,gp,p)
-! else 
-!    nlevs = max_lev
-!    NEED TO BUILD AN MBA HERE
-!    call ml_layout_build(mla,mba,pmask)
-!    allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
-!    call make_new_state(mla,uold,sold,gp,p)
+     ! else 
+     !    nlevs = max_lev
+     !    NEED TO BUILD AN MBA HERE
+     !    call ml_layout_build(mla,mba,pmask)
+     !    allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
+     !    call make_new_state(mla,uold,sold,gp,p)
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Allocate state and temp variables
+  ! Allocate state and temp variables
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
@@ -318,10 +318,10 @@ subroutine varden()
   call make_temps(mla)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Initialize dx, prob_hi, lo, hi
+  ! Initialize dx, prob_hi, lo, hi
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! Define dx at the base level, then at refined levels.
+  ! Define dx at the base level, then at refined levels.
   allocate(dx(nlevs,dm))
 
   allocate(prob_hi(dm))
@@ -330,16 +330,16 @@ subroutine varden()
   if (dm > 2) prob_hi(3) = prob_hi_z
 
   do i = 1,dm
-    dx(1,i) = prob_hi(i) / float(mba%pd(1)%hi(i)-mba%pd(1)%lo(i)+1)
+     dx(1,i) = prob_hi(i) / float(mba%pd(1)%hi(i)-mba%pd(1)%lo(i)+1)
   end do
   do n = 2,nlevs
-    dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
+     dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
   end do
 
   allocate(lo(dm),hi(dm))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Allocate the arrays for the boundary conditions at the physical boundaries.
+  ! Allocate the arrays for the boundary conditions at the physical boundaries.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(domain_phys_bc(dm,2))
@@ -349,27 +349,27 @@ subroutine varden()
      domain_box(n) = layout_get_pd(mla%la(n))
   end do
 
-! Put the bc values from the inputs file into domain_phys_bc
+  ! Put the bc values from the inputs file into domain_phys_bc
   domain_phys_bc(1,1) = bcx_lo
   domain_phys_bc(1,2) = bcx_hi
   if (pmask(1)) then
-    if (bcx_lo .ne. -1 .or. bcx_hi .ne. -1) &
-        call bl_error('MUST HAVE BCX = -1 if PMASK = T')
+     if (bcx_lo .ne. -1 .or. bcx_hi .ne. -1) &
+          call bl_error('MUST HAVE BCX = -1 if PMASK = T')
   end if
   if (dm > 1) then
      domain_phys_bc(2,1) = bcy_lo
      domain_phys_bc(2,2) = bcy_hi
      if (pmask(2)) then
-       if (bcy_lo .ne. -1 .or. bcy_hi .ne. -1) &
-           call bl_error('MUST HAVE BCY = -1 if PMASK = T') 
+        if (bcy_lo .ne. -1 .or. bcy_hi .ne. -1) &
+             call bl_error('MUST HAVE BCY = -1 if PMASK = T') 
      end if
   end if
   if (dm > 2) then
      domain_phys_bc(3,1) = bcz_lo
      domain_phys_bc(3,2) = bcz_hi
      if (pmask(3)) then
-       if (bcz_lo .ne. -1 .or. bcz_hi .ne. -1) &
-           call bl_error('MUST HAVE BCZ = -1 if PMASK = T')
+        if (bcz_lo .ne. -1 .or. bcz_hi .ne. -1) &
+             call bl_error('MUST HAVE BCZ = -1 if PMASK = T')
      end if
   end if
 
@@ -377,11 +377,11 @@ subroutine varden()
      if ( pmask(i) ) domain_phys_bc(i,:) = BC_PER
   end do
 
-! Build the arrays for each grid from the domain_bc arrays.
+  ! Build the arrays for each grid from the domain_bc arrays.
   call bc_tower_build( the_bc_tower,mla,domain_phys_bc,domain_box,nscal)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now initialize the grid data, and do initial projection if restart < 0.
+  ! Now initialize the grid data, and do initial projection if restart < 0.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (restart < 0) then
@@ -392,107 +392,78 @@ subroutine varden()
 
      call initdata(nlevs,uold,sold,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
 
-  end if 
+  end if
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Regrid before starting the calculation
+  ! Regrid before starting the calculation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (restart < 0 .and. nlevs > 1 .and. regrid_int > 0) then
 
-   call delete_temps()
-   call make_new_grids(mla,mla_new,sold(1),dx(1,1),regrid_int)
-   call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
+     call delete_temps()
+     call make_new_grids(mla,mla_new,sold(1),dx(1,1),regrid_int)
+     call make_new_state(mla_new,uold_rg,sold_rg,gp_rg,p_rg)
 
-   ! Build the arrays for each grid from the domain_bc arrays.
-   call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
+     ! Build the arrays for each grid from the domain_bc arrays.
+     call bc_tower_build( the_bc_tower,mla_new,domain_phys_bc,domain_box,nscal)
 
-   if (restart < 0) then
+     if (restart < 0) then
 
-      call initdata(nlevs,uold_rg,sold_rg,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
+        call initdata(nlevs,uold_rg,sold_rg,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
 
-   else
+     else
 
-      do n = 2, nlevs
-         call fillpatch(uold_rg(n),uold(n-1), &
-                        ng_cell,mla_new%mba%rr(n-1,:), &
-                        the_bc_tower%bc_tower_array(n-1), &
-                        the_bc_tower%bc_tower_array(n  ), &
-                        1,1,dm)
-         call fillpatch(sold_rg(n),sold(n-1), &
-                        ng_cell,mla_new%mba%rr(n-1,:), &
-                        the_bc_tower%bc_tower_array(n-1), &
-                        the_bc_tower%bc_tower_array(n  ), &
-                        1,dm+1,nscal)
-         call fillpatch(gp_rg(n),gp(n-1), &
-                        ng_grow,mla_new%mba%rr(n-1,:), &
-                        the_bc_tower%bc_tower_array(n-1), &
-                        the_bc_tower%bc_tower_array(n  ), &
-                        1,1,dm)
-      end do
-      
-      do n = 1,nlevs
-         call multifab_copy_c(  uold_rg(n),1,  uold(n),1,   dm)
-         call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
-         call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
-         call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
-      end do
-      
-      do n = 1,nlevs
-         call multifab_fill_boundary(uold(n))
-         call multifab_fill_boundary(sold(n))
+        do n = 2, nlevs
+           call fillpatch(uold_rg(n),uold(n-1), &
+                          ng_cell,mla_new%mba%rr(n-1,:), &
+                          the_bc_tower%bc_tower_array(n-1), &
+                          the_bc_tower%bc_tower_array(n  ), &
+                          1,1,dm)
+           call fillpatch(sold_rg(n),sold(n-1), &
+                          ng_cell,mla_new%mba%rr(n-1,:), &
+                          the_bc_tower%bc_tower_array(n-1), &
+                          the_bc_tower%bc_tower_array(n  ), &
+                          1,dm+1,nscal)
+           call fillpatch(gp_rg(n),gp(n-1), &
+                          ng_grow,mla_new%mba%rr(n-1,:), &
+                          the_bc_tower%bc_tower_array(n-1), &
+                          the_bc_tower%bc_tower_array(n  ), &
+                          1,1,dm)
+        end do
 
-         bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, uold_rg(n)%nboxes
-            if ( multifab_remote(uold_rg(n), i) ) cycle
-            uop => dataptr(uold_rg(n), i)
-            sop => dataptr(sold_rg(n), i)
-            lo =  lwb(get_box(uold_rg(n), i))
-            hi =  upb(get_box(uold_rg(n), i))
-            select case (dm)
-            case (2) 
-               do comp = 1,dm
-                  call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
-                                bc%adv_bc_level_array(i,:,:,comp), &
-                                dx(n,:),comp)
-               end do
-               do comp = 1,nscal
-                  call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
-                                bc%adv_bc_level_array(i,:,:,dm+comp), &
-                                dx(n,:),dm+comp)
-               end do
-            case (3) 
-               do comp = 1,dm
-                  call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
-                                bc%adv_bc_level_array(i,:,:,comp), &
-                                dx(n,:),comp)
-               end do
-               do comp = 1,nscal
-                  call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
-                                bc%adv_bc_level_array(i,:,:,dm+comp), &
-                                dx(n,:),dm+comp)
-               end do
-            end select
-         end do
-      end do
+        do n = 1,nlevs
+           call multifab_copy_c(  uold_rg(n),1,  uold(n),1,   dm)
+           call multifab_copy_c(  sold_rg(n),1,  sold(n),1,nscal)
+           call multifab_copy_c(    gp_rg(n),1,    gp(n),1,   dm)
+           call multifab_copy_c(     p_rg(n),1,     p(n),1,    1)
+        end do
 
-   end if
+        do n = 1,nlevs
+           call multifab_fill_boundary(uold(n))
+           call multifab_fill_boundary(sold(n))
 
-   call delete_state(uold,sold,gp,p)
+           bc = the_bc_tower%bc_tower_array(n)
+           call multifab_physbc(uold_rg(n),1,1,   dm,   dx(n,:),bc)
+           call multifab_physbc(sold_rg(n),1,dm+1,nscal,dx(n,:),bc)
+        end do
+
+     end if
+
+     call delete_state(uold,sold,gp,p)
 
      uold = uold_rg
      sold = sold_rg
-       gp = gp_rg
-        p = p_rg
+     gp = gp_rg
+     p = p_rg
 
-   call make_temps(mla_new)
+     call make_temps(mla_new)
 
-   call destroy(mla)
-   mla = mla_new
+     call destroy(mla)
+     mla = mla_new
 
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Do the initial projection
+  ! Do the initial projection
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (restart < 0) then
@@ -507,7 +478,7 @@ subroutine varden()
            call setval(gp(n)  ,0.0_dp_t, all=.true.)
         end do
      end if
-     
+
      if (bcy_lo == OUTLET) then
         pressure_inflow_val = .16
         call impose_pressure_bcs(p,mla,pressure_inflow_val)
@@ -516,7 +487,7 @@ subroutine varden()
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Set bc's...
+  ! Set bc's...
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   do n = 1,nlevs
@@ -525,39 +496,10 @@ subroutine varden()
      call multifab_fill_boundary(sold(n))
 
      bc = the_bc_tower%bc_tower_array(n)
-     do i = 1, uold(n)%nboxes
-       if ( multifab_remote(uold(n), i) ) cycle
-       uop => dataptr(uold(n), i)
-       sop => dataptr(sold(n), i)
-       lo =  lwb(get_box(uold(n), i))
-       hi =  upb(get_box(uold(n), i))
-       select case (dm)
-          case (2)
-            do comp = 1,dm
-              call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,comp), &
-                            dx(n,:),comp)
-            end do
-            do comp = 1,nscal
-              call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,dm+comp), &
-                            dx(n,:),dm+comp)
-            end do
-          case (3)
-            do comp = 1,dm
-              call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,comp), &
-                            dx(n,:),comp)
-            end do
-            do comp = 1,nscal
-              call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
-                            bc%adv_bc_level_array(i,:,:,dm+comp), &
-                            dx(n,:),dm+comp)
-            end do
-         end select
-     end do
+     call multifab_physbc(uold(n),1,1,   dm,   dx(n,:),bc)
+     call multifab_physbc(sold(n),1,dm+1,nscal,dx(n,:),bc)
 
-!    This is done to impose any Dirichlet bc's on unew or snew.
+     !    This is done to impose any Dirichlet bc's on unew or snew.
      call multifab_copy_c(unew(n),1,uold(n),1,dm   ,ng=unew(n)%ng)
      call multifab_copy_c(snew(n),1,sold(n),1,nscal,ng=snew(n)%ng)
 
@@ -573,11 +515,11 @@ subroutine varden()
   if (restart < 0) dt = dt * init_shrink
   if (fixed_dt > 0.d0) dt = fixed_dt
   if (stop_time >= 0.d0) then
-    if (time+dt > stop_time) dt = min(dt, stop_time - time)
+     if (time+dt > stop_time) dt = min(dt, stop_time - time)
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Begin the initial iterations to define an initial pressure field.
+  ! Begin the initial iterations to define an initial pressure field.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (restart < 0) then
@@ -598,7 +540,7 @@ subroutine varden()
      last_chk_written = istep
 
      init_step = 1
- 
+
   else 
 
      init_step = restart+1
@@ -606,7 +548,7 @@ subroutine varden()
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Begin the real integration.
+  ! Begin the real integration.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if ((max_step >= init_step) .and. (time < stop_time .or. stop_time < 0.d0)) then
@@ -626,20 +568,20 @@ subroutine varden()
 
               do n = 2, nlevs
                  call fillpatch(uold_rg(n),uold(n-1), &
-                      ng_cell,mla_new%mba%rr(n-1,:), &
-                      the_bc_tower%bc_tower_array(n-1), &
-                      the_bc_tower%bc_tower_array(n  ), &
-                      1,1,dm)
+                                ng_cell,mla_new%mba%rr(n-1,:), &
+                                the_bc_tower%bc_tower_array(n-1), &
+                                the_bc_tower%bc_tower_array(n  ), &
+                                1,1,dm)
                  call fillpatch(sold_rg(n),sold(n-1), &
-                      ng_cell,mla_new%mba%rr(n-1,:), &
-                      the_bc_tower%bc_tower_array(n-1), &
-                      the_bc_tower%bc_tower_array(n  ), &
-                      1,dm+1,nscal)
+                                ng_cell,mla_new%mba%rr(n-1,:), &
+                                the_bc_tower%bc_tower_array(n-1), &
+                                the_bc_tower%bc_tower_array(n  ), &
+                                1,dm+1,nscal)
                  call fillpatch(gp_rg(n),gp(n-1), &
-                      ng_grow,mla_new%mba%rr(n-1,:), &
-                      the_bc_tower%bc_tower_array(n-1), &
-                      the_bc_tower%bc_tower_array(n  ), &
-                      1,1,dm)
+                                ng_grow,mla_new%mba%rr(n-1,:), &
+                                the_bc_tower%bc_tower_array(n-1), &
+                                the_bc_tower%bc_tower_array(n  ), &
+                                1,1,dm)
               end do
 
               do n = 1,nlevs
@@ -661,37 +603,8 @@ subroutine varden()
                  call multifab_fill_boundary(sold(n))
 
                  bc = the_bc_tower%bc_tower_array(n)
-                 do i = 1, uold(n)%nboxes
-                    if ( multifab_remote(uold(n), i) ) cycle
-                    uop => dataptr(uold(n), i)
-                    sop => dataptr(sold(n), i)
-                    lo =  lwb(get_box(uold(n), i))
-                    hi =  upb(get_box(uold(n), i))
-                    select case (dm)
-                    case (2) 
-                       do comp = 1,dm
-                          call setbc_2d(uop(:,:,1,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,comp), &
-                               dx(n,:),comp)
-                       end do
-                       do comp = 1,nscal
-                          call setbc_2d(sop(:,:,1,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,dm+comp), &
-                               dx(n,:),dm+comp)
-                       end do
-                    case (3) 
-                       do comp = 1,dm
-                          call setbc_3d(uop(:,:,:,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,comp), &
-                               dx(n,:),comp)
-                       end do
-                       do comp = 1,nscal
-                          call setbc_3d(sop(:,:,:,comp), lo, ng_cell, &
-                               bc%adv_bc_level_array(i,:,:,dm+comp), &
-                               dx(n,:),dm+comp)
-                       end do
-                    end select
-                 end do
+                 call multifab_physbc(uold(n),1,1,   dm,   dx(n,:),bc)
+                 call multifab_physbc(sold(n),1,dm+1,nscal,dx(n,:),bc)
               end do
 
               call make_temps(mla_new)
@@ -703,20 +616,20 @@ subroutine varden()
 
         do n = 2, nlevs
            call multifab_fill_ghost_cells(uold(n),uold(n-1), &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1), &
-                the_bc_tower%bc_tower_array(n  ), &
-                1,1,dm)
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1), &
+                                          the_bc_tower%bc_tower_array(n  ), &
+                                          1,1,dm)
            call multifab_fill_ghost_cells(sold(n),sold(n-1), &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1), &
-                the_bc_tower%bc_tower_array(n  ), &
-                1,dm+1,nscal)
+                                          ng_cell,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1), &
+                                          the_bc_tower%bc_tower_array(n  ), &
+                                          1,dm+1,nscal)
            call multifab_fill_ghost_cells(gp(n),gp(n-1), &
-                ng_grow,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1), &
-                the_bc_tower%bc_tower_array(n  ), &
-                1,1,dm)
+                                          ng_grow,mla%mba%rr(n-1,:), &
+                                          the_bc_tower%bc_tower_array(n-1), &
+                                          the_bc_tower%bc_tower_array(n  ), &
+                                          1,1,dm)
         end do
 
         do n = 1,nlevs
@@ -724,13 +637,13 @@ subroutine varden()
            call multifab_fill_boundary(sold(n))
            call multifab_fill_boundary(gp(n))
         end do
-           
+
         if (istep > 1) then
            dtold = dt
            dt = 1.d20
            do n = 1,nlevs
               call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                         cflfac,dtold,dt_lev,verbose)
+                   cflfac,dtold,dt_lev,verbose)
               dt = min(dt,dt_lev)
            end do
            if (fixed_dt > 0.d0) dt = fixed_dt
@@ -738,7 +651,7 @@ subroutine varden()
               if (time+dt > stop_time) dt = stop_time - time
            end if
         end if
-        
+
         if (parallel_IOProcessor() .and. verbose .ge. 1) then
            do n = 1,nlevs
               write(6,1001) n,time,norm_inf(uold(n),1,1),norm_inf(uold(n),2,1)
@@ -753,7 +666,7 @@ subroutine varden()
                  call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
               enddo
               call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
-                   stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+                               stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
               do n = 1, nlevs
                  call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
               enddo
@@ -766,7 +679,7 @@ subroutine varden()
               call multifab_copy_c(phi(n),1,sold(n),2,1,1)
            enddo
            call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
-                stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+                            stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
            do n = 1, nlevs
               call multifab_copy_c(Laps(n),2,Lphi(n),1)
            enddo
@@ -782,13 +695,13 @@ subroutine varden()
         call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
                             ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
                             diff_coef,verbose,use_godunov_debug,use_minion)
-
+        
         if (diff_coef > ZERO) then
-          comp = 2
-          bc_comp = dm+comp
-          visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
-                                 mg_verbose,cg_verbose,verbose)
+           comp = 2
+           bc_comp = dm+comp
+           visc_mu = HALF*dt*diff_coef
+           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
+                                  mg_verbose,cg_verbose,verbose)
         end if
 
         call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
@@ -836,20 +749,20 @@ subroutine varden()
         end if
 
         if (stop_time >= 0.d0) then
-          if (time >= stop_time) goto 999
+           if (time >= stop_time) goto 999
         end if
 
      end do ! end do istep = init_step,max_step
 
- 999   continue
-       if (istep > max_step) istep = max_step
+999  continue
+     if (istep > max_step) istep = max_step
 
-1000   format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
-1001   format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
-1002   format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
+1000 format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
+1001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
+1002 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
-       if (last_plt_written .ne. istep) call write_plotfile(istep)
-       if (last_chk_written .ne. istep) call write_checkfile(istep)
+     if (last_plt_written .ne. istep) call write_plotfile(istep)
+     if (last_chk_written .ne. istep) call write_checkfile(istep)
 
   end if
 
@@ -864,65 +777,65 @@ subroutine varden()
 
   deallocate(chkdata)
 
-  contains
+contains
 
-    subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc)
-  
-     type(ml_layout),intent(in   ) :: mla_loc
-     type(multifab ),intent(inout) :: uold_loc(:),sold_loc(:),gp_loc(:),p_loc(:)
+  subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc)
 
-     do n = 1,nlevs
-        call multifab_build(   uold_loc(n), mla_loc%la(n),    dm, ng_cell)
-        call multifab_build(   sold_loc(n), mla_loc%la(n), nscal, ng_cell)
-        call multifab_build(     gp_loc(n), mla_loc%la(n),    dm,       1)
-        call multifab_build(      p_loc(n), mla_loc%la(n),     1,       1, nodal)
+    type(ml_layout),intent(in   ) :: mla_loc
+    type(multifab ),intent(inout) :: uold_loc(:),sold_loc(:),gp_loc(:),p_loc(:)
 
-        call setval(  uold_loc(n),ZERO, all=.true.)
-        call setval(  sold_loc(n),ZERO, all=.true.)
-        call setval(    gp_loc(n),ZERO, all=.true.)
-        call setval(     p_loc(n),ZERO, all=.true.)
-     end do
+    do n = 1,nlevs
+       call multifab_build(   uold_loc(n), mla_loc%la(n),    dm, ng_cell)
+       call multifab_build(   sold_loc(n), mla_loc%la(n), nscal, ng_cell)
+       call multifab_build(     gp_loc(n), mla_loc%la(n),    dm,       1)
+       call multifab_build(      p_loc(n), mla_loc%la(n),     1,       1, nodal)
 
-    end subroutine make_new_state
+       call setval(  uold_loc(n),ZERO, all=.true.)
+       call setval(  sold_loc(n),ZERO, all=.true.)
+       call setval(    gp_loc(n),ZERO, all=.true.)
+       call setval(     p_loc(n),ZERO, all=.true.)
+    end do
 
-    subroutine make_temps(mla_loc)
-  
-     type(ml_layout),intent(in   ) :: mla_loc
+  end subroutine make_new_state
 
-     ! Local variables
-     logical, allocatable :: umac_nodal_flag(:)
+  subroutine make_temps(mla_loc)
 
-     allocate(umac_nodal_flag(mla_loc%dim))
+    type(ml_layout),intent(in   ) :: mla_loc
 
-     do n = nlevs,1,-1
-        call multifab_build(   unew(n), mla_loc%la(n),    dm, ng_cell)
-        call multifab_build(   snew(n), mla_loc%la(n), nscal, ng_cell)
-        call multifab_build(rhohalf(n), mla_loc%la(n),     1, 1)
-        call multifab_build(   vort(n), mla_loc%la(n),     1, 0)
-        call multifab_build(ext_vel_force(n),  mla_loc%la(n),    dm, 1)
-        call multifab_build(ext_scal_force(n), mla_loc%la(n), nscal, 1)
-        call multifab_build(lapu(n), mla_loc%la(n),    dm, 0)
-        call multifab_build(laps(n), mla_loc%la(n), nscal, 0)
-        call multifab_build(phi(n), mla_loc%la(n),  1, 1)
-        call multifab_build(Lphi(n), mla_loc%la(n),  1, 0)
-        call multifab_build(alpha(n), mla_loc%la(n),  1, 1)
-        call multifab_build(beta(n) , mla_loc%la(n), dm, 1)
+    ! Local variables
+    logical, allocatable :: umac_nodal_flag(:)
 
-        call setval(   unew(n),ZERO, all=.true.)
-        call setval(   snew(n),ZERO, all=.true.)
-        call setval(   vort(n),ZERO, all=.true.)
-        call setval(rhohalf(n),ONE, all=.true.)
-        call setval(ext_vel_force(n) ,ZERO, 1,dm-1,all=.true.)
-        call setval(ext_vel_force(n) ,grav,dm,   1,all=.true.)
-        call setval(ext_scal_force(n),ZERO, all=.true.)
-        call setval(lapu(n), ZERO, all=.true.)
-        call setval(laps(n), ZERO, all=.true.)
-        call setval(phi(n),  ZERO, all=.true.)
-        call setval(Lphi(n),  ZERO, all=.true.)
-        call setval(alpha(n),  ZERO, all=.true.)
-        call setval(beta(n) , 1.0d0, all=.true.)
-   
-        do i = 1,dm
+    allocate(umac_nodal_flag(mla_loc%dim))
+
+    do n = nlevs,1,-1
+       call multifab_build(   unew(n), mla_loc%la(n),    dm, ng_cell)
+       call multifab_build(   snew(n), mla_loc%la(n), nscal, ng_cell)
+       call multifab_build(rhohalf(n), mla_loc%la(n),     1, 1)
+       call multifab_build(   vort(n), mla_loc%la(n),     1, 0)
+       call multifab_build(ext_vel_force(n),  mla_loc%la(n),    dm, 1)
+       call multifab_build(ext_scal_force(n), mla_loc%la(n), nscal, 1)
+       call multifab_build(lapu(n), mla_loc%la(n),    dm, 0)
+       call multifab_build(laps(n), mla_loc%la(n), nscal, 0)
+       call multifab_build(phi(n), mla_loc%la(n),  1, 1)
+       call multifab_build(Lphi(n), mla_loc%la(n),  1, 0)
+       call multifab_build(alpha(n), mla_loc%la(n),  1, 1)
+       call multifab_build(beta(n) , mla_loc%la(n), dm, 1)
+
+       call setval(   unew(n),ZERO, all=.true.)
+       call setval(   snew(n),ZERO, all=.true.)
+       call setval(   vort(n),ZERO, all=.true.)
+       call setval(rhohalf(n),ONE, all=.true.)
+       call setval(ext_vel_force(n) ,ZERO, 1,dm-1,all=.true.)
+       call setval(ext_vel_force(n) ,grav,dm,   1,all=.true.)
+       call setval(ext_scal_force(n),ZERO, all=.true.)
+       call setval(lapu(n), ZERO, all=.true.)
+       call setval(laps(n), ZERO, all=.true.)
+       call setval(phi(n),  ZERO, all=.true.)
+       call setval(Lphi(n),  ZERO, all=.true.)
+       call setval(alpha(n),  ZERO, all=.true.)
+       call setval(beta(n) , 1.0d0, all=.true.)
+
+       do i = 1,dm
           umac_nodal_flag = .false.
           umac_nodal_flag(i) = .true.
           call multifab_build(  umac(n,i), mla_loc%la(n),    1, 1, nodal = umac_nodal_flag)
@@ -936,364 +849,364 @@ subroutine varden()
           call setval( sedge(n,i),ZERO, all=.true.)
           call setval( uflux(n,i),ZERO, all=.true.)
           call setval( sflux(n,i),ZERO, all=.true.)
-        end do
+       end do
 
-     end do
+    end do
 
-     n_plot_comps = 2*dm + nscal + 1
-     do n = 1,nlevs
-        call multifab_build(plotdata(n), mla_loc%la(n), n_plot_comps, 0)
-     end do
+    n_plot_comps = 2*dm + nscal + 1
+    do n = 1,nlevs
+       call multifab_build(plotdata(n), mla_loc%la(n), n_plot_comps, 0)
+    end do
 
-     n_chk_comps = 2*dm + nscal
-     do n = 1,nlevs
-        call multifab_build(chkdata(n), mla_loc%la(n), n_chk_comps, 0)
-     end do
+    n_chk_comps = 2*dm + nscal
+    do n = 1,nlevs
+       call multifab_build(chkdata(n), mla_loc%la(n), n_chk_comps, 0)
+    end do
 
-    end subroutine make_temps
+  end subroutine make_temps
 
-    subroutine delete_temps()
+  subroutine delete_temps()
 
-      do n = 1,nlevs
-         call multifab_destroy(unew(n))
-         call multifab_destroy(snew(n))
-         call multifab_destroy(ext_vel_force(n))
-         call multifab_destroy(ext_scal_force(n))
-         call multifab_destroy(lapu(n))
-         call multifab_destroy(laps(n))
-         call multifab_destroy(phi(n))
-         call multifab_destroy(Lphi(n))
-         call multifab_destroy(alpha(n))
-         call multifab_destroy(beta(n))
-         do i = 1,dm
-           call multifab_destroy(umac(n,i))
-           call multifab_destroy(uedge(n,i))
-           call multifab_destroy(sedge(n,i))
-           call multifab_destroy(uflux(n,i))
-           call multifab_destroy(sflux(n,i))
-         end do
-         call multifab_destroy(rhohalf(n))
-         call multifab_destroy(vort(n))
-         call multifab_destroy(plotdata(n))
-         call multifab_destroy(chkdata(n))
-      end do
+    do n = 1,nlevs
+       call multifab_destroy(unew(n))
+       call multifab_destroy(snew(n))
+       call multifab_destroy(ext_vel_force(n))
+       call multifab_destroy(ext_scal_force(n))
+       call multifab_destroy(lapu(n))
+       call multifab_destroy(laps(n))
+       call multifab_destroy(phi(n))
+       call multifab_destroy(Lphi(n))
+       call multifab_destroy(alpha(n))
+       call multifab_destroy(beta(n))
+       do i = 1,dm
+          call multifab_destroy(umac(n,i))
+          call multifab_destroy(uedge(n,i))
+          call multifab_destroy(sedge(n,i))
+          call multifab_destroy(uflux(n,i))
+          call multifab_destroy(sflux(n,i))
+       end do
+       call multifab_destroy(rhohalf(n))
+       call multifab_destroy(vort(n))
+       call multifab_destroy(plotdata(n))
+       call multifab_destroy(chkdata(n))
+    end do
 
-    end subroutine delete_temps
+  end subroutine delete_temps
 
-    subroutine delete_state(u,s,gp,p)
+  subroutine delete_state(u,s,gp,p)
 
-      type(multifab), intent(inout) :: u(:),s(:),p(:),gp(:)
+    type(multifab), intent(inout) :: u(:),s(:),p(:),gp(:)
 
-      do n = 1,size(u)
-         call multifab_destroy( u(n))
-         call multifab_destroy( s(n))
-         call multifab_destroy( p(n))
-         call multifab_destroy(gp(n))
-      end do
+    do n = 1,size(u)
+       call multifab_destroy( u(n))
+       call multifab_destroy( s(n))
+       call multifab_destroy( p(n))
+       call multifab_destroy(gp(n))
+    end do
 
-    end subroutine delete_state
+  end subroutine delete_state
 
-    subroutine initial_iters()
+  subroutine initial_iters()
 
-       if (parallel_IOProcessor() .and. verbose .ge. 1) &
+    if (parallel_IOProcessor() .and. verbose .ge. 1) &
          print *,'DOING ',init_iter,' INITIAL ITERATIONS ' 
 
-       do istep = 1,init_iter
+    do istep = 1,init_iter
 
-        do n = 2, nlevs
-           call multifab_fill_ghost_cells(uold(n),uold(n-1), &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1), &
-                the_bc_tower%bc_tower_array(n  ), &
-                1,1,dm)
-           call multifab_fill_ghost_cells(sold(n),sold(n-1), &
-                ng_cell,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1), &
-                the_bc_tower%bc_tower_array(n  ), &
-                1,dm+1,nscal)
-           call multifab_fill_ghost_cells(gp(n),gp(n-1), &
-                ng_grow,mla%mba%rr(n-1,:), &
-                the_bc_tower%bc_tower_array(n-1), &
-                the_bc_tower%bc_tower_array(n  ), &
-                1,1,dm)
-        end do
+       do n = 2, nlevs
+          call multifab_fill_ghost_cells(uold(n),uold(n-1), &
+                                         ng_cell,mla%mba%rr(n-1,:), &
+                                         the_bc_tower%bc_tower_array(n-1), &
+                                         the_bc_tower%bc_tower_array(n  ), &
+                                         1,1,dm)
+          call multifab_fill_ghost_cells(sold(n),sold(n-1), &
+                                         ng_cell,mla%mba%rr(n-1,:), &
+                                         the_bc_tower%bc_tower_array(n-1), &
+                                         the_bc_tower%bc_tower_array(n  ), &
+                                         1,dm+1,nscal)
+          call multifab_fill_ghost_cells(gp(n),gp(n-1), &
+                                         ng_grow,mla%mba%rr(n-1,:), &
+                                         the_bc_tower%bc_tower_array(n-1), &
+                                         the_bc_tower%bc_tower_array(n  ), &
+                                         1,1,dm)
+       end do
 
-        ! compute Lapu
-        if(visc_coef .gt. ZERO) then
-           do comp = 1, dm
-              do n = 1, nlevs
-                 call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
-              enddo
-              call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
-                   stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-              do n = 1, nlevs
-                 call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
-              enddo
-           enddo
-        endif
+       ! compute Lapu
+       if(visc_coef .gt. ZERO) then
+          do comp = 1, dm
+             do n = 1, nlevs
+                call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
+             enddo
+             call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
+                              stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+             do n = 1, nlevs
+                call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
+             enddo
+          enddo
+       endif
 
-        ! compute Laps for passive scalar only
-        if(diff_coef .gt. ZERO) then
-           do n = 1, nlevs
-              call multifab_copy_c(phi(n),1,sold(n),2,1,1)
-           enddo
-           call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
-                stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-           do n = 1, nlevs
-              call multifab_copy_c(Laps(n),2,Lphi(n),1)
-           enddo
-        endif
+       ! compute Laps for passive scalar only
+       if(diff_coef .gt. ZERO) then
+          do n = 1, nlevs
+             call multifab_copy_c(phi(n),1,sold(n),2,1,1)
+          enddo
+          call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
+                           stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+          do n = 1, nlevs
+             call multifab_copy_c(Laps(n),2,Lphi(n),1)
+          enddo
+       endif
 
-        call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                            the_bc_tower%bc_tower_array,visc_coef,use_godunov_debug, &
-                            use_minion)
+       call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
+                           the_bc_tower%bc_tower_array,visc_coef,use_godunov_debug, &
+                           use_minion)
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
-                        press_comp)
+       call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
+                       press_comp)
 
-        call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
-                            ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
-                            diff_coef,verbose,use_godunov_debug,use_minion)
+       call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
+                           ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
+                           diff_coef,verbose,use_godunov_debug,use_minion)
 
-        if (diff_coef > ZERO) then
+       if (diff_coef > ZERO) then
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
                                  mg_verbose,cg_verbose,verbose)
-        end if
+       end if
 
-        call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
-                              ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
-                              visc_coef,verbose,use_godunov_debug,use_minion)
+       call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
+                             ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
+                             visc_coef,verbose,use_godunov_debug,use_minion)
 
-        if (visc_coef > ZERO) then
-           visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose, &
-                           cg_verbose,verbose)
-        end if
+       if (visc_coef > ZERO) then
+          visc_mu = HALF*dt*visc_coef
+          call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose, &
+                          cg_verbose,verbose)
+       end if
 
-        ! Project the new velocity field.
-        call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+       ! Project the new velocity field.
+       call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
+                      the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
-        if (parallel_IOProcessor() .and. verbose .ge. 1) then
-           do n = 1,nlevs
-              write(6,1003) n,istep,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
-           end do
-           print *,' '
-        end if
+       if (parallel_IOProcessor() .and. verbose .ge. 1) then
+          do n = 1,nlevs
+             write(6,1003) n,istep,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
+          end do
+          print *,' '
+       end if
 
-       end do
+    end do
 
-1003   format('LEVEL: ',i3,' ITER: ',i3,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
+1003 format('LEVEL: ',i3,' ITER: ',i3,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
-    end subroutine initial_iters
+  end subroutine initial_iters
 
-    subroutine write_plotfile(istep_to_write)
-
-    integer, intent(in   ) :: istep_to_write
-
-       do n = 1,nlevs
-          call make_vorticity(vort(n),uold(n),dx(n,:), &
-                              the_bc_tower%bc_tower_array(n))
-          call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
-          call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
-          call multifab_copy_c(plotdata(n),1+dm+nscal  ,vort(n),1,1)
-          call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
-       end do
-       write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
-       call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
-                                      mba%pd(1), time, dx(1,:))
-    end subroutine write_plotfile
-   
-    subroutine write_checkfile(istep_to_write)
+  subroutine write_plotfile(istep_to_write)
 
     integer, intent(in   ) :: istep_to_write
 
-      do n = 1,nlevs
-         call multifab_copy_c(chkdata(n),1         ,uold(n),1,dm)
-         call multifab_copy_c(chkdata(n),1+dm      ,sold(n),1,nscal)
-         call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
-      end do
-      write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
+    do n = 1,nlevs
+       call make_vorticity(vort(n),uold(n),dx(n,:), &
+                           the_bc_tower%bc_tower_array(n))
+       call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
+       call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
+       call multifab_copy_c(plotdata(n),1+dm+nscal  ,vort(n),1,1)
+       call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
+    end do
+    write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
+    call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
+         mba%pd(1), time, dx(1,:))
+  end subroutine write_plotfile
 
-      call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt, verbose)
+  subroutine write_checkfile(istep_to_write)
 
-    end subroutine write_checkfile
+    integer, intent(in   ) :: istep_to_write
 
-    subroutine read_command_line()
+    do n = 1,nlevs
+       call multifab_copy_c(chkdata(n),1         ,uold(n),1,dm)
+       call multifab_copy_c(chkdata(n),1+dm      ,sold(n),1,nscal)
+       call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
+    end do
+    write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
 
-     do while ( farg <= narg )
-        call get_command_argument(farg, value = fname)
-        select case (fname)
+    call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt, verbose)
 
-        case ('--dim_in')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) dim_in
+  end subroutine write_checkfile
 
-        case ('--prob_hi_x')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) prob_hi_x
+  subroutine read_command_line()
 
-        case ('--prob_hi_y')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) prob_hi_y
+    do while ( farg <= narg )
+       call get_command_argument(farg, value = fname)
+       select case (fname)
 
-        case ('--prob_hi_z')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) prob_hi_z
+       case ('--dim_in')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) dim_in
 
-        case ('--cfl')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) cflfac
+       case ('--prob_hi_x')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) prob_hi_x
 
-        case ('--init_shrink')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) init_shrink
+       case ('--prob_hi_y')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) prob_hi_y
 
-        case ('--fixed_dt')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) fixed_dt
+       case ('--prob_hi_z')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) prob_hi_z
 
-        case ('--visc_coef')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) visc_coef
+       case ('--cfl')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) cflfac
 
-        case ('--grav')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) grav
+       case ('--init_shrink')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) init_shrink
 
-        case ('--use_godunov_debug')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) use_godunov_debug
+       case ('--fixed_dt')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) fixed_dt
 
-        case ('--diff_coef')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) diff_coef
+       case ('--visc_coef')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) visc_coef
 
-        case ('--stop_time')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) stop_time
+       case ('--grav')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) grav
 
-        case ('--max_step')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) max_step
+       case ('--use_godunov_debug')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) use_godunov_debug
 
-        case ('--plot_int')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) plot_int
+       case ('--diff_coef')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) diff_coef
 
-        case ('--chk_int')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) chk_int
+       case ('--stop_time')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) stop_time
 
-        case ('--regrid_int')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) regrid_int
+       case ('--max_step')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) max_step
 
-        case ('--init_iter')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) init_iter
+       case ('--plot_int')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) plot_int
 
-        case ('--bcx_lo')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) bcx_lo
-        case ('--bcy_lo')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) bcy_lo
-        case ('--bcz_lo')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) bcz_lo
-        case ('--bcx_hi')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) bcx_hi
-        case ('--bcy_hi')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) bcy_hi
-        case ('--bcz_hi')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) bcz_hi
+       case ('--chk_int')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) chk_int
 
-        case ('--pmask_x')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) pmask(1)
-        case ('--pmask_y')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) pmask(2)
-        case ('--pmask_z')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) pmask(3)
+       case ('--regrid_int')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) regrid_int
 
-        case ('--verbose')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) verbose
+       case ('--init_iter')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) init_iter
 
-        case ('--mg_verbose')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) mg_verbose
+       case ('--bcx_lo')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) bcx_lo
+       case ('--bcy_lo')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) bcy_lo
+       case ('--bcz_lo')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) bcz_lo
+       case ('--bcx_hi')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) bcx_hi
+       case ('--bcy_hi')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) bcy_hi
+       case ('--bcz_hi')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) bcz_hi
 
-        case ('--cg_verbose')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) cg_verbose
+       case ('--pmask_x')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) pmask(1)
+       case ('--pmask_y')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) pmask(2)
+       case ('--pmask_z')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) pmask(3)
 
-        case ('--fixed_grids')
-           farg = farg + 1
-           call get_command_argument(farg, value = fixed_grids)
+       case ('--verbose')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) verbose
 
-        case ('--restart')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) restart
+       case ('--mg_verbose')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) mg_verbose
 
-        case ('--do_initial_projection')
-           farg = farg + 1
-           call get_command_argument(farg, value = fname)
-           read(fname, *) do_initial_projection
+       case ('--cg_verbose')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) cg_verbose
 
-        case ('--')
-           farg = farg + 1
-           exit
+       case ('--fixed_grids')
+          farg = farg + 1
+          call get_command_argument(farg, value = fixed_grids)
 
-        case default
-           if ( .not. parallel_q() ) then
-              write(*,*) 'UNKNOWN option = ', fname
-              call bl_error("MAIN")
-           end if
-        end select
+       case ('--restart')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) restart
 
-        farg = farg + 1
-     end do
+       case ('--do_initial_projection')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) do_initial_projection
 
-    end subroutine read_command_line
+       case ('--')
+          farg = farg + 1
+          exit
+
+       case default
+          if ( .not. parallel_q() ) then
+             write(*,*) 'UNKNOWN option = ', fname
+             call bl_error("MAIN")
+          end if
+       end select
+
+       farg = farg + 1
+    end do
+
+  end subroutine read_command_line
 
 end subroutine varden
