@@ -11,7 +11,7 @@ module velocity_advance_module
 
 contains
 
-  subroutine velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,flux,gp,p, &
+  subroutine velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
                               ext_vel_force,dx,dt,the_bc_level,visc_coef,verbose, &
                               use_godunov_debug,use_minion)
 
@@ -22,7 +22,7 @@ contains
     type(multifab) , intent(inout) :: lapu(:)
     type(multifab) , intent(inout) :: umac(:,:)
     type(multifab) , intent(inout) :: uedge(:,:)
-    type(multifab) , intent(inout) :: flux(:,:)
+    type(multifab) , intent(inout) :: uflux(:,:)
     type(multifab) , intent(inout) :: unew(:)
     type(multifab) , intent(inout) :: rhohalf(:)
     type(multifab) , intent(inout) :: gp(:)
@@ -69,10 +69,10 @@ contains
     !********************************************************
 
     if(use_godunov_debug) then
-       call mkflux_debug(nlevs,uold,uold,uedge,flux,umac,vel_force,divu,dx,dt, &
+       call mkflux_debug(nlevs,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt, &
                          the_bc_level,mla,is_vel,use_minion,is_conservative)
     else
-       call mkflux(nlevs,uold,uold,uedge,flux,umac,vel_force,divu,dx,dt,the_bc_level,mla, &
+       call mkflux(nlevs,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,the_bc_level,mla, &
                    is_vel,use_minion,is_conservative)
     endif
 
@@ -88,7 +88,7 @@ contains
     ! Update the velocity with convective differencing
     !********************************************************
 
-    call update(nlevs,uold,umac,uedge,flux,vel_force,unew,rhohalf,dx,dt,is_vel, &
+    call update(nlevs,uold,umac,uedge,uflux,vel_force,unew,rhohalf,dx,dt,is_vel, &
                 is_conservative,the_bc_level,mla)
 
     do n = 1, nlevs

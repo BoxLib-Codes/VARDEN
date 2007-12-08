@@ -13,7 +13,7 @@ module scalar_advance_module
 
 contains
 
-  subroutine scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,flux, &
+  subroutine scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
                             ext_scal_force,dx,dt,the_bc_level,diff_coef,verbose, &
                             use_godunov_debug,use_minion)
 
@@ -26,7 +26,7 @@ contains
     type(multifab) , intent(inout) :: rhohalf(:)
     type(multifab) , intent(inout) :: umac(:,:)
     type(multifab) , intent(inout) :: sedge(:,:)
-    type(multifab) , intent(inout) :: flux(:,:)
+    type(multifab) , intent(inout) :: sflux(:,:)
     type(multifab) , intent(inout) :: ext_scal_force(:)
     real(kind=dp_t), intent(inout) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
@@ -74,10 +74,10 @@ contains
     !***********************************
 
     if(use_godunov_debug) then
-       call mkflux_debug(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt, &
+       call mkflux_debug(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                          the_bc_level,mla,is_vel,use_minion,is_conservative)
     else
-       call mkflux(nlevs,sold,uold,sedge,flux,umac,scal_force,divu,dx,dt, &
+       call mkflux(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                    the_bc_level,mla,is_vel,use_minion,is_conservative)
     endif
 
@@ -92,7 +92,7 @@ contains
     ! Update the scalars with conservative or convective differencing.
     !***********************************
 
-    call update(nlevs,sold,umac,sedge,flux,scal_force,snew,rhohalf,dx,dt,is_vel, &
+    call update(nlevs,sold,umac,sedge,sflux,scal_force,snew,rhohalf,dx,dt,is_vel, &
                 is_conservative,the_bc_level,mla)
 
     if (verbose .ge. 1) then
