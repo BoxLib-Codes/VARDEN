@@ -389,14 +389,8 @@ subroutine varden()
      time    = ZERO
      dt      = 1.d20
      dt_temp = ONE
-     do n = 1,nlevs
-        call initdata(uold(n),sold(n),dx(n,:),prob_hi, &
-                      the_bc_tower%bc_tower_array(n),nscal)
-     end do
-     do n = nlevs,2,-1
-        call ml_cc_restriction(uold(n-1),uold(n),mba%rr(n-1,:))
-        call ml_cc_restriction(sold(n-1),sold(n),mba%rr(n-1,:))
-     end do
+
+     call initdata(nlevs,uold,sold,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
 
   end if 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -414,14 +408,7 @@ subroutine varden()
 
    if (restart < 0) then
 
-     do n = 1,nlevs
-        call initdata(uold_rg(n),sold_rg(n),dx(n,:),prob_hi, &
-                      the_bc_tower%bc_tower_array(n),nscal)
-     end do
-     do n = nlevs,2,-1
-        call ml_cc_restriction(uold_rg(n-1),uold_rg(n),mba%rr(n-1,:))
-        call ml_cc_restriction(sold_rg(n-1),sold_rg(n),mba%rr(n-1,:))
-     end do
+      call initdata(nlevs,uold_rg,sold_rg,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
 
    else
 

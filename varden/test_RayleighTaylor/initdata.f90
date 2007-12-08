@@ -7,204 +7,201 @@ module init_module
   use setbc_module
   use define_bc_module
   use multifab_module
+  use multifab_fill_ghost_module
+  use ml_restriction_module
 
   implicit none
 
 contains
 
-   subroutine initdata (u,s,dx,prob_hi,bc,nscal)
+  subroutine initdata(nlevs,u,s,dx,prob_hi,bc,nscal,mla)
 
-      type(multifab) , intent(inout) :: u,s
-      real(kind=dp_t), intent(in   ) :: dx(:)
-      real(kind=dp_t), intent(in   ) :: prob_hi(:)
-      type(bc_level) , intent(in   ) :: bc
-      integer        , intent(in   ) :: nscal
+    integer        , intent(in   ) :: nlevs
+    type(multifab) , intent(inout) :: u(:),s(:)
+    real(kind=dp_t), intent(in   ) :: dx(:,:)
+    real(kind=dp_t), intent(in   ) :: prob_hi(:)
+    type(bc_level) , intent(in   ) :: bc(:)
+    integer        , intent(in   ) :: nscal
+    type(ml_layout), intent(inout) :: mla
 
-      real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
-      integer :: lo(u%dim),hi(u%dim),ng,dm
-      integer :: i,n
-      logical :: is_vel
 
-      ng = u%ng
-      dm = u%dim
- 
-      is_vel = .true.
-      do i = 1, u%nboxes
-         if ( multifab_remote(u, i) ) cycle
-         uop => dataptr(u, i)
-         sop => dataptr(s, i)
-         lo =  lwb(get_box(u, i))
-         hi =  upb(get_box(u, i))
-         select case (dm)
-            case (2)
-              call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx, prob_hi)
-            case (3)
-              call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
-         end select
-      end do
+    real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
+    integer :: lo(u(1)%dim),hi(u(1)%dim)
+    integer :: ng,dm,i,n
 
-      call multifab_fill_boundary(u)
-      call multifab_fill_boundary(s)
+    ng = u(1)%ng
+    dm = u(1)%dim
 
-      do i = 1, u%nboxes
-         if ( multifab_remote(u, i) ) cycle
-         uop => dataptr(u, i)
-         sop => dataptr(s, i)
-         lo =  lwb(get_box(u, i))
-         select case (dm)
-            case (2)
-              do n = 1,dm
-                call setbc_2d(uop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
-              end do
-              do n = 1,nscal
-                call setbc_2d(sop(:,:,1,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
-            case (3)
-              do n = 1,dm
-                call setbc_3d(uop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,   n),dx,   n)
-              end do
-              do n = 1,nscal
-                call setbc_3d(sop(:,:,:,n), lo, ng, bc%adv_bc_level_array(i,:,:,dm+n),dx,dm+n)
-              end do
-         end select
-      end do
+    do n=1,nlevs
 
-   end subroutine initdata
+       do i = 1, u(n)%nboxes
+          if ( multifab_remote(u(n),i) ) cycle
+          uop => dataptr(u(n),i)
+          sop => dataptr(s(n),i)
+          lo =  lwb(get_box(u(n),i))
+          hi =  upb(get_box(u(n),i))
+          select case (dm)
+          case (2)
+             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:), prob_hi)
+          case (3)
+             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:), prob_hi)
+          end select
+       end do
 
-   subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
+       call multifab_fill_boundary(u(n))
+       call multifab_fill_boundary(s(n))
 
-      implicit none
+       call multifab_physbc(u(n),1,1,   dm,   dx(n,:),bc(n))
+       call multifab_physbc(s(n),1,dm+1,nscal,dx(n,:),bc(n))
 
-      integer, intent(in) :: lo(:), hi(:), ng
-      real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(in ) :: dx(:)
-      real (kind = dp_t), intent(in ) :: prob_hi(:)
+    enddo
 
-!     Local variables
-      integer :: i, j
+    do n=nlevs,2,-1
+       call ml_cc_restriction(u(n-1),u(n),mla%mba%rr(n-1,:))
+       call ml_cc_restriction(s(n-1),s(n),mla%mba%rr(n-1,:))
 
-      do j=lo(2),(hi(2)+1)/2-1
-         do i=lo(1),hi(1)
+       call multifab_fill_ghost_cells(u(n),u(n-1),ng,mla%mba%rr(n-1,:), &
+                                      bc(n-1),bc(n),1,1,dm)
+       call multifab_fill_ghost_cells(s(n),s(n-1),ng,mla%mba%rr(n-1,:), &
+                                      bc(n-1),bc(n),1,dm+1,nscal)
+    enddo
 
-            u(i,j,1) = ZERO
-            u(i,j,2) = ZERO
-            s(i,j,1) = ONE
-            s(i,j,2) = ZERO
+  end subroutine initdata
 
-         enddo
-      enddo
+  subroutine initdata_2d(u,s,lo,hi,ng,dx,prob_hi)
 
-      do j=(hi(2)+1)/2,hi(2)
-         do i=lo(1),hi(1)
+    implicit none
 
-            u(i,j,1) = ZERO
-            u(i,j,2) = ZERO
-            s(i,j,1) = TWO
-            s(i,j,2) = ZERO
+    integer, intent(in) :: lo(:), hi(:), ng
+    real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
+    real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
+    real (kind = dp_t), intent(in ) :: dx(:)
+    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
-         enddo
-      enddo
+    !     Local variables
+    integer :: i, j
 
-      ! add a velocity perturbation
-!      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = -0.1d0
-!      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) =  0.1d0
-!      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = -0.1d0
-!      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = -0.1d0
+    do j=lo(2),(hi(2)+1)/2-1
+       do i=lo(1),hi(1)
 
-      ! add a density perturbation
-      s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
-      s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
+          u(i,j,1) = ZERO
+          u(i,j,2) = ZERO
+          s(i,j,1) = ONE
+          s(i,j,2) = ZERO
 
-   end subroutine initdata_2d
+       enddo
+    enddo
 
-   subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)
+    do j=(hi(2)+1)/2,hi(2)
+       do i=lo(1),hi(1)
 
-      implicit none
+          u(i,j,1) = ZERO
+          u(i,j,2) = ZERO
+          s(i,j,1) = TWO
+          s(i,j,2) = ZERO
 
-      integer, intent(in) :: lo(:), hi(:), ng
-      real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(in ) :: dx(:)
-      real (kind = dp_t), intent(in ) :: prob_hi(:)
-    
-!     Local variables
-      integer :: i, j, k
+       enddo
+    enddo
 
-      do k=lo(3),(hi(3)+1)/2-1
-         do j=lo(2),hi(2)
-            do i=lo(1),hi(1)
+    ! add a velocity perturbation
+    !      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = -0.1d0
+    !      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) =  0.1d0
+    !      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = -0.1d0
+    !      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = -0.1d0
 
-               u(i,j,k,1) = ZERO
-               u(i,j,k,2) = ZERO
-               u(i,j,k,3) = ZERO
-               s(i,j,k,1) = ONE
-               s(i,j,k,2) = ZERO
+    ! add a density perturbation
+    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
+    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
 
-            enddo
-         enddo
-      enddo
+  end subroutine initdata_2d
 
-      do k=(hi(3)+1)/2,hi(3)
-         do j=lo(2),hi(2)
-            do i=lo(1),hi(1)
+  subroutine initdata_3d(u,s,lo,hi,ng,dx,prob_hi)
 
-               u(i,j,k,1) = ZERO
-               u(i,j,k,2) = ZERO
-               u(i,j,k,3) = ZERO
-               s(i,j,k,1) = TWO
-               s(i,j,k,2) = ZERO
+    implicit none
 
-            enddo
-         enddo
-      enddo
+    integer, intent(in) :: lo(:), hi(:), ng
+    real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
+    real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
+    real (kind = dp_t), intent(in ) :: dx(:)
+    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
-      do j=lo(2),hi(2)
-         ! add a velocity perturbation
-!         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,3) = -0.1d0
-!         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,3) = -0.1d0
-!         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = 0.1d0
-!         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = -0.1d0
+    !     Local variables
+    integer :: i, j, k
 
-         ! add a density perturbation
-!         s((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = TWO
-!         s((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = TWO
+    do k=lo(3),(hi(3)+1)/2-1
+       do j=lo(2),hi(2)
+          do i=lo(1),hi(1)
 
-         ! add a transverse velocity perturbation
-!         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,2) = 0.1d0
-!         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,2) = 0.1d0
-      enddo
+             u(i,j,k,1) = ZERO
+             u(i,j,k,2) = ZERO
+             u(i,j,k,3) = ZERO
+             s(i,j,k,1) = ONE
+             s(i,j,k,2) = ZERO
 
-      ! add a density perturbation
-      s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
-      s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
-      s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
-      s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
+          enddo
+       enddo
+    enddo
 
-   end subroutine initdata_3d
+    do k=(hi(3)+1)/2,hi(3)
+       do j=lo(2),hi(2)
+          do i=lo(1),hi(1)
 
-   subroutine impose_pressure_bcs(p,mla,mult)
+             u(i,j,k,1) = ZERO
+             u(i,j,k,2) = ZERO
+             u(i,j,k,3) = ZERO
+             s(i,j,k,1) = TWO
+             s(i,j,k,2) = ZERO
 
-     type(multifab ), intent(inout) :: p(:)
-     type(ml_layout), intent(in   ) :: mla
-     real(kind=dp_t), intent(in   ) :: mult
- 
-     type(box)           :: bx,pd
-     integer             :: i,n,nlevs
-     
-     nlevs = size(p,dim=1)
+          enddo
+       enddo
+    enddo
 
-     do n = 1,nlevs
-        pd = layout_get_pd(mla%la(n))
-        do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
-           bx = get_ibox(p(n),i)
-           if (bx%lo(2) == pd%lo(2)) then
+    do j=lo(2),hi(2)
+       ! add a velocity perturbation
+       !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,3) = -0.1d0
+       !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,3) = -0.1d0
+       !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = 0.1d0
+       !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = -0.1d0
+
+       ! add a density perturbation
+       !         s((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = TWO
+       !         s((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = TWO
+
+       ! add a transverse velocity perturbation
+       !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,2) = 0.1d0
+       !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,2) = 0.1d0
+    enddo
+
+    ! add a density perturbation
+    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
+    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
+    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
+    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
+
+  end subroutine initdata_3d
+
+  subroutine impose_pressure_bcs(p,mla,mult)
+
+    type(multifab ), intent(inout) :: p(:)
+    type(ml_layout), intent(in   ) :: mla
+    real(kind=dp_t), intent(in   ) :: mult
+
+    type(box)           :: bx,pd
+    integer             :: i,n,nlevs
+
+    nlevs = size(p,dim=1)
+
+    do n = 1,nlevs
+       pd = layout_get_pd(mla%la(n))
+       do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
+          bx = get_ibox(p(n),i)
+          if (bx%lo(2) == pd%lo(2)) then
              bx%hi(2) = bx%lo(2)
              call setval(p(n),mult,bx)
-           end if
-        end do
-     end do
+          end if
+       end do
+    end do
 
-   end subroutine impose_pressure_bcs
+  end subroutine impose_pressure_bcs
 
 end module init_module
