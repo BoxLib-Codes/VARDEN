@@ -6,7 +6,6 @@ f90sources += fillpatch.f90
 f90sources += hgproject.f90
 f90sources += initdata.f90
 f90sources += inlet_bc.f90
-f90sources += laplac.f90
 f90sources += macproject.f90
 f90sources += makevort.f90
 f90sources += mkflux.f90
