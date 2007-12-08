@@ -77,6 +77,7 @@ contains
     dm      = uold(1)%dim
 
     is_conservative = .false.
+    is_vel = .true.
 
     do n = 1, nlevs
        call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)
@@ -91,90 +92,14 @@ contains
     visc_fac = ONE
     call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,uold,lapu,dx,visc_coef,visc_fac)
 
-    do n = 1, nlevs
 
-
-       !********************************************************
-       ! Create the edge states of velocity using the MAC velocity 
-       !********************************************************
-       is_vel = .true.
-       do i = 1, uold(n)%nboxes
-          if ( multifab_remote(uold(n), i) ) cycle
-          uop  => dataptr(uold(n), i)
-          uepx => dataptr(uedge(n,1), i)
-          uepy => dataptr(uedge(n,2), i)
-          fluxpx => dataptr(flux(n,1), i)
-          fluxpy => dataptr(flux(n,2), i)
-          ump  => dataptr(umac(n,1), i)
-          vmp  => dataptr(umac(n,2), i)
-          fp   => dataptr(vel_force(n), i)
-          dp   => dataptr(divu(n), i)
-          lo = lwb(get_box(uold(n), i))
-          hi = upb(get_box(uold(n), i))
-          select case (dm)
-          case (2)
-             if(use_godunov_debug) then
-                call mkflux_debug_2d(uop(:,:,1,:), uop(:,:,1,:), &
-                                     uepx(:,:,1,:), uepy(:,:,1,:), &
-                                     fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                                     ump(:,:,1,1), vmp(:,:,1,1), &
-                                     fp(:,:,1,:), dp(:,:,1,1), &
-                                     lo, dx(n,:), dt, is_vel, &
-                                     the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                     the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
-                                     ng_cell, use_minion, is_conservative)
-             else
-                call mkflux_2d(uop(:,:,1,:), uop(:,:,1,:), &
-                               uepx(:,:,1,:), uepy(:,:,1,:), &
-                               fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                               ump(:,:,1,1), vmp(:,:,1,1), &
-                               fp(:,:,1,:), dp(:,:,1,1), &
-                               lo, dx(n,:), dt, is_vel, &
-                               the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                               the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
-                               ng_cell, use_minion, is_conservative)
-             endif
-          case (3)
-             uepz => dataptr(uedge(n,3), i)
-             fluxpz => dataptr(flux(n,3), i)
-             wmp  => dataptr(umac(n,3), i)
-             if(use_godunov_debug) then
-                call mkflux_debug_3d(uop(:,:,:,:), uop(:,:,:,:), &
-                                     uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
-                                     fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                                     ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                     fp(:,:,:,:), dp(:,:,:,1), &
-                                     lo, dx(n,:), dt, is_vel, &
-                                     the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                     the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
-                                     ng_cell, use_minion, is_conservative)
-             else
-                call mkflux_3d(uop(:,:,:,:), uop(:,:,:,:), &
-                               uepx(:,:,:,:), uepy(:,:,:,:), uepz(:,:,:,:), &
-                               fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                               ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                               fp(:,:,:,:), dp(:,:,:,1), &
-                               lo, dx(n,:), dt, is_vel, &
-                               the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                               the_bc_level(n)%ell_bc_level_array(i,:,:,1:dm), &
-                               ng_cell, use_minion, is_conservative)
-             endif
-          end select
-       end do
-
-    enddo ! do n = 1, nlevs
-
-    ! synchronize fluxes
-    do n = nlevs, 2, -1
-       do comp = 1, dm
-          if(is_conservative(comp)) then
-             do d = 1, dm
-                call ml_edge_restriction_c(flux(n-1,d),comp,flux(n,d),comp, &
-                                           mla%mba%rr(n-1,:),d,1)
-             enddo
-          endif
-       enddo
-    enddo
+    if(use_godunov_debug) then
+       call mkflux_debug(nlevs,uold,uold,uedge,flux,umac,vel_force,divu,dx,dt, &
+                         the_bc_level,mla,is_vel,use_minion,is_conservative)
+    else
+       call mkflux(nlevs,uold,uold,uedge,flux,umac,vel_force,divu,dx,dt,the_bc_level,mla, &
+                   is_vel,use_minion,is_conservative)
+    endif
 
     !********************************************************
     ! Now create vel_force at half-time using rhohalf and half the viscous term.

@@ -80,7 +80,7 @@ contains
                             fp(:,:,1,:), dp(:,:,1,1), &
                             lo, dx(n,:), dt, is_vel, &
                             the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1), &
+                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
                             ng, use_minion, is_conservative)
           case (3)
              sepz   => dataptr(sedge(n,3), i)
@@ -93,7 +93,7 @@ contains
                             fp(:,:,:,:), dp(:,:,:,1), &
                             lo, dx(n,:), dt, is_vel, &
                             the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1), &
+                            the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
                             ng, use_minion, is_conservative)
           end select
        end do
