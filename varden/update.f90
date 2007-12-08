@@ -121,9 +121,15 @@ contains
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
                                          1,dm+1,nscal)
-          call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),ng,mla%mba%rr(n-1,:), &
+          call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),rhohalf(n)%ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
                                          1,dm+1,1)
+
+          call multifab_fill_boundary(snew(n))
+          call multifab_fill_boundary(rhohalf(n))
+
+          call multifab_physbc(snew(n)   ,1,dm+1,nscal,dx(n,:),the_bc_level(n))
+          call multifab_physbc(rhohalf(n),1,dm+1,    1,dx(n,:),the_bc_level(n))
 
        else if (is_vel) then
 
@@ -131,6 +137,9 @@ contains
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
                                          1,1,dm)
+
+          call multifab_fill_boundary(snew(n))
+          call multifab_physbc(snew(n),1,1,dm,dx(n,:),the_bc_level(n))
 
        end if
 
