@@ -5,6 +5,9 @@ module estdt_module
 
   implicit none
 
+  private
+  public :: estdt
+
 contains
 
    subroutine estdt (lev,u, s, gp, ext_vel_force, dx, cflfac, dtold, dt, verbose)
@@ -18,7 +21,7 @@ contains
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:),  fp(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
-      real(kind=dp_t) :: dt_hold
+      real(kind=dp_t) :: dt_proc, dt_grid, dt_start
       real(kind=dp_t) :: dtchange
       integer         :: i
 
@@ -26,7 +29,9 @@ contains
       dm = u%dim
 
       dtchange = 1.1d0
-      dt_hold  = 1.d20
+
+      dt_proc  = 1.d20
+      dt_start = 1.d20
 
       do i = 1, u%nboxes
          if ( multifab_remote(u, i) ) cycle
@@ -36,18 +41,27 @@ contains
           fp => dataptr(ext_vel_force, i)
          lo =  lwb(get_box(u, i))
          hi =  upb(get_box(u, i))
+
+         dt_grid = 1.d20
          select case (dm)
             case (2)
               call estdt_2d(uop(:,:,1,:), sop(:,:,1,1), gpp(:,:,1,:), fp(:,:,1,:),&
-                            lo, hi, ng, dx, dt)
+                            lo, hi, ng, dx, dt_grid)
             case (3)
               call estdt_3d(uop(:,:,:,:), sop(:,:,:,1), gpp(:,:,:,:), fp(:,:,:,:),&
-                            lo, hi, ng, dx, dt)
+                            lo, hi, ng, dx, dt_grid)
          end select
-         dt_hold = min(dt_hold,dt)
+
+         dt_proc = min(dt_grid, dt_proc)
       end do
 
-      dt = dt_hold
+      ! This sets dt to be the min of dt_proc over all processors.
+      call parallel_reduce(dt ,dt_proc ,MPI_MIN)
+
+      if (dt .eq. dt_start) then
+          dt = min(dx(1),dx(2))
+          if (dm .eq. 3) dt = min(dt,dx(3))
+      end if
 
       dt = dt * cflfac
 
@@ -64,16 +78,16 @@ contains
 
       integer, intent(in) :: lo(:), hi(:), ng
 
-      real (kind = dp_t), intent(in ) :: vel(lo(1)-ng:,lo(2)-ng:,:)  
-      real (kind = dp_t), intent(in ) :: s(lo(1)-ng:,lo(2)-ng:)  
-      real (kind = dp_t), intent(in ) :: gp(lo(1)-1:,lo(2)-1:,:)  
-      real (kind = dp_t), intent(in ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,:)  
-      real (kind = dp_t), intent(in ) :: dx(:)
-      real (kind = dp_t), intent(out) :: dt
+      real (kind = dp_t), intent(in   ) :: vel(lo(1)-ng:,lo(2)-ng:,:)  
+      real (kind = dp_t), intent(in   ) :: s(lo(1)-ng:,lo(2)-ng:)  
+      real (kind = dp_t), intent(in   ) :: gp(lo(1)-1:,lo(2)-1:,:)  
+      real (kind = dp_t), intent(in   ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,:)  
+      real (kind = dp_t), intent(in   ) :: dx(:)
+      real (kind = dp_t), intent(inout) :: dt
 
 !     Local variables
       real (kind = dp_t)  u,v,fx,fy
-      real (kind = dp_t)  eps,dt_start
+      real (kind = dp_t)  eps
       integer :: i, j
 
       eps = 1.0e-8
@@ -92,9 +106,6 @@ contains
         enddo
       enddo
 
-      dt_start = 1.0D+20
-      dt = dt_start
-
       if (u .gt. eps) dt = min(dt,dx(1)/u)
       if (v .gt. eps) dt = min(dt,dx(2)/v)
 
@@ -104,23 +115,21 @@ contains
       if (fy > eps) &
         dt = min(dt,sqrt(2.0D0 *dx(2)/fy))
 
-      if (dt .eq. dt_start) dt = min(dx(1),dx(2))
-
    end subroutine estdt_2d
 
    subroutine estdt_3d (vel,s,gp,ext_vel_force,lo,hi,ng,dx,dt)
 
       integer, intent(in) :: lo(:), hi(:), ng
-      real (kind = dp_t), intent(in ) :: vel(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-      real (kind = dp_t), intent(in ) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)  
-      real (kind = dp_t), intent(in ) :: gp(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
-      real (kind = dp_t), intent(in ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)  
-      real (kind = dp_t), intent(in ) :: dx(:)
-      real (kind = dp_t), intent(out) :: dt
+      real (kind = dp_t), intent(in   ) :: vel(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
+      real (kind = dp_t), intent(in   ) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:)  
+      real (kind = dp_t), intent(in   ) :: gp(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
+      real (kind = dp_t), intent(in   ) :: ext_vel_force(lo(1)-1:,lo(2)-1:,lo(3)-1:,:)  
+      real (kind = dp_t), intent(in   ) :: dx(:)
+      real (kind = dp_t), intent(inout) :: dt
 
 !     Local variables
       real (kind = dp_t)  u,v,w,fx,fy,fz
-      real (kind = dp_t)  eps,dt_start
+      real (kind = dp_t)  eps
       integer :: i, j, k
 
       eps = 1.0e-8
@@ -145,9 +154,6 @@ contains
       enddo
       enddo
 
-      dt_start = 1.0D+20
-      dt = dt_start
-
       if (u .gt. eps) dt = min(dt,dx(1)/u)
       if (v .gt. eps) dt = min(dt,dx(2)/v)
       if (w .gt. eps) dt = min(dt,dx(3)/w)
@@ -160,8 +166,6 @@ contains
 
       if (fz > eps) &
         dt = min(dt,sqrt(2.0D0 *dx(3)/fz))
-
-      if (dt .eq. dt_start) dt = min(min(dx(1),dx(2)),dx(3))
 
    end subroutine estdt_3d
 
