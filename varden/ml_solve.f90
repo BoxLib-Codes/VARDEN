@@ -155,13 +155,14 @@ contains
         type(imultifab), intent(in   ) :: mm_fine
         integer        , intent(in   ) :: ref_ratio(:)
   
-        type(box)        :: cbox,fbox
+        type(box)        :: cbox,fbox,isect
         logical, pointer :: mkp(:,:,:,:)
         integer, pointer :: cmp(:,:,:,:)
         integer, pointer :: fmp(:,:,:,:)
 
-        integer :: loc(mask%dim),lof(mask%dim)
-        integer :: i,j
+        integer :: loc(mask%dim),lof(mask%dim),i,j
+
+        if ( parallel_nprocs() > 1 ) call bl_error('create_nodal_mask() is not parallelized yet')
 
         call setval(mask,.true.)
 
@@ -171,28 +172,28 @@ contains
         do j = 1,mask%nboxes
 
            cbox = get_ibox(mask,j)
-           loc = lwb(cbox)
+           loc  = lwb(cbox)
 
            do i = 1,mm_fine%nboxes
 
-              fbox = get_ibox(mm_fine,i)
-              lof = lwb(fbox)
-              fbox = box_coarsen_v(fbox,ref_ratio)
+              fbox  = get_ibox(mm_fine,i)
+              lof   = lwb(fbox)
+              isect = intersection(cbox,coarsen(fbox,ref_ratio))
 
-              if (box_intersects(fbox,cbox)) then
-                lo(:) = lwb(box_intersection(cbox,fbox))
-                hi(:) = upb(box_intersection(cbox,fbox))
+              if ( empty(isect) ) cycle
 
-                mkp => dataptr(mask,j)
-                cmp => dataptr(mm_crse,j)
-                fmp => dataptr(mm_fine,i)
-                select case (dm)
-                case (2)
-                   call create_nodal_mask_2d(mkp(:,:,1,1),cmp(:,:,1,1),loc,fmp(:,:,1,1),lof,lo,hi,ref_ratio)
-                case (3)
-                   call create_nodal_mask_3d(mkp(:,:,:,1),cmp(:,:,:,1),loc,fmp(:,:,:,1),lof,lo,hi,ref_ratio)
-                end select
-              end if
+              lo  =  lwb(isect)
+              hi  =  upb(isect)
+              mkp => dataptr(mask,j)
+              cmp => dataptr(mm_crse,j)
+              fmp => dataptr(mm_fine,i)
+
+              select case (dm)
+              case (2)
+                 call create_nodal_mask_2d(mkp(:,:,1,1),cmp(:,:,1,1),loc,fmp(:,:,1,1),lof,lo,hi,ref_ratio)
+              case (3)
+                 call create_nodal_mask_3d(mkp(:,:,:,1),cmp(:,:,:,1),loc,fmp(:,:,:,1),lof,lo,hi,ref_ratio)
+              end select
            end do
         end do
 
