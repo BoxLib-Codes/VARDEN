@@ -127,6 +127,7 @@ module define_bc_module
 !   COMP = 2  : y-velocity
 !   COMP = 3  : density
 !   COMP = 4  : tracer
+!   COMP = 5  : an arbitrary quantity with FOEXTRAP
 
 !    *** 3-D ***
 !   COMP = 1  : x-velocity
@@ -134,6 +135,7 @@ module define_bc_module
 !   COMP = 3  : z-velocity
 !   COMP = 4  : density
 !   COMP = 5  : tracer
+!   COMP = 6  : an arbitrary quantity with FOEXTRAP
 
     dm = size(adv_bc_level,dim=2)
 
@@ -146,24 +148,28 @@ module define_bc_module
           adv_bc_level(comp,d,lohi,dm+1) = HOEXTRAP      ! density
           adv_bc_level(comp,d,lohi,dm+2) = HOEXTRAP      ! tracer
           adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
+          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
 
        else if (phys_bc_level(comp,d,lohi) == NO_SLIP_WALL) then
           adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
           adv_bc_level(comp,d,lohi,dm+1) = HOEXTRAP      ! density
           adv_bc_level(comp,d,lohi,dm+2) = HOEXTRAP      ! tracer
           adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
+          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
    
        else if (phys_bc_level(comp,d,lohi) == INLET) then
           adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
           adv_bc_level(comp,d,lohi,dm+1) = EXT_DIR       ! density
           adv_bc_level(comp,d,lohi,dm+2) = EXT_DIR       ! tracer
           adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
+          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
 
        else if (phys_bc_level(comp,d,lohi) == OUTLET) then
           adv_bc_level(comp,d,lohi,1:dm) = FOEXTRAP      ! vel.
           adv_bc_level(comp,d,lohi,dm+1) = FOEXTRAP      ! density
           adv_bc_level(comp,d,lohi,dm+2) = FOEXTRAP      ! tracer
           adv_bc_level(comp,d,lohi,dm+3) = EXT_DIR       ! pressure
+          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
 
        else if (phys_bc_level(comp,d,lohi) == SYMMETRY) then
           adv_bc_level(comp,d,lohi,1:dm) = REFLECT_EVEN  ! tangential vel.
@@ -171,6 +177,7 @@ module define_bc_module
           adv_bc_level(comp,d,lohi,dm+1) = REFLECT_EVEN  ! density
           adv_bc_level(comp,d,lohi,dm+2) = REFLECT_EVEN  ! tracer
           adv_bc_level(comp,d,lohi,dm+3) = REFLECT_EVEN  ! pressure
+          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
        end if
     end do
     end do
