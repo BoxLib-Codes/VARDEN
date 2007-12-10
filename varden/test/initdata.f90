@@ -7,8 +7,12 @@ module init_module
   use setbc_module
   use define_bc_module
   use multifab_module
+  use ml_layout_module
 
   implicit none
+
+  private
+  public :: initdata, impose_pressure_bcs
 
 contains
 

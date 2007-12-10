@@ -10,8 +10,12 @@ module macproject_module
   use ml_restriction_module
   use bndry_reg_module
   use fabio_module
+  use ml_layout_module
 
   implicit none
+
+  private
+  public :: macproject, mac_applyop, mac_multigrid
 
 contains 
 

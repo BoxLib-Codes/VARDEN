@@ -8,6 +8,7 @@ module mkflux_module
   use define_bc_module
   use setbc_module
   use ml_restriction_module
+  use ml_layout_module
 
   implicit none
 

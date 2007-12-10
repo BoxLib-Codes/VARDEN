@@ -13,6 +13,9 @@ module checkpoint_module
 
   implicit none
 
+  private
+  public :: checkpoint_write, checkpoint_read
+
 contains
 
   subroutine checkpoint_write(dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in, verbose)

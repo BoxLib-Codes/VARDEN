@@ -1,13 +1,23 @@
 module viscous_module
 
-  use bl_types
+  use bl_constants_module
   use bc_module
+  use bl_types
   use multifab_module
   use boxarray_module
   use stencil_module
   use macproject_module
+  use ml_layout_module
+  use define_bc_module
+  use bndry_reg_module
+  use multifab_physbc_module
+  use multifab_fill_ghost_module
+  use ml_restriction_module
 
   implicit none
+
+  private
+  public :: visc_solve, diff_scalar_solve
 
 contains 
 

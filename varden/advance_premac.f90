@@ -11,6 +11,9 @@ module pre_advance_module
 
   implicit none
 
+  private
+  public :: advance_premac
+
 contains
 
   subroutine advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &

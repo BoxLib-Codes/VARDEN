@@ -6,6 +6,7 @@ module update_module
   use define_bc_module
   use ml_restriction_module
   use multifab_fill_ghost_module
+  use ml_layout_module
 
   implicit none
 

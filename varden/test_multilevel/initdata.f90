@@ -9,8 +9,12 @@ module init_module
   use multifab_module
   use multifab_fill_ghost_module
   use ml_restriction_module
+  use ml_layout_module
 
   implicit none
+
+  private
+  public :: initdata, impose_pressure_bcs
 
 contains
 
