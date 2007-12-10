@@ -2,33 +2,35 @@
  dim_in = 2
  fixed_grids = "gr0_2d"
 
- prob_hi_x = 8.0
- prob_hi_y = 8.0
+ prob_hi_x = 1.0
+ prob_hi_y = 1.0
 
- max_step  = 1
- init_iter = 0
+ max_step  = 50
+ init_iter = 3
 
- plot_int  = 1
- chk_int   = 1
+ plot_int  = 10
+ chk_int   = 50
 
- stop_time = 1.0
- cflfac = 1.0
+ stop_time = 1000.0
+ cflfac = 0.9
+ init_shrink = 0.1
 
- visc_coef = 0.0
- visc_coef = 0.0
+ visc_coef = 0.01
  diff_coef = 0.0
+
+ grav = 0.d0
 
  bcx_lo = -1
  bcx_hi = -1
- bcy_lo = -1
- bcy_hi = -1
+ bcy_lo = 11
+ bcy_hi = 12
 
  pmask_x = T
- pmask_y = T
+ pmask_y = F
 
  verbose = 0
  mg_verbose = 0
 
 !restart = 1
-do_initial_projection = 0
+do_initial_projection = 1
 /
