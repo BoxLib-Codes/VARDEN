@@ -43,8 +43,6 @@ contains
 
    subroutine makevort_2d (vort,u,lo,hi,ng,dx,bc)
 
-      implicit none
-
       integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(  out) :: vort(lo(1):,lo(2):)  
       real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,:)  
@@ -106,8 +104,6 @@ contains
    end subroutine makevort_2d
 
    subroutine makevort_3d (vort,u,lo,hi,ng,dx,bc)
-
-      implicit none
 
       integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(  out) :: vort(lo(1):,lo(2):,lo(3):)

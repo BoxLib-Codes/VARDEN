@@ -4,6 +4,8 @@ module define_bc_module
   use ml_layout_module
   use bc_module
 
+  implicit none
+
   type bc_level
 
      integer   :: dim    = 0
@@ -35,6 +37,7 @@ module define_bc_module
 
     integer :: ngrids
     integer :: default_value
+    integer :: n
 
     bct%nlevels = mla%nlevel
     bct%dim     = mla%dim
@@ -68,7 +71,7 @@ module define_bc_module
 
     type(bc_tower), intent(inout) :: bct
 
-    integer :: d
+    integer :: d,n
 
     do n = 1,bct%nlevels
        deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
@@ -86,7 +89,7 @@ module define_bc_module
     type(layout), intent(in   ) :: la_level
     integer     , intent(in   ) :: default_value
     type(box) :: bx,pd
-    integer :: d
+    integer :: d,i
 
     pd = layout_get_pd(la_level) 
 

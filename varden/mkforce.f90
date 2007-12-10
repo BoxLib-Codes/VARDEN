@@ -1,7 +1,6 @@
 module mkforce_module
 
   use bl_types
-  use laplac_module
   use multifab_module
 
   implicit none

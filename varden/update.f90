@@ -17,8 +17,6 @@ contains
   subroutine update(nlevs,sold,umac,sedge,flux,force,snew,rhohalf,dx,dt,is_vel,is_cons, &
                     the_bc_level,mla)
 
-    implicit none
-
     integer           , intent(in   ) :: nlevs
     type(multifab)    , intent(in   ) :: sold(:)
     type(multifab)    , intent(in   ) :: umac(:,:)
@@ -142,8 +140,6 @@ contains
   subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,rhohalf, &
                        lo,hi,ng,dx,dt,is_vel,is_cons)
 
-    implicit none
-
     integer           , intent(in   ) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
@@ -215,8 +211,6 @@ contains
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
                        force,snew,rhohalf,lo,hi,ng,dx,dt,is_vel,is_cons)
-
-    implicit none
 
     integer           , intent(in   ) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  

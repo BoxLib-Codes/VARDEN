@@ -73,8 +73,6 @@ contains
 
    subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
 
-      implicit none
-
       integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
       real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
@@ -103,8 +101,6 @@ contains
    end subroutine initdata_2d
 
    subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)
-
-      implicit none
 
       integer, intent(in) :: lo(:), hi(:), ng
       real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
