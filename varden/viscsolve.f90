@@ -92,17 +92,11 @@ contains
 
     do n = 1, nlevs
        call multifab_fill_boundary(unew(n))
-    enddo
-
-    do n = 1, nlevs
        call multifab_physbc(unew(n),1,1,dm,dx(n,:),the_bc_tower%bc_tower_array(n))
     enddo
 
     do n = nlevs, 2, -1
        call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
-    enddo
-
-    do n = 2, nlevs
        call multifab_fill_ghost_cells(unew(n),unew(n-1), &
                                       ng_cell,mla%mba%rr(n-1,:), &
                                       the_bc_tower%bc_tower_array(n-1), &
@@ -282,9 +276,19 @@ contains
        call multifab_copy_c(snew(n),icomp,phi(n),1,1)
     end do
 
+    do n = 1, nlevs
+       call multifab_fill_boundary_c(snew(n),icomp,1)
+       call multifab_physbc(snew(n),icomp,bc_comp,1,dx(n,:),the_bc_tower%bc_tower_array(n))
+    enddo
+
     do n = nlevs, 2, -1
        call ml_cc_restriction_c(snew(n-1),icomp,snew(n),icomp,mla%mba%rr(n-1,:),1)
-    enddo
+       call multifab_fill_ghost_cells(snew(n),snew(n-1), &
+                                      ng_cell,mla%mba%rr(n-1,:), &
+                                      the_bc_tower%bc_tower_array(n-1), &
+                                      the_bc_tower%bc_tower_array(n  ), &
+                                      icomp,bc_comp,1)
+    end do
 
     if (verbose .ge. 1) then
        do n = 1,nlevs
@@ -298,26 +302,6 @@ contains
           print *,'...   end diffusive solve  ... '
        end if
     endif
-
-    do n = 1, nlevs
-       call multifab_fill_boundary_c(snew(n),icomp,1)
-    enddo
-
-    do n = 1, nlevs
-       call multifab_physbc(snew(n),icomp,bc_comp,1,dx(n,:),the_bc_tower%bc_tower_array(n))
-    enddo
-
-    do n = nlevs, 2, -1
-       call ml_cc_restriction_c(snew(n-1),icomp,snew(n),icomp,mla%mba%rr(n-1,:),1)
-    enddo
-
-    do n = 2, nlevs
-       call multifab_fill_ghost_cells(snew(n),snew(n-1), &
-                                      ng_cell,mla%mba%rr(n-1,:), &
-                                      the_bc_tower%bc_tower_array(n-1), &
-                                      the_bc_tower%bc_tower_array(n  ), &
-                                      icomp,bc_comp,1)
-    end do
 
     do n = 1, nlevs
        call multifab_destroy(rh(n))
