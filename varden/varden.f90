@@ -31,6 +31,7 @@ subroutine varden()
   use fillpatch_module
   use regrid_module
   use multifab_fill_ghost_module
+  use viscous_module
 
   implicit none
 

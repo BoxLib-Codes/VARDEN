@@ -6,8 +6,14 @@ module velocity_advance_module
   use mkflux_module
   use mkforce_module
   use update_module
+  use define_bc_module
+  use bl_constants_module
+  use ml_layout_module
 
   implicit none
+
+  private
+  public :: velocity_advance
 
 contains
 

@@ -5,8 +5,12 @@ module velpred_module
   use multifab_module
   use slope_module
   use define_bc_module
+  use bc_module
 
   implicit none
+
+  private
+  public :: velpred, velpred_debug
 
 contains
 

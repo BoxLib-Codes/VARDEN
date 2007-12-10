@@ -5,6 +5,9 @@ module mkforce_module
 
   implicit none
 
+  private
+  public :: mkvelforce, mkscalforce
+
 contains
 
   subroutine mkvelforce(nlevs,vel_force,ext_vel_force,s,gp,u,lapu,dx,visc_coef,visc_fac)

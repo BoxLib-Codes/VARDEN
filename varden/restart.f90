@@ -16,6 +16,9 @@ module restart_module
 
   implicit none
 
+  private
+  public :: fill_restart_data
+
 contains
 
   subroutine fill_restart_data(restart_int,mba,chkdata,chk_p,time,dt)

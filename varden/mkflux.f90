@@ -12,6 +12,9 @@ module mkflux_module
 
   implicit none
 
+  private
+  public :: mkflux, mkflux_debug
+
 contains
 
   subroutine mkflux(nlevs,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level,mla, &

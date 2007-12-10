@@ -8,8 +8,14 @@ module scalar_advance_module
   use update_module
   use setbc_module
   use layout_module
+  use define_bc_module
+  use bl_constants_module
+  use ml_layout_module
 
   implicit none
+
+  private
+  public :: scalar_advance
 
 contains
 
