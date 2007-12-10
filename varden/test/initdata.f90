@@ -83,7 +83,7 @@ contains
     !     Local variables
     integer :: i, j
 
-    do j=lo(2),(hi(2)+1)/2-1
+    do j=lo(2),hi(2)
        do i=lo(1),hi(1)
 
           u(i,j,1) = ZERO
@@ -94,24 +94,9 @@ contains
        enddo
     enddo
 
-    do j=(hi(2)+1)/2,hi(2)
-       do i=lo(1),hi(1)
-
-          u(i,j,1) = ZERO
-          u(i,j,2) = ONE
-          s(i,j,1) = TWO
-          s(i,j,2) = ZERO
-
-       enddo
-    enddo
-
-    ! add a velocity perturbation
-    !      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = -0.1d0
-    !      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) =  0.1d0
-    !      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = -0.1d0
-    !      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = -0.1d0
-
     ! add a density perturbation
+    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,1) = TWO
+    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,1) = TWO
     s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
     s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
 

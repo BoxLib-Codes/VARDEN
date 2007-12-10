@@ -15,169 +15,144 @@ contains
   subroutine setbc_2d(s,lo,ng,bc,dx,icomp)
 
     integer        , intent(in   ) :: lo(:),ng
-    real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:)
+    real(kind=dp_t), intent(inout) :: s(lo(1)-ng:,lo(2)-ng:)
     integer        , intent(in   ) :: bc(:,:)
     real(kind=dp_t), intent(in   ) :: dx(:)
     integer        , intent(in   ) :: icomp
 
     ! Local variables
-    integer         :: i,j,hi(2)
-    real(kind=dp_t) :: x,dir_val
+    integer :: i,j,hi(2)
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
 
-    if (icomp .eq. 1 .or. icomp .eq. 2) dir_val = ZERO
-    if (icomp .eq. 3 .or. icomp .eq. 4) dir_val = ONE
-
     if (bc(1,1) .eq. EXT_DIR) then
-       do j = lo(2)-1,hi(2)+1
-          s(lo(1)-ng:lo(1)-1,j) = dir_val
-       end do
-       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_VY
-       ! if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_DEN
-       ! if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_DEN
+       if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_TRA
     else if (bc(1,1) .eq. FOEXTRAP) then
-       do j = lo(2)-1,hi(2)+1
+       do j = lo(2)-ng, hi(2)+ng
           s(lo(1)-ng:lo(1)-1,j) = s(lo(1),j)
        end do
     else if (bc(1,1) .eq. HOEXTRAP) then
-       do j = lo(2)-1,hi(2)+1
-          s(lo(1)-ng:lo(1)-1,j) = &
-               ( 15.0_dp_t * s(lo(1)  ,j) &
-               -10.0_dp_t * s(lo(1)+1,j) &
-               + 3.0_dp_t * s(lo(1)+2,j) ) * EIGHTH
+       do j = lo(2)-ng, hi(2)+ng
+          s(lo(1)-ng:lo(1)-1,j) = EIGHTH* &
+               (15.0_dp_t*s(lo(1),j) - 10.0_dp_t*s(lo(1)+1,j) + 3.0_dp_t*s(lo(1)+2,j))
        end do
     else if (bc(1,1) .eq. REFLECT_EVEN) then
-       do j = lo(2)-1,hi(2)+1
-          do i = 1,ng
+       do j = lo(2)-ng, hi(2)+ng
+          do i = 1, ng
              s(lo(1)-i,j) = s(lo(1)+i-1,j)
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_ODD) then
-       do j = lo(2)-1,hi(2)+1
-          do i = 1,ng
+       do j = lo(2)-ng, hi(2)+ng
+          do i = 1, ng
              s(lo(1)-i,j) = -s(lo(1)+i-1,j)
           end do
        end do
     else if (bc(1,1) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(1,1) = ',bc(1,1),' NOT YET SUPPORTED '
        stop
     end if
 
     if (bc(1,2) .eq. EXT_DIR) then
-       do j = lo(2)-1,hi(2)+1
-          s(hi(1)+1:hi(1)+ng,j) = dir_val
-       end do
+       if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_VX
+       if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_VY
+       if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_DEN
+       if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_TRA
     else if (bc(1,2) .eq. FOEXTRAP) then
-       do j = lo(2)-1,hi(2)+1
+       do j = lo(2)-ng, hi(2)+ng
           s(hi(1)+1:hi(1)+ng,j) = s(hi(1),j)
        end do
     else if (bc(1,2) .eq. HOEXTRAP) then
-       do j = lo(2)-1,hi(2)+1
-          s(hi(1)+1:hi(1)+ng,j) = &
-               ( 15.0_dp_t * s(hi(1)  ,j) &
-               -10.0_dp_t * s(hi(1)-1,j) &
-               + 3.0_dp_t * s(hi(1)-2,j) ) * EIGHTH
+       do j = lo(2)-ng, hi(2)+ng
+          s(hi(1)+1:hi(1)+ng,j) = EIGHTH* &
+               (15.0_dp_t * s(hi(1)  ,j) - 10.0_dp_t*s(hi(1)-1,j) + 3.0_dp_t*s(hi(1)-2,j))
        end do
     else if (bc(1,2) .eq. REFLECT_EVEN) then
-       do j = lo(2)-1,hi(2)+1
-          do i = 1,ng
+       do j = lo(2)-ng, hi(2)+ng
+          do i = 1, ng
              s(hi(1)+i,j) = s(hi(1)-i+1,j)
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_ODD) then
-       do j = lo(2)-1,hi(2)+1
-          do i = 1,ng
+       do j = lo(2)-ng, hi(2)+ng
+          do i = 1, ng
              s(hi(1)+i,j) = -s(hi(1)-i+1,j)
           end do
        end do
     else if (bc(1,2) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(1,2) = ',bc(1,2),' NOT YET SUPPORTED '
        stop
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
-       do i = lo(1)-ng,hi(1)+ng
-          s(i,lo(2)-ng:lo(2)-1) = dir_val
-       end do
-       ! if (icomp.eq.1) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VX
-       ! if (icomp.eq.2) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_VY
-       ! if (icomp.eq.3) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_DEN
-       ! if (icomp.eq.4) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1) = INLET_TRA
-
-       ! How to do Poiseuille inflow.
-       ! if (icomp.eq.2) then
-       !    do i = lo(1)-ng,hi(1)+ng
-       !       x = (float(i)+0.5) * dx(1)
-       !       if (x .ge. 0.0 .and. x .le. 1) then
-       !          s(i,lo(2)-ng:lo(2)-1) = FOUR * x * (ONE - x)
-       !       else
-       !          s(i,lo(2)-ng:lo(2)-1) = ZERO
-       !       end if
-       !    end do
-       ! end if
-
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_DEN
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_TRA
     else if (bc(2,1) .eq. FOEXTRAP) then
-       do i = lo(1)-ng,hi(1)+ng
+       do i = lo(1)-ng, hi(1)+ng
           s(i,lo(2)-ng:lo(2)-1) = s(i,lo(2))
        end do
     else if (bc(2,1) .eq. HOEXTRAP) then
-       do i = lo(1)-ng,hi(1)+ng
-          s(i,lo(2)-ng:lo(2)-1) = &
-               ( 15.0_dp_t * s(i,lo(2)  ) &
-               -10.0_dp_t * s(i,lo(2)+1) &
-               + 3.0_dp_t * s(i,lo(2)+2) ) * EIGHTH
+       do i = lo(1)-ng, hi(1)+ng
+          s(i,lo(2)-ng:lo(2)-1) = EIGHTH* &
+               (15.0_dp_t*s(i,lo(2)) - 10.0_dp_t*s(i,lo(2)+1) + 3.0_dp_t*s(i,lo(2)+2))
        end do
     else if (bc(2,1) .eq. REFLECT_EVEN) then
-       do i = lo(1)-ng,hi(1)+ng
-          do j = 1,ng
+       do i = lo(1)-ng, hi(1)+ng
+          do j = 1, ng
              s(i,lo(2)-j) = s(i,lo(2)+j-1)
           end do
        end do
     else if (bc(2,1) .eq. REFLECT_ODD) then
-       do i = lo(1)-ng,hi(1)+ng
-          do j = 1,ng
+       do i = lo(1)-ng, hi(1)+ng
+          do j = 1, ng
              s(i,lo(2)-j) = -s(i,lo(2)+j-1)
           end do
        end do
     else if (bc(2,1) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(2,1) = ',bc(2,1),' NOT YET SUPPORTED '
        stop
     end if
 
     if (bc(2,2) .eq. EXT_DIR) then
-       do i = lo(1)-ng,hi(1)+ng
-          s(i,hi(2)+1:hi(2)+ng) = dir_val
-       end do
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_DEN
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_TRA
     else if (bc(2,2) .eq. FOEXTRAP) then
-       do i = lo(1)-ng,hi(1)+ng
+       do i = lo(1)-ng, hi(1)+ng
           s(i,hi(2)+1:hi(2)+ng) = s(i,hi(2))
        end do
     else if (bc(2,2) .eq. HOEXTRAP) then
-       do i = lo(1)-ng,hi(1)+ng
-          s(i,hi(2)+1:hi(2)+ng) = &
-               ( 15.0_dp_t * s(i,hi(2)  ) &
-               -10.0_dp_t * s(i,hi(2)-1) &
-               + 3.0_dp_t * s(i,hi(2)-2) ) * EIGHTH
+       do i = lo(1)-ng, hi(1)+ng
+          s(i,hi(2)+1:hi(2)+ng) = EIGHTH* &
+               (15.0_dp_t*s(i,hi(2)) - 10.0_dp_t*s(i,hi(2)-1) + 3.0_dp_t*s(i,hi(2)-2))
        end do
     else if (bc(2,2) .eq. REFLECT_EVEN) then
-       do i = lo(1)-ng,hi(1)+ng
-          do j = 1,ng
+       do i = lo(1)-ng, hi(1)+ng
+          do j = 1, ng
              s(i,hi(2)+j) = s(i,hi(2)-j+1)
           end do
        end do
     else if (bc(2,2) .eq. REFLECT_ODD) then
-       do i = lo(1)-ng,hi(1)+ng
-          do j = 1,ng
+       do i = lo(1)-ng, hi(1)+ng
+          do j = 1, ng
              s(i,hi(2)+j) = -s(i,hi(2)-j+1)
           end do
        end do
     else if (bc(2,2) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(2,2) = ',bc(2,2),' NOT YET SUPPORTED '
        stop
@@ -239,6 +214,7 @@ contains
           end do
        end do
     else if (bc(1,1) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(1,1) = ',bc(1,1),' NOT YET SUPPORTED '
        stop
@@ -282,6 +258,7 @@ contains
           end do
        end do
     else if (bc(1,2) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(1,2) = ',bc(1,2),' NOT YET SUPPORTED '
        stop
@@ -326,6 +303,7 @@ contains
           end do
        end do
     else if (bc(2,1) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(2,1) = ',bc(2,1),' NOT YET SUPPORTED '
        stop
@@ -369,6 +347,7 @@ contains
           end do
        end do
     else if (bc(2,2) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(2,2) = ',bc(2,2),' NOT YET SUPPORTED '
        stop
@@ -413,6 +392,7 @@ contains
           end do
        end do
     else if (bc(3,1) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(3,1) = ',bc(3,1),' NOT YET SUPPORTED '
        stop
@@ -456,6 +436,7 @@ contains
           end do
        end do
     else if (bc(3,2) .eq. INTERIOR) then
+       ! do nothing
     else 
        print *,'BC(3,2) = ',bc(3,2),' NOT YET SUPPORTED '
        stop
