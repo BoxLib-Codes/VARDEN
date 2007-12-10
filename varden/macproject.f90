@@ -20,7 +20,7 @@ module macproject_module
 contains 
 
   subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,bc_comp,&
-       divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
+                        divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: umac(:,:)
@@ -31,8 +31,8 @@ contains
     integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
 
     type(multifab ), intent(inout), optional :: divu_rhs(:)
-    real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:)
-    real(dp_t)     , intent(in   ), optional :: div_coeff_half_1d(:)
+    real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:,:)
+    real(dp_t)     , intent(in   ), optional :: div_coeff_half_1d(:,:)
     type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
 
     ! Local  
@@ -78,13 +78,9 @@ contains
     end do
 
     if (use_div_coeff_1d) then
-       do n = 1,nlevs
-          call mult_umac_by_1d_coeff(umac(n,:),div_coeff_1d,div_coeff_half_1d,.true.)
-       end do
+       call mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff_1d,div_coeff_half_1d,.true.)
     else if (use_div_coeff_3d) then
-       do n = 1,nlevs
-          call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d(n),ml_layout_get_pd(mla,n),.true.)
-       end do
+       call mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff_3d,.true.)
     end if
 
     ! Compute umac_norm to be used inside the MG solver as part of a stopping criterion
@@ -104,13 +100,9 @@ contains
     call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
     if (use_div_coeff_1d) then
-       do n = 1,nlevs
-          call mult_beta_by_1d_coeff(beta(n),div_coeff_1d,div_coeff_half_1d)
-       end do
+       call mult_beta_by_1d_coeff(nlevs,beta,div_coeff_1d,div_coeff_half_1d)
     else if (use_div_coeff_3d) then
-       do n = 1,nlevs
-          call mult_beta_by_3d_coeff(beta(n),div_coeff_3d(n),ml_layout_get_pd(mla,n))
-       end do
+       call mult_beta_by_3d_coeff(mla,nlevs,beta,div_coeff_3d)
     end if
 
     allocate(fine_flx(2:nlevs))
@@ -130,21 +122,10 @@ contains
     end if
 
     if (use_div_coeff_1d) then
-       do n = 1,nlevs
-          call mult_umac_by_1d_coeff(umac(n,:),div_coeff_1d,div_coeff_half_1d,.false.)
-       end do
+       call mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff_1d,div_coeff_half_1d,.false.)
     else if (use_div_coeff_3d) then
-       do n = 1,nlevs
-          call mult_umac_by_3d_coeff(umac(n,:),div_coeff_3d(n),ml_layout_get_pd(mla,n), &
-                                     .false.)
-       end do
+       call mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff_3d,.false.)
     end if
-
-    do n = 1, nlevs
-       do d=1,dm
-          call multifab_fill_boundary(umac(n,d))
-       enddo
-    enddo
 
     do n = 1, nlevs
        call multifab_destroy(rh(n))
@@ -169,7 +150,7 @@ contains
     subroutine divumac(nlevs,umac,rh,dx,ref_ratio,verbose,before,divu_rhs)
 
       integer        , intent(in   ) :: nlevs
-      type(multifab) , intent(inout) :: umac(:,:)
+      type(multifab) , intent(in   ) :: umac(:,:)
       type(multifab) , intent(inout) :: rh(:)
       real(kind=dp_t), intent(in   ) :: dx(:,:)
       integer        , intent(in   ) :: ref_ratio(:,:)
@@ -185,12 +166,6 @@ contains
       integer :: i,dm,lo(rh(nlevs)%dim),hi(rh(nlevs)%dim)
 
       dm = rh(nlevs)%dim
-
-      do n = nlevs,2,-1
-         do i = 1,dm
-            call ml_edge_restriction(umac(n-1,i),umac(n,i),ref_ratio(n-1,:),i)
-         end do
-      end do
 
       do n = 1,nlevs
          do i = 1, rh(n)%nboxes
@@ -290,65 +265,86 @@ contains
 
     end subroutine divumac_3d
 
-    subroutine mult_umac_by_1d_coeff(umac,div_coeff,div_coeff_half,do_mult)
+    subroutine mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff,div_coeff_half,do_mult)
 
-      type(multifab) , intent(inout) :: umac(:)
-      real(dp_t)     , intent(in   ) :: div_coeff(0:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
+      type(ml_layout), intent(inout) :: mla
+      integer        , intent(in   ) :: nlevs
+      type(multifab) , intent(inout) :: umac(:,:)
+      real(dp_t)     , intent(in   ) :: div_coeff(:,0:)
+      real(dp_t)     , intent(in   ) :: div_coeff_half(:,0:)
       logical        , intent(in   ) :: do_mult
 
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
-      integer                  :: lo(umac(1)%dim)
-      integer                  :: i,dm
+      integer                  :: lo(umac(1,1)%dim)
+      integer                  :: i,dm,n
 
-      dm = umac(1)%dim
+      dm = umac(1,1)%dim
 
-      ! Multiply edge velocities by div coeff
-      do i = 1, umac(1)%nboxes
-         if ( multifab_remote(umac(1), i) ) cycle
-         ump => dataptr(umac(1), i)
-         vmp => dataptr(umac(2), i)
-         lo =  lwb(get_box(umac(1), i))
-         select case (dm)
-         case (2)
-            call mult_by_1d_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), &
-                                     div_coeff(lo(dm):), div_coeff_half(lo(dm):), do_mult)
-         case (3)
-            wmp => dataptr(umac(3), i)
-            call mult_by_1d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                     div_coeff(lo(dm):), div_coeff_half(lo(dm):), do_mult)
-         end select
+      do n=1,nlevs
+         ! Multiply edge velocities by div coeff
+         do i = 1, umac(n,1)%nboxes
+            if ( multifab_remote(umac(n,1), i) ) cycle
+            ump => dataptr(umac(n,1), i)
+            vmp => dataptr(umac(n,2), i)
+            lo =  lwb(get_box(umac(n,1), i))
+            select case (dm)
+            case (2)
+               call mult_by_1d_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), &
+                                        div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
+                                        do_mult)
+            case (3)
+               wmp => dataptr(umac(n,3), i)
+               call mult_by_1d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                        div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
+                                        do_mult)
+            end select
+         end do
+
+         do i=1,dm
+            call multifab_fill_boundary(umac(n,i))
+         enddo
       end do
 
+      do n = nlevs,2,-1
+         do i = 1,dm
+            call ml_edge_restriction(umac(n-1,i),umac(n,i),mla%mba%rr(n-1,:),i)
+         end do
+      end do
+      
     end subroutine mult_umac_by_1d_coeff
 
-    subroutine mult_beta_by_1d_coeff(beta,div_coeff,div_coeff_half)
+    subroutine mult_beta_by_1d_coeff(nlevs,beta,div_coeff,div_coeff_half)
 
-      type(multifab) , intent(inout) :: beta
-      real(dp_t)     , intent(in   ) :: div_coeff(0:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
+      integer        , intent(in   ) :: nlevs
+      type(multifab) , intent(inout) :: beta(:)
+      real(dp_t)     , intent(in   ) :: div_coeff(:,0:)
+      real(dp_t)     , intent(in   ) :: div_coeff_half(:,0:)
 
       real(kind=dp_t), pointer :: bp(:,:,:,:) 
-      integer                  :: lo(beta%dim)
-      integer                  :: i,dm
+      integer                  :: lo(beta(1)%dim)
+      integer                  :: i,dm,n
 
-      dm = beta%dim
+      dm = beta(1)%dim
 
-      ! Multiply edge coefficients by div coeff
-      do i = 1, beta%nboxes
-         if ( multifab_remote(beta, i) ) cycle
-         bp => dataptr(beta,i)
-         lo =  lwb(get_box(beta, i))
-         select case (dm)
-         case (2)
-            call mult_by_1d_coeff_2d(bp(:,:,1,1), bp(:,:,1,2), &
-                                     div_coeff(lo(dm):), div_coeff_half(lo(dm):), .true.)
-         case (3)
-            call mult_by_1d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
-                                     div_coeff(lo(dm):), div_coeff_half(lo(dm):), .true.)
-         end select
+      do n=1,nlevs
+         ! Multiply edge coefficients by div coeff
+         do i = 1, beta(1)%nboxes
+            if ( multifab_remote(beta(n), i) ) cycle
+            bp => dataptr(beta(n),i)
+            lo =  lwb(get_box(beta(n), i))
+            select case (dm)
+            case (2)
+               call mult_by_1d_coeff_2d(bp(:,:,1,1), bp(:,:,1,2), &
+                                        div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
+                                        .true.)
+            case (3)
+               call mult_by_1d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
+                                        div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
+                                        .true.)
+            end select
+         end do
       end do
 
     end subroutine mult_beta_by_1d_coeff
@@ -420,68 +416,84 @@ contains
 
     end subroutine mult_by_1d_coeff_3d
 
-    subroutine mult_umac_by_3d_coeff(umac,div_coeff,domain,do_mult)
+    subroutine mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff,do_mult)
 
-      type(multifab) , intent(inout) :: umac(:)
-      type(multifab) , intent(in   ) :: div_coeff
-      type(box)      , intent(in   ) :: domain
+      type(ml_layout), intent(inout) :: mla
+      integer        , intent(in   ) :: nlevs
+      type(multifab) , intent(inout) :: umac(:,:)
+      type(multifab) , intent(in   ) :: div_coeff(:)
       logical        , intent(in   ) :: do_mult
 
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer ::  dp(:,:,:,:) 
-      integer :: i,lo(umac(1)%dim),hi(umac(1)%dim)
-      integer :: domlo(umac(1)%dim),domhi(umac(1)%dim)
+      integer :: i,n,lo(umac(1,1)%dim),hi(umac(1,1)%dim)
+      integer :: domlo(umac(1,1)%dim),domhi(umac(1,1)%dim)
 
-      domlo =  lwb(domain)
-      domhi =  upb(domain)
+      do n=1,nlevs
+         domlo =  lwb(ml_layout_get_pd(mla,n))
+         domhi =  upb(ml_layout_get_pd(mla,n))
 
-      ! Multiply edge velocities by div coeff
-      do i = 1, umac(1)%nboxes
-         if ( multifab_remote(umac(1), i) ) cycle
-         ump => dataptr(umac(1), i)
-         vmp => dataptr(umac(2), i)
-         wmp => dataptr(umac(3), i)
-         dp => dataptr(div_coeff, i)
-         lo =  lwb(get_box(umac(1), i))
-         hi =  upb(get_box(umac(1), i))
-         select case (umac(1)%dim)
-         case (3)
-            call mult_by_3d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                     dp(:,:,:,1), lo, hi, domlo, domhi, do_mult)
-         end select
+         ! Multiply edge velocities by div coeff
+         do i = 1, umac(n,1)%nboxes
+            if ( multifab_remote(umac(n,1), i) ) cycle
+            ump => dataptr(umac(n,1), i)
+            vmp => dataptr(umac(n,2), i)
+            wmp => dataptr(umac(n,3), i)
+            dp => dataptr(div_coeff(n), i)
+            lo =  lwb(get_box(umac(n,1), i))
+            hi =  upb(get_box(umac(n,1), i))
+            select case (umac(n,1)%dim)
+            case (3)
+               call mult_by_3d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                                        dp(:,:,:,1), lo, hi, domlo, domhi, do_mult)
+            end select
+         end do
+
+         do i=1,dm
+            call multifab_fill_boundary(umac(n,i))
+         enddo
+      enddo
+
+      do n = nlevs,2,-1
+         do i = 1,dm
+            call ml_edge_restriction(umac(n-1,i),umac(n,i),mla%mba%rr(n-1,:),i)
+         end do
       end do
 
     end subroutine mult_umac_by_3d_coeff
 
-    subroutine mult_beta_by_3d_coeff(beta,div_coeff,domain)
+    subroutine mult_beta_by_3d_coeff(mla,nlevs,beta,div_coeff)
 
-      type(multifab) , intent(inout) :: beta
-      type(multifab) , intent(in   ) :: div_coeff
-      type(box)      , intent(in   ) :: domain
+      type(ml_layout), intent(inout) :: mla
+      integer        , intent(in   ) :: nlevs
+      type(multifab) , intent(inout) :: beta(:)
+      type(multifab) , intent(in   ) :: div_coeff(:)
 
       real(kind=dp_t), pointer :: bp(:,:,:,:) 
       real(kind=dp_t), pointer :: dp(:,:,:,:) 
-      integer :: i,lo(beta%dim),hi(beta%dim)
-      integer :: domlo(beta%dim),domhi(beta%dim)
+      integer :: i,n,lo(beta(1)%dim),hi(beta(1)%dim)
+      integer :: domlo(beta(1)%dim),domhi(beta(1)%dim)
 
-      domlo =  lwb(domain)
-      domhi =  upb(domain)
-
-      ! Multiply edge coefficients by div coeff
-      do i = 1, beta%nboxes
-         if ( multifab_remote(beta, i) ) cycle
-         bp => dataptr(     beta,i)
-         dp => dataptr(div_coeff,i)
-         lo =  lwb(get_box(beta, i))
-         hi =  upb(get_box(beta, i))
-         select case (beta%dim)
-         case (3)
-            call mult_by_3d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
-                                     dp(:,:,:,1), lo, hi, domlo, domhi, .true.)
-         end select
-      end do
+      do n=1,nlevs
+         domlo =  lwb(ml_layout_get_pd(mla,n))
+         domhi =  upb(ml_layout_get_pd(mla,n))
+         
+         ! Multiply edge coefficients by div coeff
+         do i = 1, beta(n)%nboxes
+            if ( multifab_remote(beta(n), i) ) cycle
+            bp => dataptr(     beta(n),i)
+            dp => dataptr(div_coeff(n),i)
+            lo =  lwb(get_box(beta(n), i))
+            hi =  upb(get_box(beta(n), i))
+            select case (beta(1)%dim)
+            case (3)
+               call mult_by_3d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
+                                        dp(:,:,:,1), lo, hi, domlo, domhi, .true.)
+            end select
+         end do
+      enddo
 
     end subroutine mult_beta_by_3d_coeff
 
@@ -796,8 +808,13 @@ contains
                end if
             end select
          end do
-      end do
 
+         do d=1,dm
+            call multifab_fill_boundary(umac(n,d))
+         enddo
+         
+      end do
+      
       do n = nlevs,2,-1
          do i = 1,dm
             call ml_edge_restriction(umac(n-1,i),umac(n,i),ref_ratio(n-1,:),i)
