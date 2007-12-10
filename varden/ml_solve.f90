@@ -42,12 +42,10 @@ contains
       integer        , intent(in   ) :: ref_ratio(:,:)
       integer        , intent(in   ) :: do_diagnostics
 
-      type(boxarray) :: bac
-
-      type(lmultifab), pointer     :: fine_mask(:) => Null()
-      integer                      :: i,dm,n,nlevs
-      integer                      :: mglev
-      real(dp_t)                   :: eps
+      type(boxarray)           :: bac
+      type(lmultifab), pointer :: fine_mask(:) => Null()
+      integer                  :: i, dm, n, nlevs, mglev
+      real(dp_t)               :: eps
 
       dm    = mla%dim
       nlevs = mla%nlevel
@@ -55,6 +53,7 @@ contains
       eps = 1.d-12
 
       allocate(fine_mask(nlevs))
+
       do n = nlevs, 1, -1
         call lmultifab_build(fine_mask(n), mla%la(n), 1, 0)
         call setval(fine_mask(n), val = .true., all = .true.)
@@ -65,7 +64,6 @@ contains
         call setval(fine_mask(n), .false., bac)
         call destroy(bac)
       end do
-
 
 ! ****************************************************************************
 
@@ -94,34 +92,24 @@ contains
 
    subroutine ml_nd_solve(mla,mgt,rh,full_soln,one_sided_ss,ref_ratio,do_diagnostics,eps_in)
 
-       type(ml_layout), intent(inout) :: mla
-       type(mg_tower) , intent(inout) :: mgt(:)
-       type(multifab) , intent(inout) :: rh(:)
-       type(multifab) , intent(inout) :: full_soln(:)
-       type(multifab) , intent(in   ) :: one_sided_ss(2:)
-       integer        , intent(in   ) :: ref_ratio(:,:)
-       integer        , intent(in   ) :: do_diagnostics 
+       type(ml_layout), intent(inout)           :: mla
+       type(mg_tower) , intent(inout)           :: mgt(:)
+       type(multifab) , intent(inout)           :: rh(:)
+       type(multifab) , intent(inout)           :: full_soln(:)
+       type(multifab) , intent(in   )           :: one_sided_ss(2:)
+       integer        , intent(in   )           :: ref_ratio(:,:)
+       integer        , intent(in   )           :: do_diagnostics 
        real(dp_t)     , intent(in   ), optional :: eps_in
 
-       type(lmultifab), pointer       :: fine_mask(:) => Null()
-
-       integer                  :: nlevs
-       integer                  :: n, dm
-
-       integer, allocatable     :: lo(:), hi(:)
-       logical, allocatable     :: nodal(:)
-
+       type(lmultifab), pointer :: fine_mask(:) => Null()
+       integer                  :: nlevs, n, dm, lo(rh(mla%nlevel)%dim), hi(rh(mla%nlevel)%dim)
+       logical                  :: nodal(rh(mla%nlevel)%dim)
        real(dp_t)               :: eps
 
-       if (present(eps_in)) then
-         eps = eps_in
-       else
-         eps = 1.d-12
-       end if
+       eps = 1.d-12; if ( present(eps_in) ) eps = eps_in
 
        nlevs = mla%nlevel
-       dm = rh(nlevs)%dim
-       allocate(nodal(dm), lo(dm), hi(dm))
+       dm    = rh(nlevs)%dim
        nodal = .true.
 
        allocate(fine_mask(nlevs))
@@ -150,105 +138,144 @@ contains
        deallocate(fine_mask)
 
    contains
+     !
+     !
+     !
+     subroutine create_nodal_mask(mask,mm_crse,mm_fine,ir)
 
-        subroutine create_nodal_mask(mask,mm_crse,mm_fine,ref_ratio)
+       type(lmultifab), intent(inout) :: mask
+       type(imultifab), intent(in   ) :: mm_crse
+       type(imultifab), intent(in   ) :: mm_fine
+       integer        , intent(in   ) :: ir(:)
 
-        type(lmultifab), intent(inout) :: mask
-        type(imultifab), intent(in   ) :: mm_crse
-        type(imultifab), intent(in   ) :: mm_fine
-        integer        , intent(in   ) :: ref_ratio(:)
-  
-        type(box)        :: cbox,fbox,isect
-        logical, pointer :: mkp(:,:,:,:)
-        integer, pointer :: cmp(:,:,:,:)
-        integer, pointer :: fmp(:,:,:,:)
+       type(box)          :: cbox, fbox, isect
+       logical, pointer   :: mkp(:,:,:,:)
+       integer            :: loc(mask%dim),lof(mask%dim),i,j, dims(4), proc
+       integer, pointer   :: cmp(:,:,:,:), fmp(:,:,:,:)
+       integer, parameter :: tag = 1071
 
-        integer :: loc(mask%dim),lof(mask%dim),i,j
+       type(bl_prof_timer), save :: bpt
 
-        if ( parallel_nprocs() > 1 ) call bl_error('create_nodal_mask() is not parallelized yet')
+       call build(bpt, "create_nodal_mask")
 
-        call setval(mask,.true.)
+       call setval(mask,.true.)
 
-!       Note :          mm_fine is  in fine space
-!       Note : mask and mm_crse are in crse space
-  
-        do j = 1,mask%nboxes
+       !       Note :          mm_fine is  in fine space
+       !       Note : mask and mm_crse are in crse space
 
-           cbox = get_ibox(mask,j)
-           loc  = lwb(cbox)
+       dims = 1
 
-           do i = 1,mm_fine%nboxes
+       do j = 1,mask%nboxes
 
-              fbox  = get_ibox(mm_fine,i)
-              lof   = lwb(fbox)
-              isect = intersection(cbox,coarsen(fbox,ref_ratio))
+          cbox = get_ibox(mask,j)
+          loc  = lwb(cbox)
 
-              if ( empty(isect) ) cycle
+          do i = 1,mm_fine%nboxes
+             if ( remote(mask,j) .and. remote(mm_fine,i) ) cycle
 
-              lo  =  lwb(isect)
-              hi  =  upb(isect)
-              mkp => dataptr(mask,j)
-              cmp => dataptr(mm_crse,j)
-              fmp => dataptr(mm_fine,i)
+             fbox  = get_ibox(mm_fine,i)
+             isect = intersection(cbox,coarsen(fbox,ir))
 
-              select case (dm)
-              case (2)
-                 call create_nodal_mask_2d(mkp(:,:,1,1),cmp(:,:,1,1),loc,fmp(:,:,1,1),lof,lo,hi,ref_ratio)
-              case (3)
-                 call create_nodal_mask_3d(mkp(:,:,:,1),cmp(:,:,:,1),loc,fmp(:,:,:,1),lof,lo,hi,ref_ratio)
-              end select
-           end do
-        end do
+             if ( empty(isect) ) cycle
 
-        end subroutine create_nodal_mask
+             lo = lwb(isect)
+             hi = upb(isect)
 
-        subroutine create_nodal_mask_2d(mask,mm_crse,loc,mm_fine,lof,lo,hi,ref_ratio)
+             if ( local(mask,j) .and. local(mm_fine,i) ) then
+                lof =  lwb(fbox)
+                mkp => dataptr(mask,j)
+                cmp => dataptr(mm_crse,j)
+                fmp => dataptr(mm_fine,i)
 
-             integer, intent(in   ) :: loc(:),lof(:)
-             logical, intent(inout) ::    mask(loc(1):,loc(2):)
-             integer, intent(inout) :: mm_crse(loc(1):,loc(2):)
-             integer, intent(inout) :: mm_fine(lof(1):,lof(2):)
-             integer, intent(in   ) :: lo(:),hi(:)
-             integer, intent(in   ) :: ref_ratio(:)
+                select case (dm)
+                case (2)
+                   call create_nodal_mask_2d(mkp(:,:,1,1),cmp(:,:,1,1),loc,fmp(:,:,1,1),lof,lo,hi,ir)
+                case (3)
+                   call create_nodal_mask_3d(mkp(:,:,:,1),cmp(:,:,:,1),loc,fmp(:,:,:,1),lof,lo,hi,ir)
+                end select
+             else if ( local(mm_fine,i) ) then
+                !
+                ! Must send mm_fine.
+                !
+                isect =  intersection(refine(isect,ir),get_ibox(mm_fine,i))
+                fmp   => dataptr(mm_fine, i, isect)
+                proc  =  get_proc(mask%la, j)
+                call parallel_send(fmp, proc, tag)
+             else if ( local(mask,j) ) then
+                !
+                ! Must receive mm_fine.
+                !
+                isect =  intersection(refine(isect,ir),get_ibox(mm_fine,i))
+                lof   =  lwb(isect)
+                mkp   => dataptr(mask,j)
+                cmp   => dataptr(mm_crse,j)
+                proc  =  get_proc(mm_fine%la,i)
 
-             integer :: i,j
+                dims(1:dm) = extent(isect)
+                allocate(fmp(dims(1),dims(2),dims(3),dims(4)))
+                call parallel_recv(fmp, proc, tag)
 
-             do j = lo(2),hi(2)
+                select case (dm)
+                case (2)
+                   call create_nodal_mask_2d(mkp(:,:,1,1),cmp(:,:,1,1),loc,fmp(:,:,1,1),lof,lo,hi,ir)
+                case (3)
+                   call create_nodal_mask_3d(mkp(:,:,:,1),cmp(:,:,:,1),loc,fmp(:,:,:,1),lof,lo,hi,ir)
+                end select
+                deallocate(fmp)
+             end if
+          end do
+          call destroy(bpt)
+       end do
+
+     end subroutine create_nodal_mask
+
+     subroutine create_nodal_mask_2d(mask,mm_crse,loc,mm_fine,lof,lo,hi,ir)
+
+       integer, intent(in   ) :: loc(:),lof(:)
+       logical, intent(inout) ::    mask(loc(1):,loc(2):)
+       integer, intent(inout) :: mm_crse(loc(1):,loc(2):)
+       integer, intent(inout) :: mm_fine(lof(1):,lof(2):)
+       integer, intent(in   ) :: lo(:),hi(:)
+       integer, intent(in   ) :: ir(:)
+
+       integer :: i,j,fi,fj
+
+       do j = lo(2),hi(2)
+          fj = j*ir(2)
+          do i = lo(1),hi(1)
+             fi = i*ir(1)
+             if (.not.  bc_dirichlet(mm_fine(fi,fj),1,0) .or. bc_dirichlet(mm_crse(i,j),1,0)) &
+                  mask(i,j) = .false.
+          end do
+       end do
+
+
+     end subroutine create_nodal_mask_2d
+
+     subroutine create_nodal_mask_3d(mask,mm_crse,loc,mm_fine,lof,lo,hi,ir)
+
+       integer, intent(in   ) :: loc(:),lof(:)
+       logical, intent(inout) ::    mask(loc(1):,loc(2):,loc(3):)
+       integer, intent(inout) :: mm_crse(loc(1):,loc(2):,loc(3):)
+       integer, intent(inout) :: mm_fine(lof(1):,lof(2):,lof(3):)
+       integer, intent(in   ) :: lo(:),hi(:)
+       integer, intent(in   ) :: ir(:)
+
+       integer :: i,j,k,fi,fj,fk
+
+       do k = lo(3),hi(3)
+          fk = k*ir(3)
+          do j = lo(2),hi(2)
+             fj = j*ir(2)
              do i = lo(1),hi(1)
-                if (.not.  bc_dirichlet(mm_fine(i*ref_ratio(1),j*ref_ratio(2)),1,0) .or. &
-                           bc_dirichlet(mm_crse(i             ,j             ),1,0 ) ) &
-                    mask(i,j) = .false.
+                fi = i*ir(1)
+                if (.not. bc_dirichlet(mm_fine(fi,fj,fk),1,0) .or. bc_dirichlet(mm_crse(i,j,k),1,0) ) &
+                     mask(i,j,k) = .false.
              end do
-             end do
+          end do
+       end do
 
-
-        end subroutine create_nodal_mask_2d
-
-        subroutine create_nodal_mask_3d(mask,mm_crse,loc,mm_fine,lof,lo,hi,ref_ratio)
-
-             integer, intent(in   ) :: loc(:),lof(:)
-             logical, intent(inout) ::    mask(loc(1):,loc(2):,loc(3):)
-             integer, intent(inout) :: mm_crse(loc(1):,loc(2):,loc(3):)
-             integer, intent(inout) :: mm_fine(lof(1):,lof(2):,lof(3):)
-             integer, intent(in   ) :: lo(:),hi(:)
-             integer, intent(in   ) :: ref_ratio(:)
-
-             integer :: i,j,k,i_fine,j_fine,k_fine
-
-             do k = lo(3),hi(3)
-             do j = lo(2),hi(2)
-             do i = lo(1),hi(1)
-                i_fine = i*ref_ratio(1)
-                j_fine = j*ref_ratio(2)
-                k_fine = k*ref_ratio(3)
-                if (.not. bc_dirichlet(mm_fine(i_fine,j_fine,k_fine),1,0) .or. &
-                          bc_dirichlet(mm_crse(i     ,j     ,k     ),1,0) ) &
-                    mask(i,j,k) = .false.
-             end do
-             end do
-             end do
-
-        end subroutine create_nodal_mask_3d
+     end subroutine create_nodal_mask_3d
 
    end subroutine ml_nd_solve
 
