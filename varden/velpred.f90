@@ -6,15 +6,18 @@ module velpred_module
   use slope_module
   use define_bc_module
   use bc_module
+  use ml_layout_module
+  use ml_restriction_module
 
   implicit none
 
   private
-  public :: velpred, velpred_debug
+  public :: velpred
 
 contains
 
-  subroutine velpred(nlevs,u,umac,force,dx,dt,the_bc_level,use_minion)
+  subroutine velpred(nlevs,u,umac,force,dx,dt,the_bc_level,use_minion, &
+                     use_godunov_debug,mla)
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(in   ) :: u(:)
@@ -23,6 +26,8 @@ contains
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     logical        , intent(in)    :: use_minion
+    logical        , intent(in)    :: use_godunov_debug
+    type(ml_layout), intent(inout) :: mla
 
     ! local
     integer :: i,n,dm,ng,comp
@@ -49,23 +54,42 @@ contains
           hi =  upb(get_box(u(n),i))
           select case (dm)
           case (2)
-             call velpred_2d(up(:,:,1,:), &
-                             ump(:,:,1,1),  vmp(:,:,1,1), &
-                             fp(:,:,1,:), &
-                             lo, dx(n,:), dt, &
-                             the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                             ng, use_minion)
-             
+             if(use_godunov_debug) then
+                call velpred_debug_2d(up(:,:,1,:), &
+                                      ump(:,:,1,1),  vmp(:,:,1,1), &
+                                      fp(:,:,1,:), &
+                                      lo, dx(n,:), dt, &
+                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                      the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
+                                      ng, use_minion)
+             else
+                call velpred_2d(up(:,:,1,:), &
+                                ump(:,:,1,1),  vmp(:,:,1,1), &
+                                fp(:,:,1,:), &
+                                lo, dx(n,:), dt, &
+                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
+                                ng, use_minion)
+             endif
           case (3)
              wmp  => dataptr(umac(n,3), i)
-             call velpred_3d(up(:,:,:,:), &
-                             ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
-                             fp(:,:,:,:), &
-                             lo, dx(n,:), dt, &
-                             the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                             the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                             ng, use_minion)
+             if(use_godunov_debug) then
+                call velpred_debug_3d(up(:,:,:,:), &
+                                      ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
+                                      fp(:,:,:,:), &
+                                      lo, dx(n,:), dt, &
+                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                      the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
+                                      ng, use_minion)
+                else
+                call velpred_3d(up(:,:,:,:), &
+                                ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
+                                fp(:,:,:,:), &
+                                lo, dx(n,:), dt, &
+                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
+                                ng, use_minion)
+             endif
           end select
        end do
 
@@ -75,6 +99,12 @@ contains
        
     enddo ! end loop over levels
 
+    do n = nlevs,2,-1
+       do comp = 1,dm
+          call ml_edge_restriction(umac(n-1,comp),umac(n,comp),mla%mba%rr(n-1,:),comp)
+       end do
+    end do
+    
   end subroutine velpred
 
 
@@ -459,70 +489,6 @@ contains
     deallocate(vmacr)
 
   end subroutine velpred_2d
-
-
-  subroutine velpred_debug(nlevs,u,umac,force,dx,dt,the_bc_level,use_minion)
-
-    integer        , intent(in   ) :: nlevs
-    type(multifab) , intent(in   ) :: u(:)
-    type(multifab) , intent(inout) :: umac(:,:)
-    type(multifab) , intent(in   ) :: force(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
-    type(bc_level) , intent(in   ) :: the_bc_level(:)
-    logical        , intent(in)    :: use_minion
-
-    ! local
-    integer :: i,n,dm,ng,comp
-    integer :: lo(u(1)%dim),hi(u(1)%dim)
-    real(kind=dp_t), pointer:: up(:,:,:,:)
-    real(kind=dp_t), pointer:: ump(:,:,:,:)
-    real(kind=dp_t), pointer:: vmp(:,:,:,:)
-    real(kind=dp_t), pointer:: wmp(:,:,:,:)
-    real(kind=dp_t), pointer:: fp(:,:,:,:)
-
-    ng = u(1)%ng
-    dm = u(1)%dim
-
-    do n=1,nlevs
-
-       ! Create the edge states to be used for the MAC velocity 
-       do i = 1, u(n)%nboxes
-          if ( multifab_remote(u(n),i) ) cycle
-          up  => dataptr(u(n),i)
-          ump => dataptr(umac(n,1),i)
-          vmp => dataptr(umac(n,2),i)
-          fp  => dataptr(force(n),i)
-          lo =  lwb(get_box(u(n),i))
-          hi =  upb(get_box(u(n),i))
-          select case (dm)
-          case (2)
-             call velpred_debug_2d(up(:,:,1,:), &
-                                   ump(:,:,1,1),  vmp(:,:,1,1), &
-                                   fp(:,:,1,:), &
-                                   lo, dx(n,:), dt, &
-                                   the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                   the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                   ng, use_minion)
-             
-          case (3)
-             wmp  => dataptr(umac(n,3), i)
-             call velpred_debug_3d(up(:,:,:,:), &
-                                   ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
-                                   fp(:,:,:,:), &
-                                   lo, dx(n,:), dt, &
-                                   the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                   the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                   ng, use_minion)
-          end select
-       end do
-
-       do comp = 1, dm
-          call multifab_fill_boundary(umac(n,comp))
-       enddo
-       
-    enddo ! end loop over levels
-
-  end subroutine velpred_debug
 
 
   subroutine velpred_debug_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)

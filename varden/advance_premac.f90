@@ -8,6 +8,7 @@ module pre_advance_module
   use velpred_module
   use mkforce_module
   use setbc_module
+  use ml_layout_module
 
   implicit none
 
@@ -17,7 +18,7 @@ module pre_advance_module
 contains
 
   subroutine advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                            the_bc_level,visc_coef,use_godunov_debug,use_minion)
+                            the_bc_level,visc_coef,use_godunov_debug,use_minion,mla)
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: uold(:)
@@ -31,6 +32,7 @@ contains
     real(kind=dp_t), intent(in   ) :: visc_coef
     logical        , intent(in)    :: use_godunov_debug
     logical        , intent(in)    :: use_minion
+    type(ml_layout), intent(inout) :: mla
 
     type(multifab), allocatable :: vel_force(:)
     integer                     :: dm,n
@@ -48,11 +50,8 @@ contains
     visc_fac = 1.0d0
     call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,uold,lapu,dx,visc_coef,visc_fac)
 
-    if(use_godunov_debug) then
-       call velpred(nlevs,uold,umac,vel_force,dx,dt,the_bc_level,use_minion)
-    else
-       call velpred_debug(nlevs,uold,umac,vel_force,dx,dt,the_bc_level,use_minion)
-    endif
+    call velpred(nlevs,uold,umac,vel_force,dx,dt,the_bc_level,use_minion, &
+                 use_godunov_debug,mla)
 
     do n = 1, nlevs
        call multifab_destroy(vel_force(n))

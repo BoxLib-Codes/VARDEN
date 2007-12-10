@@ -688,7 +688,7 @@ subroutine varden()
 
         call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
                             the_bc_tower%bc_tower_array,visc_coef,use_godunov_debug, &
-                            use_minion)
+                            use_minion,mla)
 
         call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
                         press_comp)
@@ -960,7 +960,7 @@ contains
 
        call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
                            the_bc_tower%bc_tower_array,visc_coef,use_godunov_debug, &
-                           use_minion)
+                           use_minion,mla)
 
        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
                        press_comp)
