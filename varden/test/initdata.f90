@@ -115,8 +115,8 @@ contains
        do j=lo(2),hi(2)
           do i=lo(1),hi(1)
              u(i,j,k,1) = ZERO
-             u(i,j,k,2) = ZERO
-             u(i,j,k,3) = ONE
+             u(i,j,k,2) = ONE
+             u(i,j,k,3) = ZERO
              s(i,j,k,1) = ONE
              s(i,j,k,2) = ZERO
           enddo

@@ -176,21 +176,20 @@ contains
     hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
 
     if (bc(1,1) .eq. EXT_DIR) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
-             s(lo(1)-ng:lo(1)-1,j,k) = ZERO
-          end do
-       end do
-       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1) = INLET_VX
+       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
+       if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
+       if (icomp.eq.5) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
     else if (bc(1,1) .eq. FOEXTRAP) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              s(lo(1)-ng:lo(1)-1,j,k) = s(lo(1),j,k)
           end do
        end do
     else if (bc(1,1) .eq. HOEXTRAP) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              s(lo(1)-ng:lo(1)-1,j,k) = &
                   ( 15.0_dp_t * s(lo(1)  ,j,k) &
                   -10.0_dp_t * s(lo(1)+1,j,k) &
@@ -198,16 +197,16 @@ contains
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_EVEN) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              do i = 1,ng
                 s(lo(1)-i,j,k) = s(lo(1)+i-1,j,k)
              end do
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_ODD) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              do i = 1,ng
                 s(lo(1)-i,j,k) = -s(lo(1)+1-i,j,k)
              end do
@@ -221,20 +220,20 @@ contains
     end if
 
     if (bc(1,2) .eq. EXT_DIR) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
-             s(hi(1)+1:hi(1)+ng,j,k) = ZERO
-          end do
-       end do
+       if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
+       if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
+       if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
+       if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
+       if (icomp.eq.5) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
     else if (bc(1,2) .eq. FOEXTRAP) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              s(hi(1)+1:hi(1)+ng,j,k) = s(hi(1),j,k)
           end do
        end do
     else if (bc(1,2) .eq. HOEXTRAP) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              s(hi(1)+1:hi(1)+ng,j,k) = &
                   ( 15.0_dp_t * s(hi(1)  ,j,k) &
                   -10.0_dp_t * s(hi(1)-1,j,k) &
@@ -242,16 +241,16 @@ contains
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_EVEN) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              do i = 1,ng
                 s(hi(1)+i,j,k) = s(hi(1)-i+1,j,k)
              end do
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_ODD) then
-       do k = lo(3)-1,hi(3)+1
-          do j = lo(2)-1,hi(2)+1
+       do k = lo(3)-ng,hi(3)+ng
+          do j = lo(2)-ng,hi(2)+ng
              do i = 1,ng
                 s(hi(1)+i,j,k) = -s(hi(1)-i+1,j,k)
              end do
@@ -265,20 +264,19 @@ contains
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
-       do k = lo(3)-ng,hi(3)+ng
-          do i = lo(1)-ng,hi(1)+ng
-             s(i,lo(2)-ng:lo(2)-1,k) = ZERO
-          end do
-       end do
-       if (icomp.eq.2) s(lo(1)-1:hi(1)+1,lo(2)-ng:lo(2)-1,lo(3)-1:hi(3)+1) = INLET_VY
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_VZ
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_DEN
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_TRA
     else if (bc(2,1) .eq. FOEXTRAP .or. bc(2,1) .eq. REFLECT_EVEN) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              s(i,lo(2)-ng:lo(2)-1,k) = s(i,lo(2),k)
           end do
        end do
     else if (bc(2,1) .eq. HOEXTRAP) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              s(i,lo(2)-ng:lo(2)-1,k) = &
                   ( 15.0_dp_t * s(i,lo(2)  ,k) &
@@ -287,7 +285,7 @@ contains
           end do
        end do
     else if (bc(2,1) .eq. REFLECT_EVEN) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,lo(2)-j,k) = s(i,lo(2)+j-1,k)
@@ -310,19 +308,19 @@ contains
     end if
 
     if (bc(2,2) .eq. EXT_DIR) then
-       do k = lo(3)-ng,hi(3)+ng
-          do i = lo(1)-ng,hi(1)+ng
-             s(i,hi(2)+1:hi(2)+ng,k) = ZERO
-          end do
-       end do
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
     else if (bc(2,2) .eq. FOEXTRAP .or. bc(2,2) .eq. REFLECT_EVEN) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              s(i,hi(2)+1:hi(2)+ng,k) = s(i,hi(2),k)
           end do
        end do
     else if (bc(2,2) .eq. HOEXTRAP) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              s(i,hi(2)+1:hi(2)+ng,k) = &
                   ( 15.0_dp_t * s(i,hi(2)  ,k) &
@@ -331,7 +329,7 @@ contains
           end do
        end do
     else if (bc(2,2) .eq. REFLECT_EVEN) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,hi(2)+j,k) = s(i,hi(2)-j+1,k)
@@ -339,7 +337,7 @@ contains
           end do
        end do
     else if (bc(2,2) .eq. REFLECT_ODD) then
-       do k = lo(3)-1,hi(3)+1
+       do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,hi(2)+j,k) = -s(i,hi(2)-j+1,k)
@@ -354,12 +352,11 @@ contains
     end if
 
     if (bc(3,1) .eq. EXT_DIR) then
-       do j = lo(2)-ng,hi(2)+ng
-          do i = lo(1)-ng,hi(1)+ng
-             s(i,j,lo(3)-ng:lo(3)-1) = ZERO
-          end do
-       end do
-       if (icomp.eq.3) s(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-ng:lo(3)-1) = INLET_VZ
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_VZ
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_DEN
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_TRA
     else if (bc(3,1) .eq. FOEXTRAP .or. bc(3,1) .eq. REFLECT_EVEN) then
        do j = lo(2)-ng,hi(2)+ng
           do i = lo(1)-ng,hi(1)+ng
@@ -399,11 +396,11 @@ contains
     end if
 
     if (bc(3,2) .eq. EXT_DIR) then
-       do j = lo(2)-ng,hi(2)+ng
-          do i = lo(1)-ng,hi(1)+ng
-             s(i,j,hi(3)+1:hi(3)+ng) = ZERO
-          end do
-       end do
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_VZ
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_DEN
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_TRA
     else if (bc(3,2) .eq. FOEXTRAP .or. bc(3,2) .eq. REFLECT_EVEN) then
        do j = lo(2)-ng,hi(2)+ng
           do i = lo(1)-ng,hi(1)+ng

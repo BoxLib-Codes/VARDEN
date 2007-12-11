@@ -6,7 +6,7 @@ module inlet_bc
    real(kind=dp_t), parameter :: INLET_VX  =  0.0d0
    real(kind=dp_t), parameter :: INLET_VY  =  1.0d0
    real(kind=dp_t), parameter :: INLET_VZ  =  0.0d0
-   real(kind=dp_t), parameter :: INLET_DEN =  1.0d0
+   real(kind=dp_t), parameter :: INLET_DEN =  2.0d0
    real(kind=dp_t), parameter :: INLET_TRA =  0.0d0
 
 end module inlet_bc
