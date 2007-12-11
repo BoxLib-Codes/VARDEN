@@ -121,40 +121,6 @@ contains
     logical :: fix_lo_x,fix_hi_x,fix_lo_y,fix_hi_y,fix_lo_z,fix_hi_z
     real (kind = dp_t) :: wy,vz,uz,wx,vx,uy
     real (kind = dp_t) :: vort_x, vort_y, vort_z
-    real (kind = dp_t) :: uycen, uzcen, uylo, uyhi, uzlo, uzhi
-    real (kind = dp_t) :: vxcen, vzcen, vxlo, vxhi, vzlo, vzhi
-    real (kind = dp_t) :: wxcen, wycen, wxlo, wxhi, wylo, wyhi
-    real (kind = dp_t) :: vorfun
-
-    !
-    !     ::::: statement functions that implement stencil (TAKEN FROM IAMRLIB/DERIVE_3D.F)
-    !
-    uycen(i,j,k) = HALF*(u(i,j+1,k,1)-u(i,j-1,k,1))/dx(2)
-    uylo(i,j,k)  = (u(i,j+1,k,1)+THREE*u(i,j,k,1)-FOUR*u(i,j-1,k,1))/(THREE*dx(2))
-    uyhi(i,j,k)  =-(u(i,j-1,k,1)+THREE*u(i,j,k,1)-FOUR*u(i,j+1,k,1))/(THREE*dx(2))
-
-    uzcen(i,j,k) = HALF*(u(i,j,k+1,1)-u(i,j,k-1,1))/dx(3)
-    uzlo(i,j,k)  = (u(i,j,k+1,1)+THREE*u(i,j,k,1)-FOUR*u(i,j,k-1,1))/(THREE*dx(3))
-    uzhi(i,j,k)  =-(u(i,j,k-1,1)+THREE*u(i,j,k,1)-FOUR*u(i,j,k+1,1))/(THREE*dx(3))
-
-    vxcen(i,j,k) = HALF*(u(i+1,j,k,2)-u(i-1,j,k,2))/dx(1)
-    vxlo(i,j,k)  = (u(i+1,j,k,2)+THREE*u(i,j,k,2)-FOUR*u(i-1,j,k,2))/(THREE*dx(1))
-    vxhi(i,j,k)  =-(u(i-1,j,k,2)+THREE*u(i,j,k,2)-FOUR*u(i+1,j,k,2))/(THREE*dx(1))
-
-    vzcen(i,j,k) = HALF*(u(i,j,k+1,2)-u(i,j,k-1,2))/dx(3)
-    vzlo(i,j,k)  = (u(i,j,k+1,2)+THREE*u(i,j,k,2)-FOUR*u(i,j,k-1,2))/(THREE*dx(3))
-    vzhi(i,j,k)  =-(u(i,j,k-1,2)+THREE*u(i,j,k,2)-FOUR*u(i,j,k+1,2))/(THREE*dx(3))
-
-    wxcen(i,j,k) = HALF*(u(i+1,j,k,3)-u(i-1,j,k,3))/dx(1)
-    wxlo(i,j,k)  = (u(i+1,j,k,3)+THREE*u(i,j,k,3)-FOUR*u(i-1,j,k,3))/(THREE*dx(1))
-    wxhi(i,j,k)  =-(u(i-1,j,k,3)+THREE*u(i,j,k,3)-FOUR*u(i+1,j,k,3))/(THREE*dx(1))
-
-    wycen(i,j,k) = HALF*(u(i,j+1,k,3)-u(i,j-1,k,3))/dx(2)
-    wylo(i,j,k)  = (u(i,j+1,k,3)+THREE*u(i,j,k,3)-FOUR*u(i,j-1,k,3))/(THREE*dx(2))
-    wyhi(i,j,k)  =-(u(i,j-1,k,3)+THREE*u(i,j,k,3)-FOUR*u(i,j+1,k,3))/(THREE*dx(2))
-
-    vorfun(uy,uz,vx,vz,wx,wy) = sqrt((wy-vz)**2+(uz-wx)**2+(vx-uy)**2)
-
 
     do k = lo(3), hi(3)
        do j = lo(2), hi(2)
@@ -547,6 +513,122 @@ contains
        vz = vzhi(i,j,k)
        vort(i,j,k) = vorfun(uy,uz,vx,vz,wx,wy)
     end if
+
+    contains
+
+      function uycen(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = HALF*(u(i,j+1,k,1)-u(i,j-1,k,1))/dx(2)
+      end function uycen
+
+      function uylo(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = (u(i,j+1,k,1)+THREE*u(i,j,k,1)-FOUR*u(i,j-1,k,1))/(THREE*dx(2))
+      end function uylo
+
+      function uyhi(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = -(u(i,j-1,k,1)+THREE*u(i,j,k,1)-FOUR*u(i,j+1,k,1))/(THREE*dx(2))
+      end function uyhi
+
+      function uzcen(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = HALF*(u(i,j,k+1,1)-u(i,j,k-1,1))/dx(3)
+      end function uzcen
+
+      function uzlo(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = (u(i,j,k+1,1)+THREE*u(i,j,k,1)-FOUR*u(i,j,k-1,1))/(THREE*dx(3))
+      end function uzlo
+
+      function uzhi(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r =-(u(i,j,k-1,1)+THREE*u(i,j,k,1)-FOUR*u(i,j,k+1,1))/(THREE*dx(3))
+      end function uzhi
+
+      function vxcen(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = HALF*(u(i+1,j,k,2)-u(i-1,j,k,2))/dx(1)
+      end function vxcen
+
+      function vxlo(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = (u(i+1,j,k,2)+THREE*u(i,j,k,2)-FOUR*u(i-1,j,k,2))/(THREE*dx(1))
+      end function vxlo
+
+      function vxhi(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r =-(u(i-1,j,k,2)+THREE*u(i,j,k,2)-FOUR*u(i+1,j,k,2))/(THREE*dx(1))
+      end function vxhi
+
+      function vzcen(i,j,k) result(r) 
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = HALF*(u(i,j,k+1,2)-u(i,j,k-1,2))/dx(3)
+      end function vzcen
+
+      function vzlo(i,j,k) result(r) 
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = (u(i,j,k+1,2)+THREE*u(i,j,k,2)-FOUR*u(i,j,k-1,2))/(THREE*dx(3))
+      end function vzlo
+
+      function vzhi(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r =-(u(i,j,k-1,2)+THREE*u(i,j,k,2)-FOUR*u(i,j,k+1,2))/(THREE*dx(3))
+      end function vzhi
+
+      function wxcen(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = HALF*(u(i+1,j,k,3)-u(i-1,j,k,3))/dx(1)
+      end function wxcen
+
+      function wxlo(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = (u(i+1,j,k,3)+THREE*u(i,j,k,3)-FOUR*u(i-1,j,k,3))/(THREE*dx(1))
+      end function wxlo
+
+      function wxhi(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r =-(u(i-1,j,k,3)+THREE*u(i,j,k,3)-FOUR*u(i+1,j,k,3))/(THREE*dx(1))
+      end function wxhi
+
+      function wycen(i,j,k) result(r) 
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = HALF*(u(i,j+1,k,3)-u(i,j-1,k,3))/dx(2)
+      end function wycen
+
+      function wylo(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r = (u(i,j+1,k,3)+THREE*u(i,j,k,3)-FOUR*u(i,j-1,k,3))/(THREE*dx(2))
+      end function wylo
+
+      function wyhi(i,j,k) result(r)
+        integer :: i,j,k
+        real(dp_t) :: r
+        r =-(u(i,j-1,k,3)+THREE*u(i,j,k,3)-FOUR*u(i,j+1,k,3))/(THREE*dx(2))
+      end function wyhi
+
+      function vorfun(uy,uz,vx,vz,wx,wy) result(r)
+        real(dp_t) :: uy,uz,vx,vz,wx,wy
+        real(dp_t) :: r
+        r = sqrt((wy-vz)**2+(uz-wx)**2+(vx-uy)**2)
+      end function vorfun
 
   end subroutine makevort_3d
 
