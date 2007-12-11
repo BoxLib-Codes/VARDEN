@@ -74,13 +74,8 @@ contains
     ! Create the edge state velocities
     !********************************************************
 
-    if(use_godunov_debug) then
-       call mkflux_debug(nlevs,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt, &
-                         the_bc_level,mla,is_vel,use_minion,is_conservative)
-    else
-       call mkflux(nlevs,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,the_bc_level,mla, &
-                   is_vel,use_minion,is_conservative)
-    endif
+    call mkflux(nlevs,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,the_bc_level,mla, &
+                is_vel,use_minion,is_conservative,use_godunov_debug)
 
     !********************************************************
     ! Now create vel_force at half-time using rhohalf and half the viscous term.

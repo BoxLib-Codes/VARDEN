@@ -79,13 +79,8 @@ contains
     ! Create edge state scalars/fluxes
     !***********************************
 
-    if(use_godunov_debug) then
-       call mkflux_debug(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
-                         the_bc_level,mla,is_vel,use_minion,is_conservative)
-    else
-       call mkflux(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
-                   the_bc_level,mla,is_vel,use_minion,is_conservative)
-    endif
+    call mkflux(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
+                the_bc_level,mla,is_vel,use_minion,is_conservative,use_godunov_debug)
 
     !***********************************
     ! Create scalar force at time n+1/2.
