@@ -93,10 +93,10 @@ contains
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_DEN
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+1,lo(2)-ng:lo(2)-ng) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_VX
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_VY
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_DEN
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_TRA
     else if (bc(2,1) .eq. FOEXTRAP) then
        do i = lo(1)-ng, hi(1)+ng
           s(i,lo(2)-ng:lo(2)-1) = s(i,lo(2))
