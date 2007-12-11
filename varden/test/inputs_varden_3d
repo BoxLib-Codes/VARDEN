@@ -9,7 +9,7 @@
  max_step  = 50
  init_iter = 3
 
- plot_int  = 10
+ plot_int  = 1
  chk_int   = 50
 
  stop_time = 1000.0
@@ -19,18 +19,18 @@
  visc_coef = 0.01
  diff_coef = 0.0
 
- grav = -9.8d0
+ grav = 0.d0
 
  bcx_lo = -1
  bcx_hi = -1
- bcy_lo = -1
- bcy_hi = -1
- bcz_lo = 15
- bcz_hi = 15
+ bcy_lo = 11
+ bcy_hi = 12
+ bcz_lo = -1
+ bcz_hi = -1
 
  pmask_x = T
- pmask_y = T
- pmask_z = F
+ pmask_y = F
+ pmask_z = T
 
  verbose = 0
  mg_verbose = 0
