@@ -98,6 +98,12 @@ contains
     s((hi(1)+1)/2-1,(hi(2)+1)/2  ,1) = TWO
     s((hi(1)+1)/2  ,(hi(2)+1)/2  ,1) = TWO
 
+    ! add a tracer perturbation
+    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = ONE
+    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = ONE
+    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,2) = ONE
+    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,2) = ONE
+
   end subroutine initdata_2d
 
   subroutine initdata_3d(u,s,lo,hi,ng,dx,prob_hi)
@@ -133,6 +139,15 @@ contains
     s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2  ,1) = TWO
     s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2  ,1) = TWO
 
+    ! add a tracer perturbation
+    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,2) = ONE
+    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,2) = ONE
+    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,2) = ONE
+    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,2) = ONE
+    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2  ,2) = ONE
+    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2  ,2) = ONE
+    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2  ,2) = ONE
+    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2  ,2) = ONE
   end subroutine initdata_3d
 
   subroutine impose_pressure_bcs(p,mla,mult)
