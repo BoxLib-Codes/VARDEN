@@ -139,7 +139,7 @@ contains
 
    contains
      !
-     !
+     ! TODO - cache the communication stuff in the mask's layout?
      !
      subroutine create_nodal_mask(mask,mm_crse,mm_fine,ir)
 
@@ -150,9 +150,11 @@ contains
 
        type(box)          :: cbox, fbox, isect
        logical, pointer   :: mkp(:,:,:,:)
-       integer            :: loc(mask%dim),lof(mask%dim),i,j, dims(4), proc
+       integer            :: loc(mask%dim), lof(mask%dim), i, j, k, dims(4), proc
        integer, pointer   :: cmp(:,:,:,:), fmp(:,:,:,:)
        integer, parameter :: tag = 1071
+
+       type(box_intersector), pointer :: bi(:)
 
        type(bl_prof_timer), save :: bpt
 
@@ -165,21 +167,21 @@ contains
 
        dims = 1
 
-       do j = 1,mask%nboxes
+       do i = 1,mm_fine%nboxes
 
-          cbox = get_ibox(mask,j)
-          loc  = lwb(cbox)
+          fbox =  get_ibox(mm_fine,i)
+          bi   => layout_get_box_intersector(mask%la, coarsen(fbox,ir))
 
-          do i = 1,mm_fine%nboxes
+          do k = 1, size(bi)
+             j = bi(k)%i
+
              if ( remote(mask,j) .and. remote(mm_fine,i) ) cycle
 
-             fbox  = get_ibox(mm_fine,i)
-             isect = intersection(cbox,coarsen(fbox,ir))
-
-             if ( empty(isect) ) cycle
-
-             lo = lwb(isect)
-             hi = upb(isect)
+             cbox  = get_ibox(mask,j)
+             loc   = lwb(cbox)
+             isect = bi(k)%bx
+             lo    = lwb(isect)
+             hi    = upb(isect)
 
              if ( local(mask,j) .and. local(mm_fine,i) ) then
                 lof =  lwb(fbox)
@@ -224,8 +226,10 @@ contains
                 deallocate(fmp)
              end if
           end do
-          call destroy(bpt)
+          deallocate(bi)
        end do
+
+       call destroy(bpt)
 
      end subroutine create_nodal_mask
 
