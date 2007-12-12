@@ -74,7 +74,7 @@ module define_bc_module
 
     type(bc_tower), intent(inout) :: bct
 
-    integer :: d,n
+    integer :: n
 
     do n = 1,bct%nlevels
        deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
