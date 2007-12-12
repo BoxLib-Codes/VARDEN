@@ -31,7 +31,7 @@ contains
 
     ! local
     integer :: i,n,dm,ng,comp
-    integer :: lo(u(1)%dim),hi(u(1)%dim)
+    integer :: lo(u(1)%dim)
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: ump(:,:,:,:)
     real(kind=dp_t), pointer:: vmp(:,:,:,:)
@@ -51,7 +51,6 @@ contains
           vmp => dataptr(umac(n,2),i)
           fp  => dataptr(force(n),i)
           lo =  lwb(get_box(u(n),i))
-          hi =  upb(get_box(u(n),i))
           select case (dm)
           case (2)
              if(use_godunov_debug) then

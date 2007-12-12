@@ -20,7 +20,7 @@ contains
 
     ! Local
     integer                  :: lo(s%dim)
-    integer                  :: n,i,ng,dm,scomp,bccomp
+    integer                  :: i,ng,dm,scomp,bccomp
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     
     ng = s%ng
