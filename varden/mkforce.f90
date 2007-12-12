@@ -24,7 +24,6 @@ contains
 
     ! local
     integer :: i,n,ng,dm
-    integer :: lo(s(1)%dim),hi(s(1)%dim)
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
@@ -37,15 +36,13 @@ contains
 
     do n=1,nlevs
        do i = 1, u(n)%nboxes
-          if ( multifab_remote(u(n),i) ) cycle
+          if ( remote(u(n),i) ) cycle
           fp  => dataptr(vel_force(n),i)
           ep  => dataptr(ext_vel_force(n),i)
           gpp => dataptr(gp(n),i)
           sp  => dataptr(s(n),i)
           up  => dataptr(u(n),i)
           lp => dataptr(lapu(n),i)
-          lo = lwb(get_box(u(n),i))
-          hi = upb(get_box(u(n),i))
           select case (dm)
           case (2)
              call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), &
@@ -210,7 +207,6 @@ contains
 
     ! local
     integer :: i,n,ng,dm
-    integer :: lo(s(1)%dim),hi(s(1)%dim)
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
@@ -221,13 +217,11 @@ contains
 
     do n=1,nlevs
        do i = 1, s(n)%nboxes
-          if ( multifab_remote(s(n),i) ) cycle
+          if ( remote(s(n),i) ) cycle
           fp => dataptr(scal_force(n),i)
           lp => dataptr(laps(n),i)
           ep => dataptr(ext_scal_force(n),i)
           sp => dataptr(s(n),i)
-          lo = lwb(get_box(s(n),i))
-          hi = upb(get_box(s(n),i))
           select case (dm)
           case (2)
              call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sp(:,:,1,:), lp(:,:,1,:), &
