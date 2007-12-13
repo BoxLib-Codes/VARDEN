@@ -39,9 +39,9 @@ contains
     namelist /chkpoint/ dt
     namelist /chkpoint/ nlevs
 
-    if ( parallel_IOProcessor() ) then
-       call fabio_mkdir(dirname)
-    end if
+    if ( parallel_IOProcessor() ) call fabio_mkdir(dirname)
+
+    call parallel_barrier() ! All CPUs have to wait till the directory is built.
 
     write(unit=sd_name, fmt='(a,"/State")') trim(dirname)
     call fabio_ml_multifab_write_d(mfs, rrs(:,1), sd_name)
