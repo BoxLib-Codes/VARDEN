@@ -37,7 +37,7 @@ contains
     integer                     :: n,nlevs,d,dm,i,comp
     integer                     :: bc_comp,stencil_order,ng_cell
     integer                     :: lo(unew(1)%dim)
-    real(kind=dp_t)             :: norm1(mla%nlevel), norm2(mla%nlevel)
+    real(kind=dp_t)             :: nrm1, nrm2
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -58,18 +58,18 @@ contains
     stencil_order = 2
 
     if (verbose .ge. 1) then
-       do n = 1,nlevs
-          norm1(n) = norm_inf(unew(n),1,1)
-          norm2(n) = norm_inf(unew(n),2,1)
-       end do
        if (parallel_IOProcessor()) then
           print *,' '
           print *,'... begin viscous solves  ... '
-          do n = 1,nlevs
-             print *,'BEFORE: MAX OF U AT LEVEL ',n,norm1(n)
-             print *,'BEFORE: MAX OF V AT LEVEL ',n,norm2(n)
-          end do
        end if
+       do n = 1,nlevs
+          nrm1 = norm_inf(unew(n),1,1)
+          nrm2 = norm_inf(unew(n),2,1)
+          if ( parallel_IOProcessor() ) then
+             print *,'BEFORE: MAX OF U AT LEVEL ',n,nrm1
+             print *,'BEFORE: MAX OF V AT LEVEL ',n,nrm2
+          end if
+       end do
     endif
 
     allocate(fine_flx(2:nlevs))
@@ -104,16 +104,16 @@ contains
                                       1,1,dm)
     end do
 
-    if (verbose .ge. 1) then
+    if ( verbose .ge. 1 ) then
        do n = 1,nlevs
-          norm1(n) = norm_inf(unew(n),1,1)
-          norm2(n) = norm_inf(unew(n),2,1)
+          nrm1 = norm_inf(unew(n),1,1)
+          nrm2 = norm_inf(unew(n),2,1)
+          if ( parallel_IOProcessor() ) then
+             print *,' AFTER: MAX OF U AT LEVEL ',n,nrm1
+             print *,' AFTER: MAX OF V AT LEVEL ',n,nrm2
+          end if
        end do
-       if (parallel_IOProcessor()) then
-          do n = 1,nlevs
-             print *,' AFTER: MAX OF U AT LEVEL ',n,norm1(n)
-             print *,' AFTER: MAX OF V AT LEVEL ',n,norm2(n)
-          end do
+       if ( parallel_IOProcessor() ) then
           print *,'...   end viscous solves  ... '
           print *,' '
        end if
@@ -228,7 +228,7 @@ contains
     real(kind=dp_t), pointer    :: snp(:,:,:,:)
     integer                     :: i,n,nlevs,dm,stencil_order
     integer                     :: lo(snew(1)%dim),ng_cell
-    real(kind=dp_t)             :: norm1(mla%nlevel)
+    real(kind=dp_t)             :: nrm1
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -245,18 +245,16 @@ contains
        call setval( beta(n), mu,all=.true.)
     end do
 
-    if (verbose .ge. 1) then
-       do n = 1,nlevs
-          norm1(n) = norm_inf(snew(n),icomp,1)
-       end do
+    if ( verbose .ge. 1 ) then
        if (parallel_IOProcessor()) then
           print *,' '
           print *,'... begin diffusive solve  ... '
-          do n = 1,nlevs
-             print *,'BEFORE: MAX OF S AT LEVEL ',n,norm1(n)
-          end do
        end if
-    endif
+       do n = 1,nlevs
+          nrm1 = norm_inf(snew(n),icomp,1)
+          if ( parallel_IOProcessor() ) print *,'BEFORE: MAX OF S AT LEVEL ',n,nrm1
+       end do
+    end if
 
     do n = 1,nlevs
        call mkrhs(rh(n),snew(n),phi(n),icomp)
@@ -290,14 +288,12 @@ contains
                                       icomp,bc_comp,1)
     end do
 
-    if (verbose .ge. 1) then
+    if ( verbose .ge. 1 ) then
        do n = 1,nlevs
-          norm1(n) = norm_inf(snew(n),icomp,1)
+          nrm1 = norm_inf(snew(n),icomp,1)
+          if ( parallel_IOProcessor() ) print *,'AFTER: MAX OF S AT LEVEL ',n,nrm1
        end do
-       if (parallel_IOProcessor()) then
-          do n = 1,nlevs
-             print *,'AFTER: MAX OF S AT LEVEL ',n,norm1(n)
-          end do
+       if ( parallel_IOProcessor() ) then
           print *,' '
           print *,'...   end diffusive solve  ... '
        end if

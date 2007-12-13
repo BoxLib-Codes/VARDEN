@@ -45,7 +45,7 @@ subroutine varden()
   real(dp_t) :: diff_coef
   real(dp_t) :: stop_time
   real(dp_t) :: time,dt,dtold,dt_lev,dt_temp
-  real(dp_t) :: visc_mu, pressure_inflow_val, grav
+  real(dp_t) :: visc_mu, pressure_inflow_val,grav,nrm1,nrm2
   integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer    :: k,istep,ng_cell,ng_grow
   integer    :: i, n, nlevs, n_plot_comps, n_chk_comps, nscal
@@ -653,11 +653,13 @@ subroutine varden()
            end if
         end if
 
-        if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        if ( verbose .ge. 1 ) then
            do n = 1,nlevs
-              write(6,1001) n,time,norm_inf(uold(n),1,1),norm_inf(uold(n),2,1)
+              nrm1 = norm_inf(uold(n),1,1)
+              nrm2 = norm_inf(uold(n),2,1)
+              if ( parallel_IOProcessor() ) write(6,1001) n,time,nrm1,nrm2
            end do
-           print *,' '
+           if ( parallel_IOProcessor() ) print *,' '
         end if
 
         ! compute Lapu
@@ -721,11 +723,13 @@ subroutine varden()
 
         time = time + dt
 
-        if (parallel_IOProcessor() .and. verbose .ge. 1) then
+        if ( verbose .ge. 1 ) then
            do n = 1,nlevs
-              write(6,1002) n,time,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
+              nrm1 = norm_inf(unew(n),1,1)
+              nrm2 = norm_inf(unew(n),2,1)
+              if ( parallel_IOProcessor() ) write(6,1002) n,time,nrm1,nrm2
            end do
-           print *,' '
+           if ( parallel_IOProcessor() ) print *,' '
         end if
 
         write(6,1000) istep,time,dt
@@ -991,11 +995,13 @@ contains
        call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
 
-       if (parallel_IOProcessor() .and. verbose .ge. 1) then
+       if ( verbose .ge. 1 ) then
           do n = 1,nlevs
-             write(6,1003) n,istep,norm_inf(unew(n),1,1),norm_inf(unew(n),2,1)
+             nrm1 = norm_inf(unew(n),1,1)
+             nrm2 = norm_inf(unew(n),2,1)
+             if ( parallel_IOProcessor() ) write(6,1003) n,istep,nrm1,nrm2
           end do
-          print *,' '
+          if ( parallel_IOProcessor() ) print *,' '
        end if
 
     end do
