@@ -534,11 +534,19 @@ subroutine varden()
 
      istep = 0
 
-     call write_plotfile(istep)
-     last_plt_written = istep
+     if ( plot_int > 0 ) then
+        if ( mod(istep,plot_int) .eq. 0 ) then
+           call write_plotfile(istep)
+           last_plt_written = istep
+        end if
+     end if
 
-     call write_checkfile(istep)
-     last_chk_written = istep
+     if ( chk_int > 0 ) then
+        if ( mod(istep,chk_int) .eq. 0 ) then
+           call write_checkfile(istep)
+           last_chk_written = istep
+        end if
+     end if
 
      init_step = 1
 
@@ -739,15 +747,15 @@ subroutine varden()
            call multifab_copy_c(sold(n),1,snew(n),1,nscal)
         end do
 
-        if (plot_int > 0) then
-           if (mod(istep,plot_int) .eq. 0) then
+        if ( plot_int > 0 ) then
+           if ( mod(istep,plot_int) .eq. 0 ) then
               call write_plotfile(istep)
               last_plt_written = istep
            end if
         end if
 
-        if (chk_int > 0) then
-           if (mod(istep,chk_int) .eq. 0) then
+        if ( chk_int > 0 ) then
+           if ( mod(istep,chk_int) .eq. 0 ) then
               call write_checkfile(istep)
               last_chk_written = istep
            end if
@@ -766,8 +774,8 @@ subroutine varden()
 1001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
 1002 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
-     if (last_plt_written .ne. istep) call write_plotfile(istep)
-     if (last_chk_written .ne. istep) call write_checkfile(istep)
+     if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep)
+     if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep)
 
   end if
 
