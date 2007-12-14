@@ -418,17 +418,17 @@ subroutine varden()
                           ng_cell,mla_new%mba%rr(n-1,:), &
                           the_bc_tower%bc_tower_array(n-1), &
                           the_bc_tower%bc_tower_array(n  ), &
-                          1,1,dm)
+                          1,1,1,dm)
            call fillpatch(sold_rg(n),sold(n-1), &
                           ng_cell,mla_new%mba%rr(n-1,:), &
                           the_bc_tower%bc_tower_array(n-1), &
                           the_bc_tower%bc_tower_array(n  ), &
-                          1,dm+1,nscal)
+                          1,1,dm+1,nscal)
            call fillpatch(gp_rg(n),gp(n-1), &
                           ng_grow,mla_new%mba%rr(n-1,:), &
                           the_bc_tower%bc_tower_array(n-1), &
                           the_bc_tower%bc_tower_array(n  ), &
-                          1,1,dm)
+                          1,1,1,dm)
         end do
 
         do n = 1,nlevs
@@ -580,17 +580,17 @@ subroutine varden()
                                 ng_cell,mla_new%mba%rr(n-1,:), &
                                 the_bc_tower%bc_tower_array(n-1), &
                                 the_bc_tower%bc_tower_array(n  ), &
-                                1,1,dm)
+                                1,1,1,dm)
                  call fillpatch(sold_rg(n),sold(n-1), &
                                 ng_cell,mla_new%mba%rr(n-1,:), &
                                 the_bc_tower%bc_tower_array(n-1), &
                                 the_bc_tower%bc_tower_array(n  ), &
-                                1,dm+1,nscal)
+                                1,1,dm+1,nscal)
                  call fillpatch(gp_rg(n),gp(n-1), &
                                 ng_grow,mla_new%mba%rr(n-1,:), &
                                 the_bc_tower%bc_tower_array(n-1), &
                                 the_bc_tower%bc_tower_array(n  ), &
-                                1,1,dm)
+                                1,1,1,dm)
               end do
 
               do n = 1,nlevs
