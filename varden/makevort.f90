@@ -13,10 +13,11 @@ module vort_module
 
 contains
 
-  subroutine make_vorticity (vort,u,dx,bc)
+  subroutine make_vorticity (vort,comp,u,dx,bc)
 
-    type(multifab) , intent(inout) :: vort
-    type(multifab) , intent(in   ) :: u
+    integer        , intent(in   ) :: comp
+    type(multifab) , intent(in   ) :: vort
+    type(multifab) , intent(inout) :: u
     real(kind=dp_t), intent(in   ) :: dx(:)
     type(bc_level) , intent(in   ) :: bc
 
@@ -27,6 +28,7 @@ contains
 
     ng = u%ng
     dm = u%dim
+    call multifab_fill_boundary(u)
 
     do i = 1, u%nboxes
        if ( multifab_remote(u, i) ) cycle
@@ -36,11 +38,9 @@ contains
        hi =  upb(get_box(u, i))
        select case (dm)
        case (2)
-          call makevort_2d(vp(:,:,1,1),up(:,:,1,:), lo, hi, ng, dx, &
-                           bc%phys_bc_level_array(i,:,:))
+          call makevort_2d(vp(:,:,1,comp),up(:,:,1,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
        case (3)
-          call makevort_3d(vp(:,:,:,1),up(:,:,:,:), lo, hi, ng, dx, &
-                           bc%phys_bc_level_array(i,:,:))
+          call makevort_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
        end select
     end do
 
@@ -55,7 +55,7 @@ contains
     integer           , intent(in   ) :: bc(:,:)
 
     !     Local variables
-    integer :: i, j, n
+    integer :: i, j
     real (kind = dp_t) :: vx,uy
 
     do j = lo(2), hi(2)
@@ -117,10 +117,9 @@ contains
     integer           , intent(in   ) :: bc(:,:)
 
     !     Local variables
-    integer :: i, j, k, n
+    integer :: i, j, k
     logical :: fix_lo_x,fix_hi_x,fix_lo_y,fix_hi_y,fix_lo_z,fix_hi_z
     real (kind = dp_t) :: wy,vz,uz,wx,vx,uy
-    real (kind = dp_t) :: vort_x, vort_y, vort_z
 
     do k = lo(3), hi(3)
        do j = lo(2), hi(2)

@@ -53,7 +53,7 @@ subroutine varden()
   integer    :: init_step
   integer    :: comp,bc_comp
   logical    :: pmask_x,pmask_y,pmask_z
-  integer    :: press_comp
+  integer    :: press_comp, vort_comp
   logical    :: use_godunov_debug
   logical    :: use_minion
 
@@ -75,7 +75,6 @@ subroutine varden()
   type(multifab), allocatable ::     snew(:)
   type(multifab), allocatable ::  rhohalf(:)
   type(multifab), allocatable ::        p(:)
-  type(multifab), allocatable ::     vort(:)
   type(multifab), allocatable :: lapu(:)
   type(multifab), allocatable :: ext_vel_force(:)
   type(multifab), allocatable :: laps(:)
@@ -312,7 +311,7 @@ subroutine varden()
   allocate(umac(nlevs,dm))
   allocate(uedge(nlevs,dm),sedge(nlevs,dm))
   allocate(uflux(nlevs,dm),sflux(nlevs,dm))
-  allocate(rhohalf(nlevs),vort(nlevs))
+  allocate(rhohalf(nlevs))
 
   allocate(plotdata(nlevs),chkdata(nlevs))
 
@@ -526,11 +525,6 @@ subroutine varden()
   if (restart < 0) then
 
      if (init_iter > 0) call initial_iters()
-
-     do n = 1,nlevs
-        call make_vorticity(vort(n),uold(n),dx(n,:), &
-                            the_bc_tower%bc_tower_array(n))
-     end do
 
      istep = 0
 
@@ -824,7 +818,6 @@ contains
        call multifab_build(   unew(n), mla_loc%la(n),    dm, ng_cell)
        call multifab_build(   snew(n), mla_loc%la(n), nscal, ng_cell)
        call multifab_build(rhohalf(n), mla_loc%la(n),     1, 1)
-       call multifab_build(   vort(n), mla_loc%la(n),     1, 0)
        call multifab_build(ext_vel_force(n),  mla_loc%la(n),    dm, 1)
        call multifab_build(ext_scal_force(n), mla_loc%la(n), nscal, 1)
        call multifab_build(lapu(n), mla_loc%la(n),    dm, 0)
@@ -836,7 +829,6 @@ contains
 
        call setval(   unew(n),ZERO, all=.true.)
        call setval(   snew(n),ZERO, all=.true.)
-       call setval(   vort(n),ZERO, all=.true.)
        call setval(rhohalf(n),ONE, all=.true.)
        call setval(ext_vel_force(n) ,ZERO, 1,dm-1,all=.true.)
        call setval(ext_vel_force(n) ,grav,dm,   1,all=.true.)
@@ -899,7 +891,6 @@ contains
           call multifab_destroy(sflux(n,i))
        end do
        call multifab_destroy(rhohalf(n))
-       call multifab_destroy(vort(n))
        call multifab_destroy(plotdata(n))
        call multifab_destroy(chkdata(n))
     end do
@@ -1023,16 +1014,19 @@ contains
     integer, intent(in   ) :: istep_to_write
 
     do n = 1,nlevs
-       call make_vorticity(vort(n),uold(n),dx(n,:), &
-                           the_bc_tower%bc_tower_array(n))
        call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
        call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
-       call multifab_copy_c(plotdata(n),1+dm+nscal  ,vort(n),1,1)
+
+       vort_comp = 1+dm+nscal
+       call make_vorticity(plotdata(n),vort_comp,uold(n),dx(n,:), &
+                           the_bc_tower%bc_tower_array(n))
+
        call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
     end do
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
     call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
          mba%pd(1), time, dx(1,:))
+
   end subroutine write_plotfile
 
   subroutine write_checkfile(istep_to_write)
