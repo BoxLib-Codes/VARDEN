@@ -1,6 +1,7 @@
 module update_module
   
   use bl_types
+  use bl_constants_module
   use multifab_module
   use multifab_physbc_module
   use define_bc_module
