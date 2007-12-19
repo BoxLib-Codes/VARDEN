@@ -1,24 +1,24 @@
 module pre_advance_module
 
   use bl_types
-  use bl_constants_module
-  use bc_module
+
   use define_bc_module
   use multifab_module
-  use velpred_module
-  use mkforce_module
-  use setbc_module
   use ml_layout_module
 
   implicit none
 
   private
+
   public :: advance_premac
 
 contains
 
   subroutine advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
                             the_bc_level,visc_coef,use_godunov_debug,use_minion,mla)
+
+    use velpred_module
+    use mkforce_module
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: uold(:)

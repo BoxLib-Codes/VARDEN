@@ -1,27 +1,26 @@
 module viscous_module
 
-  use bl_constants_module
-  use bc_module
   use bl_types
   use multifab_module
-  use boxarray_module
-  use stencil_module
-  use macproject_module
   use ml_layout_module
   use define_bc_module
-  use bndry_reg_module
-  use multifab_physbc_module
-  use multifab_fill_ghost_module
-  use ml_restriction_module
 
   implicit none
 
   private
+
   public :: visc_solve, diff_scalar_solve
 
 contains 
 
   subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verbose)
+
+     use bl_constants_module
+     use bndry_reg_module
+     use multifab_physbc_module
+     use multifab_fill_ghost_module
+     use macproject_module,     only: mac_multigrid
+     use ml_restriction_module, only: ml_cc_restriction
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -213,6 +212,13 @@ contains
 
   subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose, &
                                cg_verbose,verbose)
+
+    use bndry_reg_module
+    use bl_constants_module
+    use multifab_physbc_module
+    use multifab_fill_ghost_module
+    use macproject_module,     only: mac_multigrid
+    use ml_restriction_module, only: ml_cc_restriction_c
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: snew(:)

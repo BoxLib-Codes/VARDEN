@@ -2,17 +2,12 @@ module velocity_advance_module
 
   use bl_types
   use multifab_module
-  use viscous_module
-  use mkflux_module
-  use mkforce_module
-  use update_module
-  use define_bc_module
-  use bl_constants_module
   use ml_layout_module
 
   implicit none
 
   private
+
   public :: velocity_advance
 
 contains
@@ -20,6 +15,13 @@ contains
   subroutine velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
                               ext_vel_force,dx,dt,the_bc_level,visc_coef,verbose, &
                               use_godunov_debug,use_minion)
+
+    use viscous_module
+    use mkflux_module
+    use mkforce_module
+    use update_module
+    use define_bc_module
+    use bl_constants_module
 
     integer        , intent(in   ) :: nlevs
     type(ml_layout), intent(inout) :: mla

@@ -1,23 +1,25 @@
 module update_module
   
   use bl_types
-  use bl_constants_module
   use multifab_module
-  use multifab_physbc_module
   use define_bc_module
-  use ml_restriction_module
-  use multifab_fill_ghost_module
   use ml_layout_module
 
   implicit none
 
   private
+
   public :: update
 
 contains
 
   subroutine update(nlevs,sold,umac,sedge,flux,force,snew,rhohalf,dx,dt,is_vel,is_cons, &
                     the_bc_level,mla)
+
+    use bl_constants_module
+    use multifab_physbc_module
+    use ml_restriction_module, only: ml_cc_restriction
+    use multifab_fill_ghost_module
 
     integer           , intent(in   ) :: nlevs
     type(multifab)    , intent(in   ) :: sold(:)
@@ -142,6 +144,8 @@ contains
   subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,rhohalf, &
                        lo,hi,ng,dx,dt,is_vel,is_cons)
 
+    use bl_constants_module
+
     integer           , intent(in   ) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
@@ -213,6 +217,8 @@ contains
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
                        force,snew,rhohalf,lo,hi,ng,dx,dt,is_vel,is_cons)
+
+    use bl_constants_module
 
     integer           , intent(in   ) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  

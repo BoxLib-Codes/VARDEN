@@ -1,27 +1,20 @@
 module restart_module
 
-  use bl_error_module
-  use bl_string_module
-  use bl_IO_module
   use bl_types
-  use box_util_module
-  use define_bc_module
-  use setbc_module
-  use fab_module
-  use fabio_module
   use multifab_module
   use ml_layout_module
-  use checkpoint_module
-  use parallel
 
   implicit none
 
   private
+
   public :: fill_restart_data
 
 contains
 
   subroutine fill_restart_data(restart_int,mba,chkdata,chk_p,time,dt)
+
+    use checkpoint_module
 
     integer          , intent(in   ) :: restart_int
     real(dp_t)       , intent(  out) :: time,dt
@@ -47,7 +40,6 @@ contains
     do n = 1,nlevs
       call boxarray_build_copy(mba%bas(n), get_boxarray(chkdata(n))) 
     end do
-
 
   end subroutine fill_restart_data
 

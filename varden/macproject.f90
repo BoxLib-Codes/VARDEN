@@ -1,20 +1,17 @@
 module macproject_module
 
   use bl_types
-  use bl_constants_module
+  use ml_layout_module
   use define_bc_module
   use multifab_module
-  use boxarray_module
-  use stencil_module
-  use multifab_fill_ghost_module
-  use ml_restriction_module
   use bndry_reg_module
-  use fabio_module
-  use ml_layout_module
+  use bl_constants_module
+  use sparse_solve_module
 
   implicit none
 
   private
+
   public :: macproject, mac_applyop, mac_multigrid
 
 contains 
@@ -149,6 +146,8 @@ contains
 
     subroutine divumac(nlevs,umac,rh,dx,ref_ratio,verbose,before,divu_rhs)
 
+      use ml_restriction_module, only: ml_cc_restriction
+
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(in   ) :: umac(:,:)
       type(multifab) , intent(inout) :: rh(:)
@@ -266,6 +265,8 @@ contains
     end subroutine divumac_3d
 
     subroutine mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff,div_coeff_half,do_mult)
+
+      use ml_restriction_module, only: ml_edge_restriction
 
       type(ml_layout), intent(inout) :: mla
       integer        , intent(in   ) :: nlevs
@@ -417,6 +418,8 @@ contains
     end subroutine mult_by_1d_coeff_3d
 
     subroutine mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff,do_mult)
+
+      use ml_restriction_module, only: ml_edge_restriction
 
       type(ml_layout), intent(inout) :: mla
       integer        , intent(in   ) :: nlevs
@@ -626,6 +629,8 @@ contains
 
     subroutine mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
+      use multifab_fill_ghost_module
+
       integer        , intent(in   ) :: nlevs
       type(ml_layout), intent(inout) :: mla
       type(multifab ), intent(inout) :: rho(:)
@@ -731,6 +736,8 @@ contains
     end subroutine mk_mac_coeffs_3d
 
     subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio,verbose)
+
+      use ml_restriction_module, only: ml_edge_restriction
 
       type(multifab), intent(inout) :: umac(:,:)
       type(multifab), intent(inout) ::   rh(:)
@@ -1232,17 +1239,9 @@ contains
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
        the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose,cg_verbose,umac_norm)
 
-    use f2kcli
-    use stencil_module
-    use coeffs_module
-    use mg_module
-    use list_box_module
-    use itsol_module
-    use sparse_solve_module
-    use ml_solve_module
-    use bl_mem_stat_module
-    use box_util_module
-    use bl_IO_module
+     use coeffs_module
+     use mg_module
+     use ml_solve_module
 
     type(ml_layout),intent(inout) :: mla
     integer        ,intent(in   ) :: stencil_order
@@ -1451,16 +1450,9 @@ contains
        the_bc_tower,bc_comp,stencil_order,ref_ratio, &
        mg_verbose,cg_verbose,umac_norm)
 
-    use f2kcli
-    use stencil_module
-    use coeffs_module
-    use mg_module
-    use list_box_module
-    use itsol_module
-    use sparse_solve_module
-    use ml_cc_module, only: ml_cc_applyop
-    use bl_mem_stat_module
-    use bl_IO_module
+     use coeffs_module
+     use mg_module
+     use ml_cc_module, only: ml_cc_applyop
 
     type(ml_layout),intent(inout) :: mla
     integer        ,intent(in   ) :: stencil_order

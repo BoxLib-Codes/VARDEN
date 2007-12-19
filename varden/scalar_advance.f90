@@ -2,19 +2,13 @@ module scalar_advance_module
 
   use bl_types
   use multifab_module
-  use viscous_module
-  use mkflux_module
-  use mkforce_module
-  use update_module
-  use setbc_module
-  use layout_module
-  use define_bc_module
-  use bl_constants_module
   use ml_layout_module
+  use define_bc_module
 
   implicit none
 
   private
+
   public :: scalar_advance
 
 contains
@@ -22,6 +16,11 @@ contains
   subroutine scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
                             ext_scal_force,dx,dt,the_bc_level,diff_coef,verbose, &
                             use_godunov_debug,use_minion)
+
+    use mkflux_module
+    use mkforce_module
+    use update_module
+    use bl_constants_module
 
     integer        , intent(in   ) :: nlevs
     type(ml_layout), intent(inout) :: mla

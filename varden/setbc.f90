@@ -1,18 +1,20 @@
 module setbc_module
 
   use bl_types
-  use bl_constants_module
-  use bc_module
-  use inlet_bc
 
   implicit none
 
   private
+
   public :: setbc_2d, setbc_3d
 
 contains
 
   subroutine setbc_2d(s,lo,ng,bc,dx,icomp)
+
+    use bl_constants_module
+    use bc_module
+    use inlet_bc
 
     integer        , intent(in   ) :: lo(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:,lo(2)-ng:)
@@ -161,6 +163,10 @@ contains
   end subroutine setbc_2d
 
   subroutine setbc_3d(s,lo,ng,bc,dx,icomp)
+
+    use bl_constants_module
+    use bc_module
+    use inlet_bc
 
     integer        , intent(in   ) :: lo(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:)

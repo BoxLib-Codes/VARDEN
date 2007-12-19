@@ -1,23 +1,22 @@
 module velpred_module
 
   use bl_types
-  use bl_constants_module
   use multifab_module
-  use slope_module
   use define_bc_module
-  use bc_module
   use ml_layout_module
-  use ml_restriction_module
 
   implicit none
 
   private
+
   public :: velpred
 
 contains
 
   subroutine velpred(nlevs,u,umac,force,dx,dt,the_bc_level,use_minion, &
                      use_godunov_debug,mla)
+
+    use ml_restriction_module, only: ml_edge_restriction
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(in   ) :: u(:)
@@ -108,6 +107,10 @@ contains
 
 
   subroutine velpred_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+
+    use bc_module
+    use slope_module
+    use bl_constants_module
 
     integer         ,intent(in) :: lo(2)
     integer         ,intent(in) :: ng
@@ -492,6 +495,10 @@ contains
 
   subroutine velpred_debug_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
 
+    use bc_module
+    use slope_module
+    use bl_constants_module
+
     integer         ,intent(in) :: lo(2)
     integer         ,intent(in) :: ng
 
@@ -819,6 +826,10 @@ contains
 
 
   subroutine velpred_debug_3d(u, umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+
+    use bc_module
+    use slope_module
+    use bl_constants_module
 
     integer         ,intent(in) :: lo(3)
     integer         ,intent(in) :: ng
@@ -1661,6 +1672,10 @@ contains
 
 
   subroutine velpred_3d(u,umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+
+    use bc_module
+    use slope_module
+    use bl_constants_module
 
     integer         ,intent(in) :: lo(3)
     integer         ,intent(in) :: ng

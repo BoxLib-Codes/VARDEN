@@ -1,24 +1,22 @@
 module mkflux_module
 
   use bl_types
-  use bl_constants_module
   use multifab_module
-  use slope_module
-  use bc_module
-  use define_bc_module
-  use setbc_module
-  use ml_restriction_module
   use ml_layout_module
+  use define_bc_module
 
   implicit none
 
   private
+
   public :: mkflux
 
 contains
 
   subroutine mkflux(nlevs,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level,mla, &
                     is_vel,use_minion,is_conservative,use_godunov_debug)
+
+    use ml_restriction_module, only: ml_edge_restriction_c
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(in   ) :: sold(:)
@@ -145,6 +143,10 @@ contains
 
   subroutine mkflux_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt,is_vel, &
                        phys_bc,adv_bc,ng,use_minion,is_conservative)
+
+    use bc_module
+    use slope_module
+    use bl_constants_module
 
     integer, intent(in) :: lo(:),ng
 
@@ -623,6 +625,10 @@ contains
   subroutine mkflux_debug_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt, &
                              is_vel,phys_bc,adv_bc,ng,use_minion,is_conservative)
 
+    use bc_module
+    use slope_module
+    use bl_constants_module
+
     integer, intent(in) :: lo(:),ng
 
     real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
@@ -1058,6 +1064,10 @@ contains
 
   subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac,force, &
                        divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,use_minion,is_conservative)
+
+    use bc_module
+    use slope_module
+    use bl_constants_module
 
     integer, intent(in) :: lo(:),ng
 
@@ -2193,6 +2203,9 @@ contains
   subroutine mkflux_debug_3d(s,u,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac, &
                              force,divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,use_minion, &
                              is_conservative)
+    use bc_module
+    use slope_module
+    use bl_constants_module
 
     integer, intent(in) :: lo(:),ng
 

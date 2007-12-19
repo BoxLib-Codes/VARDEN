@@ -1,24 +1,23 @@
 module checkpoint_module
 
-  use bl_error_module
-  use bl_string_module
-  use bl_IO_module
   use bl_types
-  use fab_module
-  use fabio_module
-  use boxarray_module
-  use ml_boxarray_module
   use multifab_module
-  use parallel
 
   implicit none
 
   private
+
   public :: checkpoint_write, checkpoint_read
 
 contains
 
   subroutine checkpoint_write(dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in, verbose)
+
+    use bl_IO_module
+    use fab_module
+    use fabio_module
+    use parallel
+
     type(multifab), intent(in) :: mfs(:), mfs_nodal(:)
     integer        , intent(in) :: rrs(:,:)
     real(kind=dp_t), intent(in) :: dx(:,:)
@@ -88,7 +87,12 @@ contains
   end subroutine checkpoint_write
 
   subroutine checkpoint_read(mfs, mfs_nodal, dirname, time_out, dt_out, nlevs_out)
+
     use bl_IO_module
+    use fab_module
+    use fabio_module
+    use parallel
+
     type(multifab  ),                pointer :: mfs(:), mfs_nodal(:)
     character(len=*), intent(in   )          :: dirname
     integer         , intent(  out)          :: nlevs_out

@@ -6,6 +6,7 @@ module mkforce_module
   implicit none
 
   private
+
   public :: mkvelforce, mkscalforce
 
 contains

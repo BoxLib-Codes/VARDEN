@@ -1,9 +1,7 @@
 module slope_module
 
   use bl_types
-  use bl_constants_module
-  use bc_module
-  use multifab_module
+
 
   implicit none
 
@@ -13,6 +11,9 @@ module slope_module
 contains
 
   subroutine slopex_2d(s,slx,lo,ng,nvar,bc,slope_order)
+
+    use bc_module
+    use bl_constants_module
 
     integer        , intent(in   ) :: lo(2),ng,nvar
     real(kind=dp_t), intent(in   ) ::   s(lo(1)-ng:, lo(2)-ng:,:)
@@ -24,16 +25,10 @@ contains
     integer :: hi(2)
     integer :: is,js,ie,je
     integer :: i,j,iv
-    integer :: cen,lim,flag,fromm
+    integer, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
     real(kind=dp_t) del,slim,sflag
     real(kind=dp_t) dpls,dmin,ds
-
     real(kind=dp_t), allocatable :: dxscr(:,:)
-
-    parameter( cen = 1 )
-    parameter( lim = 2 )
-    parameter( flag = 3 )
-    parameter( fromm = 4 )
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
@@ -169,6 +164,8 @@ contains
 
   subroutine slopey_2d(s,sly,lo,ng,nvar,bc,slope_order)
 
+    use bc_module
+    use bl_constants_module
 
     integer, intent(in) :: lo(:),ng,nvar
     integer, intent(in) :: bc(:,:,:)
@@ -183,11 +180,7 @@ contains
     integer :: hi(2)
     integer :: is,js,ie,je,i,j,iv
 
-    integer cen,lim,flag,fromm
-    parameter( cen = 1 )
-    parameter( lim = 2 )
-    parameter( flag = 3 )
-    parameter( fromm = 4 )
+    integer, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
@@ -327,6 +320,9 @@ contains
 
   subroutine slopez_3d(s,slz,lo,ng,nvar,bc,slope_order)
 
+    use bc_module
+    use bl_constants_module
+
     integer, intent(in) :: lo(:),ng,nvar
     integer, intent(in) :: bc(:,:,:)
     integer, intent(in) :: slope_order
@@ -340,11 +336,7 @@ contains
     integer :: hi(3)
     integer :: is,js,ks,ie,je,ke,i,j,k,iv
 
-    integer cen,lim,flag,fromm
-    parameter( cen = 1 )
-    parameter( lim = 2 )
-    parameter( flag = 3 )
-    parameter( fromm = 4 )
+    integer, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
