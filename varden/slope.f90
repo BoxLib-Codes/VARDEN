@@ -2,11 +2,13 @@ module slope_module
 
   use bl_types
 
-
   implicit none
 
   private
+
   public :: slopex_2d, slopey_2d, slopez_3d
+
+  integer, private, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
 
 contains
 
@@ -25,7 +27,7 @@ contains
     integer :: hi(2)
     integer :: is,js,ie,je
     integer :: i,j,iv
-    integer, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
+
     real(kind=dp_t) del,slim,sflag
     real(kind=dp_t) dpls,dmin,ds
     real(kind=dp_t), allocatable :: dxscr(:,:)
@@ -180,8 +182,6 @@ contains
     integer :: hi(2)
     integer :: is,js,ie,je,i,j,iv
 
-    integer, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
-
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
 
@@ -335,8 +335,6 @@ contains
     real(kind=dp_t) :: del,slim,sflag
     integer :: hi(3)
     integer :: is,js,ks,ie,je,ke,i,j,k,iv
-
-    integer, parameter :: cen = 1, lim = 2, flag = 3, fromm = 4
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
