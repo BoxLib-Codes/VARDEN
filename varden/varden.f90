@@ -559,6 +559,16 @@ subroutine varden()
 
      do istep = init_step, max_step
 
+        if ( verbose > 0 ) then
+           call print(multifab_mem_stats(),    "    multifab", total=.false.)
+           call print(lmultifab_mem_stats(),   "   lmultifab", total=.false.)
+           call print(imultifab_mem_stats(),   "   imultifab", total=.false.)
+           call print(boxarray_mem_stats(),    "    boxarray", total=.false.)
+           call print(ml_boxarray_mem_stats(), " ml_boxarray", total=.false.) 
+           call print(boxassoc_mem_stats(),    "    boxassoc", total=.false.)
+           if ( parallel_IOProcessor() ) print*, ''
+        end if
+
         if (nlevs > 1 .and. regrid_int > 0) then
 
            if (mod(istep-1,regrid_int) .eq. 0) then
