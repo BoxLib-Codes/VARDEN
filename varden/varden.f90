@@ -560,12 +560,19 @@ subroutine varden()
      do istep = init_step, max_step
 
         if ( verbose > 0 ) then
-           call print(multifab_mem_stats(),    "    multifab", total=.false.)
-           call print(lmultifab_mem_stats(),   "   lmultifab", total=.false.)
-           call print(imultifab_mem_stats(),   "   imultifab", total=.false.)
-           call print(boxarray_mem_stats(),    "    boxarray", total=.false.)
-           call print(ml_boxarray_mem_stats(), " ml_boxarray", total=.false.) 
-           call print(boxassoc_mem_stats(),    "    boxassoc", total=.false.)
+           if ( parallel_IOProcessor() ) then
+              print *, 'MEMORY STATS AT START OF TIMESTEP ', istep
+              print*, ' '
+           end if
+           call print(multifab_mem_stats(),    "    multifab")
+           call print(fab_mem_stats(),         "         fab")
+           call print(boxarray_mem_stats(),    "    boxarray")
+           call print(layout_mem_stats(),      "      layout")
+           call print(boxassoc_mem_stats(),    "    boxassoc")
+           call print(fgassoc_mem_stats(),     "     fgassoc")
+           call print(syncassoc_mem_stats(),   "   syncassoc")
+           call print(copyassoc_mem_stats(),   "   copyassoc")
+           call print(fluxassoc_mem_stats(),   "   fluxassoc")
            if ( parallel_IOProcessor() ) print*, ''
         end if
 
