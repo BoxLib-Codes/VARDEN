@@ -265,6 +265,12 @@ subroutine varden()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (restart >= 0) then
+     n_chk_comps = 2*dm + nscal
+     allocate(chkdata(nlevs),chk_p(nlevs))
+     do n = 1,nlevs
+        call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
+        call multifab_build(  chk_p(n), mla%la(n), n_chk_comps, 0)
+     end do
      call fill_restart_data(restart,mba,chkdata,chk_p,time,dt)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mba%nlevel
@@ -313,8 +319,6 @@ subroutine varden()
   allocate(uedge(nlevs,dm),sedge(nlevs,dm))
   allocate(uflux(nlevs,dm),sflux(nlevs,dm))
   allocate(rhohalf(nlevs))
-
-  allocate(plotdata(nlevs),chkdata(nlevs))
 
   call make_temps(mla)
 
@@ -800,8 +804,6 @@ subroutine varden()
   call destroy(mla)
   call destroy(mba)
 
-  deallocate(chkdata)
-
 contains
 
   subroutine make_new_state(mla_loc,uold_loc,sold_loc,gp_loc,p_loc)
@@ -876,16 +878,6 @@ contains
 
     end do
 
-    n_plot_comps = 2*dm + nscal + 1
-    do n = 1,nlevs
-       call multifab_build(plotdata(n), mla_loc%la(n), n_plot_comps, 0)
-    end do
-
-    n_chk_comps = 2*dm + nscal
-    do n = 1,nlevs
-       call multifab_build(chkdata(n), mla_loc%la(n), n_chk_comps, 0)
-    end do
-
   end subroutine make_temps
 
   subroutine delete_temps()
@@ -909,8 +901,6 @@ contains
           call multifab_destroy(sflux(n,i))
        end do
        call multifab_destroy(rhohalf(n))
-       call multifab_destroy(plotdata(n))
-       call multifab_destroy(chkdata(n))
     end do
 
   end subroutine delete_temps
@@ -1030,8 +1020,13 @@ contains
   subroutine write_plotfile(istep_to_write)
 
     integer, intent(in   ) :: istep_to_write
+    integer                :: n,n_plot_comps
+
+    allocate(plotdata(nlevs))
+    n_plot_comps = 2*dm + nscal + 1
 
     do n = 1,nlevs
+       call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
        call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
        call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
 
@@ -1045,13 +1040,21 @@ contains
     call fabio_ml_multifab_write_d(plotdata, mba%rr(:,1), sd_name, plot_names, &
          mba%pd(1), time, dx(1,:))
 
+    do n = 1,nlevs
+      call multifab_destroy(plotdata(n))
+    end do
+    deallocate(plotdata)
+
   end subroutine write_plotfile
 
   subroutine write_checkfile(istep_to_write)
 
     integer, intent(in   ) :: istep_to_write
 
+    allocate(chkdata(nlevs))
+    n_chk_comps = 2*dm + nscal
     do n = 1,nlevs
+       call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
        call multifab_copy_c(chkdata(n),1         ,uold(n),1,dm)
        call multifab_copy_c(chkdata(n),1+dm      ,sold(n),1,nscal)
        call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
@@ -1059,6 +1062,11 @@ contains
     write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
 
     call checkpoint_write(sd_name, chkdata, p, mba%rr, dx, time, dt, verbose)
+
+    do n = 1,nlevs
+       call multifab_destroy(chkdata(n))
+    end do
+    deallocate(chkdata)
 
   end subroutine write_checkfile
 
