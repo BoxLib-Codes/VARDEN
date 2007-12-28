@@ -24,3 +24,4 @@ f90sources += varden.f90
 f90sources += velocity_advance.f90  
 f90sources += velpred.f90
 f90sources += viscsolve.f90
+f90sources += main.f90
