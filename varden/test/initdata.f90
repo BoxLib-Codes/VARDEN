@@ -20,6 +20,8 @@ contains
 
   subroutine initdata(nlevs,u,s,dx,prob_hi,bc,nscal,mla)
 
+    use multifab_physbc_module
+
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: u(:),s(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:)
