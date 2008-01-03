@@ -777,9 +777,9 @@ subroutine varden()
            end if
         end if
 
-        if (stop_time >= 0.d0) then
-           if (time >= stop_time) goto 999
-        end if
+        call print_and_reset_fab_byte_spread()
+
+        if (stop_time >= 0.d0 .and. time >= stop_time) goto 999
 
      end do ! end do istep = init_step,max_step
 
