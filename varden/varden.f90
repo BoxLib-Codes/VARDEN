@@ -447,8 +447,8 @@ subroutine varden()
            call multifab_fill_boundary(sold(n))
 
            bc = the_bc_tower%bc_tower_array(n)
-           call multifab_physbc(uold_rg(n),1,1,   dm,   dx(n,:),bc)
-           call multifab_physbc(sold_rg(n),1,dm+1,nscal,dx(n,:),bc)
+           call multifab_physbc(uold_rg(n),1,1,   dm,   bc)
+           call multifab_physbc(sold_rg(n),1,dm+1,nscal,bc)
         end do
 
      end if
@@ -501,8 +501,8 @@ subroutine varden()
      call multifab_fill_boundary(sold(n))
 
      bc = the_bc_tower%bc_tower_array(n)
-     call multifab_physbc(uold(n),1,1,   dm,   dx(n,:),bc)
-     call multifab_physbc(sold(n),1,dm+1,nscal,dx(n,:),bc)
+     call multifab_physbc(uold(n),1,1,   dm,   bc)
+     call multifab_physbc(sold(n),1,dm+1,nscal,bc)
 
      !    This is done to impose any Dirichlet bc's on unew or snew.
      call multifab_copy_c(unew(n),1,uold(n),1,dm   ,ng=unew(n)%ng)
@@ -628,8 +628,8 @@ subroutine varden()
                  call multifab_fill_boundary(sold(n))
 
                  bc = the_bc_tower%bc_tower_array(n)
-                 call multifab_physbc(uold(n),1,1,   dm,   dx(n,:),bc)
-                 call multifab_physbc(sold(n),1,dm+1,nscal,dx(n,:),bc)
+                 call multifab_physbc(uold(n),1,1,   dm,   bc)
+                 call multifab_physbc(sold(n),1,dm+1,nscal,bc)
               end do
 
               call make_temps(mla_new)

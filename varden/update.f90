@@ -101,13 +101,13 @@ contains
           call multifab_fill_boundary(snew(n))
           call multifab_fill_boundary(rhohalf(n))
 
-          call multifab_physbc(snew(n)   ,1,dm+1,nscal,dx(n,:),the_bc_level(n))
-          call multifab_physbc(rhohalf(n),1,dm+1,    1,dx(n,:),the_bc_level(n))
+          call multifab_physbc(snew(n)   ,1,dm+1,nscal,the_bc_level(n))
+          call multifab_physbc(rhohalf(n),1,dm+1,    1,the_bc_level(n))
 
        else if (is_vel) then
 
           call multifab_fill_boundary(snew(n))
-          call multifab_physbc(snew(n),1,1,dm,dx(n,:),the_bc_level(n))
+          call multifab_physbc(snew(n),1,1,dm,the_bc_level(n))
 
        end if
 

@@ -10,7 +10,7 @@ module setbc_module
 
 contains
 
-  subroutine setbc_2d(s,lo,ng,bc,dx,icomp)
+  subroutine setbc_2d(s,lo,ng,bc,icomp)
 
     use bl_constants_module
     use bc_module
@@ -19,7 +19,6 @@ contains
     integer        , intent(in   ) :: lo(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:,lo(2)-ng:)
     integer        , intent(in   ) :: bc(:,:)
-    real(kind=dp_t), intent(in   ) :: dx(:)
     integer        , intent(in   ) :: icomp
 
     ! Local variables
@@ -162,7 +161,7 @@ contains
 
   end subroutine setbc_2d
 
-  subroutine setbc_3d(s,lo,ng,bc,dx,icomp)
+  subroutine setbc_3d(s,lo,ng,bc,icomp)
 
     use bl_constants_module
     use bc_module
@@ -171,7 +170,6 @@ contains
     integer        , intent(in   ) :: lo(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:)
     integer        , intent(in   ) :: bc(:,:)
-    real(kind=dp_t), intent(in   ) :: dx(:)
     integer        , intent(in   ) :: icomp
 
     ! Local variables

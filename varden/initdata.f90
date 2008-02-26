@@ -56,8 +56,8 @@ contains
        call multifab_fill_boundary(u(n))
        call multifab_fill_boundary(s(n))
 
-       call multifab_physbc(u(n),1,1,   dm,   dx(n,:),bc(n))
-       call multifab_physbc(s(n),1,dm+1,nscal,dx(n,:),bc(n))
+       call multifab_physbc(u(n),1,1,   dm,   bc(n))
+       call multifab_physbc(s(n),1,dm+1,nscal,bc(n))
 
     enddo
 
