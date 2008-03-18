@@ -89,7 +89,6 @@ subroutine varden()
   type(multifab), allocatable :: plotdata(:)
   type(multifab), pointer     ::  chkdata(:)
   type(multifab), pointer     ::    chk_p(:)
-  type(multifab), pointer     :: p_temp(:)
 
   ! Regridding quantities
   type(multifab), allocatable ::   uold_rg(:)
@@ -1272,30 +1271,23 @@ contains
   subroutine write_checkfile(istep_to_write)
 
     integer, intent(in   ) :: istep_to_write
-    type(multifab), allocatable :: p_temp(:)
 
     allocate(chkdata(nlevs))
-    allocate(p_temp(nlevs))
     n_chk_comps = 2*dm + nscal
     do n = 1,nlevs
-       call multifab_build(p_temp(n),  mla%la(n), 1, ng_grow, nodal)
        call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
        call multifab_copy_c(chkdata(n),1         ,uold(n),1,dm)
        call multifab_copy_c(chkdata(n),1+dm      ,sold(n),1,nscal)
        call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
-       call multifab_copy_c(p_temp(n), 1, p(n),1,1)
     end do
     write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
 
-! uses size(p) which is max_levs.  need to fix
-    call checkpoint_write(sd_name, chkdata, p_temp, mla%mba%rr, dx, time, dt, verbose)
+    call checkpoint_write(nlevs, sd_name, chkdata, p, mla%mba%rr, dx, time, dt, verbose)
 
     do n = 1,nlevs
        call multifab_destroy(chkdata(n))
-       call multifab_destroy(p_temp(n))
     end do
     deallocate(chkdata)
-    deallocate(p_temp)
 
   end subroutine write_checkfile
 

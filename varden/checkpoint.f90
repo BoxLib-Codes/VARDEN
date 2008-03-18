@@ -11,22 +11,23 @@ module checkpoint_module
 
 contains
 
-  subroutine checkpoint_write(dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in, verbose)
+  subroutine checkpoint_write(nlevs_in, dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in, verbose)
 
     use bl_IO_module
     use fab_module
     use fabio_module
     use parallel
 
+    integer       , intent(in) :: nlevs_in
     type(multifab), intent(in) :: mfs(:), mfs_nodal(:)
-    integer        , intent(in) :: rrs(:,:)
+    integer       , intent(in) :: rrs(:,:)
     real(kind=dp_t), intent(in) :: dx(:,:)
     character(len=*), intent(in) :: dirname
     real(kind=dp_t), intent(in) :: time_in, dt_in
     integer        , intent(in) :: verbose
     integer :: i, j, k, n
     character(len=128) :: header, sd_name, sd_name_nodal
-    integer :: nc, un, nl, dm
+    integer :: nc, un, dm
     integer, allocatable ::  lo(:),  hi(:)
     integer :: idummy, rdummy
     type(box) :: lbbox
@@ -54,7 +55,6 @@ contains
       print *,' '
     end if
     
-    nl = size(mfs)
     nc = ncomp(mfs(1))
     dm = mfs(1)%dim
     allocate(lo(dm),hi(dm))
@@ -73,7 +73,7 @@ contains
          file = trim(dirname) // "/" // trim(header), &
          form = "formatted", access = "sequential", &
          status = "replace", action = "write")
-    nlevs = size(mfs)
+    nlevs = nlevs_in
     write(unit=un, nml = chkpoint)
     do n = 1,nlevs
        write(unit=un,fmt=*) dx(n,1), dx(n,2)
