@@ -125,8 +125,10 @@ subroutine varden()
   type(boxarray)  :: ba
   type(box), allocatable :: bxs(:)
   integer, allocatable  :: rr(:,:)
-  integer  :: nl, max_levs
+  integer  :: nl, max_levs, buff
   logical  :: new_grid
+!delete
+  integer :: c
 
   type(bc_tower) ::  the_bc_tower
   type(bc_level) ::  bc
@@ -184,9 +186,9 @@ subroutine varden()
   ! Defaults
   max_step  = 1
   init_iter = 4
-  plot_int  = 0
-  regrid_int  = 0
-  chk_int  = 0
+  plot_int  = 5
+  regrid_int  = -1
+  chk_int  = 50
 
   init_shrink = 1.0
   fixed_dt = -1.0
@@ -266,6 +268,11 @@ subroutine varden()
      rr(n,:) = ref_ratio
   enddo
 
+  max_levs = nlevs
+! set up the not properly nested buffer to be two coarse cells, ie we buffer the fine
+! grid with ref_ratio cells
+  buff = 2
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Set up plot_names for writing plot files.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -283,6 +290,23 @@ subroutine varden()
   if (dm > 2) plot_names(dm+nscal+4) = "gpz"
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Allocate state and temp variables
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! nlevs = max_levs here
+
+  allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
+  allocate(lapu(nlevs),laps(nlevs))
+  allocate(phi(nlevs),Lphi(nlevs))
+  allocate(alpha(nlevs),beta(nlevs))
+  allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
+
+  allocate(unew(nlevs),snew(nlevs))
+  allocate(umac(nlevs,dm))
+  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
+  allocate(uflux(nlevs,dm),sflux(nlevs,dm))
+  allocate(rhohalf(nlevs))
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize the arrays and read the restart data if restart >= 0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -290,10 +314,10 @@ subroutine varden()
   if (restart >= 0) then
      n_chk_comps = 2*dm + nscal
      allocate(chkdata(nlevs),chk_p(nlevs))
-     do n = 1,nlevs
-        call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
-        call multifab_build(  chk_p(n), mla%la(n), n_chk_comps, 0)
-     end do
+!    do n = 1,nlevs
+!       call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
+!       call multifab_build(  chk_p(n), mla%la(n), n_chk_comps, 0)
+!    end do
      call fill_restart_data(restart,mba,chkdata,chk_p,time,dt)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mba%nlevel
@@ -313,20 +337,22 @@ subroutine varden()
         call multifab_destroy(chk_p(n))
      end do
      deallocate(chkdata,chk_p)
+     if (regrid_int > 0) then
+        call build(mla_temp,mla%mba, pmask)
+        do n = 1, mla_temp%nlevel
+           call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),gp_rg(n),p_rg(n))
+        enddo
+     endif
 ! Read the grid info from the file indicated, fixed grid option
   else if (fixed_grids /= '') then
      call read_a_hgproj_grid(mba, fixed_grids)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mla%nlevel
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
-     do n = 1,nlevs
-        call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
-     enddo
 
 ! Adaptive gridding
   else 
-     max_levs = nlevs
-
+     
      ! set up hi & lo to carry indexing info
      allocate(lo(dm),hi(dm))
      allocate(n_cell(dm))
@@ -358,7 +384,6 @@ subroutine varden()
      call box_build_2(bxs(1),lo,hi)
      call boxarray_build_bx(mba%bas(1),bxs(1))
 
-! Ask Ann: ok to build to max_levs or not?
      do n = 2, max_levs
         call box_build_2(bxs(n),lo,lo)
         call boxarray_build_bx(mba%bas(n),bxs(n))
@@ -373,25 +398,7 @@ subroutine varden()
      ! Build the level 1 layout, has correct la, bas, pd, pmask
      ! higher levels are empty
      call ml_layout_build(mla,mba,pmask)
-
   end if
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! Allocate state and temp variables
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! nlevs = max_levs here
-
-  allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
-  allocate(lapu(nlevs),laps(nlevs))
-  allocate(phi(nlevs),Lphi(nlevs))
-  allocate(alpha(nlevs),beta(nlevs))
-  allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
-
-  allocate(unew(nlevs),snew(nlevs))
-  allocate(umac(nlevs,dm))
-  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
-  allocate(uflux(nlevs,dm),sflux(nlevs,dm))
-  allocate(rhohalf(nlevs))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize dx, prob_hi, lo, hi
@@ -472,6 +479,9 @@ subroutine varden()
              prob_hi,the_bc_tower%bc_tower_array(1),nscal,mla%la(1))
 
      else 
+        do n = 1,nlevs
+           call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
+        enddo
         call initdata(nlevs,uold,sold,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
 
      end if
@@ -485,9 +495,11 @@ subroutine varden()
 
 ! these all used the data in the old mla that got destroyed, need to rebuild
 
-     do nl = 1, max_levs-1
+     new_grid = .true.
+     nl = 1
+     do while ( (nl .lt. max_levs) .and. (new_grid) )
         ! could use n_error_buf (if i wanted to set it) instead of regrid_int 
-        call make_new_grids(mla,mla_new,sold(nl),dx(nl,1),regrid_int,rr,&
+2002    call make_new_grids(mla,mla_new,sold(nl),dx(nl,1),3,rr,&
              nl,new_grid)     
         
         if (new_grid) then
@@ -501,6 +513,43 @@ subroutine varden()
             call destroy(mla)
             call ml_layout_build(mla, mla_new%mba, pmask)
             call destroy(mla_new)
+
+! check for proper nesting
+            if (.not. ml_boxarray_properly_nested(mla%mba)) then
+write(*,*)'not properly nested'
+               call buffer(nl,mla,buff)
+
+               do n = nl, 3, -1
+
+                  call boxarray_build_copy(ba, mla%mba%bas(n))
+                  call boxarray_coarsen(ba, mla%mba%rr(n-1,:))
+                  call boxarray_diff(ba, mla%mba%bas(n-1))
+                  call boxarray_intersection(ba, mla%mba%pd(n-1))
+                  if ( .not. empty(ba) ) then
+                     call boxarray_destroy(ba)
+! buffer the cells, currently buffering with 1 coarse level grid
+! replaces mla with new, expanded mla
+                     call buffer(n-1,mla,buff)
+                  else 
+                     call destroy(ba)
+                  endif
+               enddo
+              
+               do n = 1,mla%nlevel
+                  call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
+               enddo
+
+               call bc_tower_destroy(the_bc_tower)
+               call bc_tower_build(the_bc_tower,mla,domain_phys_bc,domain_box,nscal)
+            
+               call initdata(mla%nlevel,uold,sold,dx,prob_hi,&
+                    the_bc_tower%bc_tower_array,nscal,mla)
+               
+               nlevs = mla%nlevel
+               nl = mla%nlevel
+
+               goto 2002
+            endif  !if not properly nested
 
             do n = 1,nl+1
                call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
@@ -520,20 +569,21 @@ subroutine varden()
 ! onto the coarse grid.  not worrying about this right now
 
             nlevs = nl+1
+            nl = nl + 1
      
          else 
             if (nl .eq. 1) then
 
-               call destroy(sold(n))
-               call destroy(uold(n))
-               call destroy(gp(n))
-               call destroy(p(n))
+               call destroy(sold(1))
+               call destroy(uold(1))
+               call destroy(gp(1))
+               call destroy(p(1))
                            
                call destroy(mla)
                call ml_layout_build(mla, mla_new%mba, pmask)
                call destroy(mla_new)
                
-               call delete_state(uold,sold,gp,p)
+            !   call delete_state(uold,sold,gp,p)
                call make_new_state(mla%la(1),uold(1),sold(1),gp(1),p(1))
                
                call bc_tower_destroy(the_bc_tower)
@@ -552,28 +602,10 @@ subroutine varden()
                goto 2000
             endif
          endif
-      enddo
-          
-! check for proper nesting
-2000 write(*,*)'checking nesting'
-      if(.not. ml_boxarray_properly_nested(mla%mba)) then
-   write(*,*) 'not properly nested'
-         do n = nlevs, 3, -1
-            call boxarray_build_copy(ba, mla%mba%bas(n))
-            call boxarray_coarsen(ba, mla%mba%rr(n-1,:))
-            call boxarray_diff(ba, mla%mba%bas(n-1))
-            call boxarray_intersection(ba, mla%mba%pd(n-1))
-            if ( .not. empty(ba) ) then
-               call boxarray_destroy(ba)
-! buffer the cells
-               
-            end if
-         enddo
-      endif
-      
+      enddo          
 
 ! not sure we need to fill the bdry and apply phys bc inside the loop
- do n = 1,nlevs
+2000  do n = 1,nlevs
          call multifab_fill_boundary(uold(n))
          call multifab_fill_boundary(sold(n))
          
@@ -586,10 +618,6 @@ subroutine varden()
       do n = 1,nlevs
          call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),gp_rg(n),p_rg(n))
       enddo
-      
-
-      write(*,*)'mla ready to go'
-      call print(mla)
    end if
 
 ! initialize rhohalf, etc.
@@ -716,27 +744,91 @@ subroutine varden()
 ! only give sold_rg data, since this is the only thing needed for regridding
               call multifab_copy_c(sold_rg(1),1,sold(1),1)              
 
-              do nl = 1, (max_levs-1)
-
+              new_grid = .true.
+              nl = 1
+              do while ( (nl .lt. max_levs) .and. (new_grid) )
 ! assume same step in all spatial directions
 ! make level n+1 grid from sold
-                 call make_new_grids(mla_temp,mla_new,sold_rg(nl),dx(nl,1),&
-                      regrid_int,rr,nl,new_grid)
+2003                 call make_new_grids(mla_temp,mla_new,sold_rg(nl),dx(nl,1),&
+                          6,rr,nl,new_grid)
 
                  if (new_grid) then
+
+                    call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
+
                     call destroy(mla_temp)
-                    call ml_layout_build(mla_temp, mla_new%mba, pmask)
+                    call ml_layout_build(mla_temp,mla_new%mba,pmask)
                     call destroy(mla_new)
+
+! check for proper nesting
+                    if (.not. ml_boxarray_properly_nested(mla_temp%mba)) then
+
+                       call buffer(nl,mla_temp,buff)
+
+                       do n = nl, 3, -1
+
+                          call boxarray_build_copy(ba, mla_temp%mba%bas(n))
+                          call boxarray_coarsen(ba, mla_temp%mba%rr(n-1,:))
+                          call boxarray_diff(ba, mla_temp%mba%bas(n-1))
+                          call boxarray_intersection(ba, mla_temp%mba%pd(n-1))
+                          if ( .not. empty(ba) ) then
+                             call boxarray_destroy(ba)
+! buffer the cells, currently buffering with 1 coarse level grid
+! replaces mla with new, expanded mla
+                             call buffer(n-1,mla_temp,buff)
+                          else 
+                             call destroy(ba)
+                             goto 2005 !check this
+                          endif
+                       enddo
+              
+2005                   do n = 1,mla_temp%nlevel
+                          call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),&
+                               gp_rg(n),p_rg(n))
+                       enddo
+
+                       call bc_tower_destroy(the_bc_tower)
+                       call bc_tower_build(the_bc_tower,mla_temp,&
+                            domain_phys_bc,domain_box,nscal)
+            
+                       nlevs = mla_temp%nlevel
+                       nl = mla_temp%nlevel
+ 
+                       do n = 2, nl
+                         call fillpatch(uold_rg(n),uold(n-1), &
+                               ng_cell,mla_temp%mba%rr(n-1,:), &
+                               the_bc_tower%bc_tower_array(n-1), &
+                               the_bc_tower%bc_tower_array(n  ), &
+                               1,1,1,dm)
+                          call fillpatch(sold_rg(n),sold(n-1), &
+                               ng_cell,mla_temp%mba%rr(n-1,:), &
+                               the_bc_tower%bc_tower_array(n-1), &
+                               the_bc_tower%bc_tower_array(n  ), &
+                               1,1,dm+1,nscal)
+                          call fillpatch(gp_rg(n),gp(n-1), &
+                               ng_grow,mla_temp%mba%rr(n-1,:), &
+                               the_bc_tower%bc_tower_array(n-1), &
+                               the_bc_tower%bc_tower_array(n  ), &
+                               1,1,1,dm)
+                       end do
+                    
+                       do n = 1,nl
+                          call multifab_copy_c(uold_rg(n),1,uold(n),1,dm   )
+                          call multifab_copy_c(sold_rg(n),1,sold(n),1,nscal)
+                          call multifab_copy_c(gp_rg(n)  ,1,gp(n),  1,dm   )
+                          call multifab_copy_c(p_rg(n)   ,1,p(n),   1,1    )
+                       end do
+                   
+                       goto 2003
+                    endif  !if not properly nested
 
 ! Build the arrays for each grid from the domain_bc arrays.
                     call bc_tower_destroy(the_bc_tower)
                     call bc_tower_build(the_bc_tower,mla_temp,domain_phys_bc,&
                          domain_box,nscal)
 
-                    call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
 ! again, really only need sold for this.  not sure it's a good idea to carry
 ! the extra multifabs through this
-
                     do n = 1,nl+1
                        call make_new_state(mla_temp%la(n),uold_rg(n),&
                             sold_rg(n),gp_rg(n),p_rg(n))
@@ -777,25 +869,29 @@ subroutine varden()
                     endif
 
                     nlevs = nl+1
+                    nl = nl + 1
                  else 
-                    if (nl == 1) then
+                    
+                    if (nl .eq. 1) then
+                                              
+                       call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
+
                        call destroy(mla_temp)
-                       call ml_layout_build(mla_temp, mla_new%mba, pmask)
+                       call ml_layout_build(mla_temp,mla_new%mba,pmask)
                        call destroy(mla_new)
 
+                       call make_new_state(mla_temp%la(1),uold_rg(1),sold_rg(1),&
+                            gp_rg(1),p_rg(1))
+                       
                        call bc_tower_destroy(the_bc_tower)
-                       call bc_tower_build(the_bc_tower,mla_temp,domain_phys_bc,&
-                            domain_box,nscal)
-
-                       call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
-                       call make_new_state(mla_temp%la(1),uold_rg(1),&
-                            sold_rg(1),gp_rg(1),p_rg(1))
-                    
+                       call bc_tower_build(the_bc_tower,mla_temp,&
+                            domain_phys_bc,domain_box,nscal)                  
+     
                        call multifab_copy_c(uold_rg(1),1,uold(1),1,dm   )
                        call multifab_copy_c(sold_rg(1),1,sold(1),1,nscal)
                        call multifab_copy_c(gp_rg(1)  ,1,gp(1),  1,dm   )
                        call multifab_copy_c(p_rg(1)   ,1,p(1),   1,1    )
-                 
+                   
                        nlevs = 1
                        goto 2001
                     else
@@ -803,26 +899,25 @@ subroutine varden()
                        goto 2001
                     endif
                  endif
-              enddo
-             
-! check for proper nesting
+              enddo !while nl < max_lev
 
-2001          call destroy(mla)
+! not sure we need to fill the bdry and apply phys bc inside the loop
+2001          call delete_state(uold,sold,gp,p)
+
+              call destroy(mla)
               call build(mla,mla_temp%mba,pmask)
-
-              call delete_state(uold,sold,gp,p)
 
               do n = 1,nlevs
                  call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
               enddo
-
-              do nl = 1,nlevs
-                 call multifab_copy_c(uold(nl),1,uold_rg(nl),1,dm   )
-                 call multifab_copy_c(sold(nl),1,sold_rg(nl),1,nscal)
-                 call multifab_copy_c(gp(nl)  ,1,gp_rg(nl),  1,dm   )
-                 call multifab_copy_c(p(nl)   ,1,p_rg(nl),   1,1    )
+    
+              do n = 1,nlevs
+                 call multifab_copy_c(uold(n),1,uold_rg(n),1,dm   )
+                 call multifab_copy_c(sold(n),1,sold_rg(n),1,nscal)
+                 call multifab_copy_c(gp(n)  ,1,gp_rg(n),  1,dm   )
+                 call multifab_copy_c(p(n)   ,1,p_rg(n),   1,1    )
               end do
-
+              
               do n = 1,nlevs
                  call multifab_fill_boundary(uold(n))
                  call multifab_fill_boundary(sold(n))
@@ -831,12 +926,9 @@ subroutine varden()
                  call multifab_physbc(uold(n),1,1,   dm,   bc)
                  call multifab_physbc(sold(n),1,dm+1,nscal,bc)
               end do
-                   
-  write(*,*)'mla ready to go'
-  call print(mla)
-
+                                 
               call make_temps(mla)
-!              call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
+
            end if !  end if mod(istep-1,regrid_int) .eq. 0)
         end if  ! end if (nlevs > 1 .and. regrid_int > 0)
 
@@ -995,21 +1087,23 @@ subroutine varden()
      if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep)
 
   end if
-
-! since these states are made from _rg's, only need to delete those states
-!  call delete_state(uold,sold,gp,p)
-  call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
+  
   call delete_state(uold,sold,gp,p)
   call delete_temps()
+  if (regrid_int > 0 .and. max_levs > 1) then
+     call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
+  endif
 
   call bc_tower_destroy(the_bc_tower)
 
-! mla was made from mla_new, as long as mla_new gets detroyed, mla is taken
-! care of
   call destroy(mla)
-  call destroy(mla_temp)
+  if(regrid_int > 0 .and. max_levs > 1) then
+     call destroy(mla_temp)
+  endif
   call destroy(mba)
-  deallocate(bxs)
+  if (restart < 0 .and. regrid_int > 0) then
+     deallocate(bxs)
+  endif
 
  print *, 'MEMORY STATS AT END OF RUN '
  print*, ' '
