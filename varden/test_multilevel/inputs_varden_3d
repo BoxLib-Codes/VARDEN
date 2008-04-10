@@ -1,7 +1,16 @@
 &PROBIN
  dim_in = 3
- fixed_grids = "gr0_3d_2levels"
- !fixed_grids = "gr0_3d"
+
+!!!! Input for fixed grids !!!!
+! fixed_grids = "gr0_3d_2levels"
+ fixed_grids = "gr0_3d"
+
+!!!! Inputs for adaptive grids !!!!
+! nlevs = 3
+! n_cellx = 32
+! n_celly = 32
+! ref_ratio = 2
+! regrid_int = 1
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
