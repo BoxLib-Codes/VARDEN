@@ -290,23 +290,6 @@ subroutine varden()
   if (dm > 2) plot_names(dm+nscal+4) = "gpz"
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! Allocate state and temp variables
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! nlevs = max_levs here
-
-  allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
-  allocate(lapu(nlevs),laps(nlevs))
-  allocate(phi(nlevs),Lphi(nlevs))
-  allocate(alpha(nlevs),beta(nlevs))
-  allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
-
-  allocate(unew(nlevs),snew(nlevs))
-  allocate(umac(nlevs,dm))
-  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
-  allocate(uflux(nlevs,dm),sflux(nlevs,dm))
-  allocate(rhohalf(nlevs))
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize the arrays and read the restart data if restart >= 0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -399,6 +382,22 @@ subroutine varden()
      ! higher levels are empty
      call ml_layout_build(mla,mba,pmask)
   end if
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Allocate state and temp variables
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
+  allocate(lapu(nlevs),laps(nlevs))
+  allocate(phi(nlevs),Lphi(nlevs))
+  allocate(alpha(nlevs),beta(nlevs))
+  allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
+
+  allocate(unew(nlevs),snew(nlevs))
+  allocate(umac(nlevs,dm))
+  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
+  allocate(uflux(nlevs,dm),sflux(nlevs,dm))
+  allocate(rhohalf(nlevs))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize dx, prob_hi, lo, hi
