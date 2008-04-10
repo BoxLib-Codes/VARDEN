@@ -471,12 +471,12 @@ subroutine varden()
      dt      = 1.d20
      dt_temp = ONE
      if (regrid_int > 0) then
-        ! Build the level 1 data
+
+        ! Build the level 1 data only
         call make_new_state(mla%la(1),uold(1),sold(1),gp(1),p(1)) 
 
-        ! Initialize the level 1 data
-        call init_one_lev(1,uold(1),sold(1),dx(1,:),&
-             prob_hi,the_bc_tower%bc_tower_array(1),nscal,mla%la(1))
+        ! Initialize the level 1 data only
+        call initdata(1,uold,sold,dx,prob_hi,the_bc_tower%bc_tower_array,nscal,mla)
 
      else 
         do n = 1,nlevs

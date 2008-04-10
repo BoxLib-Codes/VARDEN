@@ -84,27 +84,42 @@ contains
 
     !     Local variables
     integer :: i, j
-
+    real (kind = dp_t)  :: x,y,dist
+    real (kind = dp_t)  :: xblob = 0.5d0, yblob = 0.5d0, densfact = 2.0d0
+    real (kind = dp_t)  :: blobrad = 0.1d0
+   
     do j=lo(2),hi(2)
        do i=lo(1),hi(1)
           u(i,j,1) = ZERO
-          u(i,j,2) = ONE
+          u(i,j,2) = ZERO
           s(i,j,1) = ONE
           s(i,j,2) = ZERO
        enddo
     enddo
 
     ! add a density perturbation
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,1) = TWO
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,1) = TWO
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,1) = TWO
+    do j=lo(2),hi(2)
+!       y = lo(2) + dx(2)*((j-lo(2)) + HALF)
+       y = dx(2)*(j + HALF)
+       do i=lo(1),hi(1)
+!          x = lo(1) + dx(1)*((i-lo(1)) + HALF)
+          x = dx(1)*((i) + HALF)
+          dist = SQRT((x-xblob)**2 + (y-yblob)**2)
+          s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+          s(i,j,2) = s(i,j,1)
+!          write(*,*) i,j,s(i,j,1), s(i,j,2)
+       enddo
+    enddo
 
     ! add a tracer perturbation
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = ONE
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = ONE
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,2) = ONE
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,2) = ONE
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = ONE
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = ONE
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,2) = ONE
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,2) = ONE
 
   end subroutine initdata_2d
 
