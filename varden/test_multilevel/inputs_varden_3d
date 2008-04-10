@@ -9,6 +9,7 @@
 ! nlevs = 3
 ! n_cellx = 32
 ! n_celly = 32
+! n_cellz = 32
 ! ref_ratio = 2
 ! regrid_int = 1
 
