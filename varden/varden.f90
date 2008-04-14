@@ -740,17 +740,16 @@ write(*,*)'not properly nested'
            if (mod(istep-1,regrid_int) .eq. 0) then
               call delete_temps()
 
-              ! fill bc's on sold before the copy
-              do n = 1,nlevs
-                 call multifab_fill_boundary(sold(n))
-                 bc = the_bc_tower%bc_tower_array(n)
-                 call multifab_physbc(sold(n),1,dm+1,nscal,bc)
-              end do
+              ! currently we only use component "1" of sold -- i.e. density -- 
+              !   for tagging cells for regridding
+              call multifab_copy_c(sold_rg(1),1,sold(1),1)
 
-              ! currently we only use sold for tagging cells for regridding
-              !   the first "1" is just one component
-              !   the second "1" is one ghost cell (so we can compute gradients)
-              call multifab_copy_c(sold_rg(1),1,sold(1),1,1,0)
+              ! fill bc's on sold_rg before tagging
+              do n = 1,nlevs
+                 call multifab_fill_boundary(sold_rg(n))
+                 bc = the_bc_tower%bc_tower_array(n)
+                 call multifab_physbc(sold_rg(n),1,dm+1,1,bc)
+              end do
 
               new_grid = .true.
               nl = 1
