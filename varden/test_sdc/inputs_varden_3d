@@ -1,0 +1,51 @@
+&PROBIN
+ dim_in = 3
+
+!!!! Input for fixed grids !!!!
+! fixed_grids = "gr0_3d_2levels"
+ fixed_grids = "gr0_3d"
+
+!!!! Inputs for adaptive grids !!!!
+! nlevs = 3
+! n_cellx = 32
+! n_celly = 32
+! n_cellz = 32
+! ref_ratio = 2
+! regrid_int = 1
+
+ prob_hi_x = 1.0
+ prob_hi_y = 1.0
+ prob_hi_z = 1.0
+
+ max_step  = 50
+ init_iter = 3
+
+ plot_int  = 5
+ chk_int   = 5
+
+ stop_time = 1000.0
+ cflfac = 0.9
+ init_shrink = 0.1
+
+ visc_coef = 0.01
+ diff_coef = 0.0
+
+ grav = -9.8d0
+
+ bcx_lo = -1
+ bcx_hi = -1
+ bcy_lo = -1
+ bcy_hi = -1
+ bcz_lo = 15
+ bcz_hi = 15
+
+ pmask_x = T
+ pmask_y = T
+ pmask_z = F
+
+ verbose = 0
+ mg_verbose = 0
+
+!restart = 1
+do_initial_projection = 1
+/
