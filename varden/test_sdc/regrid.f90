@@ -147,8 +147,8 @@ module regrid_module
       tagbox = .false.
       denerr = 0.007d0 
       denerr = 0.0035d0 
-            do j = lo(2)+1,lo(2)+ny-2
-               do i = lo(1)+1,lo(1)+nx-2
+            do j = lo(2),lo(2)+ny-1
+               do i = lo(1),lo(1)+nx-1
                   dgradx = 0.5d0*(mf(i+1,j)-mf(i-1,j))
                   dgrady = 0.5d0*(mf(i,j+1)-mf(i,j-1))
                   gradmax = max(abs(dgradx),abs(dgrady))
