@@ -740,14 +740,23 @@ write(*,*)'not properly nested'
            if (mod(istep-1,regrid_int) .eq. 0) then
               call delete_temps()
 
-! only give sold_rg data, since this is the only thing needed for regridding
-              call multifab_copy_c(sold_rg(1),1,sold(1),1)              
+              ! fill bc's on sold before the copy
+              do n = 1,nlevs
+                 call multifab_fill_boundary(sold(n))
+                 bc = the_bc_tower%bc_tower_array(n)
+                 call multifab_physbc(sold(n),1,dm+1,nscal,bc)
+              end do
+
+              ! currently we only use sold for tagging cells for regridding
+              !   the first "1" is just one component
+              !   the second "1" is one ghost cell (so we can compute gradients)
+              call multifab_copy_c(sold_rg(1),1,sold(1),1,1,0)
 
               new_grid = .true.
               nl = 1
               do while ( (nl .lt. max_levs) .and. (new_grid) )
-! assume same step in all spatial directions
-! make level n+1 grid from sold
+                     ! assume same step in all spatial directions
+                     ! make level n+1 grid from sold
 2003                 call make_new_grids(mla_temp,mla_new,sold_rg(nl),dx(nl,1),&
                           6,rr,nl,new_grid)
 
