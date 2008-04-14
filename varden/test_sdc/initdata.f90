@@ -84,6 +84,7 @@ contains
     !     Local variables
     integer :: i, j
     real(kind=dp_t) :: xloc,yloc,dist
+    real(kind=dp_t) :: rhob,c1,c2,sig
 
     ! zero initial velocity
     ! density = 1
@@ -98,9 +99,11 @@ contains
        enddo
     enddo
 
-    ! add two "bubbles" of higher density
-    ! one centered over fine grid
-    ! one centered over coarse grid
+    ! minion initial data
+    rhob = 1.d0
+    c1 = 0.2d0
+    c2 = 0.05d0
+    sig = 0.1d0
     do j=lo(2),hi(2)
        do i=lo(1),hi(1)
 
@@ -108,15 +111,18 @@ contains
           yloc = (j+HALF)*dx(2)
 
           ! use this for one bubble problem
-          dist = sqrt((xloc-0.5d0)**2 + (yloc-0.5d0)**2)
-          s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
+          if(yloc.gt. 0.5)then
 
+             s(i,j,1) = rhob-c1*(yloc-0.5d0)
 
-          ! use this for two bubble problem            
-          !            dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2)
-          !            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
-          !            dist = sqrt((xloc-0.25d0)**2 + (yloc-0.5d0)**2)
-          !            s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
+          else
+
+             s(i,j,1) = rhob
+
+          endif
+          dist = ((xloc-0.5d0)**4 + (yloc-0.25d0)**4)/sig**4
+          s(i,j,1) = s(i,j,1) - c2*exp(-dist)
+
 
        enddo
     enddo
