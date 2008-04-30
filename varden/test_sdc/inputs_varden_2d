@@ -6,31 +6,31 @@
 ! fixed_grids = "gr0_2d"
 
 !!!! Inputs for adaptive grids !!!!
- nlevs = 3
+ nlevs = 4
 ! n_cellx = 32
 ! n_celly = 32    
    n_cellx = 64
-   n_celly = 64    
+   n_celly = 64
  ref_ratio = 2
  regrid_int = 2
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 200
+ max_step  = 400
  init_iter = 3
 
- plot_int  = 10
- chk_int   = 10
+ plot_int  = 20
+ chk_int   = 20
 
  stop_time = 1000.0
  cflfac = 0.9
  init_shrink = 0.1
 
  visc_coef = 0.01
- diff_coef = 0.0
+ diff_coef = 0.001
 
- grav = -9.8d0
+ grav = -1.0
 
 ! bc flags: -1: periodic/interior
 !           11: inflow

@@ -84,7 +84,7 @@ contains
     !     Local variables
     integer :: i, j
     real(kind=dp_t) :: xloc,yloc,dist
-    real(kind=dp_t) :: rhob,c1,c2,sig
+    real(kind=dp_t) :: rhob,c1,c2,sig,flatr
 
     ! zero initial velocity
     ! density = 1
@@ -100,10 +100,11 @@ contains
     enddo
 
     ! minion initial data
+    flatr = 0.05d0
     rhob = 1.d0
     c1 = 0.2d0
     c2 = 0.05d0
-    sig = 0.1d0
+    sig = 0.02d0
     do j=lo(2),hi(2)
        do i=lo(1),hi(1)
 
@@ -120,10 +121,12 @@ contains
              s(i,j,1) = rhob
 
           endif
-          dist = ((xloc-0.5d0)**4 + (yloc-0.25d0)**4)/sig**4
-          s(i,j,1) = s(i,j,1) - c2*exp(-dist)
-
-
+          dist = sqrt((xloc-0.5d0)**2 + (yloc-0.4d0)**2)
+          if (dist .lt. flatr) then
+             s(i,j,1) = s(i,j,1) - c2
+          else
+             s(i,j,1) = s(i,j,1) - c2*exp(-(dist-flatr)/sig)
+          endif
        enddo
     enddo
 
