@@ -85,6 +85,7 @@ contains
     integer :: i, j
     real(kind=dp_t) :: xloc,yloc,dist
     real(kind=dp_t) :: rhob,c1,c2,sig,flatr
+    real(kind=dp_t) :: rho0,rho1,xBubble,yBubble,rBubble,rhoBubble,yJump
 
     ! zero initial velocity
     ! density = 1
@@ -101,9 +102,14 @@ contains
 
     ! minion initial data
     flatr = 0.05d0
-    rhob = 1.d0
-    c1 = 0.2d0
-    c2 = 0.05d0
+    rhob = 1.0075d0
+    rho0 = 1.01d0
+    rho1 = 1.0d0
+    xBubble = 0.5d0
+    yBubble = 0.25d0
+    rBubble = 0.05d0
+    yJump = 0.5d0
+    rhoBubble = 1.005d0
     sig = 0.02d0
     do j=lo(2),hi(2)
        do i=lo(1),hi(1)
@@ -112,20 +118,16 @@ contains
           yloc = (j+HALF)*dx(2)
 
           ! use this for one bubble problem
-          if(yloc.gt. 0.5)then
-
-             s(i,j,1) = rhob-c1*(yloc-0.5d0)
-
+          if(yloc.le. 0.5)then
+             s(i,j,1) = rho0
           else
-
-             s(i,j,1) = rhob
-
+             s(i,j,1) = rho0+(rho1-rho0)*(yloc-yJump)/(1.0d0-yJump)
           endif
-          dist = sqrt((xloc-0.5d0)**2 + (yloc-0.4d0)**2)
-          if (dist .lt. flatr) then
-             s(i,j,1) = s(i,j,1) - c2
+          dist = sqrt((xloc-xBubble)**2 + (yloc-yBubble)**2)
+          if (dist .lt. rBubble) then
+             s(i,j,1) = rhoBubble
           else
-             s(i,j,1) = s(i,j,1) - c2*exp(-(dist-flatr)/sig)
+             s(i,j,1) = s(i,j,1) + (rhoBubble-rho0)*exp(-(dist-rBubble)/sig)
           endif
        enddo
     enddo
