@@ -303,7 +303,7 @@ contains
     real(kind=dp_t), intent(in   ) :: diff_coef, diff_fac
 
     real(kind=dp_t) :: laps_local
-    integer :: i,j,k,is,ie,js,je,ks,ke,n
+    integer :: i,j,k,is,ie,js,je,ks,ke,n,nscal
 
     is = 1
     js = 1
