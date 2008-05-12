@@ -986,7 +986,7 @@ write(*,*)'not properly nested'
            if ( parallel_IOProcessor() ) print *,' '
         end if
 
-        ! compute Lapu
+        ! compute lapu
         if(visc_coef .gt. ZERO) then
            do comp = 1, dm
               do n = 1, nlevs
@@ -995,12 +995,12 @@ write(*,*)'not properly nested'
               call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
                                stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
               do n = 1, nlevs
-                 call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
+                 call multifab_copy_c(lapu(n),comp,Lphi(n),1)
               enddo
            enddo
         endif
 
-        ! compute Laps for passive scalar only
+        ! compute laps for passive scalar only
         if(diff_coef .gt. ZERO) then
            do n = 1, nlevs
               call multifab_copy_c(phi(n),1,sold(n),2,1,1)
@@ -1008,7 +1008,7 @@ write(*,*)'not properly nested'
            call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
                             stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
            do n = 1, nlevs
-              call multifab_copy_c(Laps(n),2,Lphi(n),1)
+              call multifab_copy_c(laps(n),2,Lphi(n),1)
            enddo
         endif
 
@@ -1265,7 +1265,7 @@ contains
                                          1,1,dm)
        end do
 
-       ! compute Lapu
+       ! compute lapu
        if(visc_coef .gt. ZERO) then
           do comp = 1, dm
              do n = 1, nlevs
@@ -1274,12 +1274,12 @@ contains
              call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
                               stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
              do n = 1, nlevs
-                call multifab_copy_c(Lapu(n),comp,Lphi(n),1)
+                call multifab_copy_c(lapu(n),comp,Lphi(n),1)
              enddo
           enddo
        endif
 
-       ! compute Laps for passive scalar only
+       ! compute laps for passive scalar only
        if(diff_coef .gt. ZERO) then
           do n = 1, nlevs
              call multifab_copy_c(phi(n),1,sold(n),2,1,1)
@@ -1287,7 +1287,7 @@ contains
           call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
                            stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
           do n = 1, nlevs
-             call multifab_copy_c(Laps(n),2,Lphi(n),1)
+             call multifab_copy_c(laps(n),2,Lphi(n),1)
           enddo
        endif
 
