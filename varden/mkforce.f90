@@ -249,15 +249,20 @@ contains
     real(kind=dp_t), intent(in   ) :: diff_coef,diff_fac
 
     real(kind=dp_t) :: laps_local
-    integer :: i,j,is,ie,js,je,n
+    integer :: i,j,is,ie,js,je,n,nscal
 
     is = 1
     js = 1
     ie = size(scal_force,dim=1)-2
     je = size(scal_force,dim=2)-2
 
+    nscal = size(s,dim=3)
+
     scal_force = 0.0_dp_t
-    do n = 1,size(s,dim=3)
+
+    ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
+    do n = 2,nscal
+
        do j = js, je
           do i = is, ie
              laps_local = diff_coef * diff_fac * laps(i,j,n)
@@ -282,6 +287,7 @@ contains
           laps_local = diff_coef * diff_fac * laps(ie,j,n)
           scal_force(ie+1,j,n) = ext_scal_force(ie+1,j,n) + laps_local
        enddo
+
     end do
 
   end subroutine mkscalforce_2d
@@ -306,8 +312,12 @@ contains
     je = size(scal_force,dim=2)-2
     ke = size(scal_force,dim=3)-2
 
+    nscal = size(s,dim=4)
+
     scal_force = 0.0_dp_t
-    do n = 1,size(s,dim=4)
+
+    ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
+    do n = 2, nscal
        do k = ks, ke
           do j = js, je
              do i = is, ie
