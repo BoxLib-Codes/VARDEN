@@ -11,11 +11,13 @@ module estdt_module
 
 contains
 
-   subroutine estdt (lev,u, s, gp, ext_vel_force, dx, cflfac, dtold, dt, verbose)
+   subroutine estdt (lev,u, s, gp, ext_vel_force, dx, dtold, dt, verbose)
+
+      use probin_module, only: max_dt_growth, cflfac
 
       type(multifab) , intent( in) :: u,s,gp,ext_vel_force
       real(kind=dp_t), intent( in) :: dx(:)
-      real(kind=dp_t), intent( in) :: cflfac, dtold
+      real(kind=dp_t), intent( in) :: dtold
       real(kind=dp_t), intent(out) :: dt
       integer        , intent( in) :: lev,verbose 
 
@@ -23,13 +25,10 @@ contains
       real(kind=dp_t), pointer:: gpp(:,:,:,:),  fp(:,:,:,:)
       integer :: lo(u%dim),hi(u%dim),ng,dm
       real(kind=dp_t) :: dt_proc, dt_grid, dt_start
-      real(kind=dp_t) :: dtchange
       integer         :: i
 
       ng = u%ng
       dm = u%dim
-
-      dtchange = 1.1d0
 
       dt_proc  = 1.d20
       dt_start = 1.d20
@@ -66,7 +65,7 @@ contains
 
       dt = dt * cflfac
 
-      if (dtold .gt. 0.0D0 ) dt = min(dt,dtchange*dtold)
+      if (dtold .gt. 0.0D0 ) dt = min(dt,max_dt_growth*dtold)
 
       if (parallel_IOProcessor() .and. verbose .ge. 1) then
         write(6,1000) lev,dt

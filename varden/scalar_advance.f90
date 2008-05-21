@@ -14,8 +14,7 @@ module scalar_advance_module
 contains
 
   subroutine scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
-                            ext_scal_force,dx,dt,the_bc_level,diff_coef,verbose, &
-                            use_godunov_debug,use_minion)
+                            ext_scal_force,dx,dt,the_bc_level,diff_coef,verbose)
 
     use mkflux_module
     use mkforce_module
@@ -37,8 +36,6 @@ contains
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     real(kind=dp_t), intent(in   ) :: diff_coef
     integer        , intent(in   ) :: verbose
-    logical        , intent(in)    :: use_godunov_debug
-    logical        , intent(in)    :: use_minion
 
     ! local variables
     type(multifab), allocatable :: scal_force(:), divu(:)
@@ -79,7 +76,7 @@ contains
     !***********************************
 
     call mkflux(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
-                the_bc_level,mla,is_vel,use_minion,is_conservative,use_godunov_debug)
+                the_bc_level,mla,is_vel,is_conservative)
 
     !***********************************
     ! Create scalar force at time n+1/2.

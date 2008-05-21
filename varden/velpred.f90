@@ -13,10 +13,10 @@ module velpred_module
 
 contains
 
-  subroutine velpred(nlevs,u,umac,force,dx,dt,the_bc_level,use_minion, &
-                     use_godunov_debug,mla)
+  subroutine velpred(nlevs,u,umac,force,dx,dt,the_bc_level,mla)
 
     use ml_restriction_module, only: ml_edge_restriction
+    use probin_module, only: use_godunov_debug
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(in   ) :: u(:)
@@ -24,8 +24,6 @@ contains
     type(multifab) , intent(in   ) :: force(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
-    logical        , intent(in)    :: use_minion
-    logical        , intent(in)    :: use_godunov_debug
     type(ml_layout), intent(inout) :: mla
 
     ! local
@@ -59,7 +57,7 @@ contains
                                       lo, dx(n,:), dt, &
                                       the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                       the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                      ng, use_minion)
+                                      ng)
              else
                 call velpred_2d(up(:,:,1,:), &
                                 ump(:,:,1,1),  vmp(:,:,1,1), &
@@ -67,7 +65,7 @@ contains
                                 lo, dx(n,:), dt, &
                                 the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                 the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                ng, use_minion)
+                                ng)
              endif
           case (3)
              wmp  => dataptr(umac(n,3), i)
@@ -78,7 +76,7 @@ contains
                                       lo, dx(n,:), dt, &
                                       the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                       the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                      ng, use_minion)
+                                      ng)
                 else
                 call velpred_3d(up(:,:,:,:), &
                                 ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
@@ -86,7 +84,7 @@ contains
                                 lo, dx(n,:), dt, &
                                 the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                 the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                ng, use_minion)
+                                ng)
              endif
           end select
        end do
@@ -106,11 +104,12 @@ contains
   end subroutine velpred
 
 
-  subroutine velpred_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+  subroutine velpred_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer         ,intent(in) :: lo(2)
     integer         ,intent(in) :: ng
@@ -123,7 +122,6 @@ contains
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
     integer         ,intent(in) :: adv_bc(:,:,:)
-    logical         ,intent(in) :: use_minion
 
     ! Local variables
     real(kind=dp_t), allocatable::  slopex(:,:,:)
@@ -132,7 +130,6 @@ contains
     real(kind=dp_t) hx, hy, dt2, dt4, uavg
 
     integer :: hi(2)
-    integer :: slope_order = 4
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -493,11 +490,12 @@ contains
   end subroutine velpred_2d
 
 
-  subroutine velpred_debug_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+  subroutine velpred_debug_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer         ,intent(in) :: lo(2)
     integer         ,intent(in) :: ng
@@ -510,7 +508,6 @@ contains
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
     integer         ,intent(in) :: adv_bc(:,:,:)
-    logical         ,intent(in) :: use_minion
 
     ! Local variables
     real(kind=dp_t), allocatable::  slopex(:,:,:)
@@ -519,7 +516,6 @@ contains
     real(kind=dp_t) hx, hy, dt2, dt4, uavg
 
     integer :: hi(2)
-    integer :: slope_order = 4
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -825,11 +821,12 @@ contains
   end subroutine velpred_debug_2d
 
 
-  subroutine velpred_debug_3d(u, umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+  subroutine velpred_debug_3d(u, umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer         ,intent(in) :: lo(3)
     integer         ,intent(in) :: ng
@@ -843,7 +840,6 @@ contains
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
     integer         ,intent(in) :: adv_bc(:,:,:)
-    logical         ,intent(in) :: use_minion
 
     ! Local variables
     real(kind=dp_t), allocatable::  slopex(:,:,:,:)
@@ -853,7 +849,6 @@ contains
     real(kind=dp_t) hx, hy, hz, dt2, dt4, dt6, uavg
 
     integer :: hi(3)
-    integer :: slope_order = 4
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -1670,12 +1665,12 @@ contains
 
   end subroutine velpred_debug_3d
 
-
-  subroutine velpred_3d(u,umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng,use_minion)
+  subroutine velpred_3d(u,umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer         ,intent(in) :: lo(3)
     integer         ,intent(in) :: ng
@@ -1689,7 +1684,6 @@ contains
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
     integer         ,intent(in) :: adv_bc(:,:,:)
-    logical         ,intent(in) :: use_minion
 
     ! Local variables
     real(kind=dp_t), allocatable::  slopex(:,:,:,:)
@@ -1699,7 +1693,6 @@ contains
     real(kind=dp_t) hx, hy, hz, dt2, dt4, dt6, uavg
 
     integer :: hi(3)
-    integer :: slope_order = 4
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax

@@ -13,8 +13,7 @@ module velocity_advance_module
 contains
 
   subroutine velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
-                              ext_vel_force,dx,dt,the_bc_level,visc_coef,verbose, &
-                              use_godunov_debug,use_minion)
+                              ext_vel_force,dx,dt,the_bc_level,visc_coef,verbose)
 
     use viscous_module
     use mkflux_module
@@ -40,8 +39,6 @@ contains
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     real(kind=dp_t), intent(in   ) :: visc_coef
     integer        , intent(in   ) :: verbose
-    logical        , intent(in)    :: use_godunov_debug
-    logical        , intent(in)    :: use_minion
 
     ! local
     type(multifab), allocatable :: vel_force(:)
@@ -77,7 +74,7 @@ contains
     !********************************************************
 
     call mkflux(nlevs,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,the_bc_level,mla, &
-                is_vel,use_minion,is_conservative,use_godunov_debug)
+                is_vel,is_conservative)
 
     !********************************************************
     ! Now create vel_force at half-time using rhohalf and half the viscous term.

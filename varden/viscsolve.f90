@@ -13,28 +13,28 @@ module viscous_module
 
 contains 
 
-  subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower,mg_verbose,cg_verbose,verbose)
+  subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower)
 
-     use bl_constants_module
-     use bndry_reg_module
-     use multifab_physbc_module
-     use multifab_fill_ghost_module
-     use macproject_module,     only: mac_multigrid
-     use ml_restriction_module, only: ml_cc_restriction
+    use bl_constants_module
+    use bndry_reg_module
+    use multifab_physbc_module
+    use multifab_fill_ghost_module
+    use macproject_module,     only: mac_multigrid
+    use ml_restriction_module, only: ml_cc_restriction
+    use probin_module, only: stencil_order,verbose
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: unew(:)
     type(multifab ), intent(in   ) :: rho(:)
     real(dp_t)     , intent(in   ) :: dx(:,:),mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
-    integer        , intent(in   ) :: mg_verbose,cg_verbose,verbose
 
     ! Local  
     type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
     type(bndry_reg), pointer    :: fine_flx(:) => Null()
     real(kind=dp_t), pointer    :: unp(:,:,:,:)
     integer                     :: n,nlevs,d,dm,i,comp
-    integer                     :: bc_comp,stencil_order,ng_cell
+    integer                     :: bc_comp,ng_cell
     integer                     :: lo(unew(1)%dim)
     real(kind=dp_t)             :: nrm1, nrm2
 
@@ -53,8 +53,6 @@ contains
        call multifab_copy_c(alpha(n),1,rho(n),1,1)
        call setval(beta(n),mu,all=.true.)
     end do
-
-    stencil_order = 2
 
     if (verbose .ge. 1) then
        if (parallel_IOProcessor()) then
@@ -82,8 +80,7 @@ contains
        end do
        bc_comp = d
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                          the_bc_tower,bc_comp,stencil_order,mla%mba%rr, &
-                          mg_verbose,cg_verbose)
+                          the_bc_tower,bc_comp,stencil_order,mla%mba%rr)
        do n = 1,nlevs
           call multifab_copy_c(unew(n),d,phi(n),1,1)
        end do
@@ -210,8 +207,7 @@ contains
 
   end subroutine visc_solve
 
-  subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp,mg_verbose, &
-                               cg_verbose,verbose)
+  subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp)
 
     use bndry_reg_module
     use bl_constants_module
@@ -219,6 +215,7 @@ contains
     use multifab_fill_ghost_module
     use macproject_module,     only: mac_multigrid
     use ml_restriction_module, only: ml_cc_restriction_c
+    use probin_module, only: stencil_order, verbose
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: snew(:)
@@ -226,13 +223,12 @@ contains
     real(dp_t)     , intent(in   ) :: mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
     integer        , intent(in   ) :: icomp,bc_comp
-    integer        , intent(in   ) :: mg_verbose, cg_verbose, verbose
 
     ! Local  
     type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
     type(bndry_reg), pointer    :: fine_flx(:) => Null()
     real(kind=dp_t), pointer    :: snp(:,:,:,:)
-    integer                     :: i,n,nlevs,dm,stencil_order
+    integer                     :: i,n,nlevs,dm
     integer                     :: lo(snew(1)%dim),ng_cell
     real(kind=dp_t)             :: nrm1
 
@@ -266,15 +262,13 @@ contains
        call mkrhs(rh(n),snew(n),phi(n),icomp)
     end do
 
-    stencil_order = 2
-
     allocate(fine_flx(2:nlevs))
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
 
     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                       the_bc_tower,bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+                       the_bc_tower,bc_comp,stencil_order,mla%mba%rr)
 
     do n = 1,nlevs
        call multifab_copy_c(snew(n),icomp,phi(n),1,1)

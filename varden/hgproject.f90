@@ -14,8 +14,7 @@ module hgproject_module
 contains 
 
   subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                       verbose,mg_verbose,cg_verbose,press_comp, &
-                       divu_rhs,div_coeff_1d,div_coeff_3d,eps_in)
+                       press_comp,divu_rhs,div_coeff_1d,div_coeff_3d,eps_in)
 
     use bc_module
     use proj_parameters
@@ -24,6 +23,7 @@ contains
     use ml_solve_module
     use ml_restriction_module
     use multifab_fill_ghost_module
+    use probin_module, only: verbose
 
     integer        , intent(in   ) :: proj_type
     type(ml_layout), intent(inout) :: mla
@@ -34,7 +34,6 @@ contains
     type(multifab ), intent(inout) :: gp(:)
     real(dp_t)     , intent(in   ) :: dx(:,:),dt
     type(bc_tower ), intent(in   ) :: the_bc_tower
-    integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
     integer        , intent(in   ) :: press_comp
 
     type(multifab ), intent(inout), optional :: divu_rhs(:)
@@ -132,10 +131,10 @@ contains
 
     if (present(eps_in)) then
        call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,verbose, &
-                         mg_verbose,cg_verbose,press_comp,stencil_type,divu_rhs,eps_in)
+                         press_comp,stencil_type,divu_rhs,eps_in)
     else
        call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,verbose, &
-                         mg_verbose,cg_verbose,press_comp,stencil_type,divu_rhs)
+                         press_comp,stencil_type,divu_rhs)
     end if
 
     if (use_div_coeff_1d) then
@@ -701,14 +700,15 @@ contains
 
   end subroutine hgproject
 
-  subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,divu_verbose,mg_verbose, &
-                          cg_verbose,press_comp,stencil_type,divu_rhs,eps_in)
+  subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,divu_verbose,&
+                          press_comp,stencil_type,divu_rhs,eps_in)
 
     use bl_constants_module
     use stencil_module
     use coeffs_module
     use ml_solve_module
     use nodal_divu_module
+    use probin_module, only : mg_verbose, cg_verbose
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -716,7 +716,7 @@ contains
     type(multifab ), intent(inout) :: phi(:)
     real(dp_t)     , intent(in)    :: dx(:,:)
     type(bc_tower ), intent(in   ) :: the_bc_tower
-    integer        , intent(in   ) :: divu_verbose,mg_verbose,cg_verbose
+    integer        , intent(in   ) :: divu_verbose
     integer        , intent(in   ) :: press_comp
     integer        , intent(in   ) :: stencil_type
 

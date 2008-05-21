@@ -14,9 +14,10 @@ module mkflux_module
 contains
 
   subroutine mkflux(nlevs,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level,mla, &
-                    is_vel,use_minion,is_conservative,use_godunov_debug)
+                    is_vel,is_conservative)
 
     use ml_restriction_module, only: ml_edge_restriction_c
+    use probin_module, only: use_godunov_debug
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(in   ) :: sold(:)
@@ -29,8 +30,7 @@ contains
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     type(ml_layout), intent(inout) :: mla
-    logical        , intent(in   ) :: is_vel,use_minion,is_conservative(:)
-    logical        , intent(in   ) :: use_godunov_debug
+    logical        , intent(in   ) :: is_vel,is_conservative(:)
 
     ! local
     integer                  :: n,i,dm,ng,comp,ncomp,bccomp
@@ -85,7 +85,7 @@ contains
                                      lo, dx(n,:), dt, is_vel, &
                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                                     ng, use_minion, is_conservative)
+                                     ng, is_conservative)
              else
                 call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
                                sepx(:,:,1,:), sepy(:,:,1,:), &
@@ -95,7 +95,7 @@ contains
                                lo, dx(n,:), dt, is_vel, &
                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                               ng, use_minion, is_conservative)
+                               ng, is_conservative)
              endif
           case (3)
              sepz   => dataptr(sedge(n,3), i)
@@ -110,7 +110,7 @@ contains
                                      lo, dx(n,:), dt, is_vel, &
                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                                     ng, use_minion, is_conservative)
+                                     ng, is_conservative)
              else
                 call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
                                sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
@@ -120,7 +120,7 @@ contains
                                lo, dx(n,:), dt, is_vel, &
                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                               ng, use_minion, is_conservative)
+                               ng, is_conservative)
              endif
           end select
        end do
@@ -142,11 +142,12 @@ contains
 
 
   subroutine mkflux_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt,is_vel, &
-                       phys_bc,adv_bc,ng,use_minion,is_conservative)
+                       phys_bc,adv_bc,ng,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -164,7 +165,7 @@ contains
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
     integer        ,intent(in) :: adv_bc(:,:,:)
-    logical        ,intent(in) :: is_vel, use_minion, is_conservative(:)
+    logical        ,intent(in) :: is_vel, is_conservative(:)
 
     ! Local variables
     real(kind=dp_t), allocatable:: slopex(:,:,:)
@@ -176,7 +177,6 @@ contains
     integer :: hi(2)
     integer :: i,j,is,js,ie,je,n
     integer :: jc,jp
-    integer :: slope_order = 4
     integer :: ncomp
 
     ! these correspond to s_L^x, etc.
@@ -623,11 +623,12 @@ contains
   end subroutine mkflux_2d
 
   subroutine mkflux_debug_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt, &
-                             is_vel,phys_bc,adv_bc,ng,use_minion,is_conservative)
+                             is_vel,phys_bc,adv_bc,ng,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -645,7 +646,7 @@ contains
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
     integer        ,intent(in) :: adv_bc(:,:,:)
-    logical        ,intent(in) :: is_vel, use_minion, is_conservative(:)
+    logical        ,intent(in) :: is_vel, is_conservative(:)
 
     ! Local variables
     real(kind=dp_t), allocatable:: slopex(:,:,:)
@@ -656,7 +657,6 @@ contains
 
     integer :: hi(2)
     integer :: i,j,is,js,ie,je,n
-    integer :: slope_order = 4
     integer :: ncomp
 
     ! these correspond to s_L^x, etc.
@@ -1063,11 +1063,12 @@ contains
   end subroutine mkflux_debug_2d
 
   subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac,force, &
-                       divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,use_minion,is_conservative)
+                       divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -1088,7 +1089,7 @@ contains
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
     integer        ,intent(in) :: adv_bc(:,:,:)
-    logical        ,intent(in) :: is_vel, use_minion, is_conservative(:)
+    logical        ,intent(in) :: is_vel, is_conservative(:)
 
     ! Local variables
     real(kind=dp_t), allocatable:: slopex(:,:,:,:)
@@ -1101,7 +1102,6 @@ contains
     integer :: hi(3)
     integer :: i,j,k,is,js,ks,ie,je,ke,n
     integer :: kc,kp
-    integer :: slope_order = 4
     integer :: ncomp
 
     ! these correspond to s_L^x, etc.
@@ -2201,11 +2201,12 @@ contains
   end subroutine mkflux_3d
 
   subroutine mkflux_debug_3d(s,u,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac, &
-                             force,divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,use_minion, &
+                             force,divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,&
                              is_conservative)
     use bc_module
     use slope_module
     use bl_constants_module
+    use probin_module, only: slope_order, use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -2226,7 +2227,7 @@ contains
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
     integer        ,intent(in) :: adv_bc(:,:,:)
-    logical        ,intent(in) :: is_vel, use_minion, is_conservative(:)
+    logical        ,intent(in) :: is_vel, is_conservative(:)
 
     ! Local variables
     real(kind=dp_t), allocatable:: slopex(:,:,:,:)
@@ -2238,7 +2239,6 @@ contains
 
     integer :: hi(3)
     integer :: i,j,k,is,js,ks,ie,je,ke,n
-    integer :: slope_order = 4
     integer :: ncomp
 
     ! these correspond to s_L^x, etc.

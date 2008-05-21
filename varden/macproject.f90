@@ -16,8 +16,10 @@ module macproject_module
 
 contains 
 
-  subroutine macproject(mla,umac,rho,dx,the_bc_tower,verbose,mg_verbose,cg_verbose,bc_comp,&
+  subroutine macproject(mla,umac,rho,dx,the_bc_tower,bc_comp,&
                         divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
+
+    use probin_module, only: stencil_order, verbose
 
     type(ml_layout), intent(inout) :: mla
     type(multifab ), intent(inout) :: umac(:,:)
@@ -25,7 +27,6 @@ contains
     real(dp_t)     , intent(in   ) :: dx(:,:)
     type(bc_tower ), intent(in   ) :: the_bc_tower
     integer        , intent(in   ) :: bc_comp
-    integer        , intent(in   ) :: verbose,mg_verbose,cg_verbose
 
     type(multifab ), intent(inout), optional :: divu_rhs(:)
     real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:,:)
@@ -36,7 +37,7 @@ contains
     type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
     type(bndry_reg), pointer    :: fine_flx(:) => Null()
     real(dp_t)     ,allocatable :: umac_norm(:)
-    integer                     :: d,dm,stencil_order,i,n
+    integer                     :: d,dm,i,n
     integer                     :: ng,nc
     integer                     :: nlevs,nscal
     logical                     :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
@@ -57,8 +58,6 @@ contains
        print *,'CANT HAVE 1D and 3D DIV_COEFF IN MACPROJECT '
        stop
     end if
-
-    stencil_order = 2
 
     allocate(rh(nlevs), phi(nlevs), alpha(nlevs), beta(nlevs))
     allocate(umac_norm(nlevs))
@@ -108,7 +107,7 @@ contains
     end do
 
     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                       stencil_order,mla%mba%rr,mg_verbose,cg_verbose,umac_norm)
+                       stencil_order,mla%mba%rr,umac_norm)
 
     call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr,verbose)
 
@@ -1355,16 +1354,16 @@ contains
   end subroutine macproject
 
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
-       the_bc_tower,bc_comp,stencil_order,ref_ratio,mg_verbose,cg_verbose,umac_norm)
+       the_bc_tower,bc_comp,stencil_order,ref_ratio,umac_norm)
 
      use coeffs_module
      use mg_module
      use ml_solve_module
+    use probin_module, only: mg_verbose, cg_verbose
 
     type(ml_layout),intent(inout) :: mla
     integer        ,intent(in   ) :: stencil_order
     integer        ,intent(in   ) :: ref_ratio(:,:)
-    integer        ,intent(in   ) :: mg_verbose, cg_verbose
 
     real(dp_t), intent(in) :: dx(:,:)
     type(bc_tower), intent(in) :: the_bc_tower

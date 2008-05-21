@@ -8,6 +8,7 @@ subroutine varden()
   use ml_boxarray_module
   use layout_module
   use multifab_module
+  use probin_module
   use init_module
   use estdt_module
   use vort_module
@@ -36,30 +37,16 @@ subroutine varden()
 
   implicit none
 
-  integer    :: narg, farg
-  integer    :: max_step,init_iter
-  integer    :: plot_int, chk_int, regrid_int
-  integer    :: verbose, mg_verbose, cg_verbose
-  integer    :: dim_in,dm
-  real(dp_t) :: cflfac,init_shrink,fixed_dt
-  real(dp_t) :: visc_coef
-  real(dp_t) :: diff_coef
-  real(dp_t) :: stop_time
+  integer    :: dm
   real(dp_t) :: time,dt,dtold,dt_lev,dt_temp
-  real(dp_t) :: visc_mu, pressure_inflow_val,grav,nrm1,nrm2
-  integer    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
-  integer    :: k,istep,ng_cell,ng_grow,n_cellx,n_celly,n_cellz
-  integer    :: i, n, nlevs, ref_ratio, n_error_buf
-  integer    ::  n_plot_comps, n_chk_comps, nscal
+  real(dp_t) :: visc_mu, pressure_inflow_val,nrm1,nrm2
+  integer    :: k,istep
+  integer    :: i, n
+  integer    ::  n_plot_comps, n_chk_comps
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step
   integer    :: comp,bc_comp
-  logical    :: pmask_x,pmask_y,pmask_z
   integer    :: press_comp, vort_comp
-  logical    :: use_godunov_debug
-  logical    :: use_minion
-
-  real(dp_t) :: prob_hi_x,prob_hi_y,prob_hi_z
 
   integer     , allocatable :: domain_phys_bc(:,:)
   integer     , allocatable :: n_cell(:)
@@ -109,13 +96,9 @@ subroutine varden()
 
   character(len=128) :: fname
   character(len=128) :: probin_env
-  character(len=128) :: fixed_grids
   character(len=7) :: sd_name
   character(len=20), allocatable :: plot_names(:)
   integer :: un, ierr
-  integer :: restart
-  integer :: do_initial_projection
-  integer :: stencil_order
   logical :: lexist
   logical :: need_inputs
 
@@ -133,122 +116,10 @@ subroutine varden()
   type(bc_tower) ::  the_bc_tower
   type(bc_level) ::  bc
 
-  namelist /probin/ dim_in
-  namelist /probin/ stop_time
-  namelist /probin/ prob_hi_x
-  namelist /probin/ prob_hi_y
-  namelist /probin/ prob_hi_z
-  namelist /probin/ max_step
-  namelist /probin/ plot_int
-  namelist /probin/ chk_int
-  namelist /probin/ regrid_int
-  namelist /probin/ init_iter
-  namelist /probin/ cflfac
-  namelist /probin/ init_shrink
-  namelist /probin/ fixed_dt
-  namelist /probin/ visc_coef
-  namelist /probin/ diff_coef
-  namelist /probin/ fixed_grids
-  namelist /probin/ restart
-  namelist /probin/ do_initial_projection
-  namelist /probin/ bcx_lo
-  namelist /probin/ bcx_hi
-  namelist /probin/ bcy_lo
-  namelist /probin/ bcy_hi
-  namelist /probin/ bcz_lo
-  namelist /probin/ bcz_hi
-  namelist /probin/ pmask_x
-  namelist /probin/ pmask_y
-  namelist /probin/ pmask_z
-  namelist /probin/ verbose
-  namelist /probin/ mg_verbose
-  namelist /probin/ cg_verbose
-  namelist /probin/ grav
-  namelist /probin/ use_godunov_debug
-  namelist /probin/ use_minion
-  namelist /probin/ nlevs
-  namelist /probin/ n_cellx
-  namelist /probin/ n_celly
-  namelist /probin/ n_cellz
-  namelist /probin/ ref_ratio
-  namelist /probin/ n_error_buf
-
-  ref_ratio = 2
-  n_error_buf = 2
-  ng_cell = 3
-  ng_grow = 1
-  nlevs = 1
-
-  stencil_order = 2
-
-  narg = command_argument_count()
-
-  ! Defaults
-  max_step  = 1
-  init_iter = 4
-  plot_int  = 5
-  regrid_int  = -1
-  chk_int  = 50
-
-  init_shrink = 1.0
-  fixed_dt = -1.0
-  nscal = 2
-
-  grav = 0.0d0
-
-  use_godunov_debug = .false.
-  use_minion = .false.
-
-  do_initial_projection  = 1
-
-  need_inputs = .true.
-  fixed_grids = ''
-  restart  = -1
   last_plt_written = -1
   last_chk_written = -1
 
-  bcx_lo = SLIP_WALL
-  bcy_lo = SLIP_WALL
-  bcz_lo = SLIP_WALL
-  bcx_hi = SLIP_WALL
-  bcy_hi = SLIP_WALL
-  bcz_hi = SLIP_WALL
-
-  stop_time = -1.d0
-
-  call get_environment_variable('PROBIN', probin_env, status = ierr)
-  if ( need_inputs .AND. ierr == 0 ) then
-     un = unit_new()
-     open(unit=un, file = probin_env, status = 'old', action = 'read')
-     read(unit=un, nml = probin)
-     close(unit=un)
-     need_inputs = .false.
-  end if
-
-  farg = 1
-  if ( need_inputs .AND. narg >= 1 ) then
-     call get_command_argument(farg, value = fname)
-     inquire(file = fname, exist = lexist )
-     if ( lexist ) then
-        farg = farg + 1
-        un = unit_new()
-        open(unit=un, file = fname, status = 'old', action = 'read')
-        read(unit=un, nml = probin)
-        close(unit=un)
-        need_inputs = .false.
-     end if
-  end if
-
-  inquire(file = 'inputs_varden', exist = lexist)
-  if ( need_inputs .AND. lexist ) then
-     un = unit_new()
-     open(unit=un, file = 'inputs_varden', status = 'old', action = 'read')
-     read(unit=un, nml = probin)
-     close(unit=un)
-     need_inputs = .false.
-  end if
-
-  call read_command_line()
+  call probin_init()
 
   dm = dim_in
   press_comp = dm + nscal + 1
@@ -256,9 +127,7 @@ subroutine varden()
   allocate(pmask(dm))
   pmask = .FALSE.
 
-  pmask(1) = pmask_x
-  if (dm > 1) pmask(2) = pmask_y
-  if (dm > 2) pmask(3) = pmask_z
+  pmask = pmask_xyz(1:dm)
 
   allocate(nodal(dm))
   nodal = .true.
@@ -632,7 +501,7 @@ write(*,*)'not properly nested'
      ! in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
         call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,dt_temp, &
-                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+                       the_bc_tower,press_comp)
          do n = 1,nlevs
            call setval( p(n)  ,0.0_dp_t, all=.true.)
            call setval(gp(n)  ,0.0_dp_t, all=.true.)
@@ -669,7 +538,7 @@ write(*,*)'not properly nested'
   dt = 1.d20
   do n = 1,nlevs
      call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                cflfac,dtold,dt_lev,verbose)
+                dtold,dt_lev,verbose)
      dt = min(dt,dt_lev)
   end do
   if (restart < 0) dt = dt * init_shrink
@@ -968,7 +837,7 @@ write(*,*)'not properly nested'
            dt = 1.d20
            do n = 1,nlevs
               call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                   cflfac,dtold,dt_lev,verbose)
+                   dtold,dt_lev,verbose)
               dt = min(dt,dt_lev)
            end do
            if (fixed_dt > 0.d0) dt = fixed_dt
@@ -987,7 +856,7 @@ write(*,*)'not properly nested'
         end if
 
         ! compute lapu
-        if(visc_coef .gt. ZERO) then
+        if(visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
            do comp = 1, dm
               do n = 1, nlevs
                  call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
@@ -998,10 +867,14 @@ write(*,*)'not properly nested'
                  call multifab_copy_c(lapu(n),comp,Lphi(n),1)
               enddo
            enddo
+        else
+           do n = 1, nlevs
+              call setval(lapu(n),ZERO)
+           enddo
         endif
 
         ! compute laps for passive scalar only
-        if(diff_coef .gt. ZERO) then
+        if (diff_coef .gt. ZERO .and. diffusion_type .eq. 1) then
            do n = 1, nlevs
               call multifab_copy_c(phi(n),1,sold(n),2,1,1)
            enddo
@@ -1010,40 +883,65 @@ write(*,*)'not properly nested'
            do n = 1, nlevs
               call multifab_copy_c(laps(n),2,Lphi(n),1)
            enddo
+        else
+           do n = 1, nlevs
+              call setval(laps(n),ZERO)
+           enddo
         endif
 
         call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                            the_bc_tower%bc_tower_array,visc_coef,use_godunov_debug, &
-                            use_minion,mla)
+                            the_bc_tower%bc_tower_array,visc_coef,mla)
 
-        call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
-                        press_comp)
+        call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
         call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
                             ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
-                            diff_coef,verbose,use_godunov_debug,use_minion)
+                            diff_coef,verbose)
         
         if (diff_coef > ZERO) then
            comp = 2
            bc_comp = dm+comp
-           visc_mu = HALF*dt*diff_coef
-           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
-                                  mg_verbose,cg_verbose,verbose)
+
+           ! Crank-Nicolson
+           if (diffusion_type .eq. 1) then
+              visc_mu = HALF*dt*diff_coef
+
+           ! backward Euler
+           else if (diffusion_type .eq. 2) then
+              visc_mu = dt*diff_coef
+
+           else 
+             print *,'BAD DIFFUSION TYPE ',diffusion_type 
+             stop
+           end if
+
+           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
         end if
 
         call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
                               ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
-                              visc_coef,verbose,use_godunov_debug,use_minion)
+                              visc_coef,verbose)
 
         if (visc_coef > ZERO) then
-           visc_mu = HALF*dt*visc_coef
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose, &
-                           cg_verbose,verbose)
+           ! Crank-Nicolson
+           if (diffusion_type .eq. 1) then
+              visc_mu = HALF*dt*visc_coef
+
+           ! backward Euler
+           else if (diffusion_type .eq. 2) then
+              visc_mu = dt*visc_coef
+
+           else 
+             print *,'BAD DIFFUSION TYPE ',diffusion_type 
+             stop
+           end if
+
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
         end if
 
         ! Project the new velocity field.
         call hgproject(regular_timestep,mla,unew,uold,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+                       the_bc_tower,press_comp)
 
         time = time + dt
 
@@ -1292,37 +1190,33 @@ contains
        endif
 
        call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                           the_bc_tower%bc_tower_array,visc_coef,use_godunov_debug, &
-                           use_minion,mla)
+                           the_bc_tower%bc_tower_array,visc_coef,mla)
 
-       call macproject(mla,umac,sold,dx,the_bc_tower,verbose,mg_verbose,cg_verbose, &
-                       press_comp)
+       call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
        call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
                            ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
-                           diff_coef,verbose,use_godunov_debug,use_minion)
+                           diff_coef,verbose)
 
        if (diff_coef > ZERO) then
           comp = 2
           bc_comp = dm+comp
           visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp, &
-                                 mg_verbose,cg_verbose,verbose)
+          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
        end if
 
        call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
                              ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
-                             visc_coef,verbose,use_godunov_debug,use_minion)
+                             visc_coef,verbose)
 
        if (visc_coef > ZERO) then
           visc_mu = HALF*dt*visc_coef
-          call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower,mg_verbose, &
-                          cg_verbose,verbose)
+          call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
        end if
 
        ! Project the new velocity field.
        call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
-                      the_bc_tower,verbose,mg_verbose,cg_verbose,press_comp)
+                      the_bc_tower,press_comp)
 
        if ( verbose .ge. 1 ) then
           do n = 1,nlevs
@@ -1391,179 +1285,5 @@ contains
     deallocate(chkdata)
 
   end subroutine write_checkfile
-
-  subroutine read_command_line()
-
-    do while ( farg <= narg )
-       call get_command_argument(farg, value = fname)
-       select case (fname)
-
-       case ('--dim_in')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) dim_in
-
-       case ('--prob_hi_x')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) prob_hi_x
-
-       case ('--prob_hi_y')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) prob_hi_y
-
-       case ('--prob_hi_z')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) prob_hi_z
-
-       case ('--cfl')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) cflfac
-
-       case ('--init_shrink')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) init_shrink
-
-       case ('--fixed_dt')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) fixed_dt
-
-       case ('--visc_coef')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) visc_coef
-
-       case ('--grav')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) grav
-
-       case ('--use_godunov_debug')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) use_godunov_debug
-
-       case ('--diff_coef')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) diff_coef
-
-       case ('--stop_time')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) stop_time
-
-       case ('--max_step')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) max_step
-
-       case ('--plot_int')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) plot_int
-
-       case ('--chk_int')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) chk_int
-
-       case ('--regrid_int')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) regrid_int
-
-       case ('--init_iter')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) init_iter
-
-       case ('--bcx_lo')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) bcx_lo
-       case ('--bcy_lo')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) bcy_lo
-       case ('--bcz_lo')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) bcz_lo
-       case ('--bcx_hi')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) bcx_hi
-       case ('--bcy_hi')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) bcy_hi
-       case ('--bcz_hi')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) bcz_hi
-
-       case ('--pmask_x')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) pmask(1)
-       case ('--pmask_y')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) pmask(2)
-       case ('--pmask_z')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) pmask(3)
-
-       case ('--verbose')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) verbose
-
-       case ('--mg_verbose')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) mg_verbose
-
-       case ('--cg_verbose')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) cg_verbose
-
-       case ('--fixed_grids')
-          farg = farg + 1
-          call get_command_argument(farg, value = fixed_grids)
-
-       case ('--restart')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) restart
-
-       case ('--do_initial_projection')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) do_initial_projection
-
-       case ('--')
-          farg = farg + 1
-          exit
-
-       case default
-          if ( .not. parallel_q() ) then
-             write(*,*) 'UNKNOWN option = ', fname
-             call bl_error("MAIN")
-          end if
-       end select
-
-       farg = farg + 1
-    end do
-
-  end subroutine read_command_line
 
 end subroutine varden
