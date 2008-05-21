@@ -114,6 +114,7 @@ contains
     nscal = 2
 
     grav = 0.d0
+    boussinesq = 0
 
     max_step  = 1
     stop_time = -1.d0
