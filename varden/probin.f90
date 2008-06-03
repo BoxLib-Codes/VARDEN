@@ -80,6 +80,7 @@ module probin_module
   namelist /probin/ ref_ratio
   namelist /probin/ n_error_buf
   namelist /probin/ boussinesq
+  namelist /probin/ diffusion_type
 
 contains
 
