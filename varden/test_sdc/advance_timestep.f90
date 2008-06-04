@@ -50,6 +50,8 @@ contains
     type(multifab), allocatable :: rhohalf(:)
     type(multifab), allocatable :: diffusive_update(:)
     type(multifab), allocatable :: viscous_update(:)
+    type(multifab), allocatable :: aofs(:)
+    type(multifab), allocatable :: aofu(:)
 
     integer    :: i,n,comp,dm,nlevs,bc_comp
     real(dp_t) :: nrm1,nrm2,nrm3
@@ -64,6 +66,8 @@ contains
     allocate(rhohalf(nlevs))
     allocate(diffusive_update(nlevs))
     allocate(viscous_update(nlevs))
+    allocate(aofs(nlevs))
+    allocate(aofu(nlevs))
 
     allocate(umac_nodal_flag(mla%dim))
 
@@ -72,6 +76,8 @@ contains
        call multifab_build(rhohalf(n), mla%la(n),    dm, 1)
        call multifab_build(diffusive_update(n), mla%la(n),nscal,0)
        call multifab_build(  viscous_update(n), mla%la(n),dm   ,0)
+       call multifab_build(aofs(n), mla%la(n),nscal,0)
+       call multifab_build(aofu(n), mla%la(n),dm   ,0)
 
        do i = 1,dm
          umac_nodal_flag(:) = .false.
@@ -129,13 +135,13 @@ contains
 
     call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
-    call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
+    call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force,aofs, &
                         dx,dt,the_bc_tower)
     
     call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)
 
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                          ext_vel_force,dx,dt,the_bc_tower)
+                          ext_vel_force,aofu,dx,dt,the_bc_tower)
 
     ! Compute viscous_update
     ! Here we use lapu as a temporary

@@ -19,7 +19,7 @@ module scalar_advance_module
 contains
 
   subroutine scalar_advance(mla,uold,sold,snew,umac, &
-                            ext_scal_force,dx,dt,the_bc_tower)
+                            ext_scal_force,aofs,dx,dt,the_bc_tower)
 
     use mkflux_module
     use mkforce_module
@@ -32,6 +32,7 @@ contains
     type(multifab) , intent(inout) :: snew(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
+    type(multifab) , intent(inout) :: aofs(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
@@ -116,7 +117,7 @@ contains
     ! Update the scalars with conservative or convective differencing.
     !***********************************
 
-    call update(mla,sold,umac,sedge,sflux,scal_force,snew,dx,dt,is_vel, &
+    call update(mla,sold,umac,sedge,sflux,scal_force,snew,aofs,dx,dt,is_vel, &
                 is_conservative,the_bc_tower%bc_tower_array)
 
     if (verbose .ge. 1) then
