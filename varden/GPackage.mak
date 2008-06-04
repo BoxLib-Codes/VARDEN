@@ -1,12 +1,15 @@
 f90sources += advance_premac.f90  
+f90sources += advance_timestep.f90  
 f90sources += checkpoint.f90
 f90sources += define_bc_tower.f90
 f90sources += estdt.f90
+f90sources += explicit_diffusive_term.f90
 f90sources += fillpatch.f90
 f90sources += hgproject.f90
 f90sources += initdata.f90
 f90sources += inlet_bc.f90
 f90sources += macproject.f90
+f90sources += make_at_halftime.f90
 f90sources += makevort.f90
 f90sources += mkflux.f90
 f90sources += mkforce.f90

@@ -3,7 +3,7 @@ module velocity_advance_module
   use bl_types
   use multifab_module
   use ml_layout_module
-  use probin_module, only : verbose
+  use probin_module, only : verbose, visc_coef, diffusion_type
 
   implicit none
 
@@ -14,7 +14,7 @@ module velocity_advance_module
 contains
 
   subroutine velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                              ext_vel_force,dx,dt,the_bc_level)
+                              ext_vel_force,dx,dt,the_bc_tower)
 
     use viscous_module
     use mkflux_module
@@ -33,7 +33,7 @@ contains
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
-    type(bc_level) , intent(in   ) :: the_bc_level(:)
+    type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
     type(multifab), allocatable :: vel_force(:)
@@ -44,7 +44,7 @@ contains
     integer :: i,n,dm,comp,nlevs
     logical :: is_vel,is_conservative(uold(1)%dim)
     logical, allocatable :: umac_nodal_flag(:)
-    real(kind=dp_t) :: visc_fac
+    real(kind=dp_t) :: visc_fac,visc_mu
     real(kind=dp_t) :: umin,umax
 
     nlevs = mla%nlevel
@@ -83,8 +83,8 @@ contains
     ! Create the edge state velocities
     !********************************************************
 
-    call mkflux(mla,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,the_bc_level,&
-                is_vel,is_conservative)
+    call mkflux(mla,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,&
+                the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
     !********************************************************
     ! Now create vel_force at half-time using rhohalf and half the viscous term.
@@ -98,7 +98,7 @@ contains
     !********************************************************
 
     call update(mla,uold,umac,uedge,uflux,vel_force,unew,dx,dt,is_vel, &
-                is_conservative,the_bc_level)
+                is_conservative,the_bc_tower%bc_tower_array)
 
     do n = 1, nlevs
        call multifab_destroy(vel_force(n))
@@ -110,6 +110,22 @@ contains
     enddo
 
     deallocate(vel_force,divu,uflux,uedge,umac_nodal_flag)
+
+    if (visc_coef > ZERO) then
+           ! Crank-Nicolson
+           if (diffusion_type .eq. 1) then
+              visc_mu = HALF*dt*visc_coef
+ 
+           ! backward Euler
+           else if (diffusion_type .eq. 2) then
+              visc_mu = dt*visc_coef
+ 
+           else
+             call bl_error('BAD DIFFUSION TYPE ')
+           end if
+ 
+           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
+    end if
 
     if (verbose .ge. 1) then
        do n = 1, nlevs

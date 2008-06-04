@@ -4,7 +4,11 @@ module scalar_advance_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
-  use probin_module, only : nscal, verbose
+  use explicit_diffusive_module
+  use viscous_module
+  use macproject_module
+  use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
+                            verbose, mg_verbose, cg_verbose
 
   implicit none
 
@@ -14,8 +18,8 @@ module scalar_advance_module
 
 contains
 
-  subroutine scalar_advance(mla,uold,sold,snew,laps,umac, &
-                            ext_scal_force,dx,dt,the_bc_level)
+  subroutine scalar_advance(mla,uold,sold,snew,umac, &
+                            ext_scal_force,dx,dt,the_bc_tower)
 
     use mkflux_module
     use mkforce_module
@@ -26,29 +30,28 @@ contains
     type(multifab) , intent(in   ) :: uold(:)
     type(multifab) , intent(in   ) :: sold(:)
     type(multifab) , intent(inout) :: snew(:)
-    type(multifab) , intent(inout) :: laps(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
-    type(bc_level) , intent(in   ) :: the_bc_level(:)
+    type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local variables
-    type(multifab), allocatable :: scal_force(:), divu(:)
+    type(multifab), allocatable :: scal_force(:), divu(:), laps(:)
     type(multifab), allocatable :: sflux(:,:), sedge(:,:)
     logical       , allocatable :: is_conservative(:)
     logical       , allocatable :: umac_nodal_flag(:)
 
     integer         :: i,n
-    integer         :: comp,nlevs,dm
+    integer         :: comp,bc_comp,nlevs,dm
     logical         :: is_vel
-    real(kind=dp_t) :: diff_fac
+    real(kind=dp_t) :: diff_fac,visc_mu
     real(kind=dp_t) :: smin,smax
 
     nlevs = mla%nlevel
     dm    = mla%dim
 
     allocate(umac_nodal_flag(mla%dim))
-    allocate(scal_force(nlevs),divu(nlevs))
+    allocate(scal_force(nlevs),divu(nlevs),laps(nlevs))
     allocate(sflux(nlevs,dm),sedge(nlevs,dm))
     allocate(is_conservative(nscal))
 
@@ -58,8 +61,9 @@ contains
     is_vel  = .false.
 
     do n = 1, nlevs
-       call multifab_build(scal_force(n),ext_scal_force(n)%la,nscal,1)
-       call multifab_build(divu(n),scal_force(n)%la,1,1)
+       call multifab_build( scal_force(n),ext_scal_force(n)%la,nscal,1)
+       call multifab_build( divu(n),mla%la(n),    1,1)
+       call multifab_build( laps(n),mla%la(n),nscal,0)
        do i = 1,dm
          umac_nodal_flag(:) = .false.
          umac_nodal_flag(i) = .true.
@@ -71,7 +75,21 @@ contains
 
        call setval(scal_force(n),0.0_dp_t,all=.true.)
        call setval(divu(n),0.0_dp_t,all=.true.)
+       call setval(laps(n),0.0_dp_t,all=.true.)
     enddo
+
+    !***********************************
+    ! Compute laps for passive scalar only
+    !***********************************
+    if (diff_coef .gt. ZERO .and. diffusion_type .eq. 1) then
+       comp = 2
+       bc_comp = dm+comp
+       call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
+    else
+      do n = 1, nlevs
+         call setval(laps(n),ZERO)
+      enddo
+    endif
 
     !***********************************
     ! Create scalar force at time n.
@@ -85,7 +103,7 @@ contains
     !***********************************
 
     call mkflux(mla,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
-                the_bc_level,is_vel,is_conservative)
+                the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
     !***********************************
     ! Create scalar force at time n+1/2.
@@ -99,7 +117,7 @@ contains
     !***********************************
 
     call update(mla,sold,umac,sedge,sflux,scal_force,snew,dx,dt,is_vel, &
-                is_conservative,the_bc_level)
+                is_conservative,the_bc_tower%bc_tower_array)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -127,7 +145,27 @@ contains
     enddo
 
     deallocate(umac_nodal_flag)
-    deallocate(scal_force,divu,sflux,sedge)
+    deallocate(scal_force,divu,laps,sflux,sedge)
+
+    if (diff_coef > ZERO) then
+           comp = 2
+           bc_comp = dm+comp
+ 
+           ! Crank-Nicolson
+           if (diffusion_type .eq. 1) then
+              visc_mu = HALF*dt*diff_coef
+ 
+           ! backward Euler
+           else if (diffusion_type .eq. 2) then
+              visc_mu = dt*diff_coef
+ 
+           else
+             call bl_error('BAD DIFFUSION TYPE ')
+           end if
+ 
+           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
+    end if
+
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)

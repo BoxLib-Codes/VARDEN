@@ -17,8 +17,9 @@ module advance_module
   use macproject_module
   use hgproject_module
   use rhohalf_module
+  use explicit_diffusive_module
   use viscous_module
-  use probin_module, only : nscal, visc_coef, diff_coef, diffusion_type, stencil_order, &
+  use probin_module, only : nscal, visc_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose
   use proj_parameters
 
@@ -44,12 +45,8 @@ contains
     integer        , intent(in   ) :: press_comp
     integer        , intent(in   ) :: proj_type
 
-    type(multifab), allocatable ::  phi(:)
-    type(multifab), allocatable :: Lphi(:)
     type(multifab), allocatable :: lapu(:)
     type(multifab), allocatable :: laps(:)
-    type(multifab), allocatable :: alpha(:)
-    type(multifab), allocatable :: beta(:)
     type(multifab), allocatable :: umac(:,:)
     type(multifab), allocatable :: rhohalf(:)
 
@@ -61,8 +58,7 @@ contains
     dm    = mla%dim
     nlevs = mla%nlevel
 
-    allocate(phi(nlevs),Lphi(nlevs),lapu(nlevs),laps(nlevs))
-    allocate(alpha(nlevs),beta(nlevs))
+    allocate(lapu(nlevs))
     allocate(umac(nlevs,dm))
     allocate(rhohalf(nlevs))
 
@@ -70,11 +66,6 @@ contains
 
     do n = 1,nlevs
        call multifab_build(   lapu(n), mla%la(n),    dm, 0)
-       call multifab_build(   laps(n), mla%la(n), nscal, 0)
-       call multifab_build(    phi(n), mla%la(n),     1, 1)
-       call multifab_build(   Lphi(n), mla%la(n),     1, 0)
-       call multifab_build(  alpha(n), mla%la(n),     1, 1)
-       call multifab_build(   beta(n), mla%la(n),    dm, 1)
        call multifab_build(rhohalf(n), mla%la(n),    dm, 1)
 
        do i = 1,dm
@@ -84,12 +75,6 @@ contains
          call setval( umac(n,i),1.d20, all=.true.)
        end do
 
-       call setval( lapu(n),ZERO, all=.true.)
-       call setval( laps(n),ZERO, all=.true.)
-       call setval(  phi(n),ZERO, all=.true.)
-       call setval( Lphi(n),ZERO, all=.true.)
-       call setval(alpha(n),ZERO, all=.true.)
-       call setval( beta(n), ONE, all=.true.)
     end do
 
     if ( verbose .ge. 1 ) then
@@ -119,37 +104,14 @@ contains
     end if
 
     ! compute lapu
-    if(visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
-           do comp = 1, dm
-              do n = 1, nlevs
-                 call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
-              enddo
-              call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
-                               stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-              do n = 1, nlevs
-                 call multifab_copy_c(lapu(n),comp,Lphi(n),1)
-              enddo
-           enddo
+    if (visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
+       do comp = 1, dm
+         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
+       end do
     else
-           do n = 1, nlevs
-              call setval(lapu(n),ZERO)
-           enddo
-    endif
-
-    ! compute laps for passive scalar only
-    if (diff_coef .gt. ZERO .and. diffusion_type .eq. 1) then
-           do n = 1, nlevs
-              call multifab_copy_c(phi(n),1,sold(n),2,1,1)
-           enddo
-           call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
-                            stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-           do n = 1, nlevs
-              call multifab_copy_c(laps(n),2,Lphi(n),1)
-           enddo
-    else
-           do n = 1, nlevs
-              call setval(laps(n),ZERO)
-           enddo
+       do n = 1, nlevs
+         call setval(lapu(n),ZERO)
+       enddo
     endif
 
     call advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
@@ -157,48 +119,13 @@ contains
 
     call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
-    call scalar_advance(mla,uold,sold,snew,laps,umac,&
-                        ext_scal_force,dx,dt,the_bc_tower%bc_tower_array)
+    call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
+                        dx,dt,the_bc_tower)
     
-    if (diff_coef > ZERO) then
-           comp = 2
-           bc_comp = dm+comp
-
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*diff_coef
-
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*diff_coef
-
-           else 
-             call bl_error('BAD DIFFUSION TYPE ')
-           end if
-
-           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
-    end if
-
     call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)
 
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                              ext_vel_force,dx,dt,the_bc_tower%bc_tower_array)
-
-    if (visc_coef > ZERO) then
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*visc_coef
-
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*visc_coef
-
-           else 
-             call bl_error('BAD DIFFUSION TYPE ')
-           end if
-
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
-    end if
+                              ext_vel_force,dx,dt,the_bc_tower)
 
     ! Project the new velocity field.
     call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
@@ -231,20 +158,14 @@ contains
     end if
 
     do n = 1,nlevs
-       call multifab_destroy(phi(n))
-       call multifab_destroy(Lphi(n))
        call multifab_destroy(lapu(n))
-       call multifab_destroy(laps(n))
-       call multifab_destroy(alpha(n))
-       call multifab_destroy(beta(n))
        call multifab_destroy(rhohalf(n))
        do i = 1,dm
          call multifab_destroy(umac(n,i))
        end do
     end do
 
-    deallocate(phi,Lphi,lapu,laps)
-    deallocate(alpha,beta)
+    deallocate(lapu)
     deallocate(umac,rhohalf)
 
 1000 format('LEVEL: ',i3,' ITER: ',   i3,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
