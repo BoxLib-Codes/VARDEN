@@ -6,6 +6,7 @@ module macproject_module
   use multifab_module
   use bndry_reg_module
   use bl_constants_module
+  use bl_error_module
   use sparse_solve_module
 
   implicit none
@@ -54,7 +55,7 @@ contains
     if (present(div_coeff_3d)) use_div_coeff_3d = .true.
 
     if (use_div_coeff_1d .and. use_div_coeff_3d) &
-       call bl_abort('CANT HAVE 1D and 3D DIV_COEFF IN MACPROJECT ')
+       call bl_error('CANT HAVE 1D and 3D DIV_COEFF IN MACPROJECT ')
 
     allocate(rh(nlevs), phi(nlevs), alpha(nlevs), beta(nlevs))
     allocate(umac_norm(nlevs))

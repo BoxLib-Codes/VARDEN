@@ -173,7 +173,7 @@ contains
               visc_mu = dt*diff_coef
 
            else 
-             call bl_abort('BAD DIFFUSION TYPE ')
+             call bl_error('BAD DIFFUSION TYPE ')
            end if
 
            call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
@@ -194,7 +194,7 @@ contains
               visc_mu = dt*visc_coef
 
            else 
-             call bl_abort('BAD DIFFUSION TYPE ')
+             call bl_error('BAD DIFFUSION TYPE ')
            end if
 
            call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)

@@ -1,6 +1,7 @@
 module hgproject_module
 
   use bl_types
+  use bl_error_module
   use mg_module
   use multifab_module
   use ml_layout_module
@@ -70,7 +71,7 @@ contains
     if (present(div_coeff_3d)) use_div_coeff_3d = .true.
 
     if (use_div_coeff_1d .and. use_div_coeff_3d) &
-       call bl_abort('CANT HAVE 1D and 3D DIV_COEFF IN HGPROJECT ')
+       call bl_error('CANT HAVE 1D and 3D DIV_COEFF IN HGPROJECT ')
 
     do n = 1, nlevs
        call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
