@@ -8,7 +8,6 @@ subroutine varden()
   use ml_boxarray_module
   use layout_module
   use multifab_module
-  use probin_module
   use init_module
   use estdt_module
   use vort_module
@@ -29,6 +28,13 @@ subroutine varden()
   use regrid_module
   use multifab_fill_ghost_module
   use advance_module
+
+  use probin_module, only : dim_in, nlevs, ng_cell, ng_grow, init_iter, max_step, &
+                            stop_time, restart, chk_int, plot_int, regrid_int, init_shrink, &
+                            fixed_dt, bcx_lo, bcy_lo, bcz_lo, bcx_hi, bcy_hi, bcz_hi, &
+                            n_cellx, n_celly, n_cellz, prob_lo_x, prob_lo_y, prob_lo_z, &
+                            prob_hi_x, prob_hi_y, prob_hi_z, ref_ratio, pmask_xyz, &
+                            fixed_grids, do_initial_projection, grav, probin_init
 
   implicit none
 
@@ -134,12 +140,8 @@ subroutine varden()
 
   ! Restart from a checkpoint file
   if (restart >= 0) then
-     n_chk_comps = 2*dm + nscal
+
      allocate(chkdata(nlevs),chk_p(nlevs))
-!    do n = 1,nlevs
-!       call multifab_build(chkdata(n), mla%la(n), n_chk_comps, 0)
-!       call multifab_build(  chk_p(n), mla%la(n), n_chk_comps, 0)
-!    end do
      call fill_restart_data(restart,mba,chkdata,chk_p,time,dt)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mba%nlevel
@@ -165,14 +167,15 @@ subroutine varden()
            call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),gp_rg(n),p_rg(n))
         enddo
      endif
-! Read the grid info from the file indicated, fixed grid option
+
+  ! Read the grid info from the file indicated, fixed grid option
   else if (fixed_grids /= '') then
      call read_a_hgproj_grid(mba, fixed_grids)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mla%nlevel
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
 
-! Adaptive gridding
+  ! Adaptive gridding
   else 
      
      ! set up hi & lo to carry indexing info
@@ -903,7 +906,6 @@ contains
 
     type(layout),intent(in   ) :: la_loc
     type(multifab ),intent(inout) :: uold_loc,sold_loc,gp_loc,p_loc
-
 
     call multifab_build(   uold_loc, la_loc,    dm, ng_cell)
     call multifab_build(   sold_loc, la_loc, nscal, ng_cell)
