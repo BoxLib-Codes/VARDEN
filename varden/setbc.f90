@@ -56,8 +56,7 @@ contains
     else if (bc(1,1) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(1,1) = ',bc(1,1),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(1,1) = NOT YET SUPPORTED')
     end if
 
     if (bc(1,2) .eq. EXT_DIR) then
@@ -89,8 +88,7 @@ contains
     else if (bc(1,2) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(1,2) = ',bc(1,2),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(1,2) = NOT YET SUPPORTED')
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
@@ -122,8 +120,7 @@ contains
     else if (bc(2,1) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(2,1) = ',bc(2,1),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(2,1) = NOT YET SUPPORTED')
     end if
 
     if (bc(2,2) .eq. EXT_DIR) then
@@ -155,8 +152,7 @@ contains
     else if (bc(2,2) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(2,2) = ',bc(2,2),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(2,2) = NOT YET SUPPORTED')
     end if
 
   end subroutine setbc_2d
@@ -219,8 +215,7 @@ contains
     else if (bc(1,1) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(1,1) = ',bc(1,1),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(1,1) = NOT YET SUPPORTED')
     end if
 
     if (bc(1,2) .eq. EXT_DIR) then
@@ -263,8 +258,7 @@ contains
     else if (bc(1,2) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(1,2) = ',bc(1,2),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(1,2) = NOT YET SUPPORTED')
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
@@ -307,8 +301,7 @@ contains
     else if (bc(2,1) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(2,1) = ',bc(2,1),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(2,1) = NOT YET SUPPORTED')
     end if
 
     if (bc(2,2) .eq. EXT_DIR) then
@@ -351,8 +344,7 @@ contains
     else if (bc(2,2) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(2,2) = ',bc(2,2),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(2,2) = NOT YET SUPPORTED')
     end if
 
     if (bc(3,1) .eq. EXT_DIR) then
@@ -395,8 +387,7 @@ contains
     else if (bc(3,1) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(3,1) = ',bc(3,1),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(3,1) = NOT YET SUPPORTED')
     end if
 
     if (bc(3,2) .eq. EXT_DIR) then
@@ -439,8 +430,7 @@ contains
     else if (bc(3,2) .eq. INTERIOR) then
        ! do nothing
     else 
-       print *,'BC(3,2) = ',bc(3,2),' NOT YET SUPPORTED '
-       stop
+       call bl_abort('BC(3,2) = NOT YET SUPPORTED')
     end if
 
   end subroutine setbc_3d

@@ -69,10 +69,8 @@ contains
     use_div_coeff_3d = .false.
     if (present(div_coeff_3d)) use_div_coeff_3d = .true.
 
-    if (use_div_coeff_1d .and. use_div_coeff_3d) then
-       print *,'CANT HAVE 1D and 3D DIV_COEFF IN HGPROJECT '
-       stop
-    end if
+    if (use_div_coeff_1d .and. use_div_coeff_3d) &
+       call bl_abort('CANT HAVE 1D and 3D DIV_COEFF IN HGPROJECT ')
 
     do n = 1, nlevs
        call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
