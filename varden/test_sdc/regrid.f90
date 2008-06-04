@@ -35,7 +35,7 @@ module regrid_module
 
        type(ml_boxarray) :: mba_new
        type(boxarray)    :: ba_new
-       integer           :: llev,dim,n,i
+       integer           :: llev,dim,n
 
        logical :: pmask(mf%dim)
 
@@ -88,13 +88,12 @@ module regrid_module
       integer       , intent(in   ) :: buf_wid
       integer, optional, intent(in   ) :: lev
 
-      type(list_box_node), pointer :: bn
       type(lmultifab) :: tagboxes
 
       real(kind = dp_t), pointer :: sp(:,:,:,:)
       logical          , pointer :: tp(:,:,:,:)
       real(kind = dp_t) :: min_eff
-      integer           :: i, j, k, dm
+      integer           :: i, dm
       integer, allocatable  :: lo(:)
       integer           :: minwidth
       integer           :: llev, ng_cell
@@ -139,7 +138,7 @@ module regrid_module
       integer, optional, intent(in   ) :: lev
       integer :: i,j,nx,ny, llev
 
-      real(kind = dp_t) :: dgradx,dgrady,gradmax,denerr
+      real(kind = dp_t) :: dgradx,dgrady,denerr
       llev = 1; if (present(lev)) llev = lev
       nx = size(tagbox,dim=1)
       ny = size(tagbox,dim=2)
@@ -152,9 +151,6 @@ module regrid_module
                do i = lo(1),lo(1)+nx-1
                   dgradx = 0.5d0*(mf(i+1,j)-mf(i-1,j))
                   dgrady = 0.5d0*(mf(i,j+1)-mf(i,j-1))
-                  gradmax = max(abs(dgradx),abs(dgrady))
-!                 write(6,*)i,j
-!                 write(6,*)dgradx,dgrady,denerr
                   if(abs(dgradx).gt.denerr .or. abs(dgrady).gt.denerr)then
                      tagbox(i,j) = .true.
                   end if
