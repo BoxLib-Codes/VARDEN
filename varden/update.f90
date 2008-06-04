@@ -13,26 +13,24 @@ module update_module
 
 contains
 
-  subroutine update(nlevs,sold,umac,sedge,flux,force,snew,rhohalf,dx,dt,is_vel,is_cons, &
-                    the_bc_level,mla)
+  subroutine update(mla,sold,umac,sedge,flux,force,snew,dx,dt,is_vel,is_cons, &
+                    the_bc_level)
 
     use bl_constants_module
     use multifab_physbc_module
     use ml_restriction_module, only: ml_cc_restriction
     use multifab_fill_ghost_module
 
-    integer           , intent(in   ) :: nlevs
+    type(ml_layout)   , intent(in   ) :: mla
     type(multifab)    , intent(in   ) :: sold(:)
     type(multifab)    , intent(in   ) :: umac(:,:)
     type(multifab)    , intent(in   ) :: sedge(:,:)
     type(multifab)    , intent(in   ) :: flux(:,:)
     type(multifab)    , intent(in   ) :: force(:)
     type(multifab)    , intent(inout) :: snew(:)
-    type(multifab)    , intent(inout) :: rhohalf(:)
     real(kind = dp_t) , intent(in   ) :: dx(:,:),dt
     logical           , intent(in   ) :: is_vel,is_cons(:)
     type(bc_level)    , intent(in   ) :: the_bc_level(:)
-    type(ml_layout)   , intent(inout) :: mla
 
     ! local
     real(kind=dp_t), pointer :: sop(:,:,:,:)
@@ -46,16 +44,14 @@ contains
     real(kind=dp_t), pointer :: fluxpx(:,:,:,:)
     real(kind=dp_t), pointer :: fluxpy(:,:,:,:)
     real(kind=dp_t), pointer :: fluxpz(:,:,:,:)
-    real(kind=dp_t), pointer :: rp(:,:,:,:)
     real(kind=dp_t), pointer :: fp(:,:,:,:)
-    real(kind=dp_t), pointer :: w0p(:,:,:,:)
-    real(kind=dp_t), pointer :: s0op(:,:,:,:)
-    real(kind=dp_t), pointer :: s0np(:,:,:,:)
 
     integer :: lo(sold(1)%dim),hi(sold(1)%dim)
-    integer :: i,ng,dm,bc_comp,nscal,n
+    integer :: i,ng,dm,nscal,n,nlevs
 
-    dm = sold(1)%dim
+    nlevs = mla%nlevel
+    dm    = mla%dim
+
     ng = sold(1)%ng
     nscal = multifab_ncomp(sold(1))
 
@@ -71,7 +67,6 @@ contains
           sepy   => dataptr(sedge(n,2),i)
           fluxpx => dataptr(flux(n,1),i)
           fluxpy => dataptr(flux(n,2),i)
-          rp     => dataptr(rhohalf(n),i)
           fp     => dataptr(force(n),i)
           lo = lwb(get_box(sold(n),i))
           hi = upb(get_box(sold(n),i))
@@ -81,7 +76,6 @@ contains
                   sepx(:,:,1,:), sepy(:,:,1,:), &
                   fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                   fp(:,:,1,:) , snp(:,:,1,:), &
-                  rp(:,:,1,1) , &
                   lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
           case (3)
              wmp    => dataptr( umac(n,3),i)
@@ -91,7 +85,6 @@ contains
                   sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                   fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                   fp(:,:,:,:) , snp(:,:,:,:), &
-                  rp(:,:,:,1) , &
                   lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
           end select
        end do
@@ -99,10 +92,8 @@ contains
        if (.not. is_vel) then
 
           call multifab_fill_boundary(snew(n))
-          call multifab_fill_boundary(rhohalf(n))
 
           call multifab_physbc(snew(n)   ,1,dm+1,nscal,the_bc_level(n))
-          call multifab_physbc(rhohalf(n),1,dm+1,    1,the_bc_level(n))
 
        else if (is_vel) then
 
@@ -118,14 +109,10 @@ contains
        if (.not. is_vel) then
 
           call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
-          call ml_cc_restriction(rhohalf(n-1),rhohalf(n),mla%mba%rr(n-1,:))
 
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
                                          1,dm+1,nscal)
-          call multifab_fill_ghost_cells(rhohalf(n),rhohalf(n-1),rhohalf(n)%ng,mla%mba%rr(n-1,:), &
-                                         the_bc_level(n-1),the_bc_level(n), &
-                                         1,dm+1,1)
 
        else if (is_vel) then
 
@@ -141,7 +128,7 @@ contains
 
   end subroutine update
 
-  subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,rhohalf, &
+  subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,&
                        lo,hi,ng,dx,dt,is_vel,is_cons)
 
     use bl_constants_module
@@ -156,7 +143,6 @@ contains
     real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)   :,lo(2)   :,:)  
     real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)   :,lo(2)   :,:) 
     real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,:)  
-    real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:)
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
@@ -176,7 +162,6 @@ contains
                    divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
                         + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
                    snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
-                   if (comp.eq.1) rhohalf(i,j) = HALF * (sold(i,j,1) + snew(i,j,1))
                 enddo
              enddo
           else
@@ -216,7 +201,7 @@ contains
   end subroutine update_2d
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
-                       force,snew,rhohalf,lo,hi,ng,dx,dt,is_vel,is_cons)
+                       force,snew,lo,hi,ng,dx,dt,is_vel,is_cons)
 
     use bl_constants_module
 
@@ -233,7 +218,6 @@ contains
     real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)  
     real (kind = dp_t), intent(in   ) ::   fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:) 
     real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
-    real (kind = dp_t), intent(inout) :: rhohalf(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
@@ -256,7 +240,6 @@ contains
                            + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
                            + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * divsu + dt * force(i,j,k,comp)
-                      if (comp.eq.1)  rhohalf(i,j,k) = HALF * (sold(i,j,k,1) + snew(i,j,k,1))
                    enddo
                 enddo
              enddo

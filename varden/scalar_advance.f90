@@ -4,6 +4,7 @@ module scalar_advance_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
+  use probin_module, only : nscal, verbose
 
   implicit none
 
@@ -13,44 +14,44 @@ module scalar_advance_module
 
 contains
 
-  subroutine scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
-                            ext_scal_force,dx,dt,the_bc_level,diff_coef,verbose)
+  subroutine scalar_advance(mla,uold,sold,snew,laps,umac, &
+                            ext_scal_force,dx,dt,the_bc_level)
 
     use mkflux_module
     use mkforce_module
     use update_module
     use bl_constants_module
 
-    integer        , intent(in   ) :: nlevs
-    type(ml_layout), intent(inout) :: mla
-    type(multifab) , intent(inout) :: uold(:)
-    type(multifab) , intent(inout) :: sold(:)
+    type(ml_layout), intent(in   ) :: mla
+    type(multifab) , intent(in   ) :: uold(:)
+    type(multifab) , intent(in   ) :: sold(:)
     type(multifab) , intent(inout) :: snew(:)
     type(multifab) , intent(inout) :: laps(:)
-    type(multifab) , intent(inout) :: rhohalf(:)
-    type(multifab) , intent(inout) :: umac(:,:)
-    type(multifab) , intent(inout) :: sedge(:,:)
-    type(multifab) , intent(inout) :: sflux(:,:)
-    type(multifab) , intent(inout) :: ext_scal_force(:)
-    real(kind=dp_t), intent(inout) :: dx(:,:),dt
+    type(multifab) , intent(in   ) :: umac(:,:)
+    type(multifab) , intent(in   ) :: ext_scal_force(:)
+    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
-    real(kind=dp_t), intent(in   ) :: diff_coef
-    integer        , intent(in   ) :: verbose
 
     ! local variables
     type(multifab), allocatable :: scal_force(:), divu(:)
+    type(multifab), allocatable :: sflux(:,:), sedge(:,:)
     logical       , allocatable :: is_conservative(:)
+    logical       , allocatable :: umac_nodal_flag(:)
 
-    integer         :: nscal,comp,d,n
-    integer         :: lo(uold(1)%dim),hi(uold(1)%dim)
+    integer         :: i,n
+    integer         :: comp,nlevs,dm
     logical         :: is_vel
     real(kind=dp_t) :: diff_fac
     real(kind=dp_t) :: smin,smax
 
-    nscal = ncomp(sold(1))
+    nlevs = mla%nlevel
+    dm    = mla%dim
 
+    allocate(umac_nodal_flag(mla%dim))
     allocate(scal_force(nlevs),divu(nlevs))
+    allocate(sflux(nlevs,dm),sedge(nlevs,dm))
     allocate(is_conservative(nscal))
+
     is_conservative(1) = .true.
     is_conservative(2) = .false.
 
@@ -59,6 +60,14 @@ contains
     do n = 1, nlevs
        call multifab_build(scal_force(n),ext_scal_force(n)%la,nscal,1)
        call multifab_build(divu(n),scal_force(n)%la,1,1)
+       do i = 1,dm
+         umac_nodal_flag(:) = .false.
+         umac_nodal_flag(i) = .true.
+         call multifab_build(sflux(n,i),scal_force(n)%la,nscal,0,nodal = umac_nodal_flag)
+         call multifab_build(sedge(n,i),scal_force(n)%la,nscal,0,nodal = umac_nodal_flag)
+         call setval(sflux(n,i),ZERO,all=.true.)
+         call setval(sedge(n,i),ZERO,all=.true.)
+       end do
 
        call setval(scal_force(n),0.0_dp_t,all=.true.)
        call setval(divu(n),0.0_dp_t,all=.true.)
@@ -69,28 +78,28 @@ contains
     !***********************************
 
     diff_fac = ONE
-    call mkscalforce(nlevs,scal_force,ext_scal_force,sold,laps,dx,diff_coef,diff_fac)
+    call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 
     !***********************************
     ! Create edge state scalars/fluxes
     !***********************************
 
-    call mkflux(nlevs,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
-                the_bc_level,mla,is_vel,is_conservative)
+    call mkflux(mla,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
+                the_bc_level,is_vel,is_conservative)
 
     !***********************************
     ! Create scalar force at time n+1/2.
     !***********************************
     
     diff_fac = HALF
-    call mkscalforce(nlevs,scal_force,ext_scal_force,sold,laps,dx,diff_coef,diff_fac)
+    call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 
     !***********************************
     ! Update the scalars with conservative or convective differencing.
     !***********************************
 
-    call update(nlevs,sold,umac,sedge,sflux,scal_force,snew,rhohalf,dx,dt,is_vel, &
-                is_conservative,the_bc_level,mla)
+    call update(mla,sold,umac,sedge,sflux,scal_force,snew,dx,dt,is_vel, &
+                is_conservative,the_bc_level)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -111,7 +120,14 @@ contains
     do n = 1,nlevs
        call multifab_destroy(scal_force(n))
        call multifab_destroy(divu(n))
+       do i = 1,dm
+         call multifab_destroy(sflux(n,i))
+         call multifab_destroy(sedge(n,i))
+       end do
     enddo
+
+    deallocate(umac_nodal_flag)
+    deallocate(scal_force,divu,sflux,sedge)
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)

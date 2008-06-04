@@ -24,7 +24,7 @@ contains
     type(multifab) , intent(in   ) :: force(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
-    type(ml_layout), intent(inout) :: mla
+    type(ml_layout), intent(in   ) :: mla
 
     ! local
     integer :: i,n,dm,ng,comp
@@ -721,12 +721,14 @@ contains
           umacr(i,j) = urx(i,j,1) &
                - (dt4/hy)*(uimhy(i  ,j+1,2)+uimhy(i  ,j,2))*(uimhy(i  ,j+1,1)-uimhy(i  ,j,1))
 
+
           ! if use_minion is true, we have already accounted for source terms
           ! in ulx and urx; otherwise, we need to account for them here.
           if(.not. use_minion) then
              umacl(i,j) = umacl(i,j) + dt2*force(i-1,j,1)
              umacr(i,j) = umacr(i,j) + dt2*force(i  ,j,1)
           endif
+
 
           ! solve Riemann problem
           uavg = HALF*(umacl(i,j)+umacr(i,j))

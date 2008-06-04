@@ -2,6 +2,7 @@ module estdt_module
 
   use bl_types
   use multifab_module
+  use probin_module, only : verbose
 
   implicit none
 
@@ -11,7 +12,7 @@ module estdt_module
 
 contains
 
-   subroutine estdt (lev,u, s, gp, ext_vel_force, dx, dtold, dt, verbose)
+   subroutine estdt (lev,u, s, gp, ext_vel_force, dx, dtold, dt)
 
       use probin_module, only: max_dt_growth, cflfac
 
@@ -19,7 +20,7 @@ contains
       real(kind=dp_t), intent( in) :: dx(:)
       real(kind=dp_t), intent( in) :: dtold
       real(kind=dp_t), intent(out) :: dt
-      integer        , intent( in) :: lev,verbose 
+      integer        , intent( in) :: lev
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:),  fp(:,:,:,:)

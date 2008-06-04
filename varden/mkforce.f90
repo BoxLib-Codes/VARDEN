@@ -11,17 +11,15 @@ module mkforce_module
 
 contains
 
-  subroutine mkvelforce(nlevs,vel_force,ext_vel_force,s,gp,u,lapu,dx,visc_coef,visc_fac)
+  subroutine mkvelforce(nlevs,vel_force,ext_vel_force,s,gp,lapu,visc_fac)
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: vel_force(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
     type(multifab) , intent(in   ) :: s(:)
     type(multifab) , intent(in   ) :: gp(:)
-    type(multifab) , intent(in   ) :: u(:)
     type(multifab) , intent(in   ) :: lapu(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:)
-    real(kind=dp_t), intent(in   ) :: visc_coef,visc_fac
+    real(kind=dp_t), intent(in   ) :: visc_fac
 
     ! local
     integer :: i,n,ng,dm
@@ -29,30 +27,28 @@ contains
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
     real(kind=dp_t), pointer :: sp(:,:,:,:)
-    real(kind=dp_t), pointer :: up(:,:,:,:)
     real(kind=dp_t), pointer :: gpp(:,:,:,:)
 
     ng = s(1)%ng
     dm = s(1)%dim
 
     do n=1,nlevs
-       do i = 1, u(n)%nboxes
-          if ( remote(u(n),i) ) cycle
+       do i = 1, vel_force(n)%nboxes
+          if ( remote(vel_force(n),i) ) cycle
           fp  => dataptr(vel_force(n),i)
           ep  => dataptr(ext_vel_force(n),i)
           gpp => dataptr(gp(n),i)
           sp  => dataptr(s(n),i)
-          up  => dataptr(u(n),i)
           lp => dataptr(lapu(n),i)
           select case (dm)
           case (2)
              call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), &
-                                sp(:,:,1,:), up(:,:,1,:), lp(:,:,1,:), &
-                                ng, dx(n,:), visc_coef, visc_fac)
+                                sp(:,:,1,:), lp(:,:,1,:), &
+                                ng, visc_fac)
           case (3)
              call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), gpp(:,:,:,:), &
-                                sp(:,:,:,:), up(:,:,:,:), lp(:,:,:,:), &
-                                ng, dx(n,:), visc_coef, visc_fac)
+                                sp(:,:,:,:), lp(:,:,:,:), &
+                                ng, visc_fac)
           end select
        end do
 
@@ -61,19 +57,17 @@ contains
 
   end subroutine mkvelforce
 
-  subroutine mkvelforce_2d(vel_force,ext_vel_force,gp,s,u,lapu,ng,dx,visc_coef,visc_fac)
+  subroutine mkvelforce_2d(vel_force,ext_vel_force,gp,s,lapu,ng,visc_fac)
 
-    use probin_module, only: boussinesq
+    use probin_module, only: boussinesq, visc_coef
  
     integer        , intent(in   ) :: ng
     real(kind=dp_t), intent(  out) :: vel_force(0:,0:,:)
     real(kind=dp_t), intent(in   ) :: ext_vel_force(0:,0:,:)
     real(kind=dp_t), intent(in   ) :: gp(0:,0:,:)
     real(kind=dp_t), intent(in   ) :: s(1-ng:,1-ng:,:)
-    real(kind=dp_t), intent(in   ) :: u(1-ng:,1-ng:,:)
     real(kind=dp_t), intent(in   ) :: lapu(1:,1:,:)
-    real(kind=dp_t), intent(in   ) :: dx(:)
-    real(kind=dp_t), intent(in   ) :: visc_coef, visc_fac
+    real(kind=dp_t), intent(in   ) :: visc_fac
 
     real(kind=dp_t) :: lapu_local
     integer :: i,j,is,ie,js,je,n
@@ -130,19 +124,17 @@ contains
 
   end subroutine mkvelforce_2d
 
-  subroutine mkvelforce_3d(vel_force,ext_vel_force,gp,s,u,lapu,ng,dx,visc_coef,visc_fac)
+  subroutine mkvelforce_3d(vel_force,ext_vel_force,gp,s,lapu,ng,visc_fac)
 
-    use probin_module, only: boussinesq
+    use probin_module, only: boussinesq, visc_coef
 
     integer        , intent(in   ) :: ng
     real(kind=dp_t), intent(  out) :: vel_force(0:,0:,0:,:)
     real(kind=dp_t), intent(in   ) :: ext_vel_force(0:,0:,0:,:)
     real(kind=dp_t), intent(in   ) :: gp(0:,0:,0:,:)
     real(kind=dp_t), intent(in   ) :: s(1-ng:,1-ng:,1-ng:,:)
-    real(kind=dp_t), intent(in   ) :: u(1-ng:,1-ng:,1-ng:,:)
     real(kind=dp_t), intent(in   ) :: lapu(1:,1:,1:,:)
-    real(kind=dp_t), intent(in   ) :: dx(:)
-    real(kind=dp_t), intent(in   ) :: visc_coef, visc_fac
+    real(kind=dp_t), intent(in   ) :: visc_fac
 
     real(kind=dp_t) :: lapu_local
     integer :: i,j,k,is,ie,js,je,ks,ke,n
@@ -229,40 +221,33 @@ contains
 
   end subroutine mkvelforce_3d
 
-  subroutine mkscalforce(nlevs,scal_force,ext_scal_force,s,laps,dx,diff_coef,diff_fac)
+  subroutine mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: scal_force(:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
-    type(multifab) , intent(in   ) :: s(:)
     type(multifab) , intent(in   ) :: laps(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:)
-    real(kind=dp_t), intent(in   ) :: diff_coef,diff_fac
+    real(kind=dp_t), intent(in   ) :: diff_fac
 
     ! local
-    integer :: i,n,ng,dm
+    integer :: i,n,dm
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
-    real(kind=dp_t), pointer :: sp(:,:,:,:)
 
-    dm = s(1)%dim
-    ng = s(1)%ng
+    dm = scal_force(1)%dim
 
     do n=1,nlevs
-       do i = 1, s(n)%nboxes
-          if ( remote(s(n),i) ) cycle
+       do i = 1, scal_force(n)%nboxes
+          if ( remote(scal_force(n),i) ) cycle
           fp => dataptr(scal_force(n),i)
           lp => dataptr(laps(n),i)
           ep => dataptr(ext_scal_force(n),i)
-          sp => dataptr(s(n),i)
           select case (dm)
           case (2)
-             call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), sp(:,:,1,:), lp(:,:,1,:), &
-                                 ng,dx(n,:), diff_coef, diff_fac)
+             call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), lp(:,:,1,:), diff_fac)
           case (3)
-             call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), sp(:,:,:,:), lp(:,:,:,:), &
-                                 ng,dx(n,:), diff_coef, diff_fac)
+             call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), lp(:,:,:,:), diff_fac)
           end select
        end do
 
@@ -271,25 +256,22 @@ contains
 
   end subroutine mkscalforce
 
-  subroutine mkscalforce_2d(scal_force,ext_scal_force,s,laps,ng,dx,diff_coef,diff_fac)
+  subroutine mkscalforce_2d(scal_force,ext_scal_force,laps,diff_fac)
 
-    integer        , intent(in   ) :: ng
+    use probin_module, only : nscal, diff_coef
+
     real(kind=dp_t), intent(  out) :: scal_force(0:,0:,:)
     real(kind=dp_t), intent(in   ) :: ext_scal_force(0:,0:,:)
-    real(kind=dp_t), intent(in   ) :: s(1-ng:,1-ng:,:)
     real(kind=dp_t), intent(in   ) :: laps(1:,1:,:)
-    real(kind=dp_t), intent(in   ) :: dx(:)
-    real(kind=dp_t), intent(in   ) :: diff_coef,diff_fac
+    real(kind=dp_t), intent(in   ) :: diff_fac
 
     real(kind=dp_t) :: laps_local
-    integer :: i,j,is,ie,js,je,n,nscal
+    integer :: i,j,is,ie,js,je,n
 
     is = 1
     js = 1
     ie = size(scal_force,dim=1)-2
     je = size(scal_force,dim=2)-2
-
-    nscal = size(s,dim=3)
 
     scal_force = 0.0_dp_t
 
@@ -325,18 +307,17 @@ contains
 
   end subroutine mkscalforce_2d
 
-  subroutine mkscalforce_3d(scal_force,ext_scal_force,s,laps,ng,dx,diff_coef,diff_fac)
+  subroutine mkscalforce_3d(scal_force,ext_scal_force,laps,diff_fac)
 
-    integer        , intent(in   ) :: ng
+    use probin_module, only : nscal, diff_coef
+
     real(kind=dp_t), intent(  out) :: scal_force(0:,0:,0:,:)
     real(kind=dp_t), intent(in   ) :: ext_scal_force(0:,0:,0:,:)
-    real(kind=dp_t), intent(in   ) :: s(1-ng:,1-ng:,1-ng:,:)
     real(kind=dp_t), intent(in   ) :: laps(1:,1:,1:,:)
-    real(kind=dp_t), intent(in   ) :: dx(:)
-    real(kind=dp_t), intent(in   ) :: diff_coef, diff_fac
+    real(kind=dp_t), intent(in   ) :: diff_fac
 
     real(kind=dp_t) :: laps_local
-    integer :: i,j,k,is,ie,js,je,ks,ke,n,nscal
+    integer :: i,j,k,is,ie,js,je,ks,ke,n
 
     is = 1
     js = 1
@@ -344,8 +325,6 @@ contains
     ie = size(scal_force,dim=1)-2
     je = size(scal_force,dim=2)-2
     ke = size(scal_force,dim=3)-2
-
-    nscal = size(s,dim=4)
 
     scal_force = 0.0_dp_t
 

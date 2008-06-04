@@ -14,13 +14,13 @@ module pre_advance_module
 
 contains
 
-  subroutine advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                            the_bc_level,visc_coef,mla)
+  subroutine advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
+                            the_bc_level)
 
     use velpred_module
     use mkforce_module
 
-    integer        , intent(in   ) :: nlevs
+    type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: uold(:)
     type(multifab) , intent(inout) :: sold(:)
     type(multifab) , intent(in   ) :: lapu(:)
@@ -29,12 +29,12 @@ contains
     type(multifab) , intent(in   ) :: ext_vel_force(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
-    real(kind=dp_t), intent(in   ) :: visc_coef
-    type(ml_layout), intent(inout) :: mla
 
     type(multifab), allocatable :: vel_force(:)
-    integer                     :: dm,n
+    integer                     :: dm,n,nlevs
     real(kind=dp_t)             :: visc_fac
+
+    nlevs = mla%nlevel
 
     allocate(vel_force(nlevs))
 
@@ -46,7 +46,7 @@ contains
     enddo
 
     visc_fac = 1.0d0
-    call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,uold,lapu,dx,visc_coef,visc_fac)
+    call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,lapu,visc_fac)
 
     call velpred(nlevs,uold,umac,vel_force,dx,dt,the_bc_level,mla)
 

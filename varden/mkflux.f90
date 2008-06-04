@@ -13,13 +13,13 @@ module mkflux_module
 
 contains
 
-  subroutine mkflux(nlevs,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level,mla, &
+  subroutine mkflux(mla,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level, &
                     is_vel,is_conservative)
 
     use ml_restriction_module, only: ml_edge_restriction_c
     use probin_module, only: use_godunov_debug
 
-    integer        , intent(in   ) :: nlevs
+    type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(in   ) :: sold(:)
     type(multifab) , intent(in   ) :: uold(:)
     type(multifab) , intent(inout) :: sedge(:,:)
@@ -29,11 +29,10 @@ contains
     type(multifab) , intent(in   ) :: divu(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
-    type(ml_layout), intent(inout) :: mla
     logical        , intent(in   ) :: is_vel,is_conservative(:)
 
     ! local
-    integer                  :: n,i,dm,ng,comp,ncomp,bccomp
+    integer                  :: n,i,dm,ng,comp,ncomp,bccomp,nlevs
     integer                  :: lo(sold(1)%dim),hi(sold(1)%dim)
     real(kind=dp_t), pointer :: sop(:,:,:,:)
     real(kind=dp_t), pointer :: uop(:,:,:,:)
@@ -49,7 +48,9 @@ contains
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: dp(:,:,:,:)
 
-    dm = sold(1)%dim
+    nlevs = mla%nlevel
+    dm    = mla%dim
+
     ng = sold(1)%ng
     ncomp = multifab_ncomp(sold(1))
 

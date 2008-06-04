@@ -23,7 +23,7 @@ contains
     use ml_restriction_module, only: ml_cc_restriction
     use probin_module, only: stencil_order,verbose
 
-    type(ml_layout), intent(inout) :: mla
+    type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
     type(multifab ), intent(in   ) :: rho(:)
     real(dp_t)     , intent(in   ) :: dx(:,:),mu
@@ -32,10 +32,8 @@ contains
     ! Local  
     type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
     type(bndry_reg), pointer    :: fine_flx(:) => Null()
-    real(kind=dp_t), pointer    :: unp(:,:,:,:)
-    integer                     :: n,nlevs,d,dm,i,comp
+    integer                     :: n,nlevs,d,dm
     integer                     :: bc_comp,ng_cell
-    integer                     :: lo(unew(1)%dim)
     real(kind=dp_t)             :: nrm1, nrm2
 
     nlevs = mla%nlevel
@@ -217,7 +215,7 @@ contains
     use ml_restriction_module, only: ml_cc_restriction_c
     use probin_module, only: stencil_order, verbose
 
-    type(ml_layout), intent(inout) :: mla
+    type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: snew(:)
     real(dp_t)     , intent(in   ) :: dx(:,:)
     real(dp_t)     , intent(in   ) :: mu
@@ -227,9 +225,8 @@ contains
     ! Local  
     type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
     type(bndry_reg), pointer    :: fine_flx(:) => Null()
-    real(kind=dp_t), pointer    :: snp(:,:,:,:)
-    integer                     :: i,n,nlevs,dm
-    integer                     :: lo(snew(1)%dim),ng_cell
+    integer                     :: n,nlevs,dm
+    integer                     :: ng_cell
     real(kind=dp_t)             :: nrm1
 
     nlevs = mla%nlevel

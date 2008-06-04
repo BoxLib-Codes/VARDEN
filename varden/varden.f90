@@ -12,11 +12,6 @@ subroutine varden()
   use init_module
   use estdt_module
   use vort_module
-  use pre_advance_module
-  use velocity_advance_module
-  use scalar_advance_module
-  use macproject_module
-  use hgproject_module
   use proj_parameters
   use ml_restriction_module
   use multifab_physbc_module
@@ -33,23 +28,21 @@ subroutine varden()
   use fillpatch_module
   use regrid_module
   use multifab_fill_ghost_module
-  use viscous_module
+  use advance_module
 
   implicit none
 
   integer    :: dm
   real(dp_t) :: time,dt,dtold,dt_lev,dt_temp
-  real(dp_t) :: visc_mu, pressure_inflow_val,nrm1,nrm2
-  integer    :: k,istep
+  real(dp_t) :: pressure_inflow_val
+  integer    :: istep
   integer    :: i, n
-  integer    ::  n_plot_comps, n_chk_comps
+  integer    :: n_plot_comps, n_chk_comps
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step
-  integer    :: comp,bc_comp
   integer    :: press_comp, vort_comp
 
   integer     , allocatable :: domain_phys_bc(:,:)
-  integer     , allocatable :: n_cell(:)
   logical     , allocatable :: pmask(:)
   logical     , allocatable :: nodal(:)
   real(dp_t)  , allocatable :: dx(:,:)
@@ -65,14 +58,8 @@ subroutine varden()
   type(multifab), allocatable ::     snew(:)
   type(multifab), allocatable ::  rhohalf(:)
   type(multifab), allocatable ::        p(:)
-  type(multifab), allocatable :: lapu(:)
   type(multifab), allocatable :: ext_vel_force(:)
-  type(multifab), allocatable :: laps(:)
   type(multifab), allocatable :: ext_scal_force(:)
-  type(multifab), allocatable :: phi(:)
-  type(multifab), allocatable :: Lphi(:)
-  type(multifab), allocatable :: alpha(:)
-  type(multifab), allocatable :: beta(:) 
   type(multifab), allocatable :: plotdata(:)
   type(multifab), pointer     ::  chkdata(:)
   type(multifab), pointer     ::    chk_p(:)
@@ -83,35 +70,18 @@ subroutine varden()
   type(multifab), allocatable ::     gp_rg(:)
   type(multifab), allocatable ::      p_rg(:)
 
-  ! Edge-based quantities
-  type(multifab), allocatable ::   umac(:,:)
-  type(multifab), allocatable ::  uedge(:,:)
-  type(multifab), allocatable ::  sedge(:,:)
-  type(multifab), allocatable ::  uflux(:,:)
-  type(multifab), allocatable ::  sflux(:,:)
-
-  real(kind=dp_t), pointer :: uop(:,:,:,:)
-  real(kind=dp_t), pointer :: sop(:,:,:,:)
   integer,allocatable      :: lo(:),hi(:)
 
-  character(len=128) :: fname
-  character(len=128) :: probin_env
-  character(len=7) :: sd_name
+  character(len=7 ) :: sd_name
   character(len=20), allocatable :: plot_names(:)
-  integer :: un, ierr
-  logical :: lexist
-  logical :: need_inputs
 
   type(ml_layout) :: mla_temp
-  type(layout)    :: la
   type(ml_boxarray) :: mba
   type(boxarray)  :: ba
   type(box), allocatable :: bxs(:)
   integer, allocatable  :: rr(:,:)
   integer  :: nl, max_levs, buff
   logical  :: new_grid
-!delete
-  integer :: c
 
   type(bc_tower) ::  the_bc_tower
   type(bc_level) ::  bc
@@ -207,15 +177,11 @@ subroutine varden()
      
      ! set up hi & lo to carry indexing info
      allocate(lo(dm),hi(dm))
-     allocate(n_cell(dm))
-     n_cell(1) = n_cellx
      lo(:) = 0
      hi(1) = n_cellx-1
      if (dm > 1) then   
-        n_cell(2) = n_celly
         hi(2) = n_celly - 1        
         if (dm > 2)  then
-           n_cell(3) = n_cellz
            hi(3) = n_cellz -1
         endif
      endif
@@ -257,16 +223,9 @@ subroutine varden()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate(ext_vel_force(nlevs),ext_scal_force(nlevs))
-  allocate(lapu(nlevs),laps(nlevs))
-  allocate(phi(nlevs),Lphi(nlevs))
-  allocate(alpha(nlevs),beta(nlevs))
   allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
 
   allocate(unew(nlevs),snew(nlevs))
-  allocate(umac(nlevs,dm))
-  allocate(uedge(nlevs,dm),sedge(nlevs,dm))
-  allocate(uflux(nlevs,dm),sflux(nlevs,dm))
-  allocate(rhohalf(nlevs))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize dx, prob_hi, lo, hi
@@ -488,7 +447,6 @@ write(*,*)'not properly nested'
       enddo
    end if
 
-! initialize rhohalf, etc.
    call make_temps(mla)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -500,12 +458,19 @@ write(*,*)'not properly nested'
      ! Note that we use rhohalf, filled with 1 at this point, as a temporary
      ! in order to do a constant-density initial projection.
      if (do_initial_projection > 0) then
+        allocate(rhohalf(nlevs))
+        do n = 1,nlevs
+          call multifab_build(rhohalf(n), mla%la(n),1, 1)
+          call setval(rhohalf(n),ONE, all=.true.)
+        end do
         call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,dt_temp, &
                        the_bc_tower,press_comp)
          do n = 1,nlevs
+           call multifab_destroy(rhohalf(n))
            call setval( p(n)  ,0.0_dp_t, all=.true.)
            call setval(gp(n)  ,0.0_dp_t, all=.true.)
         end do
+        deallocate(rhohalf)
      end if
 
      if (bcy_lo == OUTLET) then
@@ -538,7 +503,7 @@ write(*,*)'not properly nested'
   dt = 1.d20
   do n = 1,nlevs
      call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                dtold,dt_lev,verbose)
+                dtold,dt_lev)
      dt = min(dt,dt_lev)
   end do
   if (restart < 0) dt = dt * init_shrink
@@ -837,7 +802,7 @@ write(*,*)'not properly nested'
            dt = 1.d20
            do n = 1,nlevs
               call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                   dtold,dt_lev,verbose)
+                   dtold,dt_lev)
               dt = min(dt,dt_lev)
            end do
            if (fixed_dt > 0.d0) dt = fixed_dt
@@ -846,147 +811,54 @@ write(*,*)'not properly nested'
            end if
         end if
 
-        if ( verbose .ge. 1 ) then
-           do n = 1,nlevs
-              nrm1 = norm_inf(uold(n),1,1)
-              nrm2 = norm_inf(uold(n),2,1)
-              if ( parallel_IOProcessor() ) write(6,1001) n,time,nrm1,nrm2
-           end do
-           if ( parallel_IOProcessor() ) print *,' '
-        end if
-
-        ! compute lapu
-        if(visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
-           do comp = 1, dm
-              do n = 1, nlevs
-                 call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
-              enddo
-              call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
-                               stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-              do n = 1, nlevs
-                 call multifab_copy_c(lapu(n),comp,Lphi(n),1)
-              enddo
-           enddo
-        else
-           do n = 1, nlevs
-              call setval(lapu(n),ZERO)
-           enddo
-        endif
-
-        ! compute laps for passive scalar only
-        if (diff_coef .gt. ZERO .and. diffusion_type .eq. 1) then
-           do n = 1, nlevs
-              call multifab_copy_c(phi(n),1,sold(n),2,1,1)
-           enddo
-           call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
-                            stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-           do n = 1, nlevs
-              call multifab_copy_c(laps(n),2,Lphi(n),1)
-           enddo
-        else
-           do n = 1, nlevs
-              call setval(laps(n),ZERO)
-           enddo
-        endif
-
-        call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                            the_bc_tower%bc_tower_array,visc_coef,mla)
-
-        call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
-
-        call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
-                            ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
-                            diff_coef,verbose)
-        
-        if (diff_coef > ZERO) then
-           comp = 2
-           bc_comp = dm+comp
-
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*diff_coef
-
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*diff_coef
-
-           else 
-             print *,'BAD DIFFUSION TYPE ',diffusion_type 
-             stop
-           end if
-
-           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
-        end if
-
-        call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
-                              ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
-                              visc_coef,verbose)
-
-        if (visc_coef > ZERO) then
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*visc_coef
-
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*visc_coef
-
-           else 
-             print *,'BAD DIFFUSION TYPE ',diffusion_type 
-             stop
-           end if
-
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
-        end if
-
-        ! Project the new velocity field.
-        call hgproject(regular_timestep,mla,unew,uold,rhohalf,p,gp,dx,dt, &
-                       the_bc_tower,press_comp)
-
-        time = time + dt
-
-        if ( verbose .ge. 1 ) then
-           do n = 1,nlevs
-              nrm1 = norm_inf(unew(n),1,1)
-              nrm2 = norm_inf(unew(n),2,1)
-              if ( parallel_IOProcessor() ) write(6,1002) n,time,nrm1,nrm2
-           end do
-           if ( parallel_IOProcessor() ) print *,' '
-        end if
-
-        write(6,1000) istep,time,dt
+        call advance_timestep(istep,mla,sold,uold,snew,unew,gp,p,ext_vel_force,ext_scal_force,&
+                              the_bc_tower,dt,time,dx,press_comp,regular_timestep)
 
         do n = 1,nlevs
            call multifab_copy_c(uold(n),1,unew(n),1,dm)
            call multifab_copy_c(sold(n),1,snew(n),1,nscal)
         end do
 
-        if ( plot_int > 0 ) then
+        time = time + dt
+
+        if ( verbose > 0 ) then
+           if ( parallel_IOProcessor() ) then
+              print *, 'MEMORY STATS AT END OF TIMESTEP ', istep
+              print*, ' '
+           end if
+           call print(multifab_mem_stats(),    "    multifab")
+           call print(fab_mem_stats(),         "         fab")
+           call print(boxarray_mem_stats(),    "    boxarray")
+           call print(layout_mem_stats(),      "      layout")
+           call print(boxassoc_mem_stats(),    "    boxassoc")
+           call print(fgassoc_mem_stats(),     "     fgassoc")
+           call print(syncassoc_mem_stats(),   "   syncassoc")
+           call print(copyassoc_mem_stats(),   "   copyassoc")
+           call print(fluxassoc_mem_stats(),   "   fluxassoc")
+           if ( parallel_IOProcessor() ) print*, ''
+         end if
+
+         write(6,1000) istep,time,dt
+
+         if ( plot_int > 0 ) then
            if ( mod(istep,plot_int) .eq. 0 ) then
               call write_plotfile(istep)
               last_plt_written = istep
            end if
-        end if
+         end if
 
-        if ( chk_int > 0 ) then
+         if ( chk_int > 0 ) then
            if ( mod(istep,chk_int) .eq. 0 ) then
               call write_checkfile(istep)
               last_chk_written = istep
            end if
-        end if
+         end if
+ 
+         call print_and_reset_fab_byte_spread()
 
-        call print_and_reset_fab_byte_spread()
+      end do ! istep loop
 
-        if (stop_time >= 0.d0 .and. time >= stop_time) goto 999
-
-     end do ! end do istep = init_step,max_step
-
-999  continue
      if (istep > max_step) istep = max_step
-
-1000 format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
-1001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
-1002 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
      if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep)
      if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep)
@@ -1023,6 +895,7 @@ write(*,*)'not properly nested'
  call print(fluxassoc_mem_stats(),   "   fluxassoc")
  print*, ''
 
+1000 format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
 
 contains
 
@@ -1048,52 +921,17 @@ contains
 
     type(ml_layout),intent(in   ) :: mla_loc
 
-    ! Local variables
-    logical, allocatable :: umac_nodal_flag(:)
-
-    allocate(umac_nodal_flag(mla_loc%dim))
-
     do n = nlevs,1,-1
        call multifab_build(   unew(n), mla_loc%la(n),    dm, ng_cell)
        call multifab_build(   snew(n), mla_loc%la(n), nscal, ng_cell)
-       call multifab_build(rhohalf(n), mla_loc%la(n),     1, 1)
        call multifab_build(ext_vel_force(n),  mla_loc%la(n),    dm, 1)
        call multifab_build(ext_scal_force(n), mla_loc%la(n), nscal, 1)
-       call multifab_build(lapu(n), mla_loc%la(n),    dm, 0)
-       call multifab_build(laps(n), mla_loc%la(n), nscal, 0)
-       call multifab_build(phi(n), mla_loc%la(n),  1, 1)
-       call multifab_build(Lphi(n), mla_loc%la(n),  1, 0)
-       call multifab_build(alpha(n), mla_loc%la(n),  1, 1)
-       call multifab_build(beta(n) , mla_loc%la(n), dm, 1)
 
        call setval(   unew(n),ZERO, all=.true.)
        call setval(   snew(n),ZERO, all=.true.)
-       call setval(rhohalf(n),ONE, all=.true.)
        call setval(ext_vel_force(n) ,ZERO, 1,dm-1,all=.true.)
        call setval(ext_vel_force(n) ,grav,dm,   1,all=.true.)
        call setval(ext_scal_force(n),ZERO, all=.true.)
-       call setval(lapu(n), ZERO, all=.true.)
-       call setval(laps(n), ZERO, all=.true.)
-       call setval(phi(n),  ZERO, all=.true.)
-       call setval(Lphi(n),  ZERO, all=.true.)
-       call setval(alpha(n),  ZERO, all=.true.)
-       call setval(beta(n) , 1.0d0, all=.true.)
-
-       do i = 1,dm
-          umac_nodal_flag = .false.
-          umac_nodal_flag(i) = .true.
-          call multifab_build(  umac(n,i), mla_loc%la(n),    1, 1, nodal = umac_nodal_flag)
-          call multifab_build( uedge(n,i), mla_loc%la(n),   dm, 0, nodal = umac_nodal_flag)
-          call multifab_build( sedge(n,i), mla_loc%la(n),nscal, 0, nodal = umac_nodal_flag)
-          call multifab_build( uflux(n,i), mla_loc%la(n),   dm, 0, nodal = umac_nodal_flag)
-          call multifab_build( sflux(n,i), mla_loc%la(n),nscal, 0, nodal = umac_nodal_flag)
-
-          call setval(  umac(n,i),ZERO, all=.true.)
-          call setval( uedge(n,i),ZERO, all=.true.)
-          call setval( sedge(n,i),ZERO, all=.true.)
-          call setval( uflux(n,i),ZERO, all=.true.)
-          call setval( sflux(n,i),ZERO, all=.true.)
-       end do
 
     end do
 
@@ -1106,20 +944,6 @@ contains
        call multifab_destroy(snew(n))
        call multifab_destroy(ext_vel_force(n))
        call multifab_destroy(ext_scal_force(n))
-       call multifab_destroy(lapu(n))
-       call multifab_destroy(laps(n))
-       call multifab_destroy(phi(n))
-       call multifab_destroy(Lphi(n))
-       call multifab_destroy(alpha(n))
-       call multifab_destroy(beta(n))
-       do i = 1,dm
-          call multifab_destroy(umac(n,i))
-          call multifab_destroy(uedge(n,i))
-          call multifab_destroy(sedge(n,i))
-          call multifab_destroy(uflux(n,i))
-          call multifab_destroy(sflux(n,i))
-       end do
-       call multifab_destroy(rhohalf(n))
     end do
 
   end subroutine delete_temps
@@ -1163,73 +987,10 @@ contains
                                          1,1,dm)
        end do
 
-       ! compute lapu
-       if(visc_coef .gt. ZERO) then
-          do comp = 1, dm
-             do n = 1, nlevs
-                call multifab_copy_c(phi(n),1,uold(n),comp,1,1)
-             enddo
-             call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,comp, &
-                              stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-             do n = 1, nlevs
-                call multifab_copy_c(lapu(n),comp,Lphi(n),1)
-             enddo
-          enddo
-       endif
-
-       ! compute laps for passive scalar only
-       if(diff_coef .gt. ZERO) then
-          do n = 1, nlevs
-             call multifab_copy_c(phi(n),1,sold(n),2,1,1)
-          enddo
-          call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,dm+2, &
-                           stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
-          do n = 1, nlevs
-             call multifab_copy_c(laps(n),2,Lphi(n),1)
-          enddo
-       endif
-
-       call advance_premac(nlevs,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                           the_bc_tower%bc_tower_array,visc_coef,mla)
-
-       call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
-
-       call scalar_advance(nlevs,mla,uold,sold,snew,laps,rhohalf,umac,sedge,sflux, &
-                           ext_scal_force,dx,dt,the_bc_tower%bc_tower_array, &
-                           diff_coef,verbose)
-
-       if (diff_coef > ZERO) then
-          comp = 2
-          bc_comp = dm+comp
-          visc_mu = HALF*dt*diff_coef
-          call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
-       end if
-
-       call velocity_advance(nlevs,mla,uold,unew,sold,lapu,rhohalf,umac,uedge,uflux,gp,p, &
-                             ext_vel_force,dx,dt,the_bc_tower%bc_tower_array, &
-                             visc_coef,verbose)
-
-       if (visc_coef > ZERO) then
-          visc_mu = HALF*dt*visc_coef
-          call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
-       end if
-
-       ! Project the new velocity field.
-       call hgproject(pressure_iters,mla,unew,uold,rhohalf,p,gp,dx,dt, &
-                      the_bc_tower,press_comp)
-
-       if ( verbose .ge. 1 ) then
-          do n = 1,nlevs
-             nrm1 = norm_inf(unew(n),1,1)
-             nrm2 = norm_inf(unew(n),2,1)
-             if ( parallel_IOProcessor() ) write(6,1003) n,istep,nrm1,nrm2
-          end do
-          if ( parallel_IOProcessor() ) print *,' '
-       end if
+       call advance_timestep(istep,mla,sold,uold,snew,unew,gp,p,ext_vel_force,ext_scal_force,&
+                             the_bc_tower,dt,time,dx,press_comp,pressure_iters)
 
     end do
-
-1003 format('LEVEL: ',i3,' ITER: ',i3,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 
   end subroutine initial_iters
 

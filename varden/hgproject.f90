@@ -26,7 +26,7 @@ contains
     use probin_module, only: verbose
 
     integer        , intent(in   ) :: proj_type
-    type(ml_layout), intent(inout) :: mla
+    type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
     type(multifab ), intent(in   ) :: uold(:)
     type(multifab ), intent(inout) :: rhohalf(:)
@@ -130,10 +130,10 @@ contains
     endif
 
     if (present(eps_in)) then
-       call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,verbose, &
+       call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
                          press_comp,stencil_type,divu_rhs,eps_in)
     else
-       call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,verbose, &
+       call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
                          press_comp,stencil_type,divu_rhs)
     end if
 
@@ -147,8 +147,8 @@ contains
 
     call mkgphi(nlevs,gphi,phi,dx)
 
-    call hg_update(nlevs,proj_type,unew,uold,gp,gphi,rhohalf,  &
-                   p,phi,ng,dt,mla,the_bc_tower%bc_tower_array)
+    call hg_update(mla,proj_type,unew,uold,gp,gphi,rhohalf,  &
+                   p,phi,ng,dt,the_bc_tower%bc_tower_array)
 
     if (verbose .ge. 1) then
        umin = 1.d30
@@ -275,10 +275,9 @@ contains
 
     !   ********************************************************************************** !
 
-    subroutine hg_update(nlevs,proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt, &
-                         mla,the_bc_level)
+    subroutine hg_update(mla,proj_type,unew,uold,gp,gphi,rhohalf,p,phi,ng,dt,the_bc_level)
 
-      integer        , intent(in   ) :: nlevs
+      type(ml_layout), intent(in   ) :: mla
       integer        , intent(in   ) :: proj_type
       type(multifab) , intent(inout) :: unew(:)
       type(multifab) , intent(in   ) :: uold(:)
@@ -289,11 +288,10 @@ contains
       type(multifab) , intent(in   ) :: phi(:)
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(in   ) :: dt
-      type(ml_layout), intent(inout) :: mla
       type(bc_level) , intent(in   ) :: the_bc_level(:)
 
       ! local
-      integer :: i,dm,n
+      integer :: i,dm,n,nlevs
 
       real(kind=dp_t), pointer :: upn(:,:,:,:) 
       real(kind=dp_t), pointer :: uon(:,:,:,:) 
@@ -303,7 +301,8 @@ contains
       real(kind=dp_t), pointer ::  ph(:,:,:,:) 
       real(kind=dp_t), pointer ::  pp(:,:,:,:) 
 
-      dm = unew(1)%dim
+      nlevs = mla%nlevel
+      dm    = mla%dim
 
       do n = 1, nlevs
 
@@ -349,7 +348,7 @@ contains
       type(multifab) , intent(inout) :: divu_rhs(:)
       type(bc_tower) , intent(in   ) :: the_bc_tower
 
-      integer        :: i,n,dm,ng,nlevs
+      integer        :: i,n,dm,nlevs
       type(bc_level) :: bc
       real(kind=dp_t), pointer :: divp(:,:,:,:) 
 
@@ -700,7 +699,7 @@ contains
 
   end subroutine hgproject
 
-  subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower,divu_verbose,&
+  subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
                           press_comp,stencil_type,divu_rhs,eps_in)
 
     use bl_constants_module
@@ -710,13 +709,12 @@ contains
     use nodal_divu_module
     use probin_module, only : mg_verbose, cg_verbose
 
-    type(ml_layout), intent(inout) :: mla
+    type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
     type(multifab ), intent(in   ) :: rhohalf(:)
     type(multifab ), intent(inout) :: phi(:)
     real(dp_t)     , intent(in)    :: dx(:,:)
     type(bc_tower ), intent(in   ) :: the_bc_tower
-    integer        , intent(in   ) :: divu_verbose
     integer        , intent(in   ) :: press_comp
     integer        , intent(in   ) :: stencil_type
 
@@ -891,7 +889,7 @@ contains
        call setval(rh(n),ZERO,all=.true.)
     end do
 
-    call divu(nlevs,mgt,unew,rh,mla%mba%rr,divu_verbose,nodal)
+    call divu(nlevs,mgt,unew,rh,mla%mba%rr,verbose,nodal)
 
     ! Do rh = rh - divu_rhs (this routine preserves rh=0 on
     !  nodes which have bc_dirichlet = true.

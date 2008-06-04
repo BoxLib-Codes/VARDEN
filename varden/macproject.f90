@@ -19,9 +19,9 @@ contains
   subroutine macproject(mla,umac,rho,dx,the_bc_tower,bc_comp,&
                         divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
-    use probin_module, only: stencil_order, verbose
+    use probin_module, only: stencil_order
 
-    type(ml_layout), intent(inout) :: mla
+    type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: umac(:,:)
     type(multifab ), intent(inout) :: rho(:)
     real(dp_t)     , intent(in   ) :: dx(:,:)
@@ -38,8 +38,7 @@ contains
     type(bndry_reg), pointer    :: fine_flx(:) => Null()
     real(dp_t)     ,allocatable :: umac_norm(:)
     integer                     :: d,dm,i,n
-    integer                     :: ng,nc
-    integer                     :: nlevs,nscal
+    integer                     :: nlevs
     logical                     :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
 
     nlevs = mla%nlevel
@@ -88,9 +87,9 @@ contains
     end do
 
     if (use_rhs) then
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.true.,divu_rhs)
+       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.true.,divu_rhs)
     else
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.true.)
+       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.true.)
     end if
 
     call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
@@ -109,12 +108,12 @@ contains
     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
                        stencil_order,mla%mba%rr,umac_norm)
 
-    call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr,verbose)
+    call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)
 
     if (use_rhs) then
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.,divu_rhs)
+       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.false.,divu_rhs)
     else
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,verbose,.false.)
+       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.false.)
     end if
 
     if (use_div_coeff_1d) then
@@ -151,16 +150,16 @@ contains
 
   contains
 
-    subroutine divumac(nlevs,umac,rh,dx,ref_ratio,verbose,before,divu_rhs)
+    subroutine divumac(nlevs,umac,rh,dx,ref_ratio,before,divu_rhs)
 
       use ml_restriction_module, only: ml_cc_restriction
+      use probin_module, only: verbose
 
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(in   ) :: umac(:,:)
       type(multifab) , intent(inout) :: rh(:)
       real(kind=dp_t), intent(in   ) :: dx(:,:)
       integer        , intent(in   ) :: ref_ratio(:,:)
-      integer        , intent(in   ) :: verbose
       logical        , intent(in   ) :: before
       type(multifab ), intent(inout), optional :: divu_rhs(:)
 
@@ -242,7 +241,7 @@ contains
       do j = lo(2),hi(2)
          do i = lo(1),hi(1)
             rh(i,j) = (umac(i+1,j) - umac(i,j)) / dx(1) + &
-                 (vmac(i,j+1) - vmac(i,j)) / dx(2)
+                      (vmac(i,j+1) - vmac(i,j)) / dx(2)
          end do
       end do
 
@@ -275,7 +274,7 @@ contains
 
       use ml_restriction_module, only: ml_edge_restriction
 
-      type(ml_layout), intent(inout) :: mla
+      type(ml_layout), intent(in   ) :: mla
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: umac(:,:)
       real(dp_t)     , intent(in   ) :: div_coeff(:,0:)
@@ -428,7 +427,7 @@ contains
 
       use ml_restriction_module, only: ml_edge_restriction
 
-      type(ml_layout), intent(inout) :: mla
+      type(ml_layout), intent(in   ) :: mla
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: umac(:,:)
       type(multifab) , intent(in   ) :: div_coeff(:)
@@ -476,7 +475,7 @@ contains
 
     subroutine mult_beta_by_3d_coeff(mla,nlevs,beta,div_coeff)
 
-      type(ml_layout), intent(inout) :: mla
+      type(ml_layout), intent(in   ) :: mla
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(inout) :: beta(:)
       type(multifab) , intent(in   ) :: div_coeff(:)
@@ -639,7 +638,7 @@ contains
       use multifab_fill_ghost_module
 
       integer        , intent(in   ) :: nlevs
-      type(ml_layout), intent(inout) :: mla
+      type(ml_layout), intent(in   ) :: mla
       type(multifab ), intent(inout) :: rho(:)
       type(multifab ), intent(inout) :: beta(:)
       type(bc_tower ), intent(in   ) :: the_bc_tower
@@ -742,7 +741,7 @@ contains
 
     end subroutine mk_mac_coeffs_3d
 
-    subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio,verbose)
+    subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio)
 
       use ml_restriction_module, only: ml_edge_restriction
 
@@ -755,7 +754,6 @@ contains
       type(bc_tower), intent(in   ) :: the_bc_tower
       integer       , intent(in   ) :: press_comp
       integer       , intent(in   ) :: ref_ratio(:,:)
-      integer       , intent(in   ) :: verbose
 
       integer :: i,dm,nlevs
 
@@ -764,7 +762,6 @@ contains
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer :: php(:,:,:,:) 
-      real(kind=dp_t), pointer :: rhp(:,:,:,:) 
       real(kind=dp_t), pointer ::  bp(:,:,:,:) 
       real(kind=dp_t), pointer :: lxp(:,:,:,:) 
       real(kind=dp_t), pointer :: hxp(:,:,:,:) 
@@ -772,7 +769,6 @@ contains
       real(kind=dp_t), pointer :: hyp(:,:,:,:) 
       real(kind=dp_t), pointer :: lzp(:,:,:,:) 
       real(kind=dp_t), pointer :: hzp(:,:,:,:) 
-      real(kind=dp_t)          :: rhmax
 
       nlevs = size(rh,dim=1)
       dm = rh(nlevs)%dim
@@ -1361,7 +1357,7 @@ contains
      use ml_solve_module
     use probin_module, only: mg_verbose, cg_verbose
 
-    type(ml_layout),intent(inout) :: mla
+    type(ml_layout),intent(in   ) :: mla
     integer        ,intent(in   ) :: stencil_order
     integer        ,intent(in   ) :: ref_ratio(:,:)
 
@@ -1386,14 +1382,12 @@ contains
     type(mg_tower), allocatable :: mgt(:)
     integer        :: i, dm, ns, nlevs
     integer        :: test
-    real(dp_t)     :: snrm(2)
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: verbose
     integer    :: n, nu1, nu2, gamma, cycle, smoother
     integer    :: max_nlevel_in,do_diagnostics
     real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
@@ -1423,7 +1417,6 @@ contains
     bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
     bottom_max_iter   = mgt(nlevs)%bottom_max_iter
     min_width         = mgt(nlevs)%min_width
-    verbose           = mgt(nlevs)%verbose
 
     ! Note: put this here to minimize asymmetries - ASA
     if (nlevs .eq. 1) then
@@ -1571,7 +1564,7 @@ contains
      use mg_module
      use ml_cc_module, only: ml_cc_applyop
 
-    type(ml_layout),intent(inout) :: mla
+    type(ml_layout),intent(in   ) :: mla
     integer        ,intent(in   ) :: stencil_order
     integer        ,intent(in   ) :: ref_ratio(:,:)
     integer        ,intent(in   ) :: mg_verbose, cg_verbose
