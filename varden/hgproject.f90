@@ -245,7 +245,7 @@ contains
       type(multifab), intent(in   ) :: phi(:)
       real(dp_t) :: dx(:,:)
 
-      integer :: i,dm,n
+      integer :: i,dm,n,lo(phi(1)%dim),hi(phi(1)%dim)
 
       real(kind=dp_t), pointer :: gph(:,:,:,:) 
       real(kind=dp_t), pointer :: pp(:,:,:,:) 
@@ -258,11 +258,13 @@ contains
             if ( multifab_remote(phi(n),i) ) cycle
             gph => dataptr(gphi(n),i)
             pp  => dataptr(phi(n),i)
+            lo =  lwb(get_box(gphi(n),i))
+            hi =  upb(get_box(gphi(n),i))
             select case (dm)
             case (2)
-               call mkgphi_2d(gph(:,:,1,:), pp(:,:,1,1), dx(n,:))
+               call mkgphi_2d(lo, hi, gph(:,:,1,:), pp(:,:,1,1), dx(n,:))
             case (3)
-               call mkgphi_3d(gph(:,:,:,:), pp(:,:,:,1), dx(n,:))
+               call mkgphi_3d(lo, hi, gph(:,:,:,:), pp(:,:,:,1), dx(n,:))
             end select
          end do
 
@@ -530,23 +532,21 @@ contains
 
     !   ********************************************************************************* !
 
-    subroutine mkgphi_2d(gp,phi,dx)
+    subroutine mkgphi_2d(lo,hi,gp,phi,dx)
 
-      real(kind=dp_t), intent(inout) ::  gp(0:,0:,:)
-      real(kind=dp_t), intent(inout) :: phi(-1:,-1:)
+      integer        , intent(in   ) :: lo(:),hi(:)
+      real(kind=dp_t), intent(inout) ::  gp(lo(1)  :,lo(2)  :,:)
+      real(kind=dp_t), intent(inout) :: phi(lo(1)-1:,lo(2)-1:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
-      integer :: i,j,nx,ny
+      integer :: i,j
 
-      nx = size(gp,dim=1)
-      ny = size(gp,dim=2)
-
-      do j = 0,ny-1
-         do i = 0,nx-1
+      do j = lo(2),hi(2)
+         do i = lo(1),hi(1)
             gp(i,j,1) = HALF*(phi(i+1,j) + phi(i+1,j+1) - &
-                 phi(i  ,j) - phi(i  ,j+1) ) /dx(1)
+                              phi(i  ,j) - phi(i  ,j+1) ) /dx(1)
             gp(i,j,2) = HALF*(phi(i,j+1) + phi(i+1,j+1) - &
-                 phi(i,j  ) - phi(i+1,j  ) ) /dx(2)
+                              phi(i,j  ) - phi(i+1,j  ) ) /dx(2)
          end do
       end do
 
@@ -554,21 +554,18 @@ contains
 
     !   ******************************************************************************** !
 
-    subroutine mkgphi_3d(gp,phi,dx)
+    subroutine mkgphi_3d(lo,hi,gp,phi,dx)
 
-      real(kind=dp_t), intent(inout) ::  gp(0:,0:,0:,1:)
-      real(kind=dp_t), intent(inout) :: phi(-1:,-1:,-1:)
+      integer        , intent(in   ) :: lo(:),hi(:)
+      real(kind=dp_t), intent(inout) ::  gp(lo(1):  ,lo(2):  ,lo(3):  ,1:)
+      real(kind=dp_t), intent(inout) :: phi(lo(1)-1:,lo(2)-1:,lo(3)-1:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
-      integer :: i,j,k,nx,ny,nz
+      integer :: i,j,k
 
-      nx = size(gp,dim=1)
-      ny = size(gp,dim=2)
-      nz = size(gp,dim=3)
-
-      do k = 0,nz-1
-         do j = 0,ny-1
-            do i = 0,nx-1
+      do k = lo(3),hi(3)
+         do j = lo(2),hi(2)
+            do i = lo(1),hi(1)
                gp(i,j,k,1) = FOURTH*(phi(i+1,j,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i+1,j,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i  ,j,k  ) - phi(i  ,j+1,k  ) &
