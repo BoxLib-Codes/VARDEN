@@ -51,7 +51,6 @@ contains
 
     integer    :: i,n,comp,dm,nlevs
     real(dp_t) :: nrm1,nrm2,nrm3
-    real(dp_t) :: visc_mu
     logical, allocatable :: umac_nodal_flag(:)
 
     dm    = mla%dim
