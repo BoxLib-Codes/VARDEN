@@ -33,7 +33,7 @@ contains
     type(multifab), allocatable :: alpha(:), beta(:)
     type(multifab), allocatable :: phi(:), Lphi(:)
 
-    integer         :: i,n
+    integer         :: n
     integer         :: nlevs,dm
 
     nlevs = mla%nlevel

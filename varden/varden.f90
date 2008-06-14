@@ -43,7 +43,7 @@ subroutine varden()
   real(dp_t) :: pressure_inflow_val
   integer    :: istep
   integer    :: i, n
-  integer    :: n_plot_comps, n_chk_comps
+  integer    :: n_chk_comps
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step
   integer    :: press_comp, vort_comp

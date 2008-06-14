@@ -46,11 +46,10 @@ contains
     integer        , intent(in   ) :: proj_type
 
     type(multifab), allocatable :: lapu(:)
-    type(multifab), allocatable :: laps(:)
     type(multifab), allocatable :: umac(:,:)
     type(multifab), allocatable :: rhohalf(:)
 
-    integer    :: i,n,comp,dm,nlevs,bc_comp
+    integer    :: i,n,comp,dm,nlevs
     real(dp_t) :: nrm1,nrm2,nrm3
     real(dp_t) :: visc_mu
     logical, allocatable :: umac_nodal_flag(:)
