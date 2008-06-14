@@ -1262,6 +1262,7 @@ contains
             case (2)
                call create_umac_grown_2d(ump(:,:,1,1),vmp(:,:,1,1),lo,hi)
             case (3)
+               wmp => dataptr(umac(n,3), i)
                call create_umac_grown_3d(ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),lo,hi)
             end select
          end do
