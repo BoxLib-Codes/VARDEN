@@ -75,8 +75,6 @@ contains
 
   subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
 
-    use probin_module, only: boussinesq
-
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
@@ -86,11 +84,11 @@ contains
     !     Local variables
     integer :: i, j
     real(kind=dp_t) :: xloc,yloc,dist
-    real(kind=dp_t) :: sig
+    real(kind=dp_t) :: rhob,c1,c2,sig,flatr
     real(kind=dp_t) :: rho0,rho1,xBubble,yBubble,rBubble,rhoBubble,tracerConc,yJump
 
-    ! initial velocity = 0
-    ! initial  density = 1
+    ! zero initial velocity
+    ! density = 1
     do j=lo(2),hi(2)
        do i=lo(1),hi(1)
 
@@ -103,38 +101,18 @@ contains
     enddo
 
     ! minion initial data
-    rho0    = 1.0100d0
-    rho1    = 1.0000d0
-
+    flatr = 0.05d0
+    rhob = 1.0075d0
+    rho0 = 1.01d0
+    rho1 = 1.0d0
     xBubble = 0.5d0
     yBubble = 0.25d0
     rBubble = 0.05d0
-    yJump   = 0.5d0
-
+    yJump = 0.5d0
     rhoBubble = 1.005d0
-    tracerConc = 1.00d0
-
+    tracerConc = 1.d0
     sig = 0.02d0
-
-    if (boussinesq .eq. 1) then
-       do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-
-          xloc = (i+HALF)*dx(1)
-          yloc = (j+HALF)*dx(2)
-
-          ! use this for one bubble problem
-          dist = sqrt((xloc-xBubble)**2 + (yloc-yBubble)**2)
-          if (dist .lt. rBubble) then
-             s(i,j,2) = tracerConc
-          else
-             s(i,j,2) = s(i,j,2) + (tracerConc)*exp(-(dist-rBubble)/sig)
-             s(i,j,2) = max(s(i,j,2),0.d0)
-          endif
-       enddo
-       enddo
-    else
-       do j=lo(2),hi(2)
+    do j=lo(2),hi(2)
        do i=lo(1),hi(1)
 
           xloc = (i+HALF)*dx(1)
@@ -152,12 +130,11 @@ contains
              s(i,j,2) = tracerConc
           else
              s(i,j,1) = s(i,j,1) + (rhoBubble-rho0)*exp(-(dist-rBubble)/sig)
-             s(i,j,2) = s(i,j,2) +     (tracerConc)*exp(-(dist-rBubble)/sig)
+             s(i,j,2) = s(i,j,2) + (tracerConc)*exp(-(dist-rBubble)/sig)
              s(i,j,2) = max(s(i,j,2),0.d0)
           endif
        enddo
-       enddo
-    end if
+    enddo
 
   end subroutine initdata_2d
 
