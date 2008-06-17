@@ -45,22 +45,16 @@ contains
     integer        , intent(in   ) :: press_comp
     integer        , intent(in   ) :: proj_type
 
-    type(multifab), allocatable :: lapu(:)
-    type(multifab), allocatable :: umac(:,:)
-    type(multifab), allocatable :: rhohalf(:)
+    type(multifab) :: lapu(mla%nlevel)
+    type(multifab) :: umac(mla%nlevel, mla%dim)
+    type(multifab) :: rhohalf(mla%nlevel)
 
     integer    :: i,n,comp,dm,nlevs
     real(dp_t) :: nrm1,nrm2,nrm3
-    logical, allocatable :: umac_nodal_flag(:)
+    logical    :: umac_nodal_flag(mla%dim)
 
     dm    = mla%dim
     nlevs = mla%nlevel
-
-    allocate(lapu(nlevs))
-    allocate(umac(nlevs,dm))
-    allocate(rhohalf(nlevs))
-
-    allocate(umac_nodal_flag(mla%dim))
 
     do n = 1,nlevs
        call multifab_build(   lapu(n), mla%la(n),    dm, 0)
@@ -162,9 +156,6 @@ contains
          call multifab_destroy(umac(n,i))
        end do
     end do
-
-    deallocate(lapu)
-    deallocate(umac,rhohalf)
 
 1000 format('LEVEL: ',i3,' ITER: ',   i3,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
 1001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
