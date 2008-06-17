@@ -36,10 +36,14 @@ contains
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local variables
-    type(multifab), allocatable :: scal_force(:), divu(:), laps(:)
-    type(multifab), allocatable :: sflux(:,:), sedge(:,:)
-    logical       , allocatable :: is_conservative(:)
-    logical       , allocatable :: umac_nodal_flag(:)
+    type(multifab) :: scal_force(mla%nlevel)
+    type(multifab) :: divu(mla%nlevel)
+    type(multifab) :: laps(mla%nlevel)
+    type(multifab) :: sflux(mla%nlevel,mla%dim)
+    type(multifab) :: sedge(mla%nlevel,mla%dim)
+
+    logical :: is_conservative(nscal)
+    logical :: umac_nodal_flag(mla%dim)
 
     integer         :: i,n
     integer         :: comp,bc_comp,nlevs,dm
@@ -49,11 +53,6 @@ contains
 
     nlevs = mla%nlevel
     dm    = mla%dim
-
-    allocate(umac_nodal_flag(mla%dim))
-    allocate(scal_force(nlevs),divu(nlevs),laps(nlevs))
-    allocate(sflux(nlevs,dm),sedge(nlevs,dm))
-    allocate(is_conservative(nscal))
 
     is_conservative(1) = .true.
     is_conservative(2) = .false.
@@ -133,19 +132,15 @@ contains
        end do
     end if
 
-    deallocate(is_conservative)
-
     do n = 1,nlevs
        call multifab_destroy(scal_force(n))
        call multifab_destroy(divu(n))
+       call multifab_destroy(laps(n))
        do i = 1,dm
          call multifab_destroy(sflux(n,i))
          call multifab_destroy(sedge(n,i))
        end do
     enddo
-
-    deallocate(umac_nodal_flag)
-    deallocate(scal_force,divu,laps,sflux,sedge)
 
     if (diff_coef > ZERO) then
            comp = 2
