@@ -54,7 +54,7 @@ contains
        call setval( phi(n),0.0_dp_t,all=.true.)
        call setval(Lphi(n),0.0_dp_t,all=.true.)
        call setval(alpha(n),ZERO, all=.true.)
-       call setval(-beta(n), ONE, all=.true.)
+       call setval(beta(n),-ONE, all=.true.)
     enddo
 
     !***********************************
