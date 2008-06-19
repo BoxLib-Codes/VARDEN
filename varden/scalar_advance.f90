@@ -80,7 +80,7 @@ contains
     !***********************************
     ! Compute laps for passive scalar only
     !***********************************
-    if (diff_coef .gt. ZERO .and. diffusion_type .eq. 1) then
+    if (diff_coef .gt. ZERO) then
        comp = 2
        bc_comp = dm+comp
        call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
@@ -108,6 +108,12 @@ contains
     ! Create scalar force at time n+1/2.
     !***********************************
     
+    if (diffusion_type .eq. 2) then
+       do n = 1, nlevs
+          call setval(laps(n),ZERO)
+       enddo
+    end if
+
     diff_fac = HALF
     call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 

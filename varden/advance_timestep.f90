@@ -96,7 +96,7 @@ contains
     end if
 
     ! compute lapu
-    if (visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
+    if (visc_coef .gt. ZERO) then
        do comp = 1, dm
          call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
        end do
@@ -115,6 +115,12 @@ contains
                         dx,dt,the_bc_tower)
     
     call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)
+
+    if (diffusion_type .eq. 2) then
+       do n = 1, nlevs
+          call setval(lapu(n),ZERO)
+       enddo
+    end if
 
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
                               ext_vel_force,dx,dt,the_bc_tower)
