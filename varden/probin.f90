@@ -24,6 +24,7 @@ module probin_module
   integer,save    :: ng_cell,ng_grow
   integer,save    :: n_cellx,n_celly,n_cellz
   integer,save    :: ref_ratio, n_error_buf
+  integer,save    :: max_grid_size
   integer,save    :: slope_order
   integer,save    :: diffusion_type
   integer,save    :: nscal
@@ -79,6 +80,7 @@ module probin_module
   namelist /probin/ n_cellz
   namelist /probin/ ref_ratio
   namelist /probin/ n_error_buf
+  namelist /probin/ max_grid_size
   namelist /probin/ boussinesq
   namelist /probin/ diffusion_type
 
@@ -125,6 +127,8 @@ contains
     ng_cell = 3
     ng_grow = 1
     nlevs = 1
+
+    max_grid_size = 256
 
     stencil_order = 2
 

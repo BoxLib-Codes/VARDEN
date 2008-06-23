@@ -34,7 +34,7 @@ subroutine varden()
                             fixed_dt, bcx_lo, bcy_lo, bcz_lo, bcx_hi, bcy_hi, bcz_hi, &
                             n_cellx, n_celly, n_cellz, prob_lo_x, prob_lo_y, prob_lo_z, &
                             prob_hi_x, prob_hi_y, prob_hi_z, ref_ratio, pmask_xyz, &
-                            fixed_grids, do_initial_projection, grav, probin_init
+                            fixed_grids, max_grid_size, do_initial_projection, grav, probin_init
 
   implicit none
 
@@ -204,6 +204,7 @@ subroutine varden()
        ! Build the level 1 boxarray
      call box_build_2(bxs(1),lo,hi)
      call boxarray_build_bx(mba%bas(1),bxs(1))
+     call boxarray_maxsize(mba%bas(1),max_grid_size)
 
      do n = 2, max_levs
         call box_build_2(bxs(n),lo,lo)
@@ -329,8 +330,7 @@ subroutine varden()
      nl = 1
      do while ( (nl .lt. max_levs) .and. (new_grid) )
         ! could use n_error_buf (if i wanted to set it) instead of regrid_int 
-2002    call make_new_grids(mla,mla_new,sold(nl),dx(nl,1),3,rr,&
-             nl,new_grid)     
+2002    call make_new_grids(mla,mla_new,sold(nl),dx(nl,1),3,rr,nl,max_grid_size,new_grid)     
         
         if (new_grid) then
             do n = 1,nl
@@ -594,7 +594,7 @@ write(*,*)'not properly nested'
                      ! assume same step in all spatial directions
                      ! make level n+1 grid from sold
 2003                 call make_new_grids(mla_temp,mla_new,sold_rg(nl),dx(nl,1),&
-                          6,rr,nl,new_grid)
+                          6,rr,nl,max_grid_size,new_grid)
 
                  if (new_grid) then
 
