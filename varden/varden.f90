@@ -333,9 +333,6 @@ subroutine varden()
      ! could use n_error_buf (if i wanted to set it) instead of regrid_int 
      do while ( (nl .lt. max_levs) .and. (new_grid) )
 2002    call make_new_grids(mla,mla_new,sold(nl),dx(nl,1),3,rr,nl,max_grid_size,new_grid)     
-
-        if (grids_file_name /= '') &
-          call write_grids(grids_file_name,mla_new,0)
         
         if (new_grid) then
             do n = 1,nl
@@ -454,6 +451,9 @@ subroutine varden()
          call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),gp_rg(n),p_rg(n))
       enddo
    end if
+
+   if (grids_file_name /= '') &
+      call write_grids(grids_file_name,mla,0)
 
    call make_temps(mla)
 
@@ -600,9 +600,6 @@ subroutine varden()
                      ! make level n+1 grid from sold
 2003                 call make_new_grids(mla_temp,mla_new,sold_rg(nl),dx(nl,1),&
                           6,rr,nl,max_grid_size,new_grid)
-
-              if (grids_file_name /= '') &
-                 call write_grids(grids_file_name,mla_new,istep)
 
                  if (new_grid) then
 
@@ -758,6 +755,9 @@ subroutine varden()
 
               call destroy(mla)
               call build(mla,mla_temp%mba,pmask)
+
+              if (grids_file_name /= '') &
+                 call write_grids(grids_file_name,mla,istep)
 
               do n = 1,nlevs
                  call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
