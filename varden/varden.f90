@@ -151,7 +151,6 @@ subroutine varden()
   ! Restart from a checkpoint file
   if (restart >= 0) then
 
-     allocate(chkdata(nlevs),chk_p(nlevs))
      call fill_restart_data(restart,mba,chkdata,chk_p,time,dt)
      call ml_layout_build(mla,mba,pmask)
      nlevs = mba%nlevel
@@ -167,6 +166,12 @@ subroutine varden()
         call multifab_copy_c(sold(n),1,chkdata(n),1+dm      ,nscal)
         call multifab_copy_c(  gp(n),1,chkdata(n),1+dm+nscal,dm)
         call multifab_copy_c(   p(n),1,  chk_p(n),1         ,1)
+        !
+        ! The layouts for chkdata and chk_p are built standalone, level
+        ! by level, and need to be destroy()d as such as well.
+        !
+        call destroy(chkdata(n)%la)
+        call destroy(chk_p(n)%la)
         call multifab_destroy(chkdata(n))
         call multifab_destroy(chk_p(n))
      end do
@@ -178,7 +183,6 @@ subroutine varden()
            call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),gp_rg(n),p_rg(n))
         enddo
      endif
-
   ! Read the grid info from the file indicated, fixed grid option
   else if (fixed_grids /= '') then
      call read_a_hgproj_grid(mba, fixed_grids)
