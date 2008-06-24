@@ -43,4 +43,7 @@
 
 !restart = 1
 do_initial_projection = 1
+
+ max_grid_size = 32
+ grids_file_name = grdlog
 /
