@@ -1072,7 +1072,7 @@ contains
    
     if ( parallel_IOProcessor() ) then
        if (verbose .ge. 1) print *,'Writing grids to ',trim(grids_file_name),' at step ',nstep
-       open(un,file=grids_file_name)
+       open(un,file=grids_file_name, position='append')
        write(unit=un, fmt='("At step ",i2,":")') nstep
 !      write(unit=un, fmt='(i1," levels ")') mla%mba%nlevel
        write(unit=un, fmt='(i2)') mla%mba%nlevel
@@ -1097,7 +1097,7 @@ contains
           end do
        end do
        write(unit=un, fmt='(" ")')
-
+       close(un)
     end if
 
   end subroutine write_grids
