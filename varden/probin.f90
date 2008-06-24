@@ -39,6 +39,7 @@ module probin_module
   integer, save   :: boussinesq
 
   character(len=128), save :: fixed_grids
+  character(len=128), save :: grids_file_name
 
   namelist /probin/ dim_in
   namelist /probin/ stop_time
@@ -56,6 +57,7 @@ module probin_module
   namelist /probin/ visc_coef
   namelist /probin/ diff_coef
   namelist /probin/ fixed_grids
+  namelist /probin/ grids_file_name
   namelist /probin/ restart
   namelist /probin/ do_initial_projection
   namelist /probin/ bcx_lo
@@ -151,6 +153,7 @@ contains
 
     need_inputs = .true.
     fixed_grids = ''
+    grids_file_name  = ''
     restart  = -1
   
     bcx_lo = SLIP_WALL
@@ -358,6 +361,10 @@ contains
        case ('--fixed_grids')
           farg = farg + 1
           call get_command_argument(farg, value = fixed_grids)
+
+       case ('--grids_file_name')
+          farg = farg + 1
+          call get_command_argument(farg, value = grids_file_name)
 
        case ('--restart')
           farg = farg + 1

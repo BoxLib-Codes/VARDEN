@@ -34,7 +34,8 @@ subroutine varden()
                             fixed_dt, bcx_lo, bcy_lo, bcz_lo, bcx_hi, bcy_hi, bcz_hi, &
                             n_cellx, n_celly, n_cellz, prob_lo_x, prob_lo_y, prob_lo_z, &
                             prob_hi_x, prob_hi_y, prob_hi_z, ref_ratio, pmask_xyz, &
-                            fixed_grids, max_grid_size, do_initial_projection, grav, probin_init
+                            fixed_grids, grids_file_name, max_grid_size, &
+                            do_initial_projection, grav, probin_init
 
   implicit none
 
@@ -328,9 +329,13 @@ subroutine varden()
 
      new_grid = .true.
      nl = 1
+
+     ! could use n_error_buf (if i wanted to set it) instead of regrid_int 
      do while ( (nl .lt. max_levs) .and. (new_grid) )
-        ! could use n_error_buf (if i wanted to set it) instead of regrid_int 
 2002    call make_new_grids(mla,mla_new,sold(nl),dx(nl,1),3,rr,nl,max_grid_size,new_grid)     
+
+        if (grids_file_name /= '') &
+          call write_grids(grids_file_name,mla_new,0)
         
         if (new_grid) then
             do n = 1,nl
@@ -344,9 +349,9 @@ subroutine varden()
             call ml_layout_build(mla, mla_new%mba, pmask)
             call destroy(mla_new)
 
-! check for proper nesting
+            ! check for proper nesting
             if (.not. ml_boxarray_properly_nested(mla%mba)) then
-write(*,*)'not properly nested'
+               write(*,*)'not properly nested'
                call buffer(nl,mla,buff)
 
                do n = nl, 3, -1
@@ -357,8 +362,8 @@ write(*,*)'not properly nested'
                   call boxarray_intersection(ba, mla%mba%pd(n-1))
                   if ( .not. empty(ba) ) then
                      call boxarray_destroy(ba)
-! buffer the cells, currently buffering with 1 coarse level grid
-! replaces mla with new, expanded mla
+                     ! buffer the cells, currently buffering with 1 coarse level grid
+                     ! replaces mla with new, expanded mla
                      call buffer(n-1,mla,buff)
                   else 
                      call destroy(ba)
@@ -596,6 +601,9 @@ write(*,*)'not properly nested'
 2003                 call make_new_grids(mla_temp,mla_new,sold_rg(nl),dx(nl,1),&
                           6,rr,nl,max_grid_size,new_grid)
 
+              if (grids_file_name /= '') &
+                 call write_grids(grids_file_name,mla_new,istep)
+
                  if (new_grid) then
 
                     call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
@@ -604,7 +612,7 @@ write(*,*)'not properly nested'
                     call ml_layout_build(mla_temp,mla_new%mba,pmask)
                     call destroy(mla_new)
 
-! check for proper nesting
+                    ! check for proper nesting
                     if (.not. ml_boxarray_properly_nested(mla_temp%mba)) then
 
                        call buffer(nl,mla_temp,buff)
@@ -1048,5 +1056,50 @@ contains
     deallocate(chkdata)
 
   end subroutine write_checkfile
+
+  subroutine write_grids(grids_file_name,mla,nstep)
+
+    character(len=128), intent(inout) :: grids_file_name
+    type(ml_layout)   , intent(in   ) :: mla
+    integer           , intent(in   ) :: nstep
+
+    integer        :: i,d,un,nb,tp(mla%dim)
+    type(boxarray) :: mba
+    type(box)      :: bx
+
+    un = 11
+    tp = 0
+   
+    if ( parallel_IOProcessor() ) then
+       if (verbose .ge. 1) print *,'Writing grids to ',trim(grids_file_name),' at step ',nstep
+       open(un,file=grids_file_name)
+       write(unit=un, fmt='("At step ",i2,":")') nstep
+!      write(unit=un, fmt='(i1," levels ")') mla%mba%nlevel
+       write(unit=un, fmt='(i2)') mla%mba%nlevel
+       do n = 1, mla%mba%nlevel
+          nb = mla%mba%bas(n)%nboxes
+          bx = ml_layout_get_pd(mla,n)
+          write(unit=un, fmt='("   (")', advance = 'no') 
+          write(unit=un, fmt='("(" 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
+          write(unit=un, fmt='("} (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
+          write(unit=un, fmt='("} (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+          write(unit=un, fmt='("))")', advance = 'no' )
+          write(unit=un, fmt='(" ",i4)', advance = 'yes') nb
+          do i = 1, nb
+             bx = mla%mba%bas(n)%bxs(i)
+             tp = 0
+             write(unit=un, fmt='("      (")', advance = 'no') 
+             write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
+             write(unit=un, fmt='("} (" 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
+             write(unit=un, fmt='("} (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+             write(unit=un, fmt='("))")', advance = 'no' )
+             write(unit=un, fmt='(" ")')
+          end do
+       end do
+       write(unit=un, fmt='(" ")')
+
+    end if
+
+  end subroutine write_grids
 
 end subroutine varden
