@@ -854,7 +854,9 @@ subroutine varden()
            if ( parallel_IOProcessor() ) print*, ''
          end if
 
-         write(6,1000) istep,time,dt
+         if ( parallel_IOProcessor() ) then
+            write(6,1000) istep,time,dt
+         end if
 
          if ( plot_int > 0 ) then
            if ( mod(istep,plot_int) .eq. 0 ) then
