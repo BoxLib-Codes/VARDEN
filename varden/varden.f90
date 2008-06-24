@@ -898,18 +898,22 @@ subroutine varden()
      deallocate(bxs)
   endif
 
- print *, 'MEMORY STATS AT END OF RUN '
- print*, ' '
- call print(multifab_mem_stats(),    "    multifab")
- call print(fab_mem_stats(),         "         fab")
- call print(boxarray_mem_stats(),    "    boxarray")
- call print(layout_mem_stats(),      "      layout")
- call print(boxassoc_mem_stats(),    "    boxassoc")
- call print(fgassoc_mem_stats(),     "     fgassoc")
- call print(syncassoc_mem_stats(),   "   syncassoc")
- call print(copyassoc_mem_stats(),   "   copyassoc")
- call print(fluxassoc_mem_stats(),   "   fluxassoc")
- print*, ''
+  if ( verbose > 0 ) then
+     if ( parallel_IOProcessor() ) then
+        print *, 'MEMORY STATS AT END OF RUN '
+        print*, ' '
+     end if
+     call print(multifab_mem_stats(),    "    multifab")
+     call print(fab_mem_stats(),         "         fab")
+     call print(boxarray_mem_stats(),    "    boxarray")
+     call print(layout_mem_stats(),      "      layout")
+     call print(boxassoc_mem_stats(),    "    boxassoc")
+     call print(fgassoc_mem_stats(),     "     fgassoc")
+     call print(syncassoc_mem_stats(),   "   syncassoc")
+     call print(copyassoc_mem_stats(),   "   copyassoc")
+     call print(fluxassoc_mem_stats(),   "   fluxassoc")
+     if ( parallel_IOProcessor() ) print*, ''
+  end if
 
 1000 format('STEP = ',i4,1x,' TIME = ',f14.10,1x,'DT = ',f14.9)
 
