@@ -187,6 +187,13 @@ subroutine varden()
   else if (fixed_grids /= '') then
      call read_a_hgproj_grid(mba, fixed_grids)
      call ml_layout_build(mla,mba,pmask)
+
+     ! check for proper nesting
+     if (.not. ml_boxarray_properly_nested(mla%mba)) then
+         call print(mla%mba,'FIXED_GRIDS')
+         call bl_error('fixed_grids not properly nested')
+     end if
+
      nlevs = mla%nlevel
      allocate(uold(nlevs),sold(nlevs),p(nlevs),gp(nlevs))
 
@@ -1091,8 +1098,8 @@ contains
           bx = ml_layout_get_pd(mla,n)
           write(unit=un, fmt='("   (")', advance = 'no') 
           write(unit=un, fmt='("(" 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
-          write(unit=un, fmt='("} (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
-          write(unit=un, fmt='("} (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+          write(unit=un, fmt='(") (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
+          write(unit=un, fmt='(") (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
           write(unit=un, fmt='("))")', advance = 'no' )
           write(unit=un, fmt='(" ",i4)', advance = 'yes') nb
           do i = 1, nb
@@ -1100,8 +1107,8 @@ contains
              tp = 0
              write(unit=un, fmt='("      (")', advance = 'no') 
              write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
-             write(unit=un, fmt='("} (" 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
-             write(unit=un, fmt='("} (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+             write(unit=un, fmt='(") (" 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
+             write(unit=un, fmt='(") (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
              write(unit=un, fmt='("))")', advance = 'no' )
              write(unit=un, fmt='(" ")')
           end do
