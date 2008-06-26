@@ -189,7 +189,7 @@ subroutine varden()
      call ml_layout_build(mla,mba,pmask)
 
      ! check for proper nesting
-     if (.not. ml_boxarray_properly_nested(mla%mba)) then
+     if (.not. ml_boxarray_properly_nested(mla%mba, ng_cell, pmask)) then
          call print(mla%mba,'FIXED_GRIDS')
          call bl_error('fixed_grids not properly nested')
      end if
@@ -359,7 +359,7 @@ subroutine varden()
             call destroy(mla_new)
 
             ! check for proper nesting
-            if (.not. ml_boxarray_properly_nested(mla%mba)) then
+            if (.not. ml_boxarray_properly_nested(mla%mba, ng_cell, pmask)) then
                write(*,*)'not properly nested'
                call buffer(nl,mla,buff)
 
@@ -622,7 +622,7 @@ subroutine varden()
                     call destroy(mla_new)
 
                     ! check for proper nesting
-                    if (.not. ml_boxarray_properly_nested(mla_temp%mba)) then
+                    if (.not. ml_boxarray_properly_nested(mla_temp%mba,ng_cell, pmask)) then
 
                        call buffer(nl,mla_temp,buff)
 
