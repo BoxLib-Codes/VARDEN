@@ -13,7 +13,7 @@ module viscous_module
 
 contains 
 
-  subroutine visc_solve(mla,unew,rho,dx,mu,the_bc_tower)
+  subroutine visc_solve(mla,unew,lapu,rho,dx,mu,the_bc_tower)
 
     use bl_constants_module
     use bndry_reg_module
@@ -25,6 +25,7 @@ contains
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
+    type(multifab ), intent(in   ) :: lapu(:)
     type(multifab ), intent(in   ) :: rho(:)
     real(dp_t)     , intent(in   ) :: dx(:,:),mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
@@ -74,7 +75,7 @@ contains
 
     do d = 1,dm
        do n = 1,nlevs
-          call mkrhs(rh(n),unew(n),rho(n),phi(n),d)
+          call mkrhs(rh(n),unew(n),lapu(n),rho(n),phi(n),mu,d)
        end do
        bc_comp = d
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
@@ -131,16 +132,18 @@ contains
 
   contains
 
-    subroutine mkrhs(rh,unew,rho,phi,comp)
+    subroutine mkrhs(rh,unew,lapu,rho,phi,mu,comp)
 
-      type(multifab) , intent(in   ) :: unew,rho
+      type(multifab) , intent(in   ) :: unew,lapu,rho
       type(multifab) , intent(inout) :: rh,phi
       integer        , intent(in   ) :: comp
+      real(dp_t)     , intent(in   ) :: mu
 
       real(kind=dp_t), pointer :: unp(:,:,:,:)
       real(kind=dp_t), pointer :: rhp(:,:,:,:)
       real(kind=dp_t), pointer ::  rp(:,:,:,:)
       real(kind=dp_t), pointer ::  pp(:,:,:,:)
+      real(kind=dp_t), pointer ::  lp(:,:,:,:)
       integer :: i,dm,ng_u,ng_rho
 
       dm     = rh%dim
@@ -153,25 +156,30 @@ contains
          unp => dataptr(unew, i)
          rp => dataptr(rho , i)
          pp => dataptr(phi , i)
+         lp => dataptr(lapu, i)
          select case (dm)
          case (2)
-            call mkrhs_2d(rhp(:,:,1,1), unp(:,:,1,comp), rp(:,:,1,1), &
-                          pp(:,:,1,1), ng_u, ng_rho)
+            call mkrhs_2d(rhp(:,:,1,1), unp(:,:,1,comp), lp(:,:,1,comp), rp(:,:,1,1), &
+                          pp(:,:,1,1), mu, ng_u, ng_rho)
          case (3)
-            call mkrhs_3d(rhp(:,:,:,1), unp(:,:,:,comp), rp(:,:,:,1), &
-                          pp(:,:,:,1), ng_u, ng_rho)
+            call mkrhs_3d(rhp(:,:,:,1), unp(:,:,:,comp), lp(:,:,:,comp), rp(:,:,:,1), &
+                          pp(:,:,:,1), mu, ng_u, ng_rho)
          end select
       end do
 
     end subroutine mkrhs
 
-    subroutine mkrhs_2d(rh,unew,rho,phi,ng_u,ng_rho)
+    subroutine mkrhs_2d(rh,unew,lapu,rho,phi,mu,ng_u,ng_rho)
+
+      use probin_module, only: diffusion_type
 
       integer        , intent(in   ) :: ng_u,ng_rho
       real(kind=dp_t), intent(inout) ::   rh(        :,        :)
       real(kind=dp_t), intent(in   ) :: unew(1-ng_u  :,1-ng_u  :)
+      real(kind=dp_t), intent(in   ) :: lapu(       1:,       1:)
       real(kind=dp_t), intent(in   ) ::  rho(1-ng_rho:,1-ng_rho:)
       real(kind=dp_t), intent(inout) ::  phi(       0:,       0:)
+      real(dp_t)     , intent(in   ) :: mu
 
       integer :: nx,ny
 
@@ -181,15 +189,23 @@ contains
       rh(1:nx  ,1:ny  ) = unew(1:nx  ,1:ny  ) * rho(1:nx,1:ny)
       phi(0:nx+1,0:ny+1) = unew(0:nx+1,0:ny+1)
 
+      if (diffusion_type .eq. 1) then
+         rh(1:nx,1:ny) = rh(1:nx,1:ny) + mu*lapu(1:nx,1:ny)
+      end if
+
     end subroutine mkrhs_2d
 
-    subroutine mkrhs_3d(rh,unew,rho,phi,ng_u,ng_rho)
+    subroutine mkrhs_3d(rh,unew,lapu,rho,phi,mu,ng_u,ng_rho)
+
+      use probin_module, only: diffusion_type
 
       integer        , intent(in   ) :: ng_u,ng_rho
       real(kind=dp_t), intent(inout) ::   rh(        :,        :,        :)
       real(kind=dp_t), intent(in   ) :: unew(1-ng_u  :,1-ng_u  :,1-ng_u  :)
+      real(kind=dp_t), intent(inout) :: lapu(       1:,       1:,       1:)
       real(kind=dp_t), intent(in   ) ::  rho(1-ng_rho:,1-ng_rho:,1-ng_rho:)
       real(kind=dp_t), intent(inout) ::  phi(       0:,       0:,       0:)
+      real(dp_t)     , intent(in   ) :: mu
 
       integer :: nx,ny,nz
 
@@ -200,6 +216,10 @@ contains
       phi(0:nx+1,0:ny+1,0:nz+1) = unew(0:nx+1,0:ny+1,0:nz+1)
       rh(1:nx  ,1:ny  ,1:nz  ) = unew(1:nx  ,1:ny  ,1:nz  ) * &
            rho(1:nx  ,1:ny  ,1:nz  )
+
+      if (diffusion_type .eq. 1) then
+         rh(1:nx,1:ny,1:nz) = rh(1:nx,1:ny,1:nz) + mu*lapu(1:nx,1:ny,1:nz)
+      end if
 
     end subroutine mkrhs_3d
 

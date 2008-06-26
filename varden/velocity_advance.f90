@@ -90,7 +90,9 @@ contains
     ! Now create vel_force at half-time using rhohalf and half the viscous term.
     !********************************************************
 
-    visc_fac = HALF
+    ! The lapu term will be added to the rhs in visc_solve
+    ! for Crank-Nicolson
+    visc_fac = ZERO
     call mkvelforce(nlevs,vel_force,ext_vel_force,rhohalf,gp,lapu,visc_fac)
 
     !********************************************************
@@ -112,19 +114,19 @@ contains
     deallocate(vel_force,divu,uflux,uedge,umac_nodal_flag)
 
     if (visc_coef > ZERO) then
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*visc_coef
- 
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*visc_coef
- 
-           else
-             call bl_error('BAD DIFFUSION TYPE ')
-           end if
- 
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
+       ! Crank-Nicolson
+       if (diffusion_type .eq. 1) then
+          visc_mu = HALF*dt*visc_coef
+          
+       ! backward Euler
+       else if (diffusion_type .eq. 2) then
+          visc_mu = dt*visc_coef
+          
+       else
+          call bl_error('BAD DIFFUSION TYPE ')
+       end if
+       
+       call visc_solve(mla,unew,lapu,rhohalf,dx,visc_mu,the_bc_tower)
     end if
 
     if (verbose .ge. 1) then
