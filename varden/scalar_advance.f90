@@ -107,14 +107,10 @@ contains
     !***********************************
     ! Create scalar force at time n+1/2.
     !***********************************
-    
-    if (diffusion_type .eq. 2) then
-       do n = 1, nlevs
-          call setval(laps(n),ZERO)
-       enddo
-    end if
 
-    diff_fac = HALF
+    ! The laps term will be added to the rhs in diff_scalar_solve
+    ! for Crank-Nicolson
+    diff_fac = ZERO
     call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 
     !***********************************
@@ -141,7 +137,6 @@ contains
     do n = 1,nlevs
        call multifab_destroy(scal_force(n))
        call multifab_destroy(divu(n))
-       call multifab_destroy(laps(n))
        do i = 1,dm
          call multifab_destroy(sflux(n,i))
          call multifab_destroy(sedge(n,i))
@@ -149,24 +144,27 @@ contains
     enddo
 
     if (diff_coef > ZERO) then
-           comp = 2
-           bc_comp = dm+comp
- 
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*diff_coef
- 
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*diff_coef
- 
-           else
-             call bl_error('BAD DIFFUSION TYPE ')
-           end if
- 
-           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
+       comp = 2
+       bc_comp = dm+comp
+       
+       ! Crank-Nicolson
+       if (diffusion_type .eq. 1) then
+          visc_mu = HALF*dt*diff_coef
+          
+          ! backward Euler
+       else if (diffusion_type .eq. 2) then
+          visc_mu = dt*diff_coef
+          
+       else
+          call bl_error('BAD DIFFUSION TYPE ')
+       end if
+       
+       call diff_scalar_solve(mla,snew,laps,dx,visc_mu,the_bc_tower,comp,bc_comp)
     end if
 
+    do n = 1,nlevs
+       call multifab_destroy(laps(n))
+    end do
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)

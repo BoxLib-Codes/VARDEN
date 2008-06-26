@@ -205,7 +205,7 @@ contains
 
   end subroutine visc_solve
 
-  subroutine diff_scalar_solve(mla,snew,dx,mu,the_bc_tower,icomp,bc_comp)
+  subroutine diff_scalar_solve(mla,snew,laps,dx,mu,the_bc_tower,icomp,bc_comp)
 
     use bndry_reg_module
     use bl_constants_module
@@ -217,6 +217,7 @@ contains
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: snew(:)
+    type(multifab ), intent(in   ) :: laps(:)
     real(dp_t)     , intent(in   ) :: dx(:,:)
     real(dp_t)     , intent(in   ) :: mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
@@ -256,7 +257,7 @@ contains
     end if
 
     do n = 1,nlevs
-       call mkrhs(rh(n),snew(n),phi(n),icomp)
+       call mkrhs(rh(n),snew(n),laps(n),phi(n),mu,icomp)
     end do
 
     allocate(fine_flx(2:nlevs))
@@ -314,15 +315,17 @@ contains
 
   contains
 
-    subroutine mkrhs(rh,snew,phi,comp)
+    subroutine mkrhs(rh,snew,laps,phi,mu,comp)
 
-      type(multifab) , intent(in   ) :: snew
+      type(multifab) , intent(in   ) :: snew,laps
       type(multifab) , intent(inout) :: rh,phi
+      real(dp_t)     , intent(in   ) :: mu
       integer        , intent(in   ) :: comp
 
       real(kind=dp_t), pointer :: sp(:,:,:,:)
       real(kind=dp_t), pointer :: rp(:,:,:,:)
       real(kind=dp_t), pointer :: pp(:,:,:,:)
+      real(kind=dp_t), pointer :: lp(:,:,:,:)
       integer :: i,dm,ng
 
       dm   = rh%dim
@@ -333,22 +336,27 @@ contains
          rp => dataptr(rh  , i)
          pp => dataptr(phi , i)
          sp => dataptr(snew, i)
+         lp => dataptr(laps, i)
          select case (dm)
          case (2)
-            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), pp(:,:,1,1), ng)
+            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), lp(:,:,1,comp), pp(:,:,1,1), mu, ng)
          case (3)
-            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), pp(:,:,:,1), ng)
+            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), lp(:,:,:,comp), pp(:,:,:,1), mu, ng)
          end select
       end do
 
     end subroutine mkrhs
 
-    subroutine mkrhs_2d(rh,snew,phi,ng)
+    subroutine mkrhs_2d(rh,snew,laps,phi,mu,ng)
+      
+      use probin_module, only: diffusion_type
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::   rh(    :,    :)
       real(kind=dp_t), intent(in   ) :: snew(1-ng:,1-ng:)
+      real(kind=dp_t), intent(in   ) :: laps(1   :,   1:)
       real(kind=dp_t), intent(inout) ::  phi(0   :,   0:)
+      real(dp_t)     , intent(in   ) :: mu
 
       integer :: nx,ny
 
@@ -358,14 +366,22 @@ contains
       rh(1:nx,1:ny) = snew(1:nx,1:ny)
       phi(0:nx+1,0:ny+1) = snew(0:nx+1,0:ny+1)
 
+      if (diffusion_type .eq. 1) then
+         rh(1:nx,1:ny) = rh(1:nx,1:ny) + mu*laps(1:nx,1:ny)
+      end if
+
     end subroutine mkrhs_2d
 
-    subroutine mkrhs_3d(rh,snew,phi,ng)
+    subroutine mkrhs_3d(rh,snew,laps,phi,mu,ng)
+
+      use probin_module, only: diffusion_type
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::   rh(    :,    :,    :)
       real(kind=dp_t), intent(in   ) :: snew(1-ng:,1-ng:,1-ng:)
+      real(kind=dp_t), intent(in   ) :: laps(1   :,   1:,   1:)
       real(kind=dp_t), intent(inout) ::  phi(0   :,   0:,   0:)
+      real(dp_t)     , intent(in   ) :: mu
 
       integer :: nx,ny,nz
 
@@ -375,6 +391,10 @@ contains
 
       rh(1:nx,1:ny,1:nz) = snew(1:nx,1:ny,1:nz)
       phi(0:nx+1,0:ny+1,0:nz+1) = snew(0:nx+1,0:ny+1,0:nz+1)
+
+      if (diffusion_type .eq. 1) then
+         rh(1:nx,1:ny,1:nz) = rh(1:nx,1:ny,1:nz) + mu*laps(1:nx,1:ny,1:nz)
+      end if
 
     end subroutine mkrhs_3d
 
