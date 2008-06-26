@@ -26,7 +26,7 @@
  init_shrink = 0.1
 
  visc_coef = 0.01
- diff_coef = 0.0
+ diff_coef = 0.01
 
  grav = -9.8d0
 

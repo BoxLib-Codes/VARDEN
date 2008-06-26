@@ -110,7 +110,7 @@ contains
           ! use this for one bubble problem
           dist = sqrt((xloc-0.5d0)**2 + (yloc-0.5d0)**2)
           s(i,j,1) = s(i,j,1) + (1.0d0 - tanh(dist/0.05d0))
-
+          s(i,j,2) = s(i,j,2) + (1.0d0 - tanh(dist/0.05d0))
 
           ! use this for two bubble problem            
           !            dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2)
@@ -164,6 +164,7 @@ contains
              ! use this for one bubble problem
              dist = sqrt((xloc-0.5d0)**2 + (yloc-0.5d0)**2 + (zloc-0.5d0)**2)
              s(i,j,k,1) = s(i,j,k,1) + (1.0d0 - tanh(dist/0.05d0))
+             s(i,j,k,2) = s(i,j,k,2) + (1.0d0 - tanh(dist/0.05d0))
 
              ! use this for two bubble problem            
              !             dist = sqrt((xloc-0.75d0)**2 + (yloc-0.5d0)**2 + (zloc-0.5d0)**2)
