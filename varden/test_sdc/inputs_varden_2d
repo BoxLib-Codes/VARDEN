@@ -1,18 +1,22 @@
 &PROBIN
+
  dim_in = 2
+
+! number of scalar quantities = density + # tracers 
+ nscal = 4
 
 !!!! Input for fixed grids !!!!
 ! fixed_grids = "gr0_2d_2levels"
-! fixed_grids = "gr0_2d"
+ fixed_grids = "gr0_2d"
 
 !!!! Inputs for adaptive grids !!!!
- nlevs = 3
+! nlevs = 3
 ! n_cellx = 32
 ! n_celly = 32    
-   n_cellx = 64
-   n_celly = 64
- ref_ratio = 2
- regrid_int = 2
+!   n_cellx = 64
+!   n_celly = 64
+! ref_ratio = 2
+! regrid_int = 2
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
@@ -27,22 +31,25 @@
  cflfac = 0.9
  init_shrink = 0.1
 
- visc_coef = 0.01
  visc_coef = 0.001
- diff_coef = 0.00
+ diff_coef = 1.0
 
- grav = -1.0
+! 1 = Crank-Nicolson, 2 = Backward Euler
+ diffusion_type = 2
 
-! bc flags: -1: periodic/interior
+ grav = 0
+
+! bc flags (definintions in boxlib/bc.f90: 
+!	    -1: periodic/interior
 !           11: inflow
 !           12: outflow
 !           13: symmetry
 !           14: slip wall
 !           15: no-slip wall
- bcx_lo = 15
- bcx_hi = 15
- bcy_lo = 15
- bcy_hi = 15
+ bcx_lo = 11
+ bcx_hi = 12
+ bcy_lo = 14
+ bcy_hi = 14
 
 ! pmask_x = T : periodic in x direction
 ! pmask_y = T : periodic in y direction

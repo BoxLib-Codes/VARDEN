@@ -14,7 +14,7 @@ module velocity_advance_module
 contains
 
   subroutine velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                              ext_vel_force,aofu,dx,dt,the_bc_tower)
+                              ext_vel_force,adv_u,dx,dt,the_bc_tower)
 
     use viscous_module
     use mkflux_module
@@ -29,7 +29,7 @@ contains
     type(multifab) , intent(inout) :: lapu(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(inout) :: unew(:)
-    type(multifab) , intent(inout) :: aofu(:)
+    type(multifab) , intent(inout) :: adv_u(:)
     type(multifab) , intent(in   ) :: rhohalf(:)
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
@@ -98,7 +98,7 @@ contains
     ! Update the velocity with convective differencing
     !********************************************************
 
-    call update(mla,uold,umac,uedge,uflux,vel_force,unew,aofu,dx,dt,is_vel, &
+    call update(mla,uold,umac,uedge,uflux,vel_force,unew,adv_u,dx,dt,is_vel, &
                 is_conservative,the_bc_tower%bc_tower_array)
 
     do n = 1, nlevs

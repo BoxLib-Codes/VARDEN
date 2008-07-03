@@ -13,7 +13,7 @@ module update_module
 
 contains
 
-  subroutine update(mla,sold,umac,sedge,flux,force,snew,aofs,dx,dt,is_vel,is_cons, &
+  subroutine update(mla,sold,umac,sedge,flux,force,snew,adv_s,dx,dt,is_vel,is_cons, &
                     the_bc_level)
 
     use bl_constants_module
@@ -28,7 +28,7 @@ contains
     type(multifab)    , intent(in   ) :: flux(:,:)
     type(multifab)    , intent(in   ) :: force(:)
     type(multifab)    , intent(inout) :: snew(:)
-    type(multifab)    , intent(inout) :: aofs(:)
+    type(multifab)    , intent(inout) :: adv_s(:)
     real(kind = dp_t) , intent(in   ) :: dx(:,:),dt
     logical           , intent(in   ) :: is_vel,is_cons(:)
     type(bc_level)    , intent(in   ) :: the_bc_level(:)
@@ -63,7 +63,7 @@ contains
           if ( multifab_remote(sold(n),i) ) cycle
           sop    => dataptr(sold(n),i)
           snp    => dataptr(snew(n),i)
-           ap    => dataptr(aofs(n),i)
+           ap    => dataptr(adv_s(n),i)
           ump    => dataptr(umac(n,1),i)
           vmp    => dataptr(umac(n,2),i)
           sepx   => dataptr(sedge(n,1),i)
@@ -131,7 +131,7 @@ contains
 
   end subroutine update
 
-  subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,aofs,&
+  subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,adv_s,&
                        lo,hi,ng,dx,dt,is_vel,is_cons)
 
     use bl_constants_module
@@ -139,7 +139,7 @@ contains
     integer           , intent(in   ) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
-    real (kind = dp_t), intent(  out) ::    aofs(lo(1)   :,lo(2)   :,:)  
+    real (kind = dp_t), intent(  out) ::    adv_s(lo(1)   :,lo(2)   :,:)  
     real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:)  
     real (kind = dp_t), intent(in   ) ::    vmac(lo(1)- 1:,lo(2)- 1:)  
     real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)   :,lo(2)   :,:)  
@@ -165,7 +165,7 @@ contains
                 do i = lo(1), hi(1)
                    divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
                          + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
-                   aofs(i,j,comp) = -divsu
+                   adv_s(i,j,comp) = -divsu
                    snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
                 enddo
              enddo
@@ -176,7 +176,7 @@ contains
                    vbar = HALF*(vmac(i,j) + vmac(i,j+1))
                    ugrads = ubar*(sedgex(i+1,j,comp) - sedgex(i,j,comp))/dx(1) + &
                             vbar*(sedgey(i,j+1,comp) - sedgey(i,j,comp))/dx(2)
-                   aofs(i,j,comp) = -ugrads
+                   adv_s(i,j,comp) = -ugrads
                    snew(i,j,comp) = sold(i,j,comp) - dt * ugrads + dt * force(i,j,comp)
                 enddo
              enddo
@@ -200,8 +200,8 @@ contains
              snew(i,j,1) = sold(i,j,1) - dt * ugradu + dt * force(i,j,1)
              snew(i,j,2) = sold(i,j,2) - dt * ugradv + dt * force(i,j,2)
 
-             aofs(i,j,1) = -ugradu
-             aofs(i,j,2) = -ugradv
+             adv_s(i,j,1) = -ugradu
+             adv_s(i,j,2) = -ugradv
 
           enddo
        enddo
@@ -210,14 +210,14 @@ contains
   end subroutine update_2d
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
-                       force,snew,aofs,lo,hi,ng,dx,dt,is_vel,is_cons)
+                       force,snew,adv_s,lo,hi,ng,dx,dt,is_vel,is_cons)
 
     use bl_constants_module
 
     integer           , intent(in   ) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
     real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-    real (kind = dp_t), intent(  out) ::    aofs(lo(1)   :,lo(2)   :,lo(3)   :,:)  
+    real (kind = dp_t), intent(  out) ::    adv_s(lo(1)   :,lo(2)   :,lo(3)   :,:)  
     real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
     real (kind = dp_t), intent(in   ) ::    vmac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
     real (kind = dp_t), intent(in   ) ::    wmac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
@@ -249,7 +249,7 @@ contains
                       divsu = (fluxx(i+1,j,k,comp)-fluxx(i,j,k,comp))/dx(1) &
                             + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
                             + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
-                      aofs(i,j,k,comp) = -divsu
+                      adv_s(i,j,k,comp) = -divsu
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * divsu + dt * force(i,j,k,comp)
                    enddo
                 enddo
@@ -265,7 +265,7 @@ contains
                       ugrads = ubar*(sedgex(i+1,j,k,comp) - sedgex(i,j,k,comp))/dx(1) + &
                            vbar*(sedgey(i,j+1,k,comp) - sedgey(i,j,k,comp))/dx(2) + &
                            wbar*(sedgez(i,j,k+1,comp) - sedgez(i,j,k,comp))/dx(3)
-                      aofs(i,j,k,comp) = -ugrads
+                      adv_s(i,j,k,comp) = -ugrads
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * ugrads + dt * force(i,j,k,comp)
                    enddo
                 enddo
@@ -298,9 +298,9 @@ contains
                 snew(i,j,k,2) = sold(i,j,k,2) - dt * ugradv + dt * force(i,j,k,2)
                 snew(i,j,k,3) = sold(i,j,k,3) - dt * ugradw + dt * force(i,j,k,3)
 
-                aofs(i,j,k,1) = -ugradu
-                aofs(i,j,k,2) = -ugradv
-                aofs(i,j,k,3) = -ugradw
+                adv_s(i,j,k,1) = -ugradu
+                adv_s(i,j,k,2) = -ugradv
+                adv_s(i,j,k,3) = -ugradw
              enddo
           enddo
        enddo
