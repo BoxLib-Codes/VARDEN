@@ -21,55 +21,80 @@ module define_bc_module
 
      integer :: dim     = 0
      integer :: nlevels = 0
+     integer :: max_level_built = 0
      type(bc_level), pointer :: bc_tower_array(:) => Null()
+     integer       , pointer :: domain_bc(:,:) => Null()
 
   end type bc_tower
 
   private
 
-  public :: bc_level, bc_tower, bc_tower_build, bc_tower_destroy
+  public :: bc_level, bc_tower, bc_tower_init, bc_tower_level_build, bc_tower_destroy
 
   contains
 
-  subroutine bc_tower_build(bct,mla,domain_bc,domain_box,nscal)
+  subroutine bc_tower_init(bct,num_levs,dm,phys_bc_in)
 
     type(bc_tower ), intent(  out) :: bct
-    type(ml_layout), intent(in   ) :: mla
-    integer        , intent(in   ) :: domain_bc(:,:)
-    type(box)      , intent(in   ) :: domain_box(:)
-    integer        , intent(in   ) :: nscal
+    integer        , intent(in   ) :: num_levs
+    integer        , intent(in   ) :: dm
+    integer        , intent(in   ) :: phys_bc_in(:,:)
+
+    integer :: n
+
+    bct%nlevels = num_levs
+    bct%dim     = dm
+    allocate(bct%bc_tower_array(bct%nlevels))
+    allocate(bct%domain_bc(dm,2))
+
+    do n = 1, num_levs
+      bct%bc_tower_array(n)%ngrids = -1
+    end do
+
+    bct%domain_bc(:,:) = phys_bc_in(:,:)
+
+  end subroutine bc_tower_init
+
+  subroutine bc_tower_level_build(bct,n,la)
+
+    use probin_module, only : nscal
+
+    type(bc_tower ), intent(inout) :: bct
+    integer        , intent(in   ) :: n
+    type(layout)   , intent(in   ) :: la
 
     integer :: ngrids
     integer :: default_value
-    integer :: n
 
-    bct%nlevels = mla%nlevel
-    bct%dim     = mla%dim
+    if (bct%bc_tower_array(n)%ngrids > 0) then
+      deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
+      deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
+      deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
+    end if
 
-    allocate(bct%bc_tower_array(bct%nlevels))
-    do n = 1,bct%nlevels
-       ngrids = layout_nboxes(mla%la(n))
-       bct%bc_tower_array(n)%dim    = bct%dim
-       bct%bc_tower_array(n)%ngrids = ngrids
-       bct%bc_tower_array(n)%domain = domain_box(n)
+    ngrids = layout_nboxes(la)
+    bct%bc_tower_array(n)%dim    = bct%dim
+    bct%bc_tower_array(n)%ngrids = ngrids
+    bct%bc_tower_array(n)%domain = layout_get_pd(la)
 
-       allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,bct%dim,2))
-       default_value = INTERIOR
-       call phys_bc_level_build(bct%bc_tower_array(n)%phys_bc_level_array,mla%la(n), &
-                                domain_bc,default_value)
+    allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,bct%dim,2))
+    default_value = INTERIOR
+    call phys_bc_level_build(bct%bc_tower_array(n)%phys_bc_level_array,la, &
+                             bct%domain_bc,default_value)
 
-       allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+2))
-       default_value = INTERIOR
-       call adv_bc_level_build(bct%bc_tower_array(n)%adv_bc_level_array, &
-                               bct%bc_tower_array(n)%phys_bc_level_array,default_value)
+    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+2))
+    default_value = INTERIOR
+    call adv_bc_level_build(bct%bc_tower_array(n)%adv_bc_level_array, &
+                            bct%bc_tower_array(n)%phys_bc_level_array,default_value)
 
-       allocate(bct%bc_tower_array(n)%ell_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
-       default_value = BC_INT
-       call ell_bc_level_build(bct%bc_tower_array(n)%ell_bc_level_array, &
-                               bct%bc_tower_array(n)%phys_bc_level_array,default_value)
-    end do
+    allocate(bct%bc_tower_array(n)%ell_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
+    default_value = BC_INT
+    call ell_bc_level_build(bct%bc_tower_array(n)%ell_bc_level_array, &
+                            bct%bc_tower_array(n)%phys_bc_level_array,default_value)
 
-  end subroutine bc_tower_build
+     bct%max_level_built = n
+
+  end subroutine bc_tower_level_build
 
   subroutine bc_tower_destroy(bct)
 
@@ -77,7 +102,9 @@ module define_bc_module
 
     integer :: n
 
-    do n = 1,bct%nlevels
+    print *,'MAX LEVEL BUILT ',bct%max_level_built
+ 
+    do n = 1,bct%max_level_built
        deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
        deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
        deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
