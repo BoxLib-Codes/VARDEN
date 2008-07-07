@@ -86,7 +86,7 @@ contains
 
   end subroutine checkpoint_write
 
-  subroutine checkpoint_read(mfs, mfs_nodal, dirname, time_out, dt_out, nlevs_out)
+  subroutine checkpoint_read(mfs, mfs_nodal, dirname, rrs_out, time_out, dt_out, nlevs_out)
 
     use bl_IO_module
     use fab_module
@@ -97,8 +97,9 @@ contains
     character(len=*), intent(in   )          :: dirname
     integer         , intent(  out)          :: nlevs_out
     real(kind=dp_t) , intent(  out)          :: time_out, dt_out
+    integer         , intent(  out)          :: rrs_out(:)
 
-    integer         ,                pointer :: rrs(:)
+    integer          ,               pointer :: rrs(:)
     real(kind=dp_t) ,                pointer :: dx(:,:)
 
     integer :: i, j, k, n
@@ -146,6 +147,8 @@ contains
     nc = ncomp(mfs(1))
     dm = mfs(1)%dim
     lbbox = bbox(get_boxarray(mfs(1)))
+
+    rrs_out(1:nlevs-1) = rrs(1:nlevs-1)
 
     deallocate(dx,rrs)
 

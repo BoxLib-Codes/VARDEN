@@ -15,6 +15,7 @@ contains
   subroutine fill_restart_data(restart_int,mba,chkdata,chk_p,time,dt)
 
     use checkpoint_module
+    use probin_module, only : MAX_ALLOWED_LEVS
 
     integer          , intent(in   ) :: restart_int
     real(dp_t)       , intent(  out) :: time,dt
@@ -24,10 +25,11 @@ contains
     type(multifab)   , pointer        :: chk_p(:)
     character(len=7)                  :: sd_name
     integer                           :: n,nlevs,dm
+    integer                           :: rrs(MAX_ALLOWED_LEVS)
 
     write(unit=sd_name,fmt='("chk",i4.4)') restart_int
     print *,'Reading ',sd_name,' to get state data for restart'
-    call checkpoint_read(chkdata, chk_p, sd_name, time, dt, nlevs)
+    call checkpoint_read(chkdata, chk_p, sd_name, rrs, time, dt, nlevs)
 
     dm = chkdata(1)%dim
 
@@ -35,7 +37,7 @@ contains
     mba%pd(1) =  bbox(get_boxarray(chkdata(1)))
     do n = 2,nlevs
       mba%pd(n) = refine(mba%pd(n-1),2)
-      mba%rr(n-1,:) = 2
+      mba%rr(n-1,:) = rrs(n-1)
     end do
     do n = 1,nlevs
       call boxarray_build_copy(mba%bas(n), get_boxarray(chkdata(n))) 
