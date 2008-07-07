@@ -9,7 +9,7 @@ module probin_module
   implicit none
 
   integer,save    :: narg, farg
-  integer,save    :: dim_in, nlevs
+  integer,save    :: dim_in, nlevs, max_levs
   integer,save    :: max_step,init_iter
   integer,save    :: plot_int, chk_int, regrid_int
   integer,save    :: verbose, mg_verbose, cg_verbose
@@ -37,6 +37,8 @@ module probin_module
   real(dp_t),save :: prob_hi_x,prob_hi_y,prob_hi_z
   real(dp_t),save :: max_dt_growth
   integer, save   :: boussinesq
+
+  integer, parameter :: MAX_ALLOWED_LEVS = 10
 
   character(len=128), save :: fixed_grids
   character(len=128), save :: grids_file_name
@@ -76,7 +78,7 @@ module probin_module
   namelist /probin/ grav
   namelist /probin/ use_godunov_debug
   namelist /probin/ use_minion
-  namelist /probin/ nlevs
+  namelist /probin/ max_levs
   namelist /probin/ n_cellx
   namelist /probin/ n_celly
   namelist /probin/ n_cellz
@@ -125,10 +127,12 @@ contains
     stop_time = -1.d0
 
     ref_ratio = 2
-    n_error_buf = 2
+    n_error_buf = -1
     ng_cell = 3
     ng_grow = 1
-    nlevs = 1
+
+    max_levs = -1
+    nlevs = -1
 
     max_grid_size = 256
 
@@ -389,6 +393,21 @@ contains
 
        farg = farg + 1
     end do
+
+    ! If n_error_buf hasn't been set in the inputs file.
+    if (n_error_buf < 0 .and. fixed_grids == '') then
+       if (regrid_int > 0) then
+          n_error_buf = regrid_int
+       else
+          call bl_error('Cant have n_error_buf and regrid_int both unspecified')
+       end if
+    end if
+
+    ! Don't set regrid_int and fixed_grids
+    if (fixed_grids /= '') then
+      if (regrid_int > 0) &
+         call bl_error('Cant have fixed_grids and regrid_int > 0.')
+    end if
     
   end subroutine probin_init
 
