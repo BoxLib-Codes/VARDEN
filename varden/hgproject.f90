@@ -24,7 +24,7 @@ contains
     use ml_solve_module
     use ml_restriction_module
     use multifab_fill_ghost_module
-    use probin_module, only: verbose
+    use probin_module, only: verbose, nodal
 
     integer        , intent(in   ) :: proj_type
     type(ml_layout), intent(in   ) :: mla
@@ -44,7 +44,6 @@ contains
 
     ! Local  
     type(multifab), allocatable :: phi(:),gphi(:)
-    logical,        allocatable :: nodal(:)
     integer                     :: n,nlevs,dm,ng
     real(dp_t)                  :: umin,umax,vmin,vmax,wmin,wmax
     integer                     :: stencil_type
@@ -61,8 +60,7 @@ contains
        print *,'PROJ_TYPE IN HGPROJECT:',proj_type
     endif
 
-    allocate(phi(nlevs), gphi(nlevs), nodal(dm))
-    nodal = .true.
+    allocate(phi(nlevs), gphi(nlevs))
 
     use_div_coeff_1d = .false.
     if (present(div_coeff_1d)) use_div_coeff_1d = .true.
@@ -186,7 +184,6 @@ contains
 
     deallocate(phi)
     deallocate(gphi)
-    deallocate(nodal)
 
   contains
 
@@ -703,7 +700,7 @@ contains
     use coeffs_module
     use ml_solve_module
     use nodal_divu_module
-    use probin_module, only : mg_verbose, cg_verbose
+    use probin_module, only : mg_verbose, cg_verbose, nodal
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -741,16 +738,14 @@ contains
     integer :: max_nlevel_in
     integer :: verbose
     integer :: do_diagnostics
-    logical, allocatable :: nodal(:)
 
     !! Defaults:
 
     dm    = mla%dim
     nlevs = mla%nlevel
 
-    allocate(mgt(nlevs), nodal(dm))
+    allocate(mgt(nlevs))
     allocate(one_sided_ss(2:nlevs))
-    nodal = .true.
 
     max_nlevel        = mgt(nlevs)%max_nlevel
     max_iter          = mgt(nlevs)%max_iter
