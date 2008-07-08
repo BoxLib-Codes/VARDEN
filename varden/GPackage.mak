@@ -7,6 +7,7 @@ f90sources += explicit_diffusive_term.f90
 f90sources += fillpatch.f90
 f90sources += hgproject.f90
 f90sources += initdata.f90
+f90sources += initialize.f90
 f90sources += inlet_bc.f90
 f90sources += macproject.f90
 f90sources += make_at_halftime.f90
