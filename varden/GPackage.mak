@@ -24,6 +24,7 @@ f90sources += restart.f90
 f90sources += scalar_advance.f90  
 f90sources += setbc.f90
 f90sources += slope.f90
+f90sources += tag_boxes.f90
 f90sources += update.f90  
 f90sources += varden.f90
 f90sources += velocity_advance.f90  
