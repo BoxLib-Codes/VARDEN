@@ -127,7 +127,7 @@ contains
     nscal = 2
 
     allocate(nodal(dim_in))
-    nodal(:) = .true.
+    nodal = .true.
 
     grav = 0.d0
     boussinesq = 0
