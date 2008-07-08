@@ -142,7 +142,8 @@ subroutine varden()
   else  ! Adaptive gridding
 
      call initialize_with_adaptive_grids()
-     call print(mla,"MLA OUT OF ROUTINE")
+     if ( parallel_IOProcessor() .and. verbose) &
+        call print(mla,"MLA OUT OF INITIAL GRIDDING ROUTINE")
 
   end if
 
@@ -605,7 +606,10 @@ contains
      integer                   :: buf_wid
      type(layout), allocatable :: la_array(:)
      type(box)   , allocatable :: bxs(:)
+     type(boxarray)            :: ba_new,ba_new_comp,ba_old_comp
+     type(boxarray)            :: ba_newest
      type(ml_boxarray)         :: mba
+     type(list_box)            :: bl
 
      logical  :: new_grid
      integer  :: nl, buff
@@ -677,7 +681,7 @@ contains
         
            if (new_grid) then
 
-              mba%bas(nl+1) = get_boxarray(la_array(nl+1))
+              call copy(mba%bas(nl+1),get_boxarray(la_array(nl+1)))
 
               ! Build the level nl+1 data only.
               call make_new_state(la_array(nl+1),uold(nl+1),sold(nl+1),gp(nl+1),p(nl+1)) 
@@ -704,10 +708,6 @@ contains
 
       nlevs = nl
 
-      print *,'NL INTO PROPER NESTING TEST ',nlevs
-
-      print *,'PD ',mba%pd(1)
-
       ! check for proper nesting
       if (nlevs .ge. 3) then
         
@@ -716,42 +716,56 @@ contains
 
          do while ( (nl .ge. 2) .and. (new_grid) )
 
-            call print(mba,"MBA")
-
             if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) then
 
-                print *,'OOPS: level ',nl+1,' grids are not properly nested '
-                call buffer(nl,mla,buff)
+                new_grid = .true.
+               
+                if ( parallel_IOProcessor() .and. verbose) then
+                   print *,' '
+                   print *,'LEVEL ',nl+1,' grids are not properly nested '
+                   print *,' '
+                end if
 
-                do n = nl, 3, -1
-   
-                   call boxarray_build_copy(ba, mla%mba%bas(n))
-                   call boxarray_coarsen(ba, mla%mba%rr(n-1,:))
-                   call boxarray_diff(ba, mla%mba%bas(n-1))
-                   call boxarray_intersection(ba, mla%mba%pd(n-1))
-                   if ( .not. empty(ba) ) then
-                      call boxarray_destroy(ba)
-                      ! buffer the cells, currently buffering with 1 coarse level grid
-                      ! replaces mla with new, expanded mla
-                      call buffer(n-1,mla,buff)
-                   else 
-                      call destroy(ba)
-                   endif
-                enddo
-            
-                do n = 1,mla%nlevel
-                   call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n))
-                enddo
+                ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
+                !  that the level nl+1 level will need for proper nesting
+                call buffer(nl,la_array(nl+1),ba_new,ref_ratio,ng_cell)
+                call boxarray_intersection(ba_new,mba%pd(nl))
 
-                call bc_tower_level_build(the_bc_tower,nl+1,mla%la(nl+1))
-          
-                call initdata(mla%nlevel,uold,sold,dx,prob_hi,&
-                              the_bc_tower%bc_tower_array,mla)
-             
-                nlevs = mla%nlevel
-                nl = mla%nlevel
- 
-!               goto 2002
+                ! Make sure the new grids start on even and end on odd
+                call boxarray_coarsen(ba_new, ref_ratio)
+                call boxarray_refine (ba_new, ref_ratio)
+
+                ! Merge the new boxarray "ba_new" with the existing box_array 
+                ! mba%bas(nl) so that we get the union of points.
+                call boxarray_complementIn(ba_old_comp,mba%pd(nl),mba%bas(nl))
+                call boxarray_intersection(ba_old_comp,ba_new)
+                do i = 1, mba%bas(nl)%nboxes
+                   call push_back(bl,  mba%bas(nl)%bxs(i))
+                end do
+                do i = 1, ba_old_comp%nboxes
+                   call push_back(bl, ba_old_comp%bxs(i))
+                end do
+                call build(ba_newest,bl)
+                call destroy(bl)
+                call boxarray_simplify(ba_newest)
+                call boxarray_maxsize(ba_newest,max_grid_size)
+
+                ! Replace mba%bas(nl) by ba_new
+                call destroy(mba%bas(nl))
+                call copy(mba%bas(nl),ba_newest)
+                call destroy(ba_newest)
+
+                ! Double check we got the proper nesting right
+                if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) &
+                  call bl_error('Still not properly nested, darn it')
+
+                ! Destroy the old layout and build a new one.
+                call destroy(la_array(nl))
+                call layout_build_ba(la_array(nl),mba%bas(nl),mba%pd(nl),pmask)
+
+            else
+
+                new_grid = .false.
 
             endif  !if not properly nested
 
@@ -762,7 +776,7 @@ contains
 
    end if ! end if (maxlev > 1)
 
-   call ml_layout_restricted_build(mla,mba,nl,pmask)
+   call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
    nlevs = mla%nlevel
 
