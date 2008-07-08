@@ -38,6 +38,9 @@ module probin_module
   real(dp_t),save :: max_dt_growth
   integer, save   :: boussinesq
 
+  ! This will be allocated and defined below
+  logical, allocatable, save   :: nodal(:)
+
   integer, parameter :: MAX_ALLOWED_LEVS = 10
 
   character(len=128), save :: fixed_grids
@@ -119,6 +122,9 @@ contains
 
     dim_in = 2
     nscal = 2
+
+    allocate(nodal(dim_in))
+    nodal(:) = .true.
 
     grav = 0.d0
     boussinesq = 0
