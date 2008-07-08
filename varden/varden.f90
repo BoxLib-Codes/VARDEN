@@ -8,7 +8,6 @@ subroutine varden()
   use ml_boxarray_module
   use layout_module
   use multifab_module
-  use init_module
   use initialize_module
   use estdt_module
   use vort_module
@@ -24,18 +23,13 @@ subroutine varden()
   use fabio_module
   use plotfile_module
   use checkpoint_module
-  use restart_module
-  use fillpatch_module
-  use regrid_module
   use multifab_fill_ghost_module
   use advance_module
 
-  use probin_module, only : dim_in, max_levs, nlevs, ng_cell, ng_grow, init_iter, max_step, &
+  use probin_module, only : dim_in, max_levs, nlevs, ng_cell, ng_grow, pmask, &
+                            init_iter, max_step, &
                             stop_time, restart, chk_int, plot_int, regrid_int, init_shrink, &
-                            fixed_dt, nodal, bcx_lo, bcy_lo, bcz_lo, bcx_hi, bcy_hi, bcz_hi, &
-                            prob_lo_x, prob_lo_y, prob_lo_z, &
-                            prob_hi_x, prob_hi_y, prob_hi_z, ref_ratio, pmask_xyz, &
-                            fixed_grids, grids_file_name, max_grid_size, &
+                            fixed_dt, nodal, ref_ratio, fixed_grids, grids_file_name, &
                             do_initial_projection, grav, probin_init
 
   implicit none
@@ -49,11 +43,8 @@ subroutine varden()
   integer    :: init_step
   integer    :: press_comp, vort_comp
 
-  logical     , allocatable :: pmask(:)
   real(dp_t)  , pointer     :: dx(:,:)
-  real(dp_t)  , allocatable :: prob_hi(:)
-  type(ml_layout)           :: mla,mla_new
-  type(box)   , allocatable :: domain_box(:)
+  type(ml_layout)           :: mla
 
   ! Cell-based quantities
   type(multifab), pointer     ::     uold(:)
@@ -73,8 +64,6 @@ subroutine varden()
   type(multifab), allocatable ::     gp_rg(:)
   type(multifab), allocatable ::      p_rg(:)
 
-! integer,allocatable      :: lo(:),hi(:)
-
   character(len=7 ) :: sd_name
   character(len=20), allocatable :: plot_names(:)
 
@@ -91,11 +80,6 @@ subroutine varden()
 
   dm = dim_in
   press_comp = dm + nscal + 1
-
-  allocate(pmask(dm))
-  pmask = .FALSE.
-
-  pmask = pmask_xyz(1:dm)
 
 ! allocate(nodal(dm))
 ! nodal = .true.
@@ -116,14 +100,6 @@ subroutine varden()
   plot_names(dm+nscal+3) = "gpy"
   if (dm > 2) plot_names(dm+nscal+4) = "gpz"
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! Initialize prob_hi
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  allocate(prob_hi(dm))
-  prob_hi(1) = prob_hi_x
-  if (dm > 1) prob_hi(2) = prob_hi_y
-  if (dm > 2) prob_hi(3) = prob_hi_z
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize the grids and the data.
@@ -131,15 +107,15 @@ subroutine varden()
 
   if (restart >= 0) then
 
-     call initialize_from_restart(mla,restart,time,dt,dx,prob_hi,pmask,uold,sold,gp,p,the_bc_tower)
+     call initialize_from_restart(mla,restart,time,dt,dx,pmask,uold,sold,gp,p,the_bc_tower)
 
   else if (fixed_grids /= '') then
 
-     call initialize_with_fixed_grids(mla,pmask,dx,prob_hi,uold,sold,gp,p,the_bc_tower)
+     call initialize_with_fixed_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
 
   else  ! Adaptive gridding
 
-     call initialize_with_adaptive_grids(mla,pmask,dx,prob_hi,uold,sold,gp,p,the_bc_tower)
+     call initialize_with_adaptive_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
      if ( parallel_IOProcessor() .and. verbose.ge.1) &
         call print(mla,"MLA OUT OF INITIAL GRIDDING ROUTINE")
 

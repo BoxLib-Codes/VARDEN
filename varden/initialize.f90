@@ -18,7 +18,7 @@ module initialize_module
 
 contains
 
-  subroutine initialize_from_restart(mla,restart,time,dt,dx,prob_hi,pmask,uold,sold,gp,p,the_bc_tower)
+  subroutine initialize_from_restart(mla,restart,time,dt,dx,pmask,uold,sold,gp,p,the_bc_tower)
  
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal
 
@@ -26,7 +26,6 @@ contains
      integer       , intent(in   ) :: restart
      real(dp_t)    , intent(  out) :: time,dt
      real(dp_t)    , pointer       :: dx(:,:)
-     real(dp_t)    , intent(in   ) :: prob_hi(:)
      logical       , intent(in   ) :: pmask(:)
      type(multifab), pointer       :: sold(:),uold(:),gp(:),p(:)
      type(bc_tower), intent(  out) :: the_bc_tower
@@ -69,7 +68,7 @@ contains
      end do
      deallocate(chkdata,chk_p)
 
-     call initialize_dx(dx,mba,nlevs,prob_hi)
+     call initialize_dx(dx,mba,nlevs)
 
      call initialize_bc(the_bc_tower,nlevs,pmask)
      do n = 1,nlevs
@@ -78,14 +77,13 @@ contains
 
   end subroutine initialize_from_restart
 
-  subroutine initialize_with_fixed_grids(mla,pmask,dx,prob_hi,uold,sold,gp,p,the_bc_tower)
+  subroutine initialize_with_fixed_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, fixed_grids
 
      type(ml_layout),intent(out)   :: mla
      logical       , intent(in   ) :: pmask(:)
      real(dp_t)    , pointer       :: dx(:,:)
-     real(dp_t)    , intent(in   ) :: prob_hi(:)
      type(multifab), pointer       :: uold(:),sold(:),gp(:),p(:)
      type(bc_tower), intent(  out) :: the_bc_tower
 
@@ -112,18 +110,18 @@ contains
         call multifab_build(      p(n), mla%la(n),     1, ng_grow, nodal)
      end do
 
-     call initialize_dx(dx,mba,nlevs,prob_hi)
+     call initialize_dx(dx,mba,nlevs)
 
      call initialize_bc(the_bc_tower,nlevs,pmask)
      do n = 1,nlevs
         call bc_tower_level_build( the_bc_tower,n,mla%la(n))
      end do
 
-     call initdata(nlevs,uold,sold,dx,prob_hi,the_bc_tower%bc_tower_array,mla)
+     call initdata(nlevs,uold,sold,dx,the_bc_tower%bc_tower_array,mla)
 
   end subroutine initialize_with_fixed_grids
 
-  subroutine initialize_with_adaptive_grids(mla,pmask,dx,prob_hi,uold,sold,gp,p,the_bc_tower)
+  subroutine initialize_with_adaptive_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                n_cellx, n_celly, n_cellz, &
@@ -133,7 +131,6 @@ contains
      type(ml_layout),intent(out)   :: mla
      logical       , intent(in   ) :: pmask(:)
      real(dp_t)    , pointer       :: dx(:,:)
-     real(dp_t)    , intent(in   ) :: prob_hi(:)
      type(multifab), pointer       :: uold(:),sold(:),gp(:),p(:)
      type(bc_tower), intent(  out) :: the_bc_tower
 
@@ -188,7 +185,7 @@ contains
      enddo
 
      ! Need to build pd before making dx
-     call initialize_dx(dx,mba,max_levs,prob_hi)
+     call initialize_dx(dx,mba,max_levs)
 
      ! Initialize bc's.
      call initialize_bc(the_bc_tower,max_levs,pmask)
@@ -205,7 +202,7 @@ contains
         call bc_tower_level_build(the_bc_tower,1,la_array(1))
 
         ! Initialize the level 1 data only.
-        call initdata_on_level(uold(1),sold(1),dx(1,:),prob_hi,the_bc_tower%bc_tower_array(1),la_array(1))
+        call initdata_on_level(uold(1),sold(1),dx(1,:),the_bc_tower%bc_tower_array(1),la_array(1))
 
         new_grid = .true.
         nl = 1
@@ -227,7 +224,7 @@ contains
               call bc_tower_level_build(the_bc_tower,nl+1,la_array(nl+1))
             
              ! fills the physical region of each level with problem data (blob now)
-              call initdata_on_level(uold(nl+1),sold(nl+1),dx(nl+1,:),prob_hi,the_bc_tower%bc_tower_array(nl+1),la_array(nl+1))
+              call initdata_on_level(uold(nl+1),sold(nl+1),dx(nl+1,:),the_bc_tower%bc_tower_array(nl+1),la_array(nl+1))
 
               nlevs = nl+1
               nl = nl + 1
@@ -321,7 +318,7 @@ contains
       call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n)) 
    end do
 
-   call initdata(nlevs,uold,sold,dx,prob_hi,the_bc_tower%bc_tower_array,mla)
+   call initdata(nlevs,uold,sold,dx,the_bc_tower%bc_tower_array,mla)
 
    call destroy(mba)
    deallocate(bxs)
@@ -406,14 +403,13 @@ contains
 
   end subroutine initialize_bc
 
-  subroutine initialize_dx(dx,mba,num_levs,prob_hi)
+  subroutine initialize_dx(dx,mba,num_levs)
 
-     use probin_module, only : dim_in
+     use probin_module, only : dim_in, prob_hi
   
      real(dp_t)       , pointer     :: dx(:,:)
      type(ml_boxarray), intent(in ) :: mba
      integer          , intent(in ) :: num_levs
-     real(dp_t)       , intent(in ) :: prob_hi(:)
 
      integer :: i,n,dm
 

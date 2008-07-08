@@ -18,14 +18,13 @@ module init_module
 
 contains
 
-  subroutine initdata_on_level(u,s,dx,prob_hi,bc,la)
+  subroutine initdata_on_level(u,s,dx,bc,la)
 
     use multifab_physbc_module
     use probin_module, only : nscal
 
     type(multifab) , intent(inout) :: u,s
     real(kind=dp_t), intent(in   ) :: dx(:)
-    real(kind=dp_t), intent(in   ) :: prob_hi(:)
     type(bc_level) , intent(in   ) :: bc
     type(layout)   , intent(inout) :: la
 
@@ -44,9 +43,9 @@ contains
        hi =  upb(get_box(u,i))
        select case (dm)
        case (2)
-          call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx, prob_hi)
+          call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx)
        case (3)
-          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx, prob_hi)
+          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx)
        end select
     end do
 
@@ -58,7 +57,7 @@ contains
 
   end subroutine initdata_on_level
 
-  subroutine initdata(nlevs,u,s,dx,prob_hi,bc,mla)
+  subroutine initdata(nlevs,u,s,dx,bc,mla)
 
     use multifab_physbc_module
     use probin_module, only : nscal
@@ -66,7 +65,6 @@ contains
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: u(:),s(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:)
-    real(kind=dp_t), intent(in   ) :: prob_hi(:)
     type(bc_level) , intent(in   ) :: bc(:)
     type(ml_layout), intent(inout) :: mla
 
@@ -87,9 +85,9 @@ contains
           hi =  upb(get_box(u(n),i))
           select case (dm)
           case (2)
-             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:), prob_hi)
+             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:))
           case (3)
-             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:), prob_hi)
+             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:))
           end select
        end do
 
@@ -113,13 +111,14 @@ contains
 
   end subroutine initdata
 
-  subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
+  subroutine initdata_2d (u,s,lo,hi,ng,dx)
+
+    use probin_module, only : prob_hi
 
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(in ) :: dx(:)
-    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
     !     Local variables
     integer :: i, j, comp, jhalf
@@ -257,6 +256,8 @@ contains
   end subroutine initdata_2d
 
   subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)
+
+    use probin_module, only : prob_hi
 
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  

@@ -39,7 +39,10 @@ module probin_module
   integer, save   :: boussinesq
 
   ! This will be allocated and defined below
-  logical, allocatable, save   :: nodal(:)
+  logical   , allocatable, save :: nodal(:)
+  logical   , allocatable, save :: pmask(:)
+  real(dp_t), allocatable, save :: prob_hi(:)
+  real(dp_t), allocatable, save :: prob_lo(:)
 
   integer, parameter :: MAX_ALLOWED_LEVS = 10
 
@@ -400,7 +403,9 @@ contains
        farg = farg + 1
     end do
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! If n_error_buf hasn't been set in the inputs file.
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if (n_error_buf < 0 .and. fixed_grids == '') then
        if (regrid_int > 0) then
           n_error_buf = regrid_int
@@ -409,12 +414,37 @@ contains
        end if
     end if
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Don't set regrid_int and fixed_grids
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if (fixed_grids /= '') then
       if (regrid_int > 0) &
          call bl_error('Cant have fixed_grids and regrid_int > 0.')
     end if
     
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize prob_lo and prob_hi
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    allocate(prob_lo(dim_in))
+    prob_lo(1) = prob_lo_x
+    if (dim_in > 1) prob_lo(2) = prob_lo_y
+    if (dim_in > 2) prob_lo(3) = prob_lo_z
+
+    allocate(prob_hi(dim_in))
+    prob_hi(1) = prob_hi_x
+    if (dim_in > 1) prob_hi(2) = prob_hi_y
+    if (dim_in > 2) prob_hi(3) = prob_hi_z
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize pmask
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    allocate(pmask(dim_in))
+    pmask = .FALSE.
+    pmask = pmask_xyz(1:dim_in)
+    print *,'PMASK ',pmask(:)
+
   end subroutine probin_init
 
 end module probin_module
