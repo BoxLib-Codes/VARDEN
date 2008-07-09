@@ -137,23 +137,22 @@ contains
      integer                   :: buf_wid
      type(layout), allocatable :: la_array(:)
      type(box)   , allocatable :: bxs(:)
-     type(boxarray)            :: ba_new,ba_new_comp,ba_old_comp
-     type(boxarray)            :: ba_newest
+     type(boxarray)            :: ba_new,ba_old_comp,ba_newest
      type(ml_boxarray)         :: mba
      type(list_box)            :: bl
 
-     logical              :: new_grid
-     integer, allocatable :: lo(:), hi(:)
-     integer              :: i, n, nl, dm
+     logical :: new_grid
+     integer :: lo(dim_in), hi(dim_in)
+     integer :: i, n, nl, dm
 
      dm = dim_in
 
 !    buf_wid = regrid_int
      buf_wid = 0
+     buf_wid = 1
 
      ! set up hi & lo to carry indexing info
-     allocate(lo(dm),hi(dm))
-     lo(:) = 0
+     lo = 0
      hi(1) = n_cellx-1
      if (dm > 1) then   
         hi(2) = n_celly - 1        
@@ -231,8 +230,10 @@ contains
            endif ! if (new_grid) 
 
       enddo          
-
+      
       do n = 1,nl
+!         print*, 'n = ', n
+!         call print(get_boxarray(la_array(n)))
          call destroy(sold(n))
          call destroy(uold(n))
          call destroy(gp(n))
@@ -256,6 +257,10 @@ contains
                 ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
                 !  that the level nl+1 level will need for proper nesting
                 call buffer(nl,la_array(nl+1),ba_new,ref_ratio,ng_cell)
+
+                call print(mba%pd(nl), "mba%pd(nl)")
+                call print(ba_new, "ba_new")
+
                 call boxarray_intersection(ba_new,mba%pd(nl))
 
                 ! Make sure the new grids start on even and end on odd
@@ -266,18 +271,20 @@ contains
                 ! mba%bas(nl) so that we get the union of points.
                 call boxarray_complementIn(ba_old_comp,mba%pd(nl),mba%bas(nl))
                 call boxarray_intersection(ba_old_comp,ba_new)
+                call destroy(ba_new)
                 do i = 1, mba%bas(nl)%nboxes
                    call push_back(bl,  mba%bas(nl)%bxs(i))
                 end do
                 do i = 1, ba_old_comp%nboxes
                    call push_back(bl, ba_old_comp%bxs(i))
                 end do
+                call destroy(ba_old_comp)
                 call build(ba_newest,bl)
                 call destroy(bl)
                 call boxarray_simplify(ba_newest)
                 call boxarray_maxsize(ba_newest,max_grid_size)
 
-                ! Replace mba%bas(nl) by ba_new
+                ! Replace mba%bas(nl) by ba_newest
                 call destroy(mba%bas(nl))
                 call copy(mba%bas(nl),ba_newest)
                 call destroy(ba_newest)
@@ -307,6 +314,10 @@ contains
    call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
    nlevs = mla%nlevel
+
+   do n = 1, nlevs
+      call destroy(la_array(n))
+   end do
 
    do n = 1,nlevs
       call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n)) 
