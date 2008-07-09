@@ -25,6 +25,7 @@ subroutine varden()
   use checkpoint_module
   use multifab_fill_ghost_module
   use advance_module
+  use regrid_module
 
   use probin_module, only : dim_in, max_levs, nlevs, ng_cell, ng_grow, pmask, &
                             init_iter, max_step, &
@@ -44,7 +45,7 @@ subroutine varden()
   integer    :: press_comp, vort_comp
 
   real(dp_t)  , pointer     :: dx(:,:)
-  type(ml_layout)           :: mla
+  type(ml_layout)           :: mla, mla_rg
 
   ! Cell-based quantities
   type(multifab), pointer     ::     uold(:)
@@ -59,15 +60,13 @@ subroutine varden()
   type(multifab), allocatable :: plotdata(:)
 
   ! Regridding quantities
-  type(multifab), allocatable ::   uold_rg(:)
-  type(multifab), allocatable ::   sold_rg(:)
-  type(multifab), allocatable ::     gp_rg(:)
-  type(multifab), allocatable ::      p_rg(:)
+  type(multifab), pointer :: gp_new(:)
+  type(multifab), pointer ::  p_new(:)
 
   character(len=7 ) :: sd_name
   character(len=20), allocatable :: plot_names(:)
 
-  type(ml_layout) :: mla_temp
+! type(ml_layout) :: mla_temp
   type(boxarray)  :: ba
 
   type(bc_tower) ::  the_bc_tower
@@ -233,18 +232,6 @@ subroutine varden()
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! Make temporaries for regridding
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  if (regrid_int > 0) then
-     allocate(uold_rg(nlevs),sold_rg(nlevs),p_rg(nlevs),gp_rg(nlevs))
-     call build(mla_temp,mla%mba, pmask)
-     do n = 1, mla_temp%nlevel
-        call make_new_state(mla_temp%la(n),uold_rg(n),sold_rg(n),gp_rg(n),p_rg(n))
-     enddo
-  endif
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Begin the real integration.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -272,8 +259,26 @@ subroutine varden()
         if (nlevs > 1 .and. regrid_int > 0 .and. &
             (mod(istep-1,regrid_int) .eq. 0) ) then
 
+           ! Keep the state on the previous grid in unew,snew
+           ! Create the state on the new grid in uold,sold
+           call regrid(mla,unew,snew,gp,p,mla_rg,uold,sold,gp_new,p_new,dx,the_bc_tower)
+
+           do n = 1,nlevs
+             call multifab_copy_c(gp(n),1,gp_new(n),1,dm)
+             call multifab_copy_c( p(n),1, p_new(n),1,1)
+             call destroy(gp_new(n))
+             call destroy( p_new(n))
+           end do
+
+           ! We want the new mla to be called "mla", not "mla_rg"
+           call destroy(mla)
+           call build(mla,mla_rg%mba,pmask)
+           call destroy(mla_rg)
+
+           ! Delete the "old" unew,snew,ext_vel_force,ext_scal_force
            call delete_temps()
-!          call regrid_each_time()
+
+           ! Create "new" unew,snew,ext_vel_force,ext_scal_force
            call make_temps(mla)
 
         end if  
@@ -374,14 +379,12 @@ subroutine varden()
   
   call delete_state(uold,sold,gp,p)
   call delete_temps()
-  if (regrid_int > 0 .and. max_levs > 1) &
-     call delete_state(uold_rg,sold_rg,gp_rg,p_rg)
 
   call bc_tower_destroy(the_bc_tower)
 
   call destroy(mla)
-  if (regrid_int > 0 .and. max_levs > 1) &
-     call destroy(mla_temp)
+! if (regrid_int > 0 .and. max_levs > 1) &
+!    call destroy(mla_temp)
 
   if ( verbose > 0 ) then
      if ( parallel_IOProcessor() ) then

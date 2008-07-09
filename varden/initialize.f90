@@ -7,7 +7,7 @@ module initialize_module
   use restart_module
   use init_module
   use box_util_module
-  use regrid_module
+  use make_new_grids_module
 
   implicit none
 
@@ -144,13 +144,12 @@ contains
 
      logical              :: new_grid
      integer, allocatable :: lo(:), hi(:)
-     integer              :: i, n, nl, buff, dm
+     integer              :: i, n, nl, dm
 
      dm = dim_in
 
-     buff = 2
-
-     buf_wid = regrid_int
+!    buf_wid = regrid_int
+     buf_wid = 0
 
      ! set up hi & lo to carry indexing info
      allocate(lo(dm),hi(dm))
@@ -254,12 +253,6 @@ contains
 
                 new_grid = .true.
                
-                if ( parallel_IOProcessor() .and. verbose .ge. 1) then
-                   print *,' '
-                   print *,'LEVEL ',nl+1,' grids are not properly nested '
-                   print *,' '
-                end if
-
                 ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
                 !  that the level nl+1 level will need for proper nesting
                 call buffer(nl,la_array(nl+1),ba_new,ref_ratio,ng_cell)
@@ -291,7 +284,8 @@ contains
 
                 ! Double check we got the proper nesting right
                 if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) &
-                  call bl_error('Still not properly nested, darn it')
+!                 call bl_error('Still not properly nested, darn it')
+                  print *,'WARNING WARNING -- LEVEL ',nl+1,' GRIDS ARE NOT PROPERLY NESTED'
 
                 ! Destroy the old layout and build a new one.
                 call destroy(la_array(nl))
