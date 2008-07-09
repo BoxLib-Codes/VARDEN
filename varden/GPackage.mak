@@ -11,6 +11,7 @@ f90sources += initialize.f90
 f90sources += inlet_bc.f90
 f90sources += macproject.f90
 f90sources += make_at_halftime.f90
+f90sources += make_new_grids.f90
 f90sources += makevort.f90
 f90sources += mkflux.f90
 f90sources += mkforce.f90
