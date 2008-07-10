@@ -66,7 +66,6 @@ subroutine varden()
   character(len=7 ) :: sd_name
   character(len=20), allocatable :: plot_names(:)
 
-! type(ml_layout) :: mla_temp
   type(boxarray)  :: ba
 
   type(bc_tower) ::  the_bc_tower
@@ -112,8 +111,6 @@ subroutine varden()
   else  ! Adaptive gridding
 
      call initialize_with_adaptive_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
-     if ( parallel_IOProcessor() .and. verbose.ge.1) &
-        call print(mla,"MLA OUT OF INITIAL GRIDDING ROUTINE")
 
   end if
 
@@ -373,8 +370,6 @@ subroutine varden()
   call bc_tower_destroy(the_bc_tower)
 
   call destroy(mla)
-! if (regrid_int > 0 .and. max_levs > 1) &
-!    call destroy(mla_temp)
 
   if ( verbose > 0 ) then
      if ( parallel_IOProcessor() ) then
