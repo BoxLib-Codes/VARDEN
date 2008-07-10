@@ -277,6 +277,7 @@ contains
                    do ii = 1, size(bi)
                       call push_back(bl, bi(ii)%bx)
                    end do
+                   deallocate(bi)
                 end do
 
                 call build(ba_newest,bl)
