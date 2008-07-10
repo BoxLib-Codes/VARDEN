@@ -19,36 +19,62 @@ module regrid_module
 
 contains
 
-  subroutine regrid(mla_old,old_u,old_s,old_gp,old_p,mla_new,new_u,new_s,new_gp,new_p,dx,the_bc_tower)
+  subroutine regrid(mla,u,s,gp,p,dx,the_bc_tower)
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                pmask, regrid_int, max_grid_size, ref_ratio, max_levs, &
                                verbose
 
-     type(ml_layout),intent(in   )   :: mla_old
-     type(ml_layout),intent(  out)   :: mla_new
+     type(ml_layout),intent(inout) :: mla
+     type(multifab), pointer       :: u(:),s(:),gp(:),p(:)
      real(dp_t)    , pointer       :: dx(:,:)
-     type(multifab), intent(inout) :: old_u(:),old_s(:),old_gp(:),old_p(:)
-     type(multifab), pointer       :: new_u(:),new_s(:),new_gp(:),new_p(:)
      type(bc_tower), intent(inout) :: the_bc_tower
 
      integer                   :: buf_wid
+     type(layout)              :: la_old_comp
      type(layout), allocatable :: la_array(:)
      type(boxarray)            :: ba_new,ba_new_comp,ba_old_comp
      type(boxarray)            :: ba_newest
      type(ml_boxarray)         :: mba
+     type(ml_layout)           :: mla_old
      type(list_box)            :: bl
+     type(box_intersector), pointer :: bi(:)
+
+     ! These are copies to hold the old data.
+     type(multifab)            :: uold(nlevs), sold(nlevs), gpold(nlevs), pold(nlevs)
 
      logical              :: new_grid
-     integer              :: i, n, nl, dm
+     integer              :: i, ii, jj, n, nl, dm
 
-     print *,'DOING REGRID '
-     call print(mla_old,'OLD MLA')
-   
      if (max_levs < 2) &
        call bl_error('Dont call regrid with max_levs < 2')
 
-     dm = old_u(1)%dim
+     call ml_layout_build(mla_old,mla%mba,mla%pmask)
+
+     dm = mla%dim
+
+     ! Create copies of the old data
+     do n = 1,nlevs
+        call multifab_build( uold(n),mla_old%la(n),   dm,ng_cell)
+        call multifab_build( sold(n),mla_old%la(n),nscal,ng_cell)
+        call multifab_build(gpold(n),mla_old%la(n),   dm,ng_grow)
+        call multifab_build( pold(n),mla_old%la(n),    1,ng_grow)
+        call multifab_copy_c( uold(1),1, u(1),1,   dm)
+        call multifab_copy_c( sold(1),1, s(1),1,nscal)
+        call multifab_copy_c(gpold(1),1,gp(1),1,   dm)
+        call multifab_copy_c( pold(1),1, p(1),1,    1)
+     end do
+
+     ! Get rid of the old data structures so we can create new ones 
+     !   with the same names.
+     do n = 1,nlevs
+        call multifab_destroy( u(n))
+        call multifab_destroy( s(n))
+        call multifab_destroy(gp(n))
+        call multifab_destroy( p(n))
+     end do
+
+     call destroy(mla)
 
      buf_wid = regrid_int
 
@@ -62,7 +88,7 @@ contains
      enddo
 
      allocate(la_array(max_levs))
-     allocate(new_u(max_levs),new_s(max_levs),new_p(max_levs),new_gp(max_levs))
+     allocate(u(max_levs),s(max_levs),p(max_levs),gp(max_levs))
 
      ! Copy the level 1 boxarray
      call copy(mba%bas(1),mla_old%mba%bas(1))
@@ -76,13 +102,13 @@ contains
      call layout_build_ba(la_array(1),mba%bas(1),mba%pd(1),pmask)
 
      ! Build the level 1 data only.
-     call make_new_state(la_array(1),new_u(1),new_s(1),new_gp(1),new_p(1)) 
+     call make_new_state(la_array(1),u(1),s(1),gp(1),p(1)) 
 
-     ! Copy the level 1 data.
-     call multifab_copy_c(new_u(1) ,1,old_u(1) ,1,   dm)
-     call multifab_copy_c(new_s(1) ,1,old_s(1) ,1,nscal)
-     call multifab_copy_c(new_gp(1),1,old_gp(1),1,   dm)
-     call multifab_copy_c(new_p(1) ,1,old_p(1) ,1,    1)
+     ! Copy the level 1 data from the "old" temporaries.
+     call multifab_copy_c( u(1),1, uold(1) ,1,   dm)
+     call multifab_copy_c( s(1),1, sold(1) ,1,nscal)
+     call multifab_copy_c(gp(1),1,gpold(1),1,   dm)
+     call multifab_copy_c( p(1),1, pold(1) ,1,    1)
 
      new_grid = .true.
      nl = 1
@@ -90,7 +116,7 @@ contains
      do while ( (nl .lt. max_levs) .and. (new_grid) )
 
         ! Do we need finer grids?
-        call make_new_grids(la_array(nl),la_array(nl+1),new_s(nl),dx(nl,1),buf_wid,&
+        call make_new_grids(la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
                             ref_ratio,nl,max_grid_size,new_grid)
         
         if (new_grid) then
@@ -98,28 +124,28 @@ contains
            call copy(mba%bas(nl+1),get_boxarray(la_array(nl+1)))
 
            ! Build the level nl+1 data only.
-           call make_new_state(la_array(nl+1),new_u(nl+1),new_s(nl+1),new_gp(nl+1),new_p(nl+1)) 
+           call make_new_state(la_array(nl+1),u(nl+1),s(nl+1),gp(nl+1),p(nl+1)) 
 
            ! Define bc_tower at level nl+1.
            call bc_tower_level_build(the_bc_tower,nl+1,la_array(nl+1))
          
            ! Fill the data in the new level nl+1 state -- first from the coarser data.
-           call fillpatch(new_u(nl+1),new_u(nl), &
+           call fillpatch(u(nl+1),u(nl), &
                       ng_cell,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-            call fillpatch(new_s(nl+1),new_s(nl), &
+            call fillpatch(s(nl+1),s(nl), &
                       ng_cell,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,dm+1,nscal)
-            call fillpatch(new_gp(nl+1),new_gp(nl), &
+            call fillpatch(gp(nl+1),gp(nl), &
                       ng_grow,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-!           call fillpatch(new_p(nl+1),new_p(nl), &
+!           call fillpatch(p(nl+1),p(nl), &
 !                     ng_grow,mba%rr(nl,:), &
 !                     the_bc_tower%bc_tower_array(nl  ), &
 !                     the_bc_tower%bc_tower_array(nl+1), &
@@ -127,10 +153,10 @@ contains
             
            ! Copy from old data at current level, if it exists
            if (mla_old%nlevel .ge. nl+1) then
-             call multifab_copy_c(new_u(nl+1) ,1,old_u(nl) ,1,   dm)
-             call multifab_copy_c(new_s(nl+1) ,1,old_s(nl) ,1,nscal)
-             call multifab_copy_c(new_gp(nl+1),1,old_gp(nl),1,   dm)
-             call multifab_copy_c(new_p(nl+1) ,1,old_p(nl) ,1,    1)
+             call multifab_copy_c( u(nl+1),1, uold(nl),1,   dm)
+             call multifab_copy_c( s(nl+1),1, sold(nl),1,nscal)
+             call multifab_copy_c(gp(nl+1),1,gpold(nl),1,   dm)
+             call multifab_copy_c( p(nl+1),1, pold(nl),1,    1)
            end if
 
            nlevs = nl+1
@@ -140,16 +166,16 @@ contains
 
      enddo ! end while
 
-      do n = 1,nl
-         call destroy(new_s(n))
-         call destroy(new_u(n))
-         call destroy(new_gp(n))
-         call destroy(new_p(n))
+      do n = 2,nl
+         call destroy( s(n))
+         call destroy( u(n))
+         call destroy(gp(n))
+         call destroy( p(n))
       end do
 
       nlevs = nl
 
-      call ml_layout_restricted_build(mla_new,mba,nlevs,pmask)
+      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
       ! check for proper nesting
       if (nlevs .ge. 3) then
@@ -163,46 +189,48 @@ contains
 
                 new_grid = .true.
                
-                if ( parallel_IOProcessor() .and. verbose .ge. 1) then
-                   print *,' '
-                   print *,'LEVEL ',nl+1,' grids are not properly nested '
-                   print *,' '
-                end if
-
                 ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
                 !  that the level nl+1 level will need for proper nesting
                 call buffer(nl,la_array(nl+1),la_array(nl),la_array(nl-1),&
                             ba_new,ref_ratio,ng_cell)
-                call boxarray_intersection(ba_new,mba%pd(nl))
 
-                ! Make sure the new grids start on even and end on odd
-                call boxarray_coarsen(ba_new, ref_ratio)
-                call boxarray_refine (ba_new, ref_ratio)
-
-                ! Merge the new boxarray "ba_new" with the existing box_array 
+                ! Merge the new boxarray "ba_new" with the existing box_array
                 ! mba%bas(nl) so that we get the union of points.
                 call boxarray_complementIn(ba_old_comp,mba%pd(nl),mba%bas(nl))
-                call boxarray_intersection(ba_old_comp,ba_new)
+                call build(la_old_comp,ba_old_comp,mba%pd(nl))
+ 
+                ! Start to load bl with the boxes we had before in ba_old (aka mba%bas(nl)).
                 do i = 1, mba%bas(nl)%nboxes
                    call push_back(bl,  mba%bas(nl)%bxs(i))
                 end do
-                do i = 1, ba_old_comp%nboxes
-                   call push_back(bl, ba_old_comp%bxs(i))
+ 
+                ! Now load with the new boxes that are the intersection of
+                !  ba_new with the complement of ba_old (aka mba%bas(nl))
+                do jj = 1, ba_new%nboxes
+                   bi => layout_get_box_intersector(la_old_comp, ba_new%bxs(jj))
+                   do ii = 1, size(bi)
+                      call push_back(bl, bi(ii)%bx)
+                   end do
                 end do
+ 
                 call build(ba_newest,bl)
-                call destroy(bl)
                 call boxarray_simplify(ba_newest)
                 call boxarray_maxsize(ba_newest,max_grid_size)
-
-                ! Replace mba%bas(nl) by ba_new
+ 
+                ! Do some cleanup.
+                call destroy(bl)
+                call destroy(ba_new)
+                call destroy(ba_old_comp)
+                call destroy(la_old_comp)
+ 
+                ! Replace mba%bas(nl) by ba_newest
                 call destroy(mba%bas(nl))
                 call copy(mba%bas(nl),ba_newest)
                 call destroy(ba_newest)
 
                 ! Double check we got the proper nesting right
                 if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) &
-!                 call bl_error('Still not properly nested, darn it')
-                  print *,'WARNING WARNING -- NOT PROPERLY NESTED'
+                  call bl_error('Still not properly nested, darn it')
 
                 ! Destroy the old layout and build a new one.
                 call destroy(la_array(nl))
@@ -219,32 +247,32 @@ contains
          enddo ! do while
       end if ! if (nlevs .ge. 3)
 
-   call ml_layout_restricted_build(mla_new,mba,nlevs,pmask)
+   call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
-   nlevs = mla_new%nlevel
+   nlevs = mla%nlevel
 
    ! Now make the data for the final time.
    do nl = 1,nlevs-1
 
-      call make_new_state(mla_new%la(nl+1),new_u(nl+1),new_s(nl+1),new_gp(nl+1),new_p(nl+1)) 
+      call make_new_state(mla%la(nl+1),u(nl+1),s(nl+1),gp(nl+1),p(nl+1))
 
       ! Fill the data in the new level nl+1 state -- first from the coarser data.
-       call fillpatch(new_u(nl+1),old_u(nl), &
+       call fillpatch(u(nl+1),uold(nl), &
                       ng_cell,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-        call fillpatch(new_s(nl+1),old_s(nl), &
+        call fillpatch(s(nl+1),sold(nl), &
                       ng_cell,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,dm+1,nscal)
-        call fillpatch(new_gp(nl+1),old_gp(nl), &
+        call fillpatch(gp(nl+1),gpold(nl), &
                       ng_grow,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-!       call fillpatch(new_p(nl+1),old_p(nl), &
+!       call fillpatch(p(nl+1),pold(nl), &
 !                     ng_grow,mba%rr(nl,:), &
 !                     the_bc_tower%bc_tower_array(nl  ), &
 !                     the_bc_tower%bc_tower_array(nl+1), &
@@ -252,24 +280,15 @@ contains
  
         ! Copy from old data at current level, if it exists
         if (mla_old%nlevel .ge. nl+1) then
-             call multifab_copy_c(new_u(nl+1) ,1,old_u(nl) ,1,   dm)
-             call multifab_copy_c(new_s(nl+1) ,1,old_s(nl) ,1,nscal)
-             call multifab_copy_c(new_gp(nl+1),1,old_gp(nl),1,   dm)
-             call multifab_copy_c(new_p(nl+1) ,1,old_p(nl) ,1,    1)
+             call multifab_copy_c( u(nl+1),1, uold(nl),1,   dm)
+             call multifab_copy_c( s(nl+1),1, sold(nl),1,nscal)
+             call multifab_copy_c(gp(nl+1),1,gpold(nl),1,   dm)
+             call multifab_copy_c( p(nl+1),1, pold(nl),1,    1)
         end if
 
    end do
 
    call destroy(mba)
-
-   do n = 1,nl
-      call destroy(old_s(n))
-      call destroy(old_u(n))
-      call destroy(old_gp(n))
-      call destroy(old_p(n))
-   end do
-
-   call print(mla_new,'NEW MLA')
 
   end subroutine regrid
 

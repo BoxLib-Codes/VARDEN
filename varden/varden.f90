@@ -261,21 +261,11 @@ subroutine varden()
 
            ! Keep the state on the previous grid in unew,snew
            ! Create the state on the new grid in uold,sold
-           call regrid(mla,unew,snew,gp,p,mla_rg,uold,sold,gp_new,p_new,dx,the_bc_tower)
+           call print(mla,"MLA BEFORE REGRID")
+           call regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
+           call print(mla,"MLA AFTER REGRID")
 
-           do n = 1,nlevs
-             call multifab_copy_c(gp(n),1,gp_new(n),1,dm)
-             call multifab_copy_c( p(n),1, p_new(n),1,1)
-             call destroy(gp_new(n))
-             call destroy( p_new(n))
-           end do
-
-           ! We want the new mla to be called "mla", not "mla_rg"
-           call destroy(mla)
-           call build(mla,mla_rg%mba,pmask)
-           call destroy(mla_rg)
-
-           ! Delete the "old" unew,snew,ext_vel_force,ext_scal_force
+           ! Delete everything defined on the old mla.
            call delete_temps()
 
            ! Create "new" unew,snew,ext_vel_force,ext_scal_force
@@ -442,7 +432,6 @@ contains
 
     type(multifab), intent(inout) :: u(:),s(:),p(:),gp(:)
 
-!    do n = 1,size(u)
     do n = 1,nlevs
        call multifab_destroy( u(n))
        call multifab_destroy( s(n))

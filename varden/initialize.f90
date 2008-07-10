@@ -128,28 +128,31 @@ contains
                                regrid_int, max_grid_size, ref_ratio, max_levs, &
                                verbose
 
-     type(ml_layout),intent(out)   :: mla
-     logical       , intent(in   ) :: pmask(:)
-     real(dp_t)    , pointer       :: dx(:,:)
-     type(multifab), pointer       :: uold(:),sold(:),gp(:),p(:)
-     type(bc_tower), intent(  out) :: the_bc_tower
+     type(ml_layout),intent(out)    :: mla
+     logical       , intent(in   )  :: pmask(:)
+     real(dp_t)    , pointer        :: dx(:,:)
+     type(multifab), pointer        :: uold(:),sold(:),gp(:),p(:)
+     type(bc_tower), intent(  out)  :: the_bc_tower
 
-     integer                   :: buf_wid
-     type(layout), allocatable :: la_array(:)
-     type(box)   , allocatable :: bxs(:)
-     type(boxarray)            :: ba_new,ba_old_comp,ba_newest
-     type(ml_boxarray)         :: mba
-     type(list_box)            :: bl
+     integer                        :: buf_wid
+     type(layout)                   :: la_old_comp
+     type(layout), allocatable      :: la_array(:)
+     type(box)   , allocatable      :: bxs(:)
+     type(boxarray)                 :: ba_new
+     type(boxarray)                 :: ba_old_comp,ba_newest
+     type(ml_boxarray)              :: mba
+     type(list_box)                 :: bl
+     type(box_intersector), pointer :: bi(:)
 
      logical :: new_grid
      integer :: lo(dim_in), hi(dim_in)
-     integer :: i, n, nl, dm
+     integer :: i, ii, jj, n, nl, dm
 
      dm = dim_in
 
 !    buf_wid = regrid_int
+!    buf_wid = 1
      buf_wid = 0
-     buf_wid = 1
 
      ! set up hi & lo to carry indexing info
      lo = 0
@@ -167,7 +170,7 @@ contains
         mba%rr(n,:) = ref_ratio
      enddo
 
-     if (max_levs > 1) allocate(la_array(max_levs))
+     allocate(la_array(max_levs))
      allocate(bxs(max_levs))
      allocate(uold(max_levs),sold(max_levs),p(max_levs),gp(max_levs))
 
@@ -188,16 +191,18 @@ contains
      ! Initialize bc's.
      call initialize_bc(the_bc_tower,max_levs,pmask)
 
+     ! Build the level 1 layout.
+     call layout_build_ba(la_array(1),mba%bas(1),mba%pd(1),pmask)
+
+     ! Build the level 1 data only.
+     call make_new_state(la_array(1),uold(1),sold(1),gp(1),p(1)) 
+
+     ! Define bc_tower at level 1.
+     call bc_tower_level_build(the_bc_tower,1,la_array(1))
+
+     nlevs = 1
+
      if (max_levs > 1) then
-
-        ! Build the level 1 layout.
-        call layout_build_ba(la_array(1),mba%bas(1),mba%pd(1),pmask)
-
-        ! Build the level 1 data only.
-        call make_new_state(la_array(1),uold(1),sold(1),gp(1),p(1)) 
-
-        ! Define bc_tower at level 1.
-        call bc_tower_level_build(the_bc_tower,1,la_array(1))
 
         ! Initialize the level 1 data only.
         call initdata_on_level(uold(1),sold(1),dx(1,:),the_bc_tower%bc_tower_array(1),la_array(1))
@@ -232,8 +237,6 @@ contains
       enddo          
       
       do n = 1,nl
-!         print*, 'n = ', n
-!         call print(get_boxarray(la_array(n)))
          call destroy(sold(n))
          call destroy(uold(n))
          call destroy(gp(n))
@@ -256,33 +259,37 @@ contains
                
                 ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
                 !  that the level nl+1 level will need for proper nesting
-                call buffer(nl,la_array(nl+1),ba_new,ref_ratio,ng_cell)
-
-                call print(mba%pd(nl), "mba%pd(nl)")
-                call print(ba_new, "ba_new")
-
-                call boxarray_intersection(ba_new,mba%pd(nl))
-
-                ! Make sure the new grids start on even and end on odd
-                call boxarray_coarsen(ba_new, ref_ratio)
-                call boxarray_refine (ba_new, ref_ratio)
+                call buffer(nl,la_array(nl+1),la_array(nl),la_array(nl-1), &
+                            ba_new,ref_ratio,ng_cell)
 
                 ! Merge the new boxarray "ba_new" with the existing box_array 
                 ! mba%bas(nl) so that we get the union of points.
                 call boxarray_complementIn(ba_old_comp,mba%pd(nl),mba%bas(nl))
-                call boxarray_intersection(ba_old_comp,ba_new)
-                call destroy(ba_new)
+                call build(la_old_comp,ba_old_comp,mba%pd(nl))
+
+                ! Start to load bl with the boxes we had before in ba_old (aka mba%bas(nl)).
                 do i = 1, mba%bas(nl)%nboxes
                    call push_back(bl,  mba%bas(nl)%bxs(i))
                 end do
-                do i = 1, ba_old_comp%nboxes
-                   call push_back(bl, ba_old_comp%bxs(i))
+
+                ! Now load with the new boxes that are the intersection of 
+                !  ba_new with the complement of ba_old (aka mba%bas(nl))
+                do jj = 1, ba_new%nboxes
+                   bi => layout_get_box_intersector(la_old_comp, ba_new%bxs(jj))
+                   do ii = 1, size(bi)
+                      call push_back(bl, bi(ii)%bx)
+                   end do
                 end do
-                call destroy(ba_old_comp)
+
                 call build(ba_newest,bl)
-                call destroy(bl)
                 call boxarray_simplify(ba_newest)
                 call boxarray_maxsize(ba_newest,max_grid_size)
+
+                ! Do some cleanup.
+                call destroy(bl)
+                call destroy(ba_new)
+                call destroy(ba_old_comp)
+                call destroy(la_old_comp)
 
                 ! Replace mba%bas(nl) by ba_newest
                 call destroy(mba%bas(nl))
@@ -291,8 +298,7 @@ contains
 
                 ! Double check we got the proper nesting right
                 if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) &
-!                 call bl_error('Still not properly nested, darn it')
-                  print *,'WARNING WARNING -- LEVEL ',nl+1,' GRIDS ARE NOT PROPERLY NESTED'
+                  call bl_error('Still not properly nested, darn it')
 
                 ! Destroy the old layout and build a new one.
                 call destroy(la_array(nl))
