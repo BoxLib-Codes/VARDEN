@@ -365,6 +365,9 @@ subroutine varden()
   end if
   
   call delete_state(uold,sold,gp,p)
+
+  deallocate(uold,sold,p,gp)
+
   call delete_temps()
 
   call bc_tower_destroy(the_bc_tower)
