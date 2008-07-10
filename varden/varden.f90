@@ -258,9 +258,9 @@ subroutine varden()
 
            ! Keep the state on the previous grid in unew,snew
            ! Create the state on the new grid in uold,sold
-!          call print(mla,"MLA BEFORE REGRID")
            call regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
-!          call print(mla,"MLA AFTER REGRID")
+           if (grids_file_name /= '') &
+              call write_grids(grids_file_name,mla,istep)
 
            ! Delete everything defined on the old mla.
            call delete_temps()
