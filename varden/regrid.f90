@@ -117,6 +117,7 @@ contains
      do while ( (nl .lt. max_levs) .and. (new_grid) )
 
         ! Do we need finer grids?
+
         call make_new_grids(la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
                             ref_ratio,nl,max_grid_size,new_grid)
         
@@ -154,10 +155,10 @@ contains
             
            ! Copy from old data at current level, if it exists
            if (mla_old%nlevel .ge. nl+1) then
-             call multifab_copy_c( u(nl+1),1, uold(nl),1,   dm)
-             call multifab_copy_c( s(nl+1),1, sold(nl),1,nscal)
-             call multifab_copy_c(gp(nl+1),1,gpold(nl),1,   dm)
-             call multifab_copy_c( p(nl+1),1, pold(nl),1,    1)
+             call multifab_copy_c( u(nl+1),1, uold(nl+1),1,   dm)
+             call multifab_copy_c( s(nl+1),1, sold(nl+1),1,nscal)
+             call multifab_copy_c(gp(nl+1),1,gpold(nl+1),1,   dm)
+             call multifab_copy_c( p(nl+1),1, pold(nl+1),1,    1)
            end if
 
            nlevs = nl+1
