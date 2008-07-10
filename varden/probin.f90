@@ -443,7 +443,6 @@ contains
     allocate(pmask(dim_in))
     pmask = .FALSE.
     pmask = pmask_xyz(1:dim_in)
-    print *,'PMASK ',pmask(:)
 
   end subroutine probin_init
 
