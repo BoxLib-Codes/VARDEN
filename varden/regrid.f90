@@ -10,6 +10,7 @@ module regrid_module
   use make_new_grids_module
   use initialize_module
   use fillpatch_module
+  use ml_prolongation_module
 
   implicit none
 
@@ -58,7 +59,7 @@ contains
         call multifab_build( uold(n),mla_old%la(n),   dm,ng_cell)
         call multifab_build( sold(n),mla_old%la(n),nscal,ng_cell)
         call multifab_build(gpold(n),mla_old%la(n),   dm,ng_grow)
-        call multifab_build( pold(n),mla_old%la(n),    1,ng_grow)
+        call multifab_build( pold(n),mla_old%la(n),    1,ng_grow,nodal)
         call multifab_copy_c( uold(n),1, u(n),1,   dm)
         call multifab_copy_c( sold(n),1, s(n),1,nscal)
         call multifab_copy_c(gpold(n),1,gp(n),1,   dm)
@@ -108,7 +109,7 @@ contains
      ! Copy the level 1 data from the "old" temporaries.
      call multifab_copy_c( u(1),1, uold(1) ,1,   dm)
      call multifab_copy_c( s(1),1, sold(1) ,1,nscal)
-     call multifab_copy_c(gp(1),1,gpold(1),1,   dm)
+     call multifab_copy_c(gp(1),1,gpold(1),1,    dm)
      call multifab_copy_c( p(1),1, pold(1) ,1,    1)
 
      new_grid = .true.
@@ -147,12 +148,10 @@ contains
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-!           call fillpatch(p(nl+1),p(nl), &
-!                     ng_grow,mba%rr(nl,:), &
-!                     the_bc_tower%bc_tower_array(nl  ), &
-!                     the_bc_tower%bc_tower_array(nl+1), &
-!                     1,1,1,1)
-            
+
+            ! We interpolate p differently because it is nodal, not cell-centered
+            call ml_prolongation(p(nl+1),p(nl),layout_get_pd(la_array(nl+1)),mba%rr(nl,:))
+
            ! Copy from old data at current level, if it exists
            if (mla_old%nlevel .ge. nl+1) then
              call multifab_copy_c( u(nl+1),1, uold(nl+1),1,   dm)
@@ -274,11 +273,9 @@ contains
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-!       call fillpatch(p(nl+1),p(nl), &
-!                     ng_grow,mba%rr(nl,:), &
-!                     the_bc_tower%bc_tower_array(nl  ), &
-!                     the_bc_tower%bc_tower_array(nl+1), &
-!                     1,1,1,1)
+
+        ! We interpolate p differently because it is nodal, not cell-centered
+        call ml_prolongation(p(nl+1),p(nl),layout_get_pd(mla%la(nl+1)),mba%rr(nl,:))
 
         ! Copy from old data at current level, if it exists
         if (mla_old%nlevel .ge. nl+1) then
