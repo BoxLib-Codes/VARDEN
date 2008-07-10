@@ -223,6 +223,15 @@ contains
 
      call destroy(mba)
 
+     do n = 1,nlevs
+        call destroy( uold(n))
+        call destroy( sold(n))
+        call destroy(gpold(n))
+        call destroy( pold(n))
+     end do
+
+     call destroy(mla_old)
+
   end subroutine regrid
 
 end module regrid_module
