@@ -325,6 +325,8 @@ contains
 
    do n = 1,nlevs
       call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n)) 
+      call setval(gp(n),0.d0)
+      call setval( p(n),0.d0)
    end do
 
    call initdata(nlevs,uold,sold,dx,the_bc_tower%bc_tower_array,mla)
