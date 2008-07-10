@@ -31,21 +31,16 @@ contains
      real(dp_t)    , pointer       :: dx(:,:)
      type(bc_tower), intent(inout) :: the_bc_tower
 
-     integer                   :: buf_wid
-     type(layout)              :: la_old_comp
+     logical                   :: new_grid
+     integer                   :: i, ii, jj, n, nl, dm, buf_wid
      type(layout), allocatable :: la_array(:)
-     type(boxarray)            :: ba_new,ba_new_comp,ba_old_comp
-     type(boxarray)            :: ba_newest
      type(ml_boxarray)         :: mba
      type(ml_layout)           :: mla_old
-     type(list_box)            :: bl
      type(box_intersector), pointer :: bi(:)
 
      ! These are copies to hold the old data.
-     type(multifab)            :: uold(nlevs), sold(nlevs), gpold(nlevs), pold(nlevs)
+     type(multifab) :: uold(nlevs), sold(nlevs), gpold(nlevs), pold(nlevs)
 
-     logical              :: new_grid
-     integer              :: i, ii, jj, n, nl, dm
 
      if (max_levs < 2) &
        call bl_error('Dont call regrid with max_levs < 2')

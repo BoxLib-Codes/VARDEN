@@ -75,6 +75,8 @@ contains
         call bc_tower_level_build( the_bc_tower,n,mla%la(n))
      end do
 
+     call destroy(mba)
+
   end subroutine initialize_from_restart
 
   subroutine initialize_with_fixed_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
@@ -87,9 +89,8 @@ contains
      type(multifab), pointer       :: uold(:),sold(:),gp(:),p(:)
      type(bc_tower), intent(  out) :: the_bc_tower
 
-     type(ml_boxarray)         :: mba
-
-     integer :: n,dm
+     integer           :: n,dm
+     type(ml_boxarray) :: mba
 
      dm = dim_in
 
@@ -119,6 +120,8 @@ contains
 
      call initdata(nlevs,uold,sold,dx,the_bc_tower%bc_tower_array,mla)
 
+     call destroy(mba)
+
   end subroutine initialize_with_fixed_grids
 
   subroutine initialize_with_adaptive_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
@@ -128,7 +131,7 @@ contains
                                regrid_int, max_grid_size, ref_ratio, max_levs, &
                                verbose
 
-     type(ml_layout),intent(out)    :: mla
+     type(ml_layout),intent(inout)  :: mla
      logical       , intent(in   )  :: pmask(:)
      real(dp_t)    , pointer        :: dx(:,:)
      type(multifab), pointer        :: uold(:),sold(:),gp(:),p(:)
@@ -137,6 +140,7 @@ contains
      integer                        :: buf_wid
      type(layout)                   :: la_array(max_levs)
      type(box)                      :: bxs
+     type(boxarray)                 :: ba
      type(ml_boxarray)              :: mba
 
      logical :: new_grid
