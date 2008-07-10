@@ -256,14 +256,14 @@ subroutine varden()
 !          if ( parallel_IOProcessor() ) print*, ''
 !       end if
 
-        if (nlevs > 1 .and. regrid_int > 0 .and. &
+        if (max_levs > 1 .and. regrid_int > 0 .and. &
             (mod(istep-1,regrid_int) .eq. 0) ) then
 
            ! Keep the state on the previous grid in unew,snew
            ! Create the state on the new grid in uold,sold
-           call print(mla,"MLA BEFORE REGRID")
+!          call print(mla,"MLA BEFORE REGRID")
            call regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
-           call print(mla,"MLA AFTER REGRID")
+!          call print(mla,"MLA AFTER REGRID")
 
            ! Delete everything defined on the old mla.
            call delete_temps()
