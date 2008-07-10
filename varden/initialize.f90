@@ -150,9 +150,7 @@ contains
 
      dm = dim_in
 
-!    buf_wid = regrid_int
-!    buf_wid = 1
-     buf_wid = 0
+     buf_wid = regrid_int
 
      ! set up hi & lo to carry indexing info
      lo = 0
