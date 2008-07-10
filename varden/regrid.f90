@@ -171,7 +171,8 @@ contains
 
                 ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
                 !  that the level nl+1 level will need for proper nesting
-                call buffer(nl,la_array(nl+1),ba_new,ref_ratio,ng_cell)
+                call buffer(nl,la_array(nl+1),la_array(nl),la_array(nl-1),&
+                            ba_new,ref_ratio,ng_cell)
                 call boxarray_intersection(ba_new,mba%pd(nl))
 
                 ! Make sure the new grids start on even and end on odd
