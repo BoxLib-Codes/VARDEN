@@ -59,10 +59,10 @@ contains
         call multifab_build( sold(n),mla_old%la(n),nscal,ng_cell)
         call multifab_build(gpold(n),mla_old%la(n),   dm,ng_grow)
         call multifab_build( pold(n),mla_old%la(n),    1,ng_grow)
-        call multifab_copy_c( uold(1),1, u(1),1,   dm)
-        call multifab_copy_c( sold(1),1, s(1),1,nscal)
-        call multifab_copy_c(gpold(1),1,gp(1),1,   dm)
-        call multifab_copy_c( pold(1),1, p(1),1,    1)
+        call multifab_copy_c( uold(n),1, u(n),1,   dm)
+        call multifab_copy_c( sold(n),1, s(n),1,nscal)
+        call multifab_copy_c(gpold(n),1,gp(n),1,   dm)
+        call multifab_copy_c( pold(n),1, p(n),1,    1)
      end do
 
      ! Get rid of the old data structures so we can create new ones 
@@ -257,33 +257,33 @@ contains
       call make_new_state(mla%la(nl+1),u(nl+1),s(nl+1),gp(nl+1),p(nl+1))
 
       ! Fill the data in the new level nl+1 state -- first from the coarser data.
-       call fillpatch(u(nl+1),uold(nl), &
+       call fillpatch(u(nl+1),u(nl), &
                       ng_cell,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-        call fillpatch(s(nl+1),sold(nl), &
+        call fillpatch(s(nl+1),s(nl), &
                       ng_cell,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,dm+1,nscal)
-        call fillpatch(gp(nl+1),gpold(nl), &
+        call fillpatch(gp(nl+1),gp(nl), &
                       ng_grow,mba%rr(nl,:), &
                       the_bc_tower%bc_tower_array(nl  ), &
                       the_bc_tower%bc_tower_array(nl+1), &
                       1,1,1,dm)
-!       call fillpatch(p(nl+1),pold(nl), &
+!       call fillpatch(p(nl+1),p(nl), &
 !                     ng_grow,mba%rr(nl,:), &
 !                     the_bc_tower%bc_tower_array(nl  ), &
 !                     the_bc_tower%bc_tower_array(nl+1), &
 !                     1,1,1,1)
- 
+
         ! Copy from old data at current level, if it exists
         if (mla_old%nlevel .ge. nl+1) then
-             call multifab_copy_c( u(nl+1),1, uold(nl),1,   dm)
-             call multifab_copy_c( s(nl+1),1, sold(nl),1,nscal)
-             call multifab_copy_c(gp(nl+1),1,gpold(nl),1,   dm)
-             call multifab_copy_c( p(nl+1),1, pold(nl),1,    1)
+             call multifab_copy_c( u(nl+1),1, uold(nl+1),1,   dm)
+             call multifab_copy_c( s(nl+1),1, sold(nl+1),1,nscal)
+             call multifab_copy_c(gp(nl+1),1,gpold(nl+1),1,   dm)
+             call multifab_copy_c( p(nl+1),1, pold(nl+1),1,    1)
         end if
 
    end do
