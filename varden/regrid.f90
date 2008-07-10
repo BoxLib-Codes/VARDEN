@@ -84,7 +84,7 @@ contains
      call ml_boxarray_build_n(mba,max_levs,dm)
 
      do n = 1, max_levs-1
-        mba%rr(n,:) = mla_old%mba%rr(n,:)
+        mba%rr(n,:) = ref_ratio
      enddo
 
      allocate(la_array(max_levs))
@@ -94,8 +94,9 @@ contains
      call copy(mba%bas(1),mla_old%mba%bas(1))
 
      ! Copy the pd(:)
-     do n = 1, max_levs
-        mba%pd(n) = mla_old%mba%pd(n)
+     mba%pd(1) = mla_old%mba%pd(1)
+     do n = 2, max_levs
+        mba%pd(n) = refine(mba%pd(n-1),mba%rr((n-1),:))
      enddo
 
      ! Build the level 1 layout.
