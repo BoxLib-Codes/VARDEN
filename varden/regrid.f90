@@ -182,6 +182,8 @@ contains
      if (nlevs .ge. 3) &
         call enforce_proper_nesting(mba,la_array)
 
+     call destroy(mla)
+
      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
      nlevs = mla%nlevel
