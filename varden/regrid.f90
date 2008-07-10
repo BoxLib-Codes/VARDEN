@@ -167,112 +167,46 @@ contains
 
      enddo ! end while
 
-      do n = 2,nl
+     do n = 2,nl
          call destroy( s(n))
          call destroy( u(n))
          call destroy(gp(n))
          call destroy( p(n))
-      end do
+     end do
 
-      nlevs = nl
+     nlevs = nl
 
-      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
+     call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
-      ! check for proper nesting
-      if (nlevs .ge. 3) then
-        
-         nl = nlevs - 1
-         new_grid = .true.
+     ! check for proper nesting
+     if (nlevs .ge. 3) &
+        call enforce_proper_nesting(mba,la_array)
 
-         do while ( (nl .ge. 2) .and. (new_grid) )
+     call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
-            if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) then
+     nlevs = mla%nlevel
 
-                new_grid = .true.
-               
-                ! Buffer returns a boxarray "ba_new" that contains everything at level nl 
-                !  that the level nl+1 level will need for proper nesting
-                call buffer(nl,la_array(nl+1),la_array(nl),la_array(nl-1),&
-                            ba_new,ref_ratio,ng_cell)
+     ! Now make the data for the final time.
+     do nl = 1,nlevs-1
 
-                ! Merge the new boxarray "ba_new" with the existing box_array
-                ! mba%bas(nl) so that we get the union of points.
-                call boxarray_complementIn(ba_old_comp,mba%pd(nl),mba%bas(nl))
-                call build(la_old_comp,ba_old_comp,mba%pd(nl))
- 
-                ! Start to load bl with the boxes we had before in ba_old (aka mba%bas(nl)).
-                do i = 1, mba%bas(nl)%nboxes
-                   call push_back(bl,  mba%bas(nl)%bxs(i))
-                end do
- 
-                ! Now load with the new boxes that are the intersection of
-                !  ba_new with the complement of ba_old (aka mba%bas(nl))
-                do jj = 1, ba_new%nboxes
-                   bi => layout_get_box_intersector(la_old_comp, ba_new%bxs(jj))
-                   do ii = 1, size(bi)
-                      call push_back(bl, bi(ii)%bx)
-                   end do
-                end do
- 
-                call build(ba_newest,bl)
-                call boxarray_simplify(ba_newest)
-                call boxarray_maxsize(ba_newest,max_grid_size)
- 
-                ! Do some cleanup.
-                call destroy(bl)
-                call destroy(ba_new)
-                call destroy(ba_old_comp)
-                call destroy(la_old_comp)
- 
-                ! Replace mba%bas(nl) by ba_newest
-                call destroy(mba%bas(nl))
-                call copy(mba%bas(nl),ba_newest)
-                call destroy(ba_newest)
-
-                ! Double check we got the proper nesting right
-                if (.not. ml_boxarray_properly_nested(mba, ng_cell, pmask, nl, nl+1)) &
-                  call bl_error('Still not properly nested, darn it')
-
-                ! Destroy the old layout and build a new one.
-                call destroy(la_array(nl))
-                call layout_build_ba(la_array(nl),mba%bas(nl),mba%pd(nl),pmask)
-
-            else
-
-                new_grid = .false.
-
-            endif  !if not properly nested
-
-            nl = nl - 1
-
-         enddo ! do while
-      end if ! if (nlevs .ge. 3)
-
-   call ml_layout_restricted_build(mla,mba,nlevs,pmask)
-
-   nlevs = mla%nlevel
-
-   ! Now make the data for the final time.
-   do nl = 1,nlevs-1
-
-      call make_new_state(mla%la(nl+1),u(nl+1),s(nl+1),gp(nl+1),p(nl+1))
-
-      ! Fill the data in the new level nl+1 state -- first from the coarser data.
-       call fillpatch(u(nl+1),u(nl), &
-                      ng_cell,mba%rr(nl,:), &
-                      the_bc_tower%bc_tower_array(nl  ), &
-                      the_bc_tower%bc_tower_array(nl+1), &
-                      1,1,1,dm)
+        call make_new_state(mla%la(nl+1),u(nl+1),s(nl+1),gp(nl+1),p(nl+1))
+  
+        ! Fill the data in the new level nl+1 state -- first from the coarser data.
+         call fillpatch(u(nl+1),u(nl), &
+                        ng_cell,mba%rr(nl,:), &
+                        the_bc_tower%bc_tower_array(nl  ), &
+                        the_bc_tower%bc_tower_array(nl+1), &
+                        1,1,1,dm)
         call fillpatch(s(nl+1),s(nl), &
-                      ng_cell,mba%rr(nl,:), &
-                      the_bc_tower%bc_tower_array(nl  ), &
-                      the_bc_tower%bc_tower_array(nl+1), &
-                      1,1,dm+1,nscal)
+                       ng_cell,mba%rr(nl,:), &
+                       the_bc_tower%bc_tower_array(nl  ), &
+                       the_bc_tower%bc_tower_array(nl+1), &
+                       1,1,dm+1,nscal)
         call fillpatch(gp(nl+1),gp(nl), &
-                      ng_grow,mba%rr(nl,:), &
-                      the_bc_tower%bc_tower_array(nl  ), &
-                      the_bc_tower%bc_tower_array(nl+1), &
-                      1,1,1,dm)
+                       ng_grow,mba%rr(nl,:), &
+                       the_bc_tower%bc_tower_array(nl  ), &
+                       the_bc_tower%bc_tower_array(nl+1), &
+                       1,1,1,dm)
 
         ! We interpolate p differently because it is nodal, not cell-centered
         call ml_prolongation(p(nl+1),p(nl),layout_get_pd(mla%la(nl+1)),mba%rr(nl,:))
@@ -285,9 +219,9 @@ contains
              call multifab_copy_c( p(nl+1),1, pold(nl+1),1,    1)
         end if
 
-   end do
+     end do
 
-   call destroy(mba)
+     call destroy(mba)
 
   end subroutine regrid
 
