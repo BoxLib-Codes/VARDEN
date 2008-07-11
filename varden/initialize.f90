@@ -230,8 +230,8 @@ contains
            endif ! if (new_grid) 
 
       enddo          
-      
-      do n = 1,nl
+
+      do n = 1,nlevs
          call destroy(sold(n))
          call destroy(uold(n))
          call destroy(gp(n))
@@ -242,7 +242,14 @@ contains
 
       ! check for proper nesting
       if (nlevs .ge. 3) &
-         call enforce_proper_nesting(mba,la_array)
+           call enforce_proper_nesting(mba,la_array)
+
+      else
+
+         call destroy(sold(1))
+         call destroy(uold(1))
+         call destroy(gp(1))
+         call destroy(p(1))
 
    end if ! end if (maxlev > 1)
 
