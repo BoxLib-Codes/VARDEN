@@ -45,7 +45,7 @@ subroutine varden()
   integer    :: press_comp, vort_comp
 
   real(dp_t)  , pointer     :: dx(:,:)
-  type(ml_layout)           :: mla, mla_rg
+  type(ml_layout)           :: mla
 
   ! Cell-based quantities
   type(multifab), pointer     ::     uold(:)
@@ -59,14 +59,8 @@ subroutine varden()
   type(multifab), allocatable :: ext_scal_force(:)
   type(multifab), allocatable :: plotdata(:)
 
-  ! Regridding quantities
-  type(multifab), pointer :: gp_new(:)
-  type(multifab), pointer ::  p_new(:)
-
   character(len=7 ) :: sd_name
   character(len=20), allocatable :: plot_names(:)
-
-  type(boxarray)  :: ba
 
   type(bc_tower) ::  the_bc_tower
   type(bc_level) ::  bc
@@ -533,7 +527,6 @@ contains
     integer           , intent(in   ) :: nstep
 
     integer        :: i,d,un,nb,tp(mla%dim)
-    type(boxarray) :: mba
     type(box)      :: bx
 
     un = 11
