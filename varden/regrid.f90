@@ -33,7 +33,7 @@ contains
 
      logical                   :: new_grid
      integer                   :: i, ii, jj, n, nl, dm, buf_wid
-     type(layout), allocatable :: la_array(:)
+     type(layout)              :: la_array(max_levs)
      type(ml_boxarray)         :: mba
      type(ml_layout)           :: mla_old
      type(box_intersector), pointer :: bi(:)
@@ -83,7 +83,6 @@ contains
         mba%rr(n,:) = ref_ratio
      enddo
 
-     allocate(la_array(max_levs))
      allocate(u(max_levs),s(max_levs),p(max_levs),gp(max_levs))
 
      ! Copy the level 1 boxarray
@@ -107,8 +106,8 @@ contains
      call multifab_copy_c(gp(1),1,gpold(1),1,    dm)
      call multifab_copy_c( p(1),1, pold(1) ,1,    1)
 
+     nl       = 1
      new_grid = .true.
-     nl = 1
 
      do while ( (nl .lt. max_levs) .and. (new_grid) )
 
@@ -177,9 +176,17 @@ contains
      if (nlevs .ge. 3) &
         call enforce_proper_nesting(mba,la_array)
 
+     do n = 2,nl
+         call destroy(la_array(n))
+     end do
+
      call destroy(mla)
 
      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
+
+     !
+     ! TODO - need to rebuild u(1), s(1), gp(1) and p(1) on mla(1)
+     !
 
      nlevs = mla%nlevel
 
