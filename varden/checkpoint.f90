@@ -29,7 +29,6 @@ contains
     character(len=128) :: header, sd_name, sd_name_nodal
     integer :: nc, un, dm
     integer, allocatable ::  lo(:),  hi(:)
-    integer :: idummy, rdummy
     type(box) :: lbbox
 
     integer         :: nlevs
@@ -60,8 +59,6 @@ contains
     allocate(lo(dm),hi(dm))
     lbbox = bbox(get_boxarray(mfs(1)))
 
-    idummy = 0
-    rdummy = 0.0_dp_t
     lo = lwb(lbbox); hi = upb(lbbox)
 
     time = time_in
@@ -102,10 +99,9 @@ contains
     integer          ,               pointer :: rrs(:)
     real(kind=dp_t) ,                pointer :: dx(:,:)
 
-    integer :: i, j, k, n
+    integer :: n
     character(len=128) :: header, sd_name
     integer :: nc, un, nl, dm
-    integer :: idummy, rdummy
     type(box) :: lbbox
 
     integer         :: nlevs
