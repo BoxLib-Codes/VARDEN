@@ -190,38 +190,4 @@ contains
 
   end subroutine scalar_advance
 
-  subroutine modify_force(a,targ,b,src_b,c,src_c,nc,mult,all)
-    integer       , intent(in   )           :: targ, src_b, src_c
-    integer       , intent(in   ), optional :: nc
-    logical       , intent(in   ), optional :: all
-    type(multifab), intent(inout)           :: a
-    type(multifab), intent(in   )           :: b
-    type(multifab), intent(in   )           :: c
-    real(dp_t)    , intent(in   )           :: mult
-
-    ! local
-    real(dp_t), pointer :: ap(:,:,:,:)
-    real(dp_t), pointer :: bp(:,:,:,:)
-    real(dp_t), pointer :: cp(:,:,:,:)
-    integer             :: i
-    logical             :: lall
-
-    lall = .false.; if ( present(all) ) lall = all
-    !$OMP PARALLEL DO PRIVATE(i,ap,bp)
-    do i = 1, a%nboxes
-       if ( multifab_remote(a,i) ) cycle
-       if ( lall ) then
-          ap => dataptr(a, i, targ, nc)
-          bp => dataptr(b, i, src_b, nc)
-          cp => dataptr(c, i, src_c, nc)
-       else
-          ap => dataptr(a, i, get_ibox(a, i), targ, nc)
-          bp => dataptr(b, i, get_ibox(b, i), src_b, nc)
-          cp => dataptr(c, i, get_ibox(c, i), src_c, nc)
-       end if
-       ap = ap + mult*bp*cp
-    end do
-    !$OMP END PARALLEL DO
-  end subroutine modify_force
-
 end module scalar_advance_module
