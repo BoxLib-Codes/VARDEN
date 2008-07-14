@@ -55,7 +55,6 @@ contains
 !    type(multifab), allocatable :: viscous_update(:)
 
     integer    :: i,n,comp,dm,nlevs,bc_comp
-    real(dp_t) :: nrm1,nrm2,nrm3
     real(dp_t) :: visc_mu
     logical, allocatable :: umac_nodal_flag(:)
 
@@ -85,31 +84,7 @@ contains
 
     end do
 
-    if ( verbose .ge. 1 ) then
-        do n = 1,nlevs
-           nrm1 = norm_inf(uold(n),1,1)
-           nrm2 = norm_inf(uold(n),2,1)
-           if (dm > 2) nrm3 = norm_inf(uold(n),3,1)
-           if ( parallel_IOProcessor() .and. dm .eq. 2) then
-              if ( proj_type .eq. pressure_iters) then
-                write(6,1000) n,istep,nrm1,nrm2
-              else if ( proj_type .eq. regular_timestep) then
-                write(6,1001) n,time,nrm1,nrm2
-              else 
-                call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
-              end if
-           else if ( parallel_IOProcessor() .and. dm .eq. 3) then
-              if ( proj_type .eq. pressure_iters) then
-                write(6,2000) n,istep,nrm1,nrm2,nrm3
-              else if ( proj_type .eq. regular_timestep) then
-             write(6,2001) n,time,nrm1,nrm2,nrm3
-              else 
-                call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
-              end if
-           end if
-        end do
-        if ( parallel_IOProcessor() ) print *,' '
-    end if
+    if ( verbose .ge. 1 ) call print_old(uold,proj_type,time)
 
     ! Compute lapu
     if (visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
@@ -226,31 +201,7 @@ contains
     call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                    the_bc_tower,press_comp)
 
-    if ( verbose .ge. 1 ) then
-           do n = 1,nlevs
-              nrm1 = norm_inf(unew(n),1,1)
-              nrm2 = norm_inf(unew(n),2,1)
-              if (dm > 2) nrm3 = norm_inf(unew(n),3,1)
-              if ( parallel_IOProcessor() .and. dm .eq. 2) then
-                 if ( proj_type .eq. pressure_iters) then
-                   write(6,1002) n,istep,nrm1,nrm2
-                 else if ( proj_type .eq. regular_timestep) then
-                   write(6,1003) n,time+dt,nrm1,nrm2
-                 else 
-                   call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
-                 end if
-              else if ( parallel_IOProcessor() .and. dm .eq. 3) then
-                 if ( proj_type .eq. pressure_iters) then
-                   write(6,2002) n,istep,nrm1,nrm2,nrm3
-                 else if ( proj_type .eq. regular_timestep) then
-                   write(6,2003) n,time+dt,nrm1,nrm2,nrm3
-                 else 
-                   call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
-                 end if
-              end if
-           end do
-           if ( parallel_IOProcessor() ) print *,' '
-    end if
+    if ( verbose .ge. 1 ) call print_new(unew,proj_type,time,dt)
 
     do n = 1,nlevs
        call multifab_destroy(lapu(n))
@@ -266,16 +217,94 @@ contains
     deallocate(umac,rhohalf)
 !    deallocate(diffusive_update,viscous_update)
 
+  end subroutine advance_timestep
+
+  subroutine print_old(u,proj_type,time)
+
+     use probin_module, only : nlevs
+
+     type(multifab), intent(in) :: u(:)
+     integer       , intent(in) :: proj_type
+     real(dp_t)    , intent(in) :: time
+
+     real(dp_t) :: nrm1, nrm2, nrm3
+     integer    :: n,dm
+
+     dm = u(1)%dim
+
+     do n = 1,nlevs
+         nrm1 = norm_inf(u(n),1,1)
+         nrm2 = norm_inf(u(n),2,1)
+         if (dm > 2) nrm3 = norm_inf(u(n),3,1)
+         if ( parallel_IOProcessor() .and. dm .eq. 2) then
+            if ( proj_type .eq. pressure_iters) then
+              write(6,1000) n,istep,nrm1,nrm2
+            else if ( proj_type .eq. regular_timestep) then
+              write(6,1001) n,time,nrm1,nrm2
+            else 
+              call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
+            end if
+         else if ( parallel_IOProcessor() .and. dm .eq. 3) then
+            if ( proj_type .eq. pressure_iters) then
+              write(6,2000) n,istep,nrm1,nrm2,nrm3
+            else if ( proj_type .eq. regular_timestep) then
+              write(6,2001) n,time,nrm1,nrm2,nrm3
+            else 
+              call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
+            end if
+         end if
+     end do
+     if ( parallel_IOProcessor() ) print *,' '
+
 1000 format('LEVEL: ',i3,' ITER: ',   i3,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
 1001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
-1002 format('LEVEL: ',i3,' ITER: ',   i3,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
-1003 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
-
 2000 format('LEVEL: ',i3,' ITER: ',   i3,' UOLD/VOLD/WOLD MAX: ',e15.9,1x,e15.9,1x,e15.9)
 2001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD/WOLD MAX: ',e15.9,1x,e15.9,1x,e15.9)
+
+  end subroutine print_old
+
+  subroutine print_new(u,proj_type,time,dt)
+
+     use probin_module, only : nlevs
+
+     type(multifab), intent(in) :: u(:)
+     integer       , intent(in) :: proj_type
+     real(dp_t)    , intent(in) :: time,dt
+
+     real(dp_t) :: nrm1, nrm2, nrm3
+     integer    :: n,dm
+
+     dm = u(1)%dim
+
+      do n = 1,nlevs
+         nrm1 = norm_inf(u(n),1,1)
+         nrm2 = norm_inf(u(n),2,1)
+         if (dm > 2) nrm3 = norm_inf(u(n),3,1)
+         if ( parallel_IOProcessor() .and. dm .eq. 2) then
+            if ( proj_type .eq. pressure_iters) then
+              write(6,1002) n,istep,nrm1,nrm2
+            else if ( proj_type .eq. regular_timestep) then
+              write(6,1003) n,time+dt,nrm1,nrm2
+            else 
+              call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
+            end if
+         else if ( parallel_IOProcessor() .and. dm .eq. 3) then
+            if ( proj_type .eq. pressure_iters) then
+              write(6,2002) n,istep,nrm1,nrm2,nrm3
+            else if ( proj_type .eq. regular_timestep) then
+              write(6,2003) n,time+dt,nrm1,nrm2,nrm3
+       else 
+              call bl_error('UNKNOWN PROJ_TYPE IN ADVANCE ')
+            end if
+         end if
+      end do
+      if ( parallel_IOProcessor() ) print *,' '
+
+1002 format('LEVEL: ',i3,' ITER: ',   i3,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
+1003 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW MAX: ',e15.9,1x,e15.9)
 2002 format('LEVEL: ',i3,' ITER: ',   i3,' UNEW/VNEW/WOLD MAX: ',e15.9,1x,e15.9,1x,e15.9)
 2003 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW/WOLD MAX: ',e15.9,1x,e15.9,1x,e15.9)
 
-  end subroutine advance_timestep
+  end subroutine print_new
 
 end module advance_module 
