@@ -15,18 +15,17 @@ module init_module
   implicit none
 
   private
-  public :: initdata, impose_pressure_bcs, initdata_on_level
+  public :: initdata, initdata_on_level
 
 contains
 
-  subroutine initdata(nlevs,u,s,dx,prob_hi,bc,mla)
+  subroutine initdata(nlevs,u,s,dx,bc,mla)
 
     use multifab_physbc_module
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: u(:),s(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:)
-    real(kind=dp_t), intent(in   ) :: prob_hi(:)
     type(bc_level) , intent(in   ) :: bc(:)
     type(ml_layout), intent(inout) :: mla
 
@@ -47,9 +46,9 @@ contains
           hi =  upb(get_box(u(n), i))
           select case (dm)
           case (2)
-             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:), prob_hi)
+             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:))
           case (3)
-             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:), prob_hi)
+             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:))
           end select
        end do
 
@@ -73,14 +72,13 @@ contains
 
   end subroutine initdata
 
-  subroutine initdata_on_level(u,s,dx,prob_hi,bc,la)
+  subroutine initdata_on_level(u,s,dx,bc,la)
     
     use multifab_physbc_module
     use probin_module, only : nscal
     
     type(multifab) , intent(inout) :: u,s
     real(kind=dp_t), intent(in   ) :: dx(:)
-    real(kind=dp_t), intent(in   ) :: prob_hi(:)
     type(bc_level) , intent(in   ) :: bc
     type(layout)   , intent(inout) :: la
     
@@ -99,11 +97,9 @@ contains
        hi =  upb(get_box(u,i))
        select case (dm)
        case (2)
-          call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx,&
-                           prob_hi)
+          call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx)
        case (3)
-          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx,&
-                           prob_hi)
+          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx)
        end select
     end do
 
@@ -115,7 +111,7 @@ contains
     
   end subroutine initdata_on_level
 
-  subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
+  subroutine initdata_2d (u,s,lo,hi,ng,dx)
 
     use probin_module, only: boussinesq
 
@@ -123,7 +119,6 @@ contains
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(in ) :: dx(:)
-    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
     !     Local variables
     integer :: i, j
@@ -186,13 +181,12 @@ contains
   
   end subroutine initdata_2d
 
-  subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)
+  subroutine initdata_3d (u,s,lo,hi,ng,dx)
 
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
     real (kind = dp_t), intent(in ) :: dx(:)
-    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
     !     Local variables
     integer :: i, j, k
@@ -239,29 +233,5 @@ contains
     enddo
 
   end subroutine initdata_3d
-
-  subroutine impose_pressure_bcs(p,mla,mult)
-
-    type(multifab ), intent(inout) :: p(:)
-    type(ml_layout), intent(in   ) :: mla
-    real(kind=dp_t), intent(in   ) :: mult
-
-    type(box)           :: bx,pd
-    integer             :: i,n,nlevs
-
-    nlevs = size(p,dim=1)
-
-    do n = 1,nlevs
-       pd = layout_get_pd(mla%la(n))
-       do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
-          bx = get_ibox(p(n),i)
-          if (bx%lo(2) == pd%lo(2)) then
-             bx%hi(2) = bx%lo(2)
-             call setval(p(n),mult,bx)
-          end if
-       end do
-    end do
-
-  end subroutine impose_pressure_bcs
 
 end module init_module
