@@ -25,7 +25,7 @@ contains
     character(len=*), intent(in) :: dirname
     real(kind=dp_t), intent(in) :: time_in, dt_in
     integer        , intent(in) :: verbose
-    integer :: i, j, k, n
+    integer :: n
     character(len=128) :: header, sd_name, sd_name_nodal
     integer :: nc, un, dm
     integer, allocatable ::  lo(:),  hi(:)
