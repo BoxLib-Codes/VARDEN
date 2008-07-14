@@ -636,6 +636,9 @@ contains
           endif
 
           ! make normal component of uimhx by first solving a normal Riemann problem
+          ! uimhx(1) = { ulx(1) if uavg > 0,
+          !              urx(1) if uavg < 0,
+          !              0   if (ulx(1) < 0 and urx(1) > 0) or |ulx(1)+urx(1)|<eps }
           uavg = HALF*(ulx(i,j,1)+urx(i,j,1))
           test = ((ulx(i,j,1) .le. ZERO .and. urx(i,j,1) .ge. ZERO) .or. &
                (abs(ulx(i,j,1)+urx(i,j,1)) .lt. eps))
@@ -643,6 +646,9 @@ contains
           uimhx(i,j,1) = merge(ZERO,uimhx(i,j,1),test)
 
           ! now upwind to get transverse component of uimhx
+          ! uimhx(2) = { ulx(2) if uimhx(1) > eps
+          !              urx(2) if uimhx(1) < eps
+          !              uavg   if |uimhx(1)| < eps }
           uimhx(i,j,2) = merge(ulx(i,j,2),urx(i,j,2),uimhx(i,j,1).gt.ZERO)
           uavg = HALF*(ulx(i,j,2)+urx(i,j,2))
           uimhx(i,j,2) = merge(uavg,uimhx(i,j,2),abs(uimhx(i,j,1)).lt.eps)
@@ -695,7 +701,10 @@ contains
              endif
           endif
 
-          ! make normal component of uimhx by first solving a normal Riemann problem
+          ! make normal component of uimhy by first solving a normal Riemann problem
+          ! uimhy(2) = { uly(2) if uavg > 0,
+          !              ury(2) if uavg < 0,
+          !              0   if (uly(2) < 0 and ury(2) > 0) or |uly(2)+ury(2)|<eps }
           uavg = HALF*(uly(i,j,2)+ury(i,j,2))
           test = ((uly(i,j,2) .le. ZERO .and. ury(i,j,2) .ge. ZERO) .or. &
                (abs(uly(i,j,2)+ury(i,j,2)) .lt. eps))
@@ -703,6 +712,9 @@ contains
           uimhy(i,j,2) = merge(ZERO,uimhy(i,j,2),test)
 
           ! now upwind to get transverse component of uimhy
+          ! uimhy(1) = { uly(1) if uimhy(2) > eps
+          !              ury(1) if uimhy(2) < eps
+          !              uavg   if |uimhx(2)| < eps }
           uimhy(i,j,1) = merge(uly(i,j,1),ury(i,j,1),uimhy(i,j,2).gt.ZERO)
           uavg = HALF*(uly(i,j,1)+ury(i,j,1))
           uimhy(i,j,1) = merge(uavg,uimhy(i,j,1),abs(uimhy(i,j,2)).lt.eps)
