@@ -14,7 +14,7 @@ module velocity_advance_module
 contains
 
   subroutine velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                              ext_vel_force,adv_u,dx,dt,the_bc_tower)
+                              ext_vel_force,dx,dt,the_bc_tower)
 
     use viscous_module
     use mkflux_module
@@ -29,7 +29,6 @@ contains
     type(multifab) , intent(inout) :: lapu(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(inout) :: unew(:)
-    type(multifab) , intent(inout) :: adv_u(:)
     type(multifab) , intent(in   ) :: rhohalf(:)
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
@@ -41,6 +40,8 @@ contains
     type(multifab), allocatable :: divu(:)
     type(multifab), allocatable :: uflux(:,:)
     type(multifab), allocatable :: uedge(:,:)
+    ! u dot grad u
+    type(multifab), allocatable :: adv_u(:)
 
     integer :: i,n,dm,comp,nlevs
     logical :: is_vel,is_conservative(uold(1)%dim)
@@ -51,7 +52,7 @@ contains
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    allocate(vel_force(nlevs),divu(nlevs))
+    allocate(vel_force(nlevs),divu(nlevs),adv_u(nlevs))
     allocate(uflux(nlevs,dm),uedge(nlevs,dm))
     allocate(umac_nodal_flag(mla%dim))
 
@@ -62,7 +63,8 @@ contains
        call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)
        call multifab_build(divu(n),vel_force(n)%la,1,1)
        call setval(divu(n),0.0_dp_t,all=.true.)
-
+!how many ghost cells?
+       call multifab_build(adv_u(n),uold(n)%la,dm,1) 
        do i = 1,dm
          umac_nodal_flag(:) = .false.
          umac_nodal_flag(i) = .true.
@@ -91,7 +93,9 @@ contains
     ! Now create vel_force at half-time using rhohalf and half the viscous term.
     !********************************************************
 
-    visc_fac = HALF
+    ! The lapu term will be added to the rhs in visc_solve
+    ! for Crank-Nicolson
+    visc_fac = ZERO
     call mkvelforce(nlevs,vel_force,ext_vel_force,rhohalf,gp,lapu,visc_fac)
 
     !********************************************************
@@ -104,28 +108,29 @@ contains
     do n = 1, nlevs
        call multifab_destroy(vel_force(n))
        call multifab_destroy(divu(n))
+       call multifab_destroy(adv_u(n))
        do i = 1,dm
        call multifab_destroy(uflux(n,i))
        call multifab_destroy(uedge(n,i))
        end do
     enddo
 
-    deallocate(vel_force,divu,uflux,uedge,umac_nodal_flag)
+    deallocate(vel_force,divu,uflux,uedge,umac_nodal_flag,adv_u)
 
     if (visc_coef > ZERO) then
-           ! Crank-Nicolson
-           if (diffusion_type .eq. 1) then
-              visc_mu = HALF*dt*visc_coef
- 
-           ! backward Euler
-           else if (diffusion_type .eq. 2) then
-              visc_mu = dt*visc_coef
- 
-           else
-             call bl_error('BAD DIFFUSION TYPE ')
-           end if
- 
-           call visc_solve(mla,unew,rhohalf,dx,visc_mu,the_bc_tower)
+       ! Crank-Nicolson
+       if (diffusion_type .eq. 1) then
+          visc_mu = HALF*dt*visc_coef
+          
+       ! backward Euler
+       else if (diffusion_type .eq. 2) then
+          visc_mu = dt*visc_coef
+          
+       else
+          call bl_error('BAD DIFFUSION TYPE ')
+       end if
+       
+       call visc_solve(mla,unew,lapu,rhohalf,dx,visc_mu,the_bc_tower)
     end if
 
     if (verbose .ge. 1) then

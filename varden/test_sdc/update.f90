@@ -165,7 +165,7 @@ contains
                 do i = lo(1), hi(1)
                    divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
                          + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
-                   adv_s(i,j,comp) = -divsu
+                   if (comp > 1) adv_s(i,j,comp-1) = -divsu
                    snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
                 enddo
              enddo
@@ -176,7 +176,7 @@ contains
                    vbar = HALF*(vmac(i,j) + vmac(i,j+1))
                    ugrads = ubar*(sedgex(i+1,j,comp) - sedgex(i,j,comp))/dx(1) + &
                             vbar*(sedgey(i,j+1,comp) - sedgey(i,j,comp))/dx(2)
-                   adv_s(i,j,comp) = -ugrads
+                   if (comp > 1) adv_s(i,j,comp-1) = -ugrads
                    snew(i,j,comp) = sold(i,j,comp) - dt * ugrads + dt * force(i,j,comp)
                 enddo
              enddo
@@ -202,7 +202,7 @@ contains
 
              adv_s(i,j,1) = -ugradu
              adv_s(i,j,2) = -ugradv
-
+             
           enddo
        enddo
     end if
@@ -249,7 +249,7 @@ contains
                       divsu = (fluxx(i+1,j,k,comp)-fluxx(i,j,k,comp))/dx(1) &
                             + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
                             + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
-                      adv_s(i,j,k,comp) = -divsu
+                      if (comp > 1) adv_s(i,j,k,comp) = -divsu
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * divsu + dt * force(i,j,k,comp)
                    enddo
                 enddo
@@ -265,7 +265,7 @@ contains
                       ugrads = ubar*(sedgex(i+1,j,k,comp) - sedgex(i,j,k,comp))/dx(1) + &
                            vbar*(sedgey(i,j+1,k,comp) - sedgey(i,j,k,comp))/dx(2) + &
                            wbar*(sedgez(i,j,k+1,comp) - sedgez(i,j,k,comp))/dx(3)
-                      adv_s(i,j,k,comp) = -ugrads
+                      if (comp > 1) adv_s(i,j,k,comp) = -ugrads
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * ugrads + dt * force(i,j,k,comp)
                    enddo
                 enddo

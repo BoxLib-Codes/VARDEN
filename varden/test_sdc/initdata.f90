@@ -10,15 +10,16 @@ module init_module
   use multifab_fill_ghost_module
   use ml_restriction_module
   use ml_layout_module
+  use probin_module,  only : nscal
 
   implicit none
 
   private
-  public :: initdata, impose_pressure_bcs
+  public :: initdata, impose_pressure_bcs, initdata_on_level
 
 contains
 
-  subroutine initdata(nlevs,u,s,dx,prob_hi,bc,nscal,mla)
+  subroutine initdata(nlevs,u,s,dx,prob_hi,bc,mla)
 
     use multifab_physbc_module
 
@@ -27,7 +28,6 @@ contains
     real(kind=dp_t), intent(in   ) :: dx(:,:)
     real(kind=dp_t), intent(in   ) :: prob_hi(:)
     type(bc_level) , intent(in   ) :: bc(:)
-    integer        , intent(in   ) :: nscal
     type(ml_layout), intent(inout) :: mla
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
@@ -73,6 +73,48 @@ contains
 
   end subroutine initdata
 
+  subroutine initdata_on_level(u,s,dx,prob_hi,bc,la)
+    
+    use multifab_physbc_module
+    use probin_module, only : nscal
+    
+    type(multifab) , intent(inout) :: u,s
+    real(kind=dp_t), intent(in   ) :: dx(:)
+    real(kind=dp_t), intent(in   ) :: prob_hi(:)
+    type(bc_level) , intent(in   ) :: bc
+    type(layout)   , intent(inout) :: la
+    
+    real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
+    integer :: lo(u%dim),hi(u%dim)
+    integer :: i,ng,dm,n
+    
+    ng = u%ng
+    dm = u%dim
+    
+    do i = 1, u%nboxes
+       if ( multifab_remote(u,i) ) cycle
+       uop => dataptr(u,i)
+       sop => dataptr(s,i)
+       lo =  lwb(get_box(u,i))
+       hi =  upb(get_box(u,i))
+       select case (dm)
+       case (2)
+          call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx,&
+                           prob_hi)
+       case (3)
+          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx,&
+                           prob_hi)
+       end select
+    end do
+
+    call multifab_fill_boundary(u)
+    call multifab_fill_boundary(s)
+    
+    call multifab_physbc(u,1,1,   dm,   bc)
+    call multifab_physbc(s,1,dm+1,nscal,bc)
+    
+  end subroutine initdata_on_level
+
   subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
 
     use probin_module, only: boussinesq
@@ -85,80 +127,63 @@ contains
 
     !     Local variables
     integer :: i, j
-    real(kind=dp_t) :: xloc,yloc,dist
-    real(kind=dp_t) :: sig
-    real(kind=dp_t) :: rho0,rho1,xBubble,yBubble,rBubble,rhoBubble,tracerConc,yJump
-
-    ! initial velocity = 0
-    ! initial  density = 1
-    do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-
-          u(i,j,1) = ZERO
-          u(i,j,2) = ZERO
-          s(i,j,1) = ONE
-          s(i,j,2) = ZERO
-
+    real (kind = dp_t)  :: x,y,dist
+    real (kind = dp_t)  :: xblob1 = 0.5d0, yblob1 = 0.5d0, densfact = 2.0d0
+    real (kind = dp_t)  :: xblob2 = 0.2d0, yblob2 = 0.2d0
+    real (kind = dp_t)  :: xblob3 = 0.2d0, yblob3 = 0.8d0
+    real (kind = dp_t)  :: blobrad = 0.1d0
+   
+    do i=lo(1),hi(1)   
+       do j=lo(2),hi(2)/2
+          u(i,j,1) = one
+          u(i,j,2) = zero
+          s(i,j,1) = ONE     ! density
+          s(i,j,2) = one    ! species A
+          s(i,j,3) = zero    ! species B
+          s(i,j,4) = zero    ! species C
+       enddo
+       do j=hi(2)/2+1,hi(2)
+          u(i,j,1) = 10.d0
+          u(i,j,2) = zero
+          s(i,j,1) = ONE     ! density
+          s(i,j,2) = zero    ! species A
+          s(i,j,3) = one    ! species B
+          s(i,j,4) = zero    ! species C
        enddo
     enddo
 
-    ! minion initial data
-    rho0    = 1.0100d0
-    rho1    = 1.0000d0
+    
 
-    xBubble = 0.5d0
-    yBubble = 0.25d0
-    rBubble = 0.05d0
-    yJump   = 0.5d0
 
-    rhoBubble = 1.005d0
-    tracerConc = 1.00d0
+    ! add a density perturbation
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,1) = TWO
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,1) = TWO
 
-    sig = 0.02d0
+    ! add a tracer perturbation
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = ONE
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = ONE
+!    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,2) = ONE
+!    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,2) = ONE
 
-    if (boussinesq .eq. 1) then
-       do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-
-          xloc = (i+HALF)*dx(1)
-          yloc = (j+HALF)*dx(2)
-
-          ! use this for one bubble problem
-          dist = sqrt((xloc-xBubble)**2 + (yloc-yBubble)**2)
-          if (dist .lt. rBubble) then
-             s(i,j,2) = tracerConc
-          else
-             s(i,j,2) = s(i,j,2) + (tracerConc)*exp(-(dist-rBubble)/sig)
-             s(i,j,2) = max(s(i,j,2),0.d0)
-          endif
-       enddo
-       enddo
-    else
-       do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-
-          xloc = (i+HALF)*dx(1)
-          yloc = (j+HALF)*dx(2)
-
-          ! use this for one bubble problem
-          if(yloc.le. 0.5)then
-             s(i,j,1) = rho0
-          else
-             s(i,j,1) = rho0+(rho1-rho0)*(yloc-yJump)/(1.0d0-yJump)
-          endif
-          dist = sqrt((xloc-xBubble)**2 + (yloc-yBubble)**2)
-          if (dist .lt. rBubble) then
-             s(i,j,1) = rhoBubble
-             s(i,j,2) = tracerConc
-          else
-             s(i,j,1) = s(i,j,1) + (rhoBubble-rho0)*exp(-(dist-rBubble)/sig)
-             s(i,j,2) = s(i,j,2) +     (tracerConc)*exp(-(dist-rBubble)/sig)
-             s(i,j,2) = max(s(i,j,2),0.d0)
-          endif
-       enddo
-       enddo
-    end if
-
+    ! bubble
+!    do j=lo(2),hi(2)
+       !y = lo(2) + dx(2)*((j-lo(2)) + HALF)
+!       y = dx(2)*(j + HALF)
+!       do i=lo(1),hi(1)
+         !x = lo(1) + dx(1)*((i-lo(1)) + HALF)
+!          x = dx(1)*((i) + HALF)
+!          dist = SQRT((x-xblob1)**2 + (y-yblob1)**2)
+          !s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+!          s(i,j,2) = HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+!          dist = SQRT((x-xblob2)**2 + (y-yblob2)**2)
+!          s(i,j,3) = HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+!          dist = SQRT((x-xblob3)**2 + (y-yblob3)**2)
+!          s(i,j,4) = HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+!       enddo
+!    enddo
+  
   end subroutine initdata_2d
 
   subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)

@@ -19,6 +19,9 @@ VPATH_LOCATIONS += $(FPARALLEL)/mg
 include $(FPARALLEL)/varden/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/varden
 
+include $(FPARALLEL)/varden/test_sdc/GPackage.mak
+VPATH_LOCATIONS += $(FPARALLEL)/varden/test_sdc
+
 main.$(suf).exe: $(objects)
 	$(LINK.f90) -o main.$(suf).exe $(objects) $(libraries)
 

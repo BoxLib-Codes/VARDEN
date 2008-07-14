@@ -5,9 +5,22 @@
 ! number of scalar quantities = density + # tracers 
  nscal = 4
 
+! inputs for reactions
+  reactions = T
+! sdc_iters < 0 means use strang splitting
+  sdc_iters = -1
+  k_rxn1 = 1050.0d0
+  k_rxn2 = 132.0d0
+
+! default = T
+ mass_fractions = T
+
+
 !!!! Input for fixed grids !!!!
 ! fixed_grids = "gr0_2d_2levels"
  fixed_grids = "gr0_2d"
+
+max_grid_size = 1024
 
 !!!! Inputs for adaptive grids !!!!
 ! nlevs = 3
@@ -21,18 +34,18 @@
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 100
- init_iter = 3
+ max_step  = 1000000
+ init_iter = 1
 
  plot_int  = 10
  chk_int   = 10
 
- stop_time = 1000.0
- cflfac = 0.9
+ stop_time = 0.0625
+ cflfac = 0.5
  init_shrink = 0.1
 
- visc_coef = 0.001
- diff_coef = 1.0
+ visc_coef = 0.00
+ diff_coef = 0.1
 
 ! 1 = Crank-Nicolson, 2 = Backward Euler
  diffusion_type = 2
@@ -59,5 +72,5 @@
  verbose = 0
  mg_verbose = 0
 
-!restart = 1
+ restart = 140
 /

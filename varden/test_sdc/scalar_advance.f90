@@ -8,7 +8,7 @@ module scalar_advance_module
   use viscous_module
   use macproject_module
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
-                            verbose, mg_verbose, cg_verbose
+                            verbose, mg_verbose, cg_verbose, mass_fractions
 
   implicit none
 
@@ -19,7 +19,7 @@ module scalar_advance_module
 contains
 
   subroutine scalar_advance(mla,uold,sold,snew,umac, &
-                            ext_scal_force,aofs,dx,dt,the_bc_tower)
+                            ext_scal_force,dx,dt,the_bc_tower)
 
     use mkflux_module
     use mkforce_module
@@ -32,15 +32,21 @@ contains
     type(multifab) , intent(inout) :: snew(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
-    type(multifab) , intent(inout) :: aofs(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local variables
-    type(multifab), allocatable :: scal_force(:), divu(:), laps(:)
-    type(multifab), allocatable :: sflux(:,:), sedge(:,:)
-    logical       , allocatable :: is_conservative(:)
-    logical       , allocatable :: umac_nodal_flag(:)
+    type(multifab) :: scal_force(mla%nlevel)
+    type(multifab) :: divu(mla%nlevel)
+    type(multifab) :: laps(mla%nlevel)
+    type(multifab) :: sflux(mla%nlevel,mla%dim)
+    type(multifab) :: sedge(mla%nlevel,mla%dim)
+    ! stores del dot (us)
+    ! filled but not used 
+    type(multifab) :: adv_s(mla%nlevel)
+
+    logical :: is_conservative(nscal)
+    logical :: umac_nodal_flag(mla%dim)
 
     integer         :: i,n
     integer         :: comp,bc_comp,nlevs,dm
@@ -51,13 +57,17 @@ contains
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    allocate(umac_nodal_flag(mla%dim))
-    allocate(scal_force(nlevs),divu(nlevs),laps(nlevs))
-    allocate(sflux(nlevs,dm),sedge(nlevs,dm))
-    allocate(is_conservative(nscal))
-
-    is_conservative(1) = .true.
-    is_conservative(2) = .false.
+    
+    if (mass_fractions) then
+       ! using mass fractions
+       is_conservative(:) = .true.
+    else
+       is_conservative(1) = .true.
+       ! using concentrations
+       do comp = 2, nscal
+          is_conservative(comp) = .false.
+       end do
+    end if
 
     is_vel  = .false.
 
@@ -65,6 +75,8 @@ contains
        call multifab_build( scal_force(n),ext_scal_force(n)%la,nscal,1)
        call multifab_build( divu(n),mla%la(n),    1,1)
        call multifab_build( laps(n),mla%la(n),nscal,0)
+!how many ghost cells?
+       call multifab_build( adv_s(n),mla%la(n),nscal-1,0)
        do i = 1,dm
          umac_nodal_flag(:) = .false.
          umac_nodal_flag(i) = .true.
@@ -82,10 +94,12 @@ contains
     !***********************************
     ! Compute laps for passive scalar only
     !***********************************
-    if (diff_coef .gt. ZERO .and. diffusion_type .eq. 1) then
-       comp = 2
-       bc_comp = dm+comp
-       call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
+
+    if (diff_coef .gt. ZERO) then
+       do comp = 2, nscal
+          bc_comp = dm+comp
+          call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
+       enddo
     else
       do n = 1, nlevs
          call setval(laps(n),ZERO)
@@ -109,15 +123,17 @@ contains
     !***********************************
     ! Create scalar force at time n+1/2.
     !***********************************
-    
-    diff_fac = HALF
+
+    ! The laps term will be added to the rhs in diff_scalar_solve
+    ! for Crank-Nicolson
+    diff_fac = ZERO
     call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 
     !***********************************
     ! Update the scalars with conservative or convective differencing.
     !***********************************
 
-    call update(mla,sold,umac,sedge,sflux,scal_force,snew,aofs,dx,dt,is_vel, &
+    call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s,dx,dt,is_vel, &
                 is_conservative,the_bc_tower%bc_tower_array)
 
     if (verbose .ge. 1) then
@@ -134,8 +150,6 @@ contains
        end do
     end if
 
-    deallocate(is_conservative)
-
     do n = 1,nlevs
        call multifab_destroy(scal_force(n))
        call multifab_destroy(divu(n))
@@ -145,11 +159,8 @@ contains
        end do
     enddo
 
-    deallocate(umac_nodal_flag)
-    deallocate(scal_force,divu,laps,sflux,sedge)
-
     if (diff_coef > ZERO) then
-           comp = 2
+       do comp = 2, nscal
            bc_comp = dm+comp
  
            ! Crank-Nicolson
@@ -159,13 +170,19 @@ contains
            ! backward Euler
            else if (diffusion_type .eq. 2) then
               visc_mu = dt*diff_coef
- 
            else
              call bl_error('BAD DIFFUSION TYPE ')
-           end if
- 
-           call diff_scalar_solve(mla,snew,dx,visc_mu,the_bc_tower,comp,bc_comp)
-    end if
+          end if
+
+          call diff_scalar_solve(mla,snew,laps,dx,visc_mu,the_bc_tower,comp,bc_comp)
+
+        enddo
+     end if
+
+    do n = 1,nlevs
+       call multifab_destroy(laps(n))
+       call multifab_destroy(adv_s(n))
+    end do
 
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)

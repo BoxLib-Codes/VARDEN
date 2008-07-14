@@ -20,8 +20,11 @@ module advance_module
   use explicit_diffusive_module
   use viscous_module
   use probin_module, only : nscal, visc_coef, diff_coef, diffusion_type, stencil_order, &
-                            verbose, mg_verbose, cg_verbose
+                            verbose, mg_verbose, cg_verbose, reactions, sdc_iters, &
+                            mass_fractions
   use proj_parameters
+  use rxns_integrator
+  use scalar_advance_sdc_module
 
 contains
 
@@ -48,8 +51,8 @@ contains
     type(multifab), allocatable :: lapu(:)
     type(multifab), allocatable :: umac(:,:)
     type(multifab), allocatable :: rhohalf(:)
-    type(multifab), allocatable :: diffusive_update(:)
-    type(multifab), allocatable :: viscous_update(:)
+!    type(multifab), allocatable :: diffusive_update(:)
+!    type(multifab), allocatable :: viscous_update(:)
 
     integer    :: i,n,comp,dm,nlevs,bc_comp
     real(dp_t) :: nrm1,nrm2,nrm3
@@ -62,16 +65,16 @@ contains
     allocate(lapu(nlevs))
     allocate(umac(nlevs,dm))
     allocate(rhohalf(nlevs))
-    allocate(diffusive_update(nlevs))
-    allocate(viscous_update(nlevs))
+!    allocate(diffusive_update(nlevs))
+!    allocate(viscous_update(nlevs))
 
     allocate(umac_nodal_flag(mla%dim))
 
     do n = 1,nlevs
        call multifab_build(   lapu(n), mla%la(n),    dm, 0)
        call multifab_build(rhohalf(n), mla%la(n),    dm, 1)
-       call multifab_build(diffusive_update(n), mla%la(n),nscal,0)
-       call multifab_build(  viscous_update(n), mla%la(n),dm   ,0)
+!       call multifab_build(diffusive_update(n), mla%la(n),nscal,0)
+!       call multifab_build(  viscous_update(n), mla%la(n),dm   ,0)
 
        do i = 1,dm
          umac_nodal_flag(:) = .false.
@@ -113,14 +116,14 @@ contains
        do comp = 1, dm
          call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
          do n = 1, nlevs
-            call multifab_copy_c(viscous_update(n),comp,lapu(n),comp,1,0)
-            call multifab_mult_mult_s(viscous_update(n),HALF,0)            
+!            call multifab_copy_c(viscous_update(n),comp,lapu(n),comp,1,0)
+!            call multifab_mult_mult_s(viscous_update(n),HALF,0)            
          enddo
        end do
     else
        do n = 1, nlevs
          call setval(lapu(n),ZERO)
-         call setval(viscous_update(n),ZERO)
+!         call setval(viscous_update(n),ZERO)
        enddo
     endif
 
@@ -129,75 +132,95 @@ contains
 
     call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
-    call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
+    if (reactions) then
+       if (sdc_iters >= 0) then
+          call scalar_advance_sdc(mla,uold,sold,snew,umac, &
+               ext_scal_force,dx,dt,the_bc_tower) 
+       else     ! use strang splitting          
+          call react(mla,the_bc_tower,sold,half*dt,f_rxn)
+          call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
+                              dx,dt,the_bc_tower)
+          call react(mla,the_bc_tower,snew,half*dt,f_rxn)  
+       endif
+    else
+       call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
                         dx,dt,the_bc_tower)
-    
+    endif
+
+
     call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)
 
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
                           ext_vel_force,dx,dt,the_bc_tower)
 
+
+
+!----NOt used---------------------------------------------
+! intended for sdc projections?
+
     ! Compute viscous_update
     ! Here we use lapu as a temporary
-    if (visc_coef .gt. ZERO) then
+!    if (visc_coef .gt. ZERO) then
 
-       do comp = 1, dm
-         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
-       end do
+!       do comp = 1, dm
+!         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
+!       end do
 
-       if (diffusion_type .eq. 1) then
-          do n = 1, nlevs
-            do comp = 1, dm
-               call multifab_mult_mult_s(lapu(n),HALF,0)            
-               call multifab_plus_plus_c(viscous_update(n),comp,lapu(n),comp,1)
-               call multifab_mult_mult_s(viscous_update(n),visc_coef)
-            enddo
-          end do
-       else if (diffusion_type .eq. 2) then
-          do n = 1, nlevs
-            do comp = 1, dm
-               call multifab_copy_c(viscous_update(n),comp,lapu(n),comp,1,0)
-               call multifab_mult_mult_s(viscous_update(n),visc_coef)
-            enddo
-          end do
-       end if
-    endif
+!       if (diffusion_type .eq. 1) then
+!          do n = 1, nlevs
+!            do comp = 1, dm
+!               call multifab_mult_mult_s(lapu(n),HALF,0)            
+!               call multifab_plus_plus_c(viscous_update(n),comp,lapu(n),comp,1)
+!               call multifab_mult_mult_s(viscous_update(n),visc_coef)
+!            enddo
+!          end do
+!       else if (diffusion_type .eq. 2) then
+!          do n = 1, nlevs
+!            do comp = 1, dm
+!               call multifab_copy_c(viscous_update(n),comp,lapu(n),comp,1,0)
+!               call multifab_mult_mult_s(viscous_update(n),visc_coef)
+!            enddo
+!          end do
+!       end if
+!    endif
 
     ! Compute diffusive_update
     ! Here we use lapu as a temporary again
-    if (diff_coef .gt. ZERO) then
+!    if (diff_coef .gt. ZERO) then
 
-      comp    = 2
-      bc_comp = dm+comp
+!      comp    = 2
+!      bc_comp = dm+comp
  
-       if (diffusion_type .eq. 1) then
+!       if (diffusion_type .eq. 1) then
 
-          call get_explicit_diffusive_term(mla,lapu,sold,comp,bc_comp,dx,the_bc_tower)
+!          call get_explicit_diffusive_term(mla,lapu,sold,comp,bc_comp,dx,the_bc_tower)
 
-          do n = 1, nlevs
-             call multifab_mult_mult_s(lapu(n),HALF,0)
-             call multifab_copy_c(diffusive_update(n),comp,lapu(n),comp,1,0)
-          end do
+!          do n = 1, nlevs
+!             call multifab_mult_mult_s(lapu(n),HALF,0)
+!             call multifab_copy_c(diffusive_update(n),comp,lapu(n),comp,1,0)
+!          end do
 
-          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower)
+! i think this should actually be snew before 2nd react for strang? 
+!          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower)
 
-          do n = 1, nlevs
-             call multifab_mult_mult_s(lapu(n),HALF,0)
-             call multifab_plus_plus_c(diffusive_update(n),comp,lapu(n),comp,1)
-             call multifab_mult_mult_s(diffusive_update(n),diff_coef)
-          end do
+!          do n = 1, nlevs
+!             call multifab_mult_mult_s(lapu(n),HALF,0)
+!             call multifab_plus_plus_c(diffusive_update(n),comp,lapu(n),comp,1)
+!             call multifab_mult_mult_s(diffusive_update(n),diff_coef)
+!          end do
 
-       else if (diffusion_type .eq. 2) then
+!       else if (diffusion_type .eq. 2) then
 
-          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower)
+!          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower)
 
-          do n = 1, nlevs
-             call multifab_copy_c(diffusive_update(n),comp,lapu(n),comp,1,0)
-             call multifab_mult_mult_s(diffusive_update(n),diff_coef)
-          end do
+!          do n = 1, nlevs
+!             call multifab_copy_c(diffusive_update(n),comp,lapu(n),comp,1,0)
+!             call multifab_mult_mult_s(diffusive_update(n),diff_coef)
+!          end do
 
-       end if
-    endif
+!       end if
+!    endif
+!______________________________________________________________________________________
 
     ! Project the new velocity field.
     call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
@@ -235,13 +258,13 @@ contains
        do i = 1,dm
          call multifab_destroy(umac(n,i))
        end do
-       call multifab_destroy(diffusive_update(n))
-       call multifab_destroy(viscous_update(n))
+!       call multifab_destroy(diffusive_update(n))
+!       call multifab_destroy(viscous_update(n))
     end do
 
     deallocate(lapu)
     deallocate(umac,rhohalf)
-    deallocate(diffusive_update,viscous_update)
+!    deallocate(diffusive_update,viscous_update)
 
 1000 format('LEVEL: ',i3,' ITER: ',   i3,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
 1001 format('LEVEL: ',i3,' TIME: ',f14.8,' UOLD/VOLD MAX: ',e15.9,1x,e15.9)
