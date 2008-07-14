@@ -300,11 +300,8 @@ subroutine varden()
            if (stop_time >= 0.d0) then
               if (time+dt > stop_time) then
                  dt = stop_time - time
-                 if (dt < 1.0d-20) then
-                    if (last_plt_written .ne. istep-1 .and. plot_int > 0) call write_plotfile(istep-1)
-                    if (last_chk_written .ne. istep-1 .and. chk_int  > 0) call write_checkfile(istep-1)
-                    goto 2000
-                 end if
+                 if (parallel_IOProcessor()) &
+                    print*, "Stop time limits dt =",dt
               end if
            end if
         end if
@@ -356,7 +353,13 @@ subroutine varden()
  
          call print_and_reset_fab_byte_spread()
 
-      end do ! istep loop
+         if (stop_time >= 0.d0) then
+            if (time >= stop_time) goto 999
+         end if
+
+     end do ! istep loop
+
+999  continue
 
      if (istep > max_step) istep = max_step
 
