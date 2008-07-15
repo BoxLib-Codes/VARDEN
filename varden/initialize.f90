@@ -89,8 +89,9 @@ contains
      type(multifab), pointer       :: uold(:),sold(:),gp(:),p(:)
      type(bc_tower), intent(  out) :: the_bc_tower
 
-     integer           :: n,dm
-     type(ml_boxarray) :: mba
+     type(ml_boxarray)         :: mba
+
+     integer :: n,dm
 
      dm = dim_in
 
@@ -140,7 +141,6 @@ contains
      integer                        :: buf_wid
      type(layout)                   :: la_array(max_levs)
      type(box)                      :: bxs
-     type(boxarray)                 :: ba
      type(ml_boxarray)              :: mba
 
      logical :: new_grid
@@ -244,12 +244,12 @@ contains
       if (nlevs .ge. 3) &
            call enforce_proper_nesting(mba,la_array)
 
-      else
+   else
 
-         call destroy(sold(1))
-         call destroy(uold(1))
-         call destroy(gp(1))
-         call destroy(p(1))
+      call destroy(sold(1))
+      call destroy(uold(1))
+      call destroy(gp(1))
+      call destroy(p(1))
 
    end if ! end if (maxlev > 1)
 
