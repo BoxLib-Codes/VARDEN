@@ -35,6 +35,8 @@ module define_bc_module
 
   subroutine bc_tower_init(bct,num_levs,dm,phys_bc_in)
 
+    implicit none
+
     type(bc_tower ), intent(  out) :: bct
     integer        , intent(in   ) :: num_levs
     integer        , intent(in   ) :: dm
@@ -82,7 +84,7 @@ module define_bc_module
     call phys_bc_level_build(bct%bc_tower_array(n)%phys_bc_level_array,la, &
                              bct%domain_bc,default_value)
 
-    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+2))
+    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
     default_value = INTERIOR
     call adv_bc_level_build(bct%bc_tower_array(n)%adv_bc_level_array, &
                             bct%bc_tower_array(n)%phys_bc_level_array,default_value)
@@ -98,13 +100,13 @@ module define_bc_module
 
   subroutine bc_tower_destroy(bct)
 
+    implicit none
+
     type(bc_tower), intent(inout) :: bct
 
     integer :: n
 
-    print *,'MAX LEVEL BUILT ',bct%max_level_built
- 
-    do n = 1,bct%max_level_built
+    do n = 1,bct%nlevels
        deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
        deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
        deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
@@ -114,6 +116,8 @@ module define_bc_module
   end subroutine bc_tower_destroy
 
   subroutine phys_bc_level_build(phys_bc_level,la_level,domain_bc,default_value)
+
+    implicit none
 
     integer     , intent(inout) :: phys_bc_level(0:,:,:)
     integer     , intent(in   ) :: domain_bc(:,:)
@@ -144,31 +148,39 @@ module define_bc_module
 
   subroutine adv_bc_level_build(adv_bc_level,phys_bc_level,default_value)
 
+    use probin_module, only : nscal
+
+    implicit none
+
     integer  , intent(inout) ::  adv_bc_level(0:,:,:,:)
     integer  , intent(in   ) :: phys_bc_level(0:,:,:)
     integer  , intent(in   ) :: default_value
 
-    integer :: dm
+    integer :: dm, ns
     integer :: comp,d,lohi
+    integer :: press_comp
 
     adv_bc_level = default_value
 
 !    *** 2-D ***
+! last index represents
 !   COMP = 1  : x-velocity
 !   COMP = 2  : y-velocity
 !   COMP = 3  : density
-!   COMP = 4  : tracer
-!   COMP = 5  : an arbitrary quantity with FOEXTRAP
+!   COMP = 4 - (4+nscal-1) : tracer_i
+!   last COMP   : pressure
 
 !    *** 3-D ***
 !   COMP = 1  : x-velocity
 !   COMP = 2  : y-velocity
 !   COMP = 3  : z-velocity
 !   COMP = 4  : density
-!   COMP = 5  : tracer
-!   COMP = 6  : an arbitrary quantity with FOEXTRAP
-
+!   COMP = 5 - (5+nscal-1) : tracer_i
+!   last COMP   : pressure
+ 
     dm = size(adv_bc_level,dim=2)
+
+    press_comp = dm+nscal+1
 
     do comp = 0, size(adv_bc_level,dim=1)-1
     do d = 1, dm
@@ -176,39 +188,40 @@ module define_bc_module
        if (phys_bc_level(comp,d,lohi) == SLIP_WALL) then
           adv_bc_level(comp,d,lohi,1:dm) = HOEXTRAP      ! tangential vel.
           adv_bc_level(comp,d,lohi,   d) = EXT_DIR       ! normal vel.
-          adv_bc_level(comp,d,lohi,dm+1) = HOEXTRAP      ! density
-          adv_bc_level(comp,d,lohi,dm+2) = HOEXTRAP      ! tracer
-          adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
-          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
+          do ns = 1, nscal
+             adv_bc_level(comp,d,lohi,dm+ns) = HOEXTRAP      ! density and tracers
+          enddo
+          adv_bc_level(comp,d,lohi,press_comp) = FOEXTRAP      ! pressure
 
        else if (phys_bc_level(comp,d,lohi) == NO_SLIP_WALL) then
           adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
-          adv_bc_level(comp,d,lohi,dm+1) = HOEXTRAP      ! density
-          adv_bc_level(comp,d,lohi,dm+2) = HOEXTRAP      ! tracer
-          adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
-          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
-   
+          do ns = 1, nscal
+             adv_bc_level(comp,d,lohi,dm+ns) = HOEXTRAP      ! density and tracers
+          enddo
+          adv_bc_level(comp,d,lohi,press_comp) = FOEXTRAP      ! pressure
+
        else if (phys_bc_level(comp,d,lohi) == INLET) then
           adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
-          adv_bc_level(comp,d,lohi,dm+1) = EXT_DIR       ! density
-          adv_bc_level(comp,d,lohi,dm+2) = EXT_DIR       ! tracer
-          adv_bc_level(comp,d,lohi,dm+3) = FOEXTRAP      ! pressure
-          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
+          do ns = 1, nscal
+             adv_bc_level(comp,d,lohi,dm+ns) = EXT_DIR       ! density and tracers
+          enddo
+          adv_bc_level(comp,d,lohi,press_comp) = FOEXTRAP      ! pressure
 
        else if (phys_bc_level(comp,d,lohi) == OUTLET) then
           adv_bc_level(comp,d,lohi,1:dm) = FOEXTRAP      ! vel.
-          adv_bc_level(comp,d,lohi,dm+1) = FOEXTRAP      ! density
-          adv_bc_level(comp,d,lohi,dm+2) = FOEXTRAP      ! tracer
-          adv_bc_level(comp,d,lohi,dm+3) = EXT_DIR       ! pressure
-          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
+          do ns = 1, nscal
+             adv_bc_level(comp,d,lohi,dm+ns) = FOEXTRAP      ! density and tracers
+          enddo
+          adv_bc_level(comp,d,lohi,press_comp) = EXT_DIR       ! pressure
 
        else if (phys_bc_level(comp,d,lohi) == SYMMETRY) then
           adv_bc_level(comp,d,lohi,1:dm) = REFLECT_EVEN  ! tangential vel.
           adv_bc_level(comp,d,lohi,   d) = REFLECT_ODD   ! normal vel.
-          adv_bc_level(comp,d,lohi,dm+1) = REFLECT_EVEN  ! density
-          adv_bc_level(comp,d,lohi,dm+2) = REFLECT_EVEN  ! tracer
-          adv_bc_level(comp,d,lohi,dm+3) = REFLECT_EVEN  ! pressure
-          adv_bc_level(comp,d,lohi,dm+4) = FOEXTRAP      ! an arbitrary FOEXTRAP
+          do ns = 1, nscal
+             adv_bc_level(comp,d,lohi,dm+ns) = REFLECT_EVEN  ! density and tracers
+          enddo
+          adv_bc_level(comp,d,lohi,press_comp) = EXT_DIR       ! pressure
+
        end if
     end do
     end do
@@ -218,31 +231,39 @@ module define_bc_module
 
   subroutine ell_bc_level_build(ell_bc_level,phys_bc_level,default_value)
 
+    use probin_module, only : nscal
+
+    implicit none
+
     integer  , intent(inout) ::  ell_bc_level(0:,:,:,:)
     integer  , intent(in   ) :: phys_bc_level(0:,:,:)
     integer  , intent(in   ) :: default_value
 
-    integer :: dm
+    integer :: dm,ns
     integer :: comp,d,lohi
+    integer :: press_comp
 
     ell_bc_level = default_value
+ 
+    dm = size(ell_bc_level,dim=2)
+
+    press_comp = dm+nscal+1
 
 !    *** 2-D ***
+! last index represents
 !   COMP = 1  : x-velocity
 !   COMP = 2  : y-velocity
 !   COMP = 3  : density
-!   COMP = 4  : tracer
-!   COMP = 5  : pressure
+!   COMP = 4 - (4+nscal-1) : tracer_i
+!   last COMP   : pressure
 
 !    *** 3-D ***
 !   COMP = 1  : x-velocity
 !   COMP = 2  : y-velocity
 !   COMP = 3  : z-velocity
 !   COMP = 4  : density
-!   COMP = 5  : tracer
-!   COMP = 6  : pressure
-
-    dm = size(ell_bc_level,dim=2)
+!   COMP = 5 - (5+nscal-1) : tracer_i
+!   last COMP   : pressure
 
     do comp = 0, size(ell_bc_level,dim=1)-1
     do d = 1, dm
@@ -250,36 +271,47 @@ module define_bc_module
        if (phys_bc_level(comp,d,lohi) == SLIP_WALL) then
           ell_bc_level(comp,d,lohi,1:dm) = BC_NEU   ! tangential vel.
           ell_bc_level(comp,d,lohi,   d) = BC_DIR   ! normal vel.
-          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
-          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+          do ns = 1, nscal
+             ell_bc_level(comp,d,lohi,dm+ns) = BC_NEU   ! density and tracers
+          enddo
+          ell_bc_level(comp,d,lohi,press_comp) = BC_NEU   ! pressure
+
        else if (phys_bc_level(comp,d,lohi) == NO_SLIP_WALL) then
           ell_bc_level(comp,d,lohi,1:dm) = BC_DIR   ! vel.
-          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
-          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+          do ns = 1, nscal
+             ell_bc_level(comp,d,lohi,dm+ns) = BC_NEU   ! density and tracers
+          enddo
+          ell_bc_level(comp,d,lohi,press_comp) = BC_NEU   ! pressure
+
        else if (phys_bc_level(comp,d,lohi) == INLET) then
           ell_bc_level(comp,d,lohi,1:dm) = BC_DIR   ! vel.
-          ell_bc_level(comp,d,lohi,dm+1) = BC_DIR   ! density
-          ell_bc_level(comp,d,lohi,dm+2) = BC_DIR   ! tracer
-          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+          do ns = 1,nscal
+             ell_bc_level(comp,d,lohi,dm+ns) = BC_DIR   ! density and tracers
+          enddo
+          ell_bc_level(comp,d,lohi,press_comp) = BC_NEU   ! pressure
+
        else if (phys_bc_level(comp,d,lohi) == OUTLET) then
           ell_bc_level(comp,d,lohi,1:dm) = BC_NEU   ! vel.
-          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
-          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(comp,d,lohi,dm+3) = BC_DIR   ! pressure
+          do ns = 1, nscal
+             ell_bc_level(comp,d,lohi,dm+ns) = BC_NEU   ! density and tracers
+          enddo
+          ell_bc_level(comp,d,lohi,press_comp) = BC_DIR   ! pressure
+
        else if (phys_bc_level(comp,d,lohi) == SYMMETRY) then
           ell_bc_level(comp,d,lohi,1:dm) = BC_NEU   ! tangential vel.
           ell_bc_level(comp,d,lohi,   d) = BC_DIR   ! normal vel.
-          ell_bc_level(comp,d,lohi,dm+1) = BC_NEU   ! density
-          ell_bc_level(comp,d,lohi,dm+2) = BC_NEU   ! tracer
-          ell_bc_level(comp,d,lohi,dm+3) = BC_NEU   ! pressure
+          do ns = 1, nscal
+             ell_bc_level(comp,d,lohi,dm+ns) = BC_NEU   ! density and tracers
+          enddo
+          ell_bc_level(comp,d,lohi,press_comp) = BC_NEU   ! pressure
+
        else if (phys_bc_level(comp,d,lohi) == PERIODIC) then
           ell_bc_level(comp,d,lohi,1:dm) = BC_PER   ! tangential vel.
           ell_bc_level(comp,d,lohi,   d) = BC_PER   ! normal vel.
-          ell_bc_level(comp,d,lohi,dm+1) = BC_PER   ! density
-          ell_bc_level(comp,d,lohi,dm+2) = BC_PER   ! tracer
-          ell_bc_level(comp,d,lohi,dm+3) = BC_PER   ! pressure
+          do ns = 1, nscal
+             ell_bc_level(comp,d,lohi,dm+ns) = BC_PER   ! density and tracers
+          enddo
+          ell_bc_level(comp,d,lohi,press_comp) = BC_PER   ! pressure
        end if
     end do
     end do
