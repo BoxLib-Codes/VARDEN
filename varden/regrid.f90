@@ -31,16 +31,14 @@ contains
      real(dp_t)    , pointer       :: dx(:,:)
      type(bc_tower), intent(inout) :: the_bc_tower
 
-     logical                   :: new_grid
-     integer                   :: i, ii, jj, n, nl, dm, buf_wid
-     type(layout)              :: la_array(max_levs)
-     type(ml_boxarray)         :: mba
-     type(ml_layout)           :: mla_old
-     type(box_intersector), pointer :: bi(:)
+     logical           :: new_grid
+     integer           :: i, n, nl, dm, buf_wid
+     type(layout)      :: la_array(max_levs)
+     type(ml_layout)   :: mla_old
+     type(ml_boxarray) :: mba
 
      ! These are copies to hold the old data.
      type(multifab) :: uold(nlevs), sold(nlevs), gpold(nlevs), pold(nlevs)
-
 
      if (max_levs < 2) &
        call bl_error('Dont call regrid with max_levs < 2')
@@ -49,8 +47,9 @@ contains
 
      dm = mla%dim
 
-     ! Create copies of the old data
      do n = 1,nlevs
+        !
+        ! Create copies of the old data.
         call multifab_build( uold(n),mla_old%la(n),   dm,ng_cell)
         call multifab_build( sold(n),mla_old%la(n),nscal,ng_cell)
         call multifab_build(gpold(n),mla_old%la(n),   dm,ng_grow)
@@ -59,15 +58,14 @@ contains
         call multifab_copy_c( sold(n),1, s(n),1,nscal)
         call multifab_copy_c(gpold(n),1,gp(n),1,   dm)
         call multifab_copy_c( pold(n),1, p(n),1,    1)
-     end do
-
-     ! Get rid of the old data structures so we can create new ones 
-     !   with the same names.
-     do n = 1,nlevs
+        !
+        ! Get rid of the old data structures so we can create new ones 
+        ! with the same names.
         call multifab_destroy( u(n))
         call multifab_destroy( s(n))
         call multifab_destroy(gp(n))
         call multifab_destroy( p(n))
+
      end do
 
      call destroy(mla)
@@ -76,12 +74,16 @@ contains
 
      ! mba is big enough to hold max_levs levels
      ! even though we know we had nlevs last time, we might 
-     !   want more or fewer levels after regrid (if nlevs < max_levs)
+     ! want more or fewer levels after regrid (if nlevs < max_levs)
      call ml_boxarray_build_n(mba,max_levs,dm)
 
      do n = 1, max_levs-1
         mba%rr(n,:) = ref_ratio
      enddo
+
+     if (associated(u)) then
+        deallocate(u,s,p,gp)
+     end if
 
      allocate(u(max_levs),s(max_levs),p(max_levs),gp(max_levs))
 
@@ -157,11 +159,11 @@ contains
            nlevs = nl+1
            nl = nl + 1
 
-        endif ! if (new_grid) 
+        endif
 
-     enddo ! end while
+     enddo
 
-     do n = 2,nl
+     do n = 1,nl
          call destroy( s(n))
          call destroy( u(n))
          call destroy(gp(n))
@@ -176,7 +178,7 @@ contains
      if (nlevs .ge. 3) &
         call enforce_proper_nesting(mba,la_array)
 
-     do n = 2,nl
+     do n = 1,nl
          call destroy(la_array(n))
      end do
 
@@ -184,9 +186,14 @@ contains
 
      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
-     !
-     ! TODO - need to rebuild u(1), s(1), gp(1) and p(1) on mla(1)
-     !
+     ! Build the level 1 data again.
+     call make_new_state(mla%la(1),u(1),s(1),gp(1),p(1)) 
+
+     ! Copy the level 1 data from the "old" temporaries again.
+     call multifab_copy_c( u(1),1, uold(1) ,1,   dm)
+     call multifab_copy_c( s(1),1, sold(1) ,1,nscal)
+     call multifab_copy_c(gp(1),1,gpold(1),1,    dm)
+     call multifab_copy_c( p(1),1, pold(1) ,1,    1)
 
      nlevs = mla%nlevel
 
@@ -223,16 +230,19 @@ contains
              call multifab_copy_c( p(nl+1),1, pold(nl+1),1,    1)
         end if
 
+        call destroy( uold(nl+1))
+        call destroy( sold(nl+1))
+        call destroy(gpold(nl+1))
+        call destroy( pold(nl+1))
+
      end do
 
      call destroy(mba)
 
-     do n = 1,nlevs
-        call destroy( uold(n))
-        call destroy( sold(n))
-        call destroy(gpold(n))
-        call destroy( pold(n))
-     end do
+     call destroy( uold(1))
+     call destroy( sold(1))
+     call destroy(gpold(1))
+     call destroy( pold(1))
 
      call destroy(mla_old)
 
