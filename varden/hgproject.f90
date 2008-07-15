@@ -703,7 +703,7 @@ contains
     use stencil_module
     use coeffs_module
     use ml_solve_module
-    use nodal_divu_module
+    use nodal_divu_module, only: divu, subtract_divu_from_rh
     use probin_module, only : mg_verbose, cg_verbose
 
     type(ml_layout), intent(in   ) :: mla

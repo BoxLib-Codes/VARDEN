@@ -1354,9 +1354,9 @@ contains
        the_bc_tower,bc_comp,stencil_order,ref_ratio,umac_norm)
 
      use coeffs_module
-     use mg_module
+     use mg_module, only: mg_tower, mg_tower_build, mg_tower_destroy
      use ml_solve_module
-    use probin_module, only: mg_verbose, cg_verbose
+     use probin_module, only: mg_verbose, cg_verbose
 
     type(ml_layout),intent(in   ) :: mla
     integer        ,intent(in   ) :: stencil_order
@@ -1562,7 +1562,7 @@ contains
        mg_verbose,cg_verbose,umac_norm)
 
      use coeffs_module
-     use mg_module
+     use mg_module, only: mg_tower, mg_tower_build, mg_tower_destroy
      use ml_cc_module, only: ml_cc_applyop
 
     type(ml_layout),intent(in   ) :: mla

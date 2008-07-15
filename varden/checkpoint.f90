@@ -15,7 +15,7 @@ contains
 
     use bl_IO_module
     use fab_module
-    use fabio_module
+    use fabio_module, only: fabio_mkdir, fabio_ml_multifab_write_d
     use parallel
 
     integer       , intent(in) :: nlevs_in
@@ -87,7 +87,7 @@ contains
 
     use bl_IO_module
     use fab_module
-    use fabio_module
+    use fabio_module, only: fabio_ml_multifab_read_d
     use parallel
 
     type(multifab  ),                pointer :: mfs(:), mfs_nodal(:)
