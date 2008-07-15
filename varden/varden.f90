@@ -553,9 +553,9 @@ contains
           nb = mla%mba%bas(n)%nboxes
           bx = ml_layout_get_pd(mla,n)
           write(unit=un, fmt='("   (")', advance = 'no') 
-          write(unit=un, fmt='("(" 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
+          write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
           write(unit=un, fmt='(") (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
-          write(unit=un, fmt='(") (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+          write(unit=un, fmt='(") (", 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
           write(unit=un, fmt='("))")', advance = 'no' )
           write(unit=un, fmt='(" ",i4)', advance = 'yes') nb
           do i = 1, nb
@@ -563,8 +563,8 @@ contains
              tp = 0
              write(unit=un, fmt='("      (")', advance = 'no') 
              write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
-             write(unit=un, fmt='(") (" 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
-             write(unit=un, fmt='(") (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+             write(unit=un, fmt='(") (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
+             write(unit=un, fmt='(") (", 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
              write(unit=un, fmt='("))")', advance = 'no' )
              write(unit=un, fmt='(" ")')
           end do
