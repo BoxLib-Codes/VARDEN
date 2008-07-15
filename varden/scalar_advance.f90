@@ -55,7 +55,9 @@ contains
     dm    = mla%dim
 
     is_conservative(1) = .true.
-    is_conservative(2) = .false.
+    do comp = 2, nscal
+      is_conservative(comp) = .false.
+    end do
 
     is_vel  = .false.
 
@@ -81,12 +83,13 @@ contains
     ! Compute laps for passive scalar only
     !***********************************
     if (diff_coef .gt. ZERO) then
-       comp = 2
-       bc_comp = dm+comp
-       call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
+       do comp = 2, nscal
+          bc_comp = dm+comp
+          call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
+       end do
     else
       do n = 1, nlevs
-         call setval(laps(n),ZERO)
+         call setval(laps(n),ZERO,all=.true.)
       enddo
     endif
 
@@ -144,22 +147,23 @@ contains
     enddo
 
     if (diff_coef > ZERO) then
-       comp = 2
-       bc_comp = dm+comp
-       
-       ! Crank-Nicolson
-       if (diffusion_type .eq. 1) then
-          visc_mu = HALF*dt*diff_coef
+       do comp = 2, nscal
+          bc_comp = dm+comp
+          
+          ! Crank-Nicolson
+          if (diffusion_type .eq. 1) then
+             visc_mu = HALF*dt*diff_coef
           
           ! backward Euler
-       else if (diffusion_type .eq. 2) then
-          visc_mu = dt*diff_coef
-          
-       else
-          call bl_error('BAD DIFFUSION TYPE ')
-       end if
+          else if (diffusion_type .eq. 2) then
+             visc_mu = dt*diff_coef
+
+          else
+             call bl_error('BAD DIFFUSION TYPE ')
+          end if
        
-       call diff_scalar_solve(mla,snew,laps,dx,visc_mu,the_bc_tower,comp,bc_comp)
+          call diff_scalar_solve(mla,snew,laps,dx,visc_mu,the_bc_tower,comp,bc_comp)
+       end do
     end if
 
     do n = 1,nlevs
