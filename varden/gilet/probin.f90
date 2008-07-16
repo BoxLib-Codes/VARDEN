@@ -42,6 +42,7 @@ module probin_module
   integer, save   :: sdc_iters
   real(dp_t),save :: k_rxn1, k_rxn2
   logical,save    :: mass_fractions
+  integer, save   :: nspec
 
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
@@ -107,6 +108,7 @@ module probin_module
   namelist /probin/ k_rxn2
   namelist /probin/ mass_fractions
   namelist /probin/ nscal
+  namelist /probin/ nspec
 
 contains
 
@@ -139,6 +141,7 @@ contains
 
     dim_in = 2
     nscal = 2
+    nspec = 1
 
     allocate(nodal(dim_in))
     nodal = .true.

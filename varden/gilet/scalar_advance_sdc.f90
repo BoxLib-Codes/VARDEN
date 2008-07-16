@@ -11,7 +11,7 @@ module scalar_advance_sdc_module
   use sdc_interpolation
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose, sdc_iters, &
-                            mass_fractions
+                            mass_fractions, nspec
 
   implicit none
 
@@ -51,7 +51,7 @@ contains
     ! diffusion at various times:  D_s(time,level)
     type(multifab) , allocatable :: D_s(:,:)
 
-    integer         :: i,j,k,n, nspecies
+    integer         :: i,j,k,n
     integer         :: comp,bc_comp,nlevs,dm
     logical         :: is_vel
     real(kind=dp_t) :: diff_fac,visc_mu
@@ -61,7 +61,6 @@ contains
     type(multifab), allocatable :: snew_old(:), difference(:)
 
 
-    nspecies = nscal -1  ! scal = density + species  
     nlevs = mla%nlevel
     dm    = mla%dim
 
@@ -91,16 +90,16 @@ contains
        call multifab_build( scal_force(n),ext_scal_force(n)%la,nscal,1)
        call multifab_build( divu(n),mla%la(n),    1,1)
 ! have no ghost cells--may need to change
-       call multifab_build( source(n),mla%la(n),nspecies,1)
+       call multifab_build( source(n),mla%la(n),nspec,1)
        do j = 0, n_diff-1
-          call multifab_build( D_s(j,n),mla%la(n),nspecies,0)
+          call multifab_build( D_s(j,n),mla%la(n),nspec,0)
           call setval(D_s(j,n),zero,all=.true.)
        enddo
        do j = 0, n_adv-1
-          call multifab_build( adv_s(j,n),mla%la(n),nspecies,0)
+          call multifab_build( adv_s(j,n),mla%la(n),nspec,0)
           call setval(adv_s(j,n),zero,all=.true.)
        enddo
-       call multifab_build( I_ADR(n),mla%la(n),nspecies,0)
+       call multifab_build( I_ADR(n),mla%la(n),nspec,0)
        call setval(I_ADR(n),zero,all=.true.)
 
        do i = 1,dm

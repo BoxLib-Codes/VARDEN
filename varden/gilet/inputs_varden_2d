@@ -4,11 +4,12 @@
 
 ! number of scalar quantities = density + # tracers 
  nscal = 4
+ nspec = 3  
 
 ! inputs for reactions
   reactions = T
 ! sdc_iters < 0 means use strang splitting
-  sdc_iters = -1
+  sdc_iters = 2
   k_rxn1 = 1050.0d0
   k_rxn2 = 132.0d0
 

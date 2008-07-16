@@ -317,7 +317,7 @@ contains
 !         enddo
 
        ! Runge-Kutta
-       call f(k1,u,               tl           ,adv,diff,dt)
+       call f(k1,u              , tl           ,adv,diff,dt)
        call f(k2,u + half*dtl*k1, tl + half*dtl,adv,diff,dt)
        call f(k3,u + half*dtl*k2, tl + half*dtl,adv,diff,dt)
        call f(k4,u +      dtl*k3, tl +      dtl,adv,diff,dt)
