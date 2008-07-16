@@ -5,7 +5,7 @@
 ! fixed_grids = "gr0_2d"
 
 !!!! Inputs for adaptive grids !!!!
- nlevs = 4
+ max_levs = 4
  n_cellx = 32
  n_celly = 32    
  ref_ratio = 2

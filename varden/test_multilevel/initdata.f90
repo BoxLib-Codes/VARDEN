@@ -14,20 +14,58 @@ module init_module
   implicit none
 
   private
-  public :: initdata, impose_pressure_bcs
+  public :: initdata, impose_pressure_bcs, initdata_on_level
 
 contains
 
-  subroutine initdata(nlevs,u,s,dx,prob_hi,bc,nscal,mla)
+  subroutine initdata_on_level(u,s,dx,bc,la)
 
     use multifab_physbc_module
+    use probin_module, only : nscal
+
+    type(multifab) , intent(inout) :: u,s
+    real(kind=dp_t), intent(in   ) :: dx(:)
+    type(bc_level) , intent(in   ) :: bc
+    type(layout)   , intent(inout) :: la
+
+    real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
+    integer :: lo(u%dim),hi(u%dim)
+    integer :: i,ng,dm,n
+
+    ng = u%ng
+    dm = u%dim
+
+    do i = 1, u%nboxes
+       if ( multifab_remote(u,i) ) cycle
+       uop => dataptr(u,i)
+       sop => dataptr(s,i)
+       lo =  lwb(get_box(u,i))
+       hi =  upb(get_box(u,i))
+       select case (dm)
+       case (2)
+          call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx)
+       case (3)
+          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx)
+       end select
+    end do
+
+    call multifab_fill_boundary(u)
+    call multifab_fill_boundary(s)
+
+    call multifab_physbc(u,1,1,   dm,   bc)
+    call multifab_physbc(s,1,dm+1,nscal,bc)
+
+  end subroutine initdata_on_level
+
+  subroutine initdata(nlevs,u,s,dx,bc,mla)
+
+    use multifab_physbc_module
+    use probin_module, only : nscal
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(inout) :: u(:),s(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:)
-    real(kind=dp_t), intent(in   ) :: prob_hi(:)
     type(bc_level) , intent(in   ) :: bc(:)
-    integer        , intent(in   ) :: nscal
     type(ml_layout), intent(inout) :: mla
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
@@ -47,9 +85,9 @@ contains
           hi =  upb(get_box(u(n), i))
           select case (dm)
           case (2)
-             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:), prob_hi)
+             call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:))
           case (3)
-             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:), prob_hi)
+             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:))
           end select
        end do
 
@@ -73,13 +111,12 @@ contains
 
   end subroutine initdata
 
-  subroutine initdata_2d (u,s,lo,hi,ng,dx,prob_hi)
+  subroutine initdata_2d (u,s,lo,hi,ng,dx)
 
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(in ) :: dx(:)
-    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
     !     Local variables
     integer :: i, j
@@ -123,13 +160,12 @@ contains
 
   end subroutine initdata_2d
 
-  subroutine initdata_3d (u,s,lo,hi,ng,dx,prob_hi)
+  subroutine initdata_3d (u,s,lo,hi,ng,dx)
 
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
     real (kind = dp_t), intent(in ) :: dx(:)
-    real (kind = dp_t), intent(in ) :: prob_hi(:)
 
     !     Local variables
     integer :: i, j, k

@@ -68,7 +68,7 @@ contains
 
     end do
 
-    if ( verbose .ge. 1 ) call print_old(uold,proj_type,time)
+    if ( verbose .ge. 1 ) call print_old(uold,proj_type,time,istep)
 
     ! compute lapu
     if (visc_coef .gt. ZERO) then
@@ -104,7 +104,7 @@ contains
     call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                    the_bc_tower,press_comp)
 
-    if ( verbose .ge. 1 ) call print_new(unew,proj_type,time,dt)
+    if ( verbose .ge. 1 ) call print_new(unew,proj_type,time,dt,istep)
 
     do n = 1,nlevs
        call multifab_destroy(lapu(n))
@@ -116,13 +116,14 @@ contains
 
   end subroutine advance_timestep
 
-  subroutine print_old(u,proj_type,time)
+  subroutine print_old(u,proj_type,time,istep)
 
      use probin_module, only : nlevs
 
      type(multifab), intent(in) :: u(:)
      integer       , intent(in) :: proj_type
      real(dp_t)    , intent(in) :: time
+     integer       , intent(in) :: istep
 
      real(dp_t) :: nrm1, nrm2, nrm3
      integer    :: n,dm
@@ -160,13 +161,14 @@ contains
 
   end subroutine print_old
 
-  subroutine print_new(u,proj_type,time,dt)
+  subroutine print_new(u,proj_type,time,dt,istep)
 
      use probin_module, only : nlevs
 
      type(multifab), intent(in) :: u(:)
      integer       , intent(in) :: proj_type
      real(dp_t)    , intent(in) :: time,dt
+     integer       , intent(in) :: istep
 
      real(dp_t) :: nrm1, nrm2, nrm3
      integer    :: n,dm
