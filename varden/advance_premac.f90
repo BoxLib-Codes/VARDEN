@@ -30,15 +30,12 @@ contains
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
 
-    type(multifab), allocatable :: vel_force(:)
-    integer                     :: dm,n,nlevs
-    real(kind=dp_t)             :: visc_fac
+    type(multifab)  :: vel_force(mla%nlevel)
+    integer         :: dm,n,nlevs
+    real(kind=dp_t) :: visc_fac
 
+    dm    = uold(1)%dim
     nlevs = mla%nlevel
-
-    allocate(vel_force(nlevs))
-
-    dm = uold(1)%dim
 
     do n = 1, nlevs
        call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)

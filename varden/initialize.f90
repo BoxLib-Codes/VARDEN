@@ -308,14 +308,13 @@ contains
      integer       , intent(in   ) :: num_levs
      logical       , intent(in   ) :: pmask(:)
 
-     integer, allocatable :: domain_phys_bc(:,:)
+     integer :: domain_phys_bc(dim_in,2)
 
      integer :: dm
 
      dm = dim_in
 
      ! Define the physical boundary conditions on the domain
-     allocate(domain_phys_bc(dm,2))
      ! Put the bc values from the inputs file into domain_phys_bc
      domain_phys_bc(1,1) = bcx_lo
      domain_phys_bc(1,2) = bcx_hi
@@ -346,8 +345,6 @@ contains
      ! Initialize the_bc_tower object.
 
      call bc_tower_init(the_bc_tower,num_levs,dm,domain_phys_bc)
-
-     deallocate(domain_phys_bc)
 
   end subroutine initialize_bc
 

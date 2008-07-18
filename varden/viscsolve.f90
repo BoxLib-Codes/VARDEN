@@ -31,17 +31,14 @@ contains
     type(bc_tower ), intent(in   ) :: the_bc_tower
 
     ! Local  
-    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-    type(bndry_reg), pointer    :: fine_flx(:) => Null()
-    integer                     :: n,nlevs,d,dm
-    integer                     :: bc_comp,ng_cell
-    real(kind=dp_t)             :: nrm1, nrm2
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel),alpha(mla%nlevel),beta(mla%nlevel)
+    type(bndry_reg) :: fine_flx(2:mla%nlevel)
+    integer         :: n,nlevs,d,dm,bc_comp,ng_cell
+    real(kind=dp_t) :: nrm1, nrm2
 
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = unew(1)%ng
-
-    allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
     do n = 1,nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -68,7 +65,6 @@ contains
        end do
     endif
 
-    allocate(fine_flx(2:nlevs))
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
@@ -121,14 +117,9 @@ contains
        call multifab_destroy(beta(n))
     end do
 
-    deallocate(rh)
-    deallocate(phi)
-    deallocate(alpha)
-    deallocate(beta)
     do n = 2,nlevs
        call bndry_reg_destroy(fine_flx(n))
     end do
-    deallocate(fine_flx)
 
   contains
 
@@ -244,17 +235,14 @@ contains
     integer        , intent(in   ) :: icomp,bc_comp
 
     ! Local  
-    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-    type(bndry_reg), pointer    :: fine_flx(:) => Null()
-    integer                     :: n,nlevs,dm
-    integer                     :: ng_cell
-    real(kind=dp_t)             :: nrm1
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel),alpha(mla%nlevel),beta(mla%nlevel)
+    type(bndry_reg) :: fine_flx(2:mla%nlevel)
+    integer         :: n,nlevs,dm,ng_cell
+    real(kind=dp_t) :: nrm1
 
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = snew(1)%ng
-
-    allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
     do n = 1,nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -280,7 +268,6 @@ contains
        call mkrhs(rh(n),snew(n),laps(n),phi(n),mu,icomp)
     end do
 
-    allocate(fine_flx(2:nlevs))
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
@@ -324,14 +311,9 @@ contains
        call multifab_destroy(beta(n))
     end do
 
-    deallocate(rh)
-    deallocate(phi)
-    deallocate(alpha)
-    deallocate(beta)
     do n = 2,nlevs
        call bndry_reg_destroy(fine_flx(n))
     end do
-    deallocate(fine_flx)
 
   contains
 

@@ -36,23 +36,18 @@ contains
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
-    type(multifab), allocatable :: vel_force(:)
-    type(multifab), allocatable :: divu(:)
-    type(multifab), allocatable :: uflux(:,:)
-    type(multifab), allocatable :: uedge(:,:)
-
-    integer :: i,n,dm,comp,nlevs
-    logical :: is_vel,is_conservative(uold(1)%dim)
-    logical, allocatable :: umac_nodal_flag(:)
+    type(multifab)  :: vel_force(mla%nlevel)
+    type(multifab)  :: divu(mla%nlevel)
+    type(multifab)  :: uflux(mla%nlevel,mla%dim)
+    type(multifab)  :: uedge(mla%nlevel,mla%dim)
+    integer         :: i,n,dm,comp,nlevs
+    logical         :: is_vel,is_conservative(uold(1)%dim)
+    logical         :: umac_nodal_flag(mla%dim)
     real(kind=dp_t) :: visc_fac,visc_mu
     real(kind=dp_t) :: umin,umax
 
     nlevs = mla%nlevel
     dm    = mla%dim
-
-    allocate(vel_force(nlevs),divu(nlevs))
-    allocate(uflux(nlevs,dm),uedge(nlevs,dm))
-    allocate(umac_nodal_flag(mla%dim))
 
     is_conservative = .false.
     is_vel = .true.
@@ -110,8 +105,6 @@ contains
        call multifab_destroy(uedge(n,i))
        end do
     enddo
-
-    deallocate(vel_force,divu,uflux,uedge,umac_nodal_flag)
 
     if (visc_coef > ZERO) then
        ! Crank-Nicolson

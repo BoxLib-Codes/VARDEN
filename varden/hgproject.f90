@@ -44,12 +44,10 @@ contains
     real(dp_t)     , intent(in   ), optional :: eps_in
 
     ! Local  
-    type(multifab), allocatable :: phi(:),gphi(:)
-    logical                     :: nodal(mla%dim)
-    integer                     :: n,nlevs,dm,ng
-    real(dp_t)                  :: umin,umax,vmin,vmax,wmin,wmax
-    integer                     :: stencil_type
-    logical                     :: use_div_coeff_1d, use_div_coeff_3d
+    type(multifab) :: phi(mla%nlevel),gphi(mla%nlevel)
+    logical        :: nodal(mla%dim),use_div_coeff_1d, use_div_coeff_3d
+    integer        :: n,nlevs,dm,ng,stencil_type
+    real(dp_t)     :: umin,umax,vmin,vmax,wmin,wmax
 
     ! stencil_type = ST_DENSE
     stencil_type = ST_CROSS
@@ -63,8 +61,6 @@ contains
     if (parallel_IOProcessor() .and. verbose .ge. 1) then
        print *,'PROJ_TYPE IN HGPROJECT:',proj_type
     endif
-
-    allocate(phi(nlevs), gphi(nlevs))
 
     use_div_coeff_1d = .false.
     if (present(div_coeff_1d)) use_div_coeff_1d = .true.
@@ -185,9 +181,6 @@ contains
        call multifab_destroy(phi(n))
        call multifab_destroy(gphi(n))
     end do
-
-    deallocate(phi)
-    deallocate(gphi)
 
   contains
 
@@ -717,20 +710,15 @@ contains
 
     type(multifab ), intent(in   ), optional :: divu_rhs(:)
     real(dp_t)     , intent(in)   , optional :: eps_in 
-    !
-    ! Local variables
-    !
 
     type(box     )  :: pd
     type(  layout)  :: la
 
-    type(mg_tower), allocatable :: mgt(:)
-    type(multifab), allocatable :: coeffs(:),rh(:)
-    type(multifab), allocatable :: one_sided_ss(:)
+    type(mg_tower) :: mgt(mla%nlevel)
+    type(multifab) :: one_sided_ss(2:mla%nlevel), rh(mla%nlevel)
+    type(multifab), allocatable :: coeffs(:)
 
-    real(dp_t) :: bottom_solver_eps
-    real(dp_t) :: eps
-    real(dp_t) :: omega
+    real(dp_t) :: bottom_solver_eps, eps, omega
 
     logical :: nodal(mla%dim)
     integer :: i, dm, nlevs, ns
@@ -750,9 +738,6 @@ contains
     nlevs = mla%nlevel
 
     nodal = .true.
-
-    allocate(mgt(nlevs))
-    allocate(one_sided_ss(2:nlevs))
 
     max_nlevel        = mgt(nlevs)%max_nlevel
     max_iter          = mgt(nlevs)%max_iter
@@ -881,7 +866,6 @@ contains
 
     end do
 
-    allocate(rh(nlevs))
     do n = 1, nlevs
        call multifab_build(rh(n),mla%la(n),1,1,nodal)
        call setval(rh(n),ZERO,all=.true.)
@@ -920,10 +904,6 @@ contains
           call multifab_destroy(one_sided_ss(n))
        end do
     endif
-
-    deallocate(mgt)
-    deallocate(rh)
-    deallocate(one_sided_ss)
 
   end subroutine hg_multigrid
 

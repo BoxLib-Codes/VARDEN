@@ -30,11 +30,9 @@ contains
     integer        , intent(in   ) :: bc_comp
 
     ! local variables
-    type(multifab), allocatable :: alpha(:), beta(:)
-    type(multifab), allocatable :: phi(:), Lphi(:)
-
-    integer         :: n
-    integer         :: nlevs,dm
+    integer        :: n, nlevs,dm
+    type(multifab) :: alpha(mla%nlevel), beta(mla%nlevel)
+    type(multifab) :: phi(mla%nlevel), Lphi(mla%nlevel)
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -42,9 +40,6 @@ contains
     !***********************************
     ! Allocate and build temporary arrays
     !***********************************
-
-    allocate(phi(nlevs),Lphi(nlevs))
-    allocate(alpha(nlevs),beta(nlevs))
 
     do n = 1, nlevs
        call multifab_build(  phi(n),mla%la(n),    1,1)
@@ -77,8 +72,6 @@ contains
         call multifab_destroy(  phi(n))
         call multifab_destroy( Lphi(n))
      enddo
- 
-     deallocate(phi,Lphi,alpha,beta)
 
   end subroutine get_explicit_diffusive_term
 

@@ -35,12 +35,12 @@ contains
     type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
 
     ! Local  
-    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-    type(bndry_reg), pointer    :: fine_flx(:) => Null()
-    real(dp_t)     ,allocatable :: umac_norm(:)
-    integer                     :: d,dm,i,n
-    integer                     :: nlevs
-    logical                     :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
+    type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel)
+    type(bndry_reg) :: fine_flx(2:mla%nlevel)
+    real(dp_t)      :: umac_norm(mla%nlevel)
+    integer         :: d,dm,i,n, nlevs
+    logical         :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
 
     nlevs = mla%nlevel
     dm = umac(nlevs,1)%dim
@@ -56,9 +56,6 @@ contains
 
     if (use_div_coeff_1d .and. use_div_coeff_3d) &
        call bl_error('CANT HAVE 1D and 3D DIV_COEFF IN MACPROJECT ')
-
-    allocate(rh(nlevs), phi(nlevs), alpha(nlevs), beta(nlevs))
-    allocate(umac_norm(nlevs))
 
     do n = 1, nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -99,7 +96,6 @@ contains
        call mult_beta_by_3d_coeff(mla,nlevs,beta,div_coeff_3d)
     end if
 
-    allocate(fine_flx(2:nlevs))
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
@@ -139,13 +135,6 @@ contains
     do n = 2,nlevs
        call bndry_reg_destroy(fine_flx(n))
     end do
-    deallocate(fine_flx)
-
-    deallocate(rh)
-    deallocate(phi)
-    deallocate(alpha)
-    deallocate(beta)
-    deallocate(umac_norm)
 
   contains
 
@@ -1379,10 +1368,9 @@ contains
 
     type( multifab) :: ss
     type(imultifab) :: mm
-    type(sparse) :: sparse_object
-    type(mg_tower), allocatable :: mgt(:)
-    integer        :: i, dm, ns, nlevs
-    integer        :: test
+    type(sparse)    :: sparse_object
+    type(mg_tower)  :: mgt(mla%nlevel)
+    integer         :: i, dm, ns, nlevs, test
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
@@ -1399,8 +1387,6 @@ contains
 
     nlevs = mla%nlevel
     dm    = mla%dim
-
-    allocate(mgt(nlevs))
 
     test           = 0
 
@@ -1553,7 +1539,6 @@ contains
     do n = 1, nlevs
        call mg_tower_destroy(mgt(n))
     end do
-    deallocate(mgt)
 
   end subroutine mac_multigrid
 
@@ -1586,10 +1571,9 @@ contains
 
     type( multifab) :: ss
     type(imultifab) :: mm
-    type(sparse) :: sparse_object
-    type(mg_tower), allocatable :: mgt(:)
-    integer        :: i, dm, ns, nlevs
-    integer        :: test
+    type(sparse)    :: sparse_object
+    type(mg_tower)  :: mgt(mla%nlevel)
+    integer         :: i, dm, ns, nlevs, test
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
@@ -1602,15 +1586,13 @@ contains
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
-    type(lmultifab), pointer     :: fine_mask(:) => Null()
-    type(boxarray) :: bac
+    type(lmultifab) :: fine_mask(mla%nlevel)
+    type(boxarray)  :: bac
 
     !! Defaults:
 
     nlevs = mla%nlevel
     dm    = mla%dim
-
-    allocate(mgt(nlevs))
 
     test           = 0
 
@@ -1748,7 +1730,6 @@ contains
     end if
 
     ! Copied in from ml_solve.f90:54 to create fine_mask
-    allocate(fine_mask(nlevs))
     do n = nlevs, 1, -1
        call lmultifab_build(fine_mask(n), mla%la(n), 1, 0)
        call setval(fine_mask(n), val = .true., all = .true.)
@@ -1766,8 +1747,6 @@ contains
     do n = 1,nlevs
        call lmultifab_destroy(fine_mask(n))
     end do
-    deallocate(fine_mask)
-
 
     do n = 1,nlevs
        call multifab_fill_boundary(phi(n))
@@ -1784,7 +1763,6 @@ contains
     do n = 1, nlevs
        call mg_tower_destroy(mgt(n))
     end do
-    deallocate(mgt)
 
   end subroutine mac_applyop
 
