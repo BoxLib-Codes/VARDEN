@@ -14,7 +14,7 @@ module init_module
   implicit none
 
   private
-  public :: initdata, impose_pressure_bcs, initdata_on_level
+  public :: initdata, initdata_on_level
 
 contains
 
@@ -129,6 +129,7 @@ contains
 
           u(i,j,1) = ZERO
           u(i,j,2) = ZERO
+
           s(i,j,1) = ONE
           s(i,j,2) = ZERO
 
@@ -138,6 +139,7 @@ contains
     ! add two "bubbles" of higher density
     ! one centered over fine grid
     ! one centered over coarse grid
+
     do j=lo(2),hi(2)
        do i=lo(1),hi(1)
 
@@ -213,29 +215,5 @@ contains
     enddo
 
   end subroutine initdata_3d
-
-  subroutine impose_pressure_bcs(p,mla,mult)
-
-    type(multifab ), intent(inout) :: p(:)
-    type(ml_layout), intent(in   ) :: mla
-    real(kind=dp_t), intent(in   ) :: mult
-
-    type(box)           :: bx,pd
-    integer             :: i,n,nlevs
-
-    nlevs = size(p,dim=1)
-
-    do n = 1,nlevs
-       pd = layout_get_pd(mla%la(n))
-       do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
-          bx = get_ibox(p(n),i)
-          if (bx%lo(2) == pd%lo(2)) then
-             bx%hi(2) = bx%lo(2)
-             call setval(p(n),mult,bx)
-          end if
-       end do
-    end do
-
-  end subroutine impose_pressure_bcs
 
 end module init_module
