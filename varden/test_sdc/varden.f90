@@ -14,7 +14,6 @@ subroutine varden()
   use proj_parameters
   use ml_restriction_module
   use multifab_physbc_module
-  use bc_module
   use define_bc_module
   use bl_mem_stat_module
   use bl_timer_module
@@ -27,10 +26,11 @@ subroutine varden()
   use advance_module
   use regrid_module
 
-  use probin_module, only : dim_in, max_levs, nlevs, ng_cell, ng_grow, pmask, &
-                            init_iter, max_step, &
-                            stop_time, restart, chk_int, plot_int, regrid_int, init_shrink, &
-                            fixed_dt, nodal, ref_ratio, fixed_grids, grids_file_name, &
+  use probin_module, only : dim_in, max_levs, nlevs, ng_cell, ng_grow, init_iter,&
+                            max_step, stop_time, restart, chk_int, plot_int, &
+                            regrid_int, init_shrink, fixed_dt, prob_lo_x, &
+                            prob_lo_y, prob_lo_z, prob_hi_x, prob_hi_y, prob_hi_z,&
+                            ref_ratio, pmask, fixed_grids, grids_file_name, &
                             do_initial_projection, grav, probin_init
 
   implicit none
@@ -44,7 +44,7 @@ subroutine varden()
   integer    :: init_step
   integer    :: press_comp, vort_comp
 
-  real(dp_t)  , pointer     :: dx(:,:)
+  real(dp_t)  , pointer :: dx(:,:)
   type(ml_layout)           :: mla
 
   ! Cell-based quantities
@@ -83,12 +83,13 @@ subroutine varden()
   plot_names(2) = "y_vel"
   if (dm > 2) plot_names(3) = "z_vel"
   plot_names(dm+1) = "density"
-  if (nscal > 1) plot_names(dm+2) = "tracer"
+  if (nscal > 1) plot_names(dm+2) = "tracerA"
+  if (nscal > 2) plot_names(dm+3) = "tracerB"
+  if (nscal > 3) plot_names(dm+4) = "tracerC" 
   plot_names(dm+nscal+1) = "vort"
   plot_names(dm+nscal+2) = "gpx"
   plot_names(dm+nscal+3) = "gpy"
   if (dm > 2) plot_names(dm+nscal+4) = "gpz"
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialize the grids and the data.
@@ -96,16 +97,17 @@ subroutine varden()
 
   if (restart >= 0) then
 
-     call initialize_from_restart(mla,restart,time,dt,dx,pmask,uold,sold,gp,p,the_bc_tower)
+     call initialize_from_restart(mla,restart,time,dt,dx,pmask,uold,sold,gp,&
+                                  p,the_bc_tower)
 
   else if (fixed_grids /= '') then
-
+     
      call initialize_with_fixed_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
 
   else  ! Adaptive gridding
-
+     
      call initialize_with_adaptive_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
-
+     
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -132,8 +134,13 @@ subroutine varden()
           call multifab_build(rhohalf(n), mla%la(n),1, 1)
           call setval(rhohalf(n),ONE, all=.true.)
         end do
-        call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,dt_temp, &
-                       the_bc_tower,press_comp)
+
+!call multifab_print(uold(1))
+!stop
+
+        call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,&
+                       dt_temp,time, the_bc_tower,press_comp)
+
          do n = 1,nlevs
            call multifab_destroy(rhohalf(n))
            call setval( p(n)  ,0.0_dp_t, all=.true.)
@@ -163,8 +170,8 @@ subroutine varden()
      call multifab_fill_boundary(sold(n))
 
      bc = the_bc_tower%bc_tower_array(n)
-     call multifab_physbc(uold(n),1,1,   dm,   bc)
-     call multifab_physbc(sold(n),1,dm+1,nscal,bc)
+     call multifab_physbc(uold(n),1,1,   dm,   bc,dx(n,:),time)
+     call multifab_physbc(sold(n),1,dm+1,nscal,bc,dx(n,:),time)
 
      !    This is done to impose any Dirichlet bc's on unew or snew.
      call multifab_copy_c(unew(n),1,uold(n),1,dm   ,ng=unew(n)%ng)
@@ -230,29 +237,29 @@ subroutine varden()
 
      do istep = init_step, max_step
 
-!       if ( verbose > 0 ) then
-!          if ( parallel_IOProcessor() ) then
-!             print *, 'MEMORY STATS AT START OF TIMESTEP ', istep
-!             print*, ' '
-!          end if
-!          call print(multifab_mem_stats(),    "    multifab")
-!          call print(fab_mem_stats(),         "         fab")
-!          call print(boxarray_mem_stats(),    "    boxarray")
-!          call print(layout_mem_stats(),      "      layout")
-!          call print(boxassoc_mem_stats(),    "    boxassoc")
-!          call print(fgassoc_mem_stats(),     "     fgassoc")
-!          call print(syncassoc_mem_stats(),   "   syncassoc")
-!          call print(copyassoc_mem_stats(),   "   copyassoc")
-!          call print(fluxassoc_mem_stats(),   "   fluxassoc")
-!          if ( parallel_IOProcessor() ) print*, ''
-!       end if
+       if ( verbose > 0 ) then
+          if ( parallel_IOProcessor() ) then
+             print *, 'MEMORY STATS AT START OF TIMESTEP ', istep
+             print*, ' '
+          end if
+          call print(multifab_mem_stats(),    "    multifab")
+          call print(fab_mem_stats(),         "         fab")
+          call print(boxarray_mem_stats(),    "    boxarray")
+          call print(layout_mem_stats(),      "      layout")
+          call print(boxassoc_mem_stats(),    "    boxassoc")
+          call print(fgassoc_mem_stats(),     "     fgassoc")
+          call print(syncassoc_mem_stats(),   "   syncassoc")
+          call print(copyassoc_mem_stats(),   "   copyassoc")
+          call print(fluxassoc_mem_stats(),   "   fluxassoc")
+          if ( parallel_IOProcessor() ) print*, ''
+       end if
 
-        if (max_levs > 1 .and. regrid_int > 0 .and. &
+        if (nlevs > 1 .and. regrid_int > 0 .and. &
             (mod(istep-1,regrid_int) .eq. 0) ) then
 
            ! Keep the state on the previous grid in unew,snew
            ! Create the state on the new grid in uold,sold
-           call regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
+           call regrid(mla,uold,sold,gp,p,dx,time,the_bc_tower)
            if (grids_file_name /= '') &
               call write_grids(grids_file_name,mla,istep)
 
@@ -269,17 +276,17 @@ subroutine varden()
                                           ng_cell,mla%mba%rr(n-1,:), &
                                           the_bc_tower%bc_tower_array(n-1), &
                                           the_bc_tower%bc_tower_array(n  ), &
-                                          1,1,dm)
+                                          1,1,dm,dx(n-1:n,:),time)
            call multifab_fill_ghost_cells(sold(n),sold(n-1), &
                                           ng_cell,mla%mba%rr(n-1,:), &
                                           the_bc_tower%bc_tower_array(n-1), &
                                           the_bc_tower%bc_tower_array(n  ), &
-                                          1,dm+1,nscal)
+                                          1,dm+1,nscal,dx(n-1:n,:),time)
            call multifab_fill_ghost_cells(gp(n),gp(n-1), &
                                           ng_grow,mla%mba%rr(n-1,:), &
                                           the_bc_tower%bc_tower_array(n-1), &
                                           the_bc_tower%bc_tower_array(n  ), &
-                                          1,1,dm)
+                                          1,1,dm,dx(n-1:n,:),time)
         end do
 
         do n = 1,nlevs
@@ -300,8 +307,11 @@ subroutine varden()
            if (stop_time >= 0.d0) then
               if (time+dt > stop_time) then
                  dt = stop_time - time
-                 if (parallel_IOProcessor()) &
-                    print*, "Stop time limits dt =",dt
+                 if (dt < 1.0d-20) then 
+                    if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep-1)
+                    if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep-1)
+                    goto 2000
+                 end if
               end if
            end if
         end if
@@ -316,22 +326,22 @@ subroutine varden()
 
         time = time + dt
 
-!       if ( verbose > 0 ) then
-!          if ( parallel_IOProcessor() ) then
-!             print *, 'MEMORY STATS AT END OF TIMESTEP ', istep
-!             print*, ' '
-!          end if
-!          call print(multifab_mem_stats(),    "    multifab")
-!          call print(fab_mem_stats(),         "         fab")
-!          call print(boxarray_mem_stats(),    "    boxarray")
-!          call print(layout_mem_stats(),      "      layout")
-!          call print(boxassoc_mem_stats(),    "    boxassoc")
-!          call print(fgassoc_mem_stats(),     "     fgassoc")
-!          call print(syncassoc_mem_stats(),   "   syncassoc")
-!          call print(copyassoc_mem_stats(),   "   copyassoc")
-!          call print(fluxassoc_mem_stats(),   "   fluxassoc")
-!          if ( parallel_IOProcessor() ) print*, ''
-!        end if
+       if ( verbose > 0 ) then
+          if ( parallel_IOProcessor() ) then
+             print *, 'MEMORY STATS AT END OF TIMESTEP ', istep
+             print*, ' '
+          end if
+          call print(multifab_mem_stats(),    "    multifab")
+          call print(fab_mem_stats(),         "         fab")
+          call print(boxarray_mem_stats(),    "    boxarray")
+          call print(layout_mem_stats(),      "      layout")
+          call print(boxassoc_mem_stats(),    "    boxassoc")
+          call print(fgassoc_mem_stats(),     "     fgassoc")
+          call print(syncassoc_mem_stats(),   "   syncassoc")
+          call print(copyassoc_mem_stats(),   "   copyassoc")
+          call print(fluxassoc_mem_stats(),   "   fluxassoc")
+          if ( parallel_IOProcessor() ) print*, ''
+       end if
 
          if ( parallel_IOProcessor() ) then
             write(6,1000) istep,time,dt
@@ -353,32 +363,23 @@ subroutine varden()
  
          call print_and_reset_fab_byte_spread()
 
-         if (stop_time >= 0.d0) then
-            if (time >= stop_time) goto 999
-         end if
+      end do ! istep loop
 
-     end do ! istep loop
+      if (istep > max_step) istep = max_step
 
-999  continue
-
-     if (istep > max_step) istep = max_step
-
-     if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep)
-     if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep)
-
-2000 continue
+      if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep)
+      if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep)
 
   end if
   
-  call delete_state(uold,sold,gp,p)
+2000 continue
 
+  call delete_state(uold,sold,gp,p)
+  call delete_temps()
+! need to call multifab destory on each level of below?
   deallocate(uold,sold,p,gp)
 
-  call delete_temps()
-
   call bc_tower_destroy(the_bc_tower)
-
-  call destroy(mla)
 
   if ( verbose > 0 ) then
      if ( parallel_IOProcessor() ) then
@@ -457,17 +458,17 @@ contains
                                          ng_cell,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n  ), &
-                                         1,1,dm)
+                                         1,1,dm,dx(n-1:n,:),time)
           call multifab_fill_ghost_cells(sold(n),sold(n-1), &
                                          ng_cell,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n  ), &
-                                         1,dm+1,nscal)
+                                         1,dm+1,nscal,dx(n-1:n,:),time)
           call multifab_fill_ghost_cells(gp(n),gp(n-1), &
                                          ng_grow,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n  ), &
-                                         1,1,dm)
+                                         1,1,dm,dx(n-1:n,:),time)
        end do
 
        call advance_timestep(istep,mla,sold,uold,snew,unew,gp,p,ext_vel_force,ext_scal_force,&
@@ -512,7 +513,7 @@ contains
     integer, intent(in   ) :: istep_to_write
 
     type(multifab), pointer     ::  chkdata(:)
-
+    
     allocate(chkdata(nlevs))
     n_chk_comps = 2*dm + nscal
     do n = 1,nlevs
@@ -539,7 +540,7 @@ contains
     integer           , intent(in   ) :: nstep
 
     integer        :: i,d,un,nb,tp(mla%dim)
-    type(box)      :: bx
+      type(box)      :: bx
 
     un = 11
     tp = 0
@@ -553,9 +554,9 @@ contains
           nb = mla%mba%bas(n)%nboxes
           bx = ml_layout_get_pd(mla,n)
           write(unit=un, fmt='("   (")', advance = 'no') 
-          write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
+          write(unit=un, fmt='("(" 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
           write(unit=un, fmt='(") (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
-          write(unit=un, fmt='(") (", 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+          write(unit=un, fmt='(") (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
           write(unit=un, fmt='("))")', advance = 'no' )
           write(unit=un, fmt='(" ",i4)', advance = 'yes') nb
           do i = 1, nb
@@ -563,8 +564,8 @@ contains
              tp = 0
              write(unit=un, fmt='("      (")', advance = 'no') 
              write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
-             write(unit=un, fmt='(") (", 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
-             write(unit=un, fmt='(") (", 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
+             write(unit=un, fmt='(") (" 3(I0,:,", "))', advance = 'no') bx%hi(1:bx%dim)
+             write(unit=un, fmt='(") (" 3(I0,:,","))', advance = 'no') tp(1:bx%dim)
              write(unit=un, fmt='("))")', advance = 'no' )
              write(unit=un, fmt='(" ")')
           end do
