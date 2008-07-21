@@ -11,7 +11,7 @@ module scalar_advance_sdc_module
   use sdc_interpolation
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose, sdc_iters, &
-                            mass_fractions
+                            mass_fractions, nspec
 
   implicit none
 
@@ -22,7 +22,7 @@ contains
 
 
   subroutine scalar_advance_sdc(mla,uold,sold,snew,umac, &
-                                ext_scal_force,dx,dt,the_bc_tower)
+                                ext_scal_force,dx,dt,t,the_bc_tower)
 
     use mkflux_module
     use mkforce_module
@@ -36,42 +36,35 @@ contains
     type(multifab) , intent(inout) :: snew(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
+    real(kind=dp_t), intent(in   ) :: dx(:,:),dt,t
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local variables
-    type(multifab), allocatable :: scal_force(:), divu(:)
-    type(multifab), allocatable :: sflux(:,:), sedge(:,:)
-    type(multifab), allocatable :: source(:),I_ADR(:)
-    logical       , allocatable :: is_conservative(:)
-    logical       , allocatable :: umac_nodal_flag(:)
-    ! advection term:  adv_s(time,level) = - div(su) 
+    type(multifab) :: scal_force(mla%nlevel), divu(mla%nlevel)
+    type(multifab) :: sflux(mla%nlevel,mla%dim), sedge(mla%nlevel,mla%dim)
+    type(multifab) :: source(mla%nlevel),I_ADR(mla%nlevel)
+    logical        :: is_conservative(nscal)
+    logical        :: umac_nodal_flag(mla%dim)
+    ! advection term:  adv_s(level,time) = - div(su) 
     ! these values are used to interpolate int(A+D+R)
-    type(multifab) , allocatable :: adv_s(:,:)
-    ! diffusion at various times:  D_s(time,level)
-    type(multifab) , allocatable :: D_s(:,:)
+    type(multifab)  :: adv_s(mla%nlevel,0:n_adv-1)
+    ! diffusion at various times:  D_s(level,time)
+    type(multifab)  :: D_s(mla%nlevel,0:n_diff-1)
 
-    integer         :: i,j,k,n, nspecies
+    integer         :: i,j,k,n
     integer         :: comp,bc_comp,nlevs,dm
     logical         :: is_vel
     real(kind=dp_t) :: diff_fac,visc_mu
     real(kind=dp_t) :: smin,smax
 
     ! for convergence study--DELETE ME
-    type(multifab), allocatable :: snew_old(:), difference(:)
+    type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
 
 
-    nspecies = nscal -1  ! scal = density + species  
     nlevs = mla%nlevel
     dm    = mla%dim
-
-    allocate(umac_nodal_flag(dm))
-    allocate(scal_force(nlevs),divu(nlevs),source(nlevs))
-    allocate(sflux(nlevs,dm),sedge(nlevs,dm))
-    allocate(is_conservative(nscal))
-    allocate(D_s(0:n_diff-1,nlevs),adv_s(0:n_adv-1,nlevs))
-    allocate(I_ADR(nlevs))    
-    allocate(snew_old(nlevs),difference(nlevs))
+ 
+!    allocate(snew_old(nlevs),difference(nlevs))
 
 
     if (mass_fractions) then
@@ -91,16 +84,17 @@ contains
        call multifab_build( scal_force(n),ext_scal_force(n)%la,nscal,1)
        call multifab_build( divu(n),mla%la(n),    1,1)
 ! have no ghost cells--may need to change
-       call multifab_build( source(n),mla%la(n),nspecies,1)
+       call multifab_build( source(n),mla%la(n),nspec,1)
        do j = 0, n_diff-1
-          call multifab_build( D_s(j,n),mla%la(n),nspecies,0)
-          call setval(D_s(j,n),zero,all=.true.)
+          call multifab_build( D_s(n,j),mla%la(n),nspec,0)
+          call setval(D_s(n,j),zero,all=.true.)
        enddo
        do j = 0, n_adv-1
-          call multifab_build( adv_s(j,n),mla%la(n),nspecies,0)
-          call setval(adv_s(j,n),zero,all=.true.)
+          call multifab_build( adv_s(n,j),mla%la(n),nspec,0)
+          call setval(adv_s(n,j),zero,all=.true.)
        enddo
-       call multifab_build( I_ADR(n),mla%la(n),nspecies,0)
+       call multifab_build( I_ADR(n),mla%la(n),nspec,0)
+       call setval(I_ADR(n),zero,all=.true.)
 
        do i = 1,dm
          umac_nodal_flag(:) = .false.
@@ -130,10 +124,10 @@ contains
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(0,:),sold,comp,bc_comp,dx,the_bc_tower)
+          call get_explicit_diffusive_term(mla,D_s(:,0),sold,comp,bc_comp,dx,the_bc_tower)
        end do
        do n = 1, nlevs
-          call multifab_mult_mult_s(D_s(0,n),diff_coef)
+          call multifab_mult_mult_s(D_s(n,0),diff_coef)
        enddo
     endif
 
@@ -160,22 +154,12 @@ contains
     call mkflux(mla,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                 the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
-    !**********************************
-    ! Create scalar force at time n+1/2
-    !**********************************
-  
-    ! scal_force = ext_scal_forcce already
-    !do n = 1, nlevs
-    !   call multifab_copy_c(scal_force(n),1,ext_scal_force(n),1,&
-    !                        nscal,ext_scal_force(n)%ng)
-    !enddo
-
     !*****************************************************************
     ! Update the scalars with conservative or convective differencing.
     !*****************************************************************
 
-    call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(0,:),dx,dt,is_vel, &
-                is_conservative,the_bc_tower%bc_tower_array)
+    call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,& 
+                is_vel,is_conservative,the_bc_tower%bc_tower_array)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -194,32 +178,32 @@ contains
     !***************************************
     ! Solve u_t = A + D using implicit euler
     !***************************************
-
-    do n = 1,nlevs
-       ! just a dummy to pass in zero to diffusion solve
-       call setval(scal_force(n),zero)
-    end do
-
     if (diff_coef > ZERO) then
+
+       do n = 1,nlevs
+          ! just a dummy to pass in zero to diffusion solve
+          call setval(scal_force(n),zero)
+       end do
+
        do  comp = 2, nscal
            bc_comp = dm+comp
            visc_mu = dt*diff_coef
-           call diff_scalar_solve(mla,snew,scal_force,dx,visc_mu,the_bc_tower,&
-                                  comp,bc_comp)
+           call diff_scalar_solve(mla,snew,scal_force,dx,t,visc_mu,&
+                                  the_bc_tower,comp,bc_comp)
         end do
     end if
 
-    !*********************************************
+    !***************************************
     ! Compute a provisional D(s) at time n+1
-    !*********************************************
+    !***************************************
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(1,:),snew,comp,bc_comp,&
+          call get_explicit_diffusive_term(mla,D_s(:,1),snew,comp,bc_comp,&
                                            dx,the_bc_tower)
        end do
        do n = 1, nlevs
-          call multifab_mult_mult_s(D_s(1,n),diff_coef)
+          call multifab_mult_mult_s(D_s(n,1),diff_coef)
        enddo
     endif
 
@@ -231,7 +215,8 @@ contains
        call multifab_copy_c(snew(n),1,sold(n),1,nscal,sold(n)%ng)
     enddo
 
-    call react(mla,the_bc_tower,snew,dt,provisional,adv_s,D_s)
+    call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,D_s,sdc_flag=1)
+    ! use sdc_flag=1 for provisional, =2 for SDC
 
     !*********************************************
     ! Compute D(s) at time n+1
@@ -239,10 +224,10 @@ contains
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(2,:),snew,comp,bc_comp,dx,the_bc_tower)
+          call get_explicit_diffusive_term(mla,D_s(:,2),snew,comp,bc_comp,dx,the_bc_tower)
        end do
        do n = 1, nlevs
-          call multifab_mult_mult_s(D_s(2,n),diff_coef)
+          call multifab_mult_mult_s(D_s(n,2),diff_coef)
        enddo
     endif
     
@@ -271,7 +256,6 @@ contains
        
        !*************************************************************
        ! Create scalar force at time n+1/2
-       ! Using implicit euler, is equal to the external forcing terms
   
        ! forcing term doesn't need to be changed
        !do n = 1, nlevs
@@ -282,7 +266,7 @@ contains
        !*****************************************************************
        ! Update the scalars with conservative or convective differencing.
 
-       call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(0,:),dx,dt,&
+       call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,&
                    is_vel,is_conservative,the_bc_tower%bc_tower_array)
 
        if (verbose .ge. 1) then
@@ -300,20 +284,21 @@ contains
        end if
        
       
-      ! Update Diffusion:
-       !*****************
-       ! Solve snew = sold +dt*(delta A(s) + delta D(s))
+       ! Update Diffusion:
+       !******************
+       ! Solve snew = sold +dt*(delta A(s) + delta D(s)) + I_ADR
 
        do n = 1, nlevs
-          call multifab_copy_c(source(n),1,D_s(1,n),1,nscal-1)
-          call multifab_mult_mult_s(source(n),-1.d0)
+          call multifab_copy_c(source(n),1,D_s(n,2),1,nscal-1)
+          call multifab_mult_mult_s(source(n),-ONE)
        enddo
 
        if (diff_coef > ZERO) then
           do  comp = 2, nscal
              bc_comp = dm+comp
              visc_mu = dt*diff_coef
-             call diff_scalar_solve(mla,snew,source,dx,visc_mu,the_bc_tower,comp,bc_comp)
+             call diff_scalar_solve(mla,snew,source,dx,t,visc_mu,&
+                                    the_bc_tower,comp,bc_comp)
           end do
        end if
        
@@ -323,11 +308,11 @@ contains
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
              bc_comp = dm+comp
-             call get_explicit_diffusive_term(mla,D_s(1,:),snew,comp,bc_comp,&
+             call get_explicit_diffusive_term(mla,D_s(:,1),snew,comp,bc_comp,&
                                               dx,the_bc_tower)
           end do
           do n = 1, nlevs
-             call multifab_mult_mult_s(D_s(1,n),diff_coef)
+             call multifab_mult_mult_s(D_s(n,1),diff_coef)
           enddo
        endif
        
@@ -338,11 +323,12 @@ contains
           call multifab_copy_c(snew(n),1,sold(n),1,nscal,sold(n)%ng)
        enddo
        
-       call react(mla,the_bc_tower,snew,dt,provisional,adv_s,D_s)
-       
+       call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,D_s,sdc_flag=2)
+       ! use sdc_flag=2 for SDC; =1 for provisional
+
        if (k > 1) then
           do n = 1, nlevs
-             call multifab_copy_c(D_s(2,n),1,D_s(3,n),1,nscal-1)
+             call multifab_copy_c(D_s(n,2),1,D_s(n,3),1,nscal-1)
           enddo
        end if
 
@@ -352,11 +338,11 @@ contains
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
              bc_comp = dm+comp
-             call get_explicit_diffusive_term(mla,D_s(3,:),snew,comp,bc_comp,&
+             call get_explicit_diffusive_term(mla,D_s(:,3),snew,comp,bc_comp,&
                                               dx,the_bc_tower)
           end do
           do n = 1, nlevs
-             call multifab_mult_mult_s(D_s(3,n),diff_coef)
+             call multifab_mult_mult_s(D_s(n,3),diff_coef)
           enddo
        endif
     
@@ -368,32 +354,27 @@ contains
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters
- !      write(*,*)
- !      write(*,*)
- !      write(*,*) 'SDC corrections:  k=',k
- !      write(*,*) 's_k - s_k+1 min & max'
- !      do n = 1, nlevs
- !         call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
- !         call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
- !         write(*,*)'LEVEL ',n
- !         do comp = 1,nscal
- !            smin = multifab_min_c(difference(n),comp) 
- !            smax = multifab_max_c(difference(n),comp)
- !            write(*,*)'component ',comp, ': ', smin, smax
- !         enddo
- !         write(*,*)
- !         call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
- !      enddo
-
-       
-
+       write(*,*)
+       write(*,*)
+       write(*,*) 'SDC corrections:  k=',k
+       write(*,*) 's_k - s_k+1 min & max'
+       do n = 1, nlevs
+          call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
+          call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
+          write(*,*)'LEVEL ',n
+          do comp = 1,nscal
+             smin = multifab_min_c(difference(n),comp) 
+             smax = multifab_max_c(difference(n),comp)
+             write(*,*)'component ',comp, ': ', smin, smax
+          enddo
+          write(*,*)
+          call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+       enddo
 
 
     end do  ! sdc_iters loop
 
     ! snew is copied into sold in varden.f90
-
-    deallocate(is_conservative)
 
     do n = 1,nlevs
        call multifab_destroy(scal_force(n))
@@ -407,17 +388,13 @@ contains
          call multifab_destroy(sedge(n,i))
        end do
        do i = 1,n_adv
-         call multifab_destroy(adv_s(i-1,n))
+         call multifab_destroy(adv_s(n,i-1))
        end do
        do i = 1,n_diff
-         call multifab_destroy(D_s(i-1,n))
+         call multifab_destroy(D_s(n,i-1))
        end do
     enddo
 
-    deallocate(umac_nodal_flag)
-    deallocate(scal_force,divu,sflux,sedge)
-    deallocate(D_s, adv_s,I_ADR)
-    deallocate(snew_old, difference)
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)

@@ -19,7 +19,7 @@ module scalar_advance_module
 contains
 
   subroutine scalar_advance(mla,uold,sold,snew,umac, &
-                            ext_scal_force,dx,dt,the_bc_tower)
+                            ext_scal_force,dx,dt,t,the_bc_tower)
 
     use mkflux_module
     use mkforce_module
@@ -32,7 +32,7 @@ contains
     type(multifab) , intent(inout) :: snew(:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
+    real(kind=dp_t), intent(in   ) :: dx(:,:),dt,t
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local variables
@@ -133,7 +133,7 @@ contains
     ! Update the scalars with conservative or convective differencing.
     !***********************************
 
-    call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s,dx,dt,is_vel, &
+    call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s,dx,dt,t,is_vel, &
                 is_conservative,the_bc_tower%bc_tower_array)
 
     if (verbose .ge. 1) then
@@ -174,7 +174,8 @@ contains
              call bl_error('BAD DIFFUSION TYPE ')
           end if
 
-          call diff_scalar_solve(mla,snew,laps,dx,visc_mu,the_bc_tower,comp,bc_comp)
+          call diff_scalar_solve(mla,snew,laps,dx,t,visc_mu,&
+                                 the_bc_tower,comp,bc_comp)
 
         enddo
      end if

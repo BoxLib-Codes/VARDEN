@@ -14,7 +14,7 @@ module velocity_advance_module
 contains
 
   subroutine velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                              ext_vel_force,dx,dt,the_bc_tower)
+                              ext_vel_force,dx,dt,t,the_bc_tower)
 
     use viscous_module
     use mkflux_module
@@ -32,30 +32,27 @@ contains
     type(multifab) , intent(in   ) :: rhohalf(:)
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
-    real(kind=dp_t), intent(in   ) :: dx(:,:),dt
+    real(kind=dp_t), intent(in   ) :: dx(:,:),dt,t
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
-    type(multifab), allocatable :: vel_force(:)
-    type(multifab), allocatable :: divu(:)
-    type(multifab), allocatable :: uflux(:,:)
-    type(multifab), allocatable :: uedge(:,:)
+    type(multifab) :: vel_force(mla%nlevel)
+    type(multifab) :: divu(mla%nlevel)
+    type(multifab) :: uflux(mla%nlevel,mla%dim)
+    type(multifab) :: uedge(mla%nlevel,mla%dim)
     ! u dot grad u
-    type(multifab), allocatable :: adv_u(:)
+    type(multifab) :: adv_u(mla%nlevel)
 
     integer :: i,n,dm,comp,nlevs
     logical :: is_vel,is_conservative(uold(1)%dim)
-    logical, allocatable :: umac_nodal_flag(:)
+    logical :: umac_nodal_flag(mla%dim)
     real(kind=dp_t) :: visc_fac,visc_mu
     real(kind=dp_t) :: umin,umax
 
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    allocate(vel_force(nlevs),divu(nlevs),adv_u(nlevs))
-    allocate(uflux(nlevs,dm),uedge(nlevs,dm))
-    allocate(umac_nodal_flag(mla%dim))
-
+   
     is_conservative = .false.
     is_vel = .true.
 
@@ -102,7 +99,7 @@ contains
     ! Update the velocity with convective differencing
     !********************************************************
 
-    call update(mla,uold,umac,uedge,uflux,vel_force,unew,adv_u,dx,dt,is_vel, &
+    call update(mla,uold,umac,uedge,uflux,vel_force,unew,adv_u,dx,dt,t,is_vel,&
                 is_conservative,the_bc_tower%bc_tower_array)
 
     do n = 1, nlevs
@@ -114,8 +111,6 @@ contains
        call multifab_destroy(uedge(n,i))
        end do
     enddo
-
-    deallocate(vel_force,divu,uflux,uedge,umac_nodal_flag,adv_u)
 
     if (visc_coef > ZERO) then
        ! Crank-Nicolson
@@ -130,7 +125,7 @@ contains
           call bl_error('BAD DIFFUSION TYPE ')
        end if
        
-       call visc_solve(mla,unew,lapu,rhohalf,dx,visc_mu,the_bc_tower)
+       call visc_solve(mla,unew,lapu,rhohalf,dx,t,visc_mu,the_bc_tower)
     end if
 
     if (verbose .ge. 1) then

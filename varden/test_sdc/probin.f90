@@ -42,6 +42,8 @@ module probin_module
   integer, save   :: sdc_iters
   real(dp_t),save :: k_rxn1, k_rxn2
   logical,save    :: mass_fractions
+  integer, save   :: nspec
+  integer, save   :: n_rxn_steps
 
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
@@ -59,6 +61,9 @@ module probin_module
   namelist /probin/ prob_hi_x
   namelist /probin/ prob_hi_y
   namelist /probin/ prob_hi_z
+  namelist /probin/ prob_lo_x
+  namelist /probin/ prob_lo_y
+  namelist /probin/ prob_lo_z
   namelist /probin/ max_step
   namelist /probin/ plot_int
   namelist /probin/ chk_int
@@ -104,6 +109,8 @@ module probin_module
   namelist /probin/ k_rxn2
   namelist /probin/ mass_fractions
   namelist /probin/ nscal
+  namelist /probin/ nspec
+  namelist /probin/ n_rxn_steps
 
 contains
 
@@ -136,6 +143,7 @@ contains
 
     dim_in = 2
     nscal = 2
+    nspec = 1
 
     allocate(nodal(dim_in))
     nodal = .true.
@@ -204,6 +212,7 @@ contains
     reactions = .false.
     mass_fractions = .true.
     sdc_iters = -1
+    n_rxn_steps = 100
     k_rxn1 = zero
     k_rxn2 = zero
 

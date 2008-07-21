@@ -2,6 +2,7 @@ module setbc_module
 
   use bl_types
   use bl_error_module
+  use probin_module, only : prob_hi_y
 
   implicit none
 
@@ -11,7 +12,7 @@ module setbc_module
 
 contains
 
-  subroutine setbc_2d(s,lo,ng,bc,icomp)
+  subroutine setbc_2d(s,lo,ng,bc,icomp,dx,t)
 
     use bl_constants_module
     use bc_module
@@ -20,6 +21,8 @@ contains
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:,lo(2)-ng:)
     integer        , intent(in   ) :: bc(:,:)
     integer        , intent(in   ) :: icomp
+    real(kind=dp_t), intent(in   ) :: dx(:)
+    real(kind=dp_t), intent(in   ) :: t
 
     ! Local variables
     integer, parameter  :: INLET_VX = zero
@@ -29,6 +32,11 @@ contains
     integer, parameter  :: INLET_TRA_B = zero
     integer, parameter  :: INLET_TRA_C = zero
     integer, parameter  :: INLET_TRA_D = zero
+ 
+    real (kind = dp_t), parameter  :: lambda = fourth
+    real (kind = dp_t), parameter  :: Um = one
+    real (kind = dp_t), parameter  :: delta = 2.d-2
+
 
     integer :: i,j,hi(2)
 
@@ -55,29 +63,35 @@ contains
 ! bdry conditions for x at low end
     if (bc(1,1) .eq. EXT_DIR) then
        if (icomp.eq.1) then   
-          do j = lo(2)-ng,hi(2)/2
-             s(lo(1)-ng:lo(1)-1,j) = one
-          enddo
-          do j = hi(2)/2+1,hi(2)+ng
-             s(lo(1)-ng:lo(1)-1,j) = 10.d0
+          do j = lo(2)-ng,hi(2)+ng
+             if (j*dx(2) < half*prob_hi_y) then
+                s(lo(1)-ng:lo(1)-1,j) = one
+             else
+                s(lo(1)-ng:lo(1)-1,j) = 10.d0
+             end if
+             !s(lo(1)-ng:lo(1)-1,j) = Um*(one + lambda * tanh(two*(dx(2)*j-half)/delta))&
+              !                       * (one + 1.d-2 * sin(306.6*t) + &
+               !                               5.5d-3 * sin(102.2*t))
           enddo
        endif
        if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = zero
        if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = one
        if (icomp.eq.4) then
-          do j = lo(2)-ng,hi(2)/2
-             s(lo(1)-ng:lo(1)-1,j) = one
-          enddo
-          do j = hi(2)/2+1,hi(2)+ng
-             s(lo(1)-ng:lo(1)-1,j) = zero
+          do j = lo(2)-ng,hi(2)+ng
+             if (j*dx(2) < half*prob_hi_y) then
+                s(lo(1)-ng:lo(1)-1,j) = one
+             else
+                s(lo(1)-ng:lo(1)-1,j) = zero
+             end if
           enddo
        endif
        if (icomp.eq.5) then
-          do j = lo(2)-ng,hi(2)/2
-             s(lo(1)-ng:lo(1)-1,j) = zero
-          enddo
-          do j = hi(2)/2+1,hi(2)+ng
-             s(lo(1)-ng:lo(1)-1,j) = one
+          do j = lo(2)-ng,hi(2)+ng
+             if (j*dx(2) < half*prob_hi_y) then
+                s(lo(1)-ng:lo(1)-1,j) = zero
+             else
+                s(lo(1)-ng:lo(1)-1,j) = one
+             end if
           enddo
        endif
        if (icomp.eq.6) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = zero
@@ -227,7 +241,7 @@ contains
 
   end subroutine setbc_2d
 
-  subroutine setbc_3d(s,lo,ng,bc,icomp)
+  subroutine setbc_3d(s,lo,ng,bc,icomp,dx,t)
 
     use bl_constants_module
     use bc_module
@@ -236,6 +250,8 @@ contains
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:)
     integer        , intent(in   ) :: bc(:,:)
     integer        , intent(in   ) :: icomp
+    real(kind=dp_t), intent(in   ) :: dx(:)
+    real(kind=dp_t), intent(in   ) :: t
 
     ! Local variables
     integer, parameter  :: INLET_VX = zero

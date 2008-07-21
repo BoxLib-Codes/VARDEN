@@ -415,9 +415,9 @@ contains
 
   end subroutine mksource
 
-  subroutine mksource_2d(scal_force,ext_scal_force,laps,diff_fac)
+ subroutine mksource_2d(scal_force,ext_scal_force,laps,diff_fac)
 
-    use probin_module, only : nscal, diff_coef
+    use probin_module, only : nscal
 
     real(kind=dp_t), intent(  out) :: scal_force(0:,0:,:)
     real(kind=dp_t), intent(in   ) :: ext_scal_force(0:,0:,:)
@@ -439,26 +439,26 @@ contains
 
        do j = js, je
           do i = is, ie
-             laps_local = diff_coef * diff_fac * laps(i,j,n-1)
+             laps_local = diff_fac * laps(i,j,n-1)
              scal_force(i,j,n) = ext_scal_force(i,j,n) + laps_local
           enddo
        enddo
 
        ! we use 0th order extrapolation for laplacian term in ghost cells
        do i = is, ie
-          laps_local = diff_coef * diff_fac * laps(i,js,n-1)
+          laps_local = diff_fac * laps(i,js,n-1)
           scal_force(i,js-1,n) = ext_scal_force(i,js-1,n) + laps_local
        enddo
        do i = is, ie
-          laps_local = diff_coef * diff_fac * laps(i,je,n-1)
+          laps_local = diff_fac * laps(i,je,n-1)
           scal_force(i,je+1,n) = ext_scal_force(i,je+1,n) + laps_local
        enddo
        do j = js, je
-          laps_local = diff_coef * diff_fac * laps(is,j,n-1)
+          laps_local = diff_fac * laps(is,j,n-1)
           scal_force(is-1,j,n) = ext_scal_force(is-1,j,n) + laps_local
        enddo
        do j = js, je
-          laps_local = diff_coef * diff_fac * laps(ie,j,n-1)
+          laps_local = diff_fac * laps(ie,j,n-1)
           scal_force(ie+1,j,n) = ext_scal_force(ie+1,j,n) + laps_local
        enddo
 
@@ -468,7 +468,7 @@ contains
 
   subroutine mksource_3d(scal_force,ext_scal_force,laps,diff_fac)
 
-    use probin_module, only : nscal, diff_coef
+    use probin_module, only : nscal
 
     real(kind=dp_t), intent(  out) :: scal_force(0:,0:,0:,:)
     real(kind=dp_t), intent(in   ) :: ext_scal_force(0:,0:,0:,:)
@@ -492,7 +492,7 @@ contains
        do k = ks, ke
           do j = js, je
              do i = is, ie
-                laps_local = diff_coef * diff_fac * laps(i,j,k,n-1)
+                laps_local = diff_fac * laps(i,j,k,n-1)
                 scal_force(i,j,k,n) = ext_scal_force(i,j,k,n) + laps_local
              end do
           end do
@@ -501,37 +501,37 @@ contains
        ! we use 0th order extrapolation for laplacian term in ghost cells
        do i=is,ie
           do j=js,je
-             laps_local = diff_coef * diff_fac * laps(i,j,ks,n-1)
+             laps_local = diff_fac * laps(i,j,ks,n-1)
              scal_force(i,j,ks-1,n) = ext_scal_force(i,j,ks-1,n) + laps_local
           enddo
        enddo
        do i=is,ie
           do j=js,je
-             laps_local = diff_coef * diff_fac * laps(i,j,ke,n-1)
+             laps_local = diff_fac * laps(i,j,ke,n-1)
              scal_force(i,j,ke+1,n) = ext_scal_force(i,j,ke+1,n) + laps_local
           enddo
        enddo
        do i=is,ie
           do k=ks,ke
-             laps_local = diff_coef * diff_fac * laps(i,js,k,n-1)
+             laps_local = diff_fac * laps(i,js,k,n-1)
              scal_force(i,js-1,k,n) = ext_scal_force(i,js-1,k,n) + laps_local
           enddo
        enddo
        do i=is,ie
           do k=ks,ke
-             laps_local = diff_coef * diff_fac * laps(i,je,k,n-1)
+             laps_local = diff_fac * laps(i,je,k,n-1)
              scal_force(i,je+1,k,n) = ext_scal_force(i,je+1,k,n) + laps_local
           enddo
        enddo
        do j=js,je
           do k=ks,ke
-             laps_local = diff_coef * diff_fac * laps(is,j,k,n-1)
+             laps_local = diff_fac * laps(is,j,k,n-1)
              scal_force(is-1,j,k,n) = ext_scal_force(is-1,j,k,n) + laps_local
           enddo
        enddo
        do j=js,je
           do k=ks,ke
-             laps_local = diff_coef * diff_fac * laps(ie,j,k,n-1)
+             laps_local = diff_fac * laps(ie,j,k,n-1)
              scal_force(ie+1,j,k,n) = ext_scal_force(ie+1,j,k,n) + laps_local
           enddo
        enddo

@@ -10,7 +10,7 @@ module init_module
   use multifab_fill_ghost_module
   use ml_restriction_module
   use ml_layout_module
-  use probin_module,  only : nscal
+  use probin_module,  only : nscal, prob_hi_y
 
   implicit none
 
@@ -20,6 +20,7 @@ module init_module
 contains
 
   subroutine initdata(nlevs,u,s,dx,bc,mla)
+
 
     use multifab_physbc_module
 
@@ -32,6 +33,7 @@ contains
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
     integer :: lo(u(1)%dim),hi(u(1)%dim)
     integer :: i,n,ng,dm
+
 
     ng = u(1)%ng
     dm = u(1)%dim
@@ -55,8 +57,8 @@ contains
        call multifab_fill_boundary(u(n))
        call multifab_fill_boundary(s(n))
 
-       call multifab_physbc(u(n),1,1,   dm,   bc(n))
-       call multifab_physbc(s(n),1,dm+1,nscal,bc(n))
+       call multifab_physbc(u(n),1,1,   dm,   bc(n),dx(n,:),t=zero)
+       call multifab_physbc(s(n),1,dm+1,nscal,bc(n),dx(n,:),t=zero)
 
     enddo
 
@@ -65,9 +67,9 @@ contains
        call ml_cc_restriction(s(n-1),s(n),mla%mba%rr(n-1,:))
 
        call multifab_fill_ghost_cells(u(n),u(n-1),ng,mla%mba%rr(n-1,:), &
-            bc(n-1),bc(n),1,1,dm)
+            bc(n-1),bc(n),1,1,dm,dx(n-1:n,:),t=zero)
        call multifab_fill_ghost_cells(s(n),s(n-1),ng,mla%mba%rr(n-1,:), &
-            bc(n-1),bc(n),1,dm+1,nscal)
+            bc(n-1),bc(n),1,dm+1,nscal,dx(n-1:n,:),t=zero)
     enddo
 
   end subroutine initdata
@@ -106,8 +108,8 @@ contains
     call multifab_fill_boundary(u)
     call multifab_fill_boundary(s)
     
-    call multifab_physbc(u,1,1,   dm,   bc)
-    call multifab_physbc(s,1,dm+1,nscal,bc)
+    call multifab_physbc(u,1,1,   dm,   bc,dx,t=zero)
+    call multifab_physbc(s,1,dm+1,nscal,bc,dx,t=zero)
     
   end subroutine initdata_on_level
 
@@ -122,28 +124,51 @@ contains
 
     !     Local variables
     integer :: i, j
-    real (kind = dp_t)  :: x,y,dist
-    real (kind = dp_t)  :: xblob1 = 0.5d0, yblob1 = 0.5d0, densfact = 2.0d0
-    real (kind = dp_t)  :: xblob2 = 0.2d0, yblob2 = 0.2d0
-    real (kind = dp_t)  :: xblob3 = 0.2d0, yblob3 = 0.8d0
-    real (kind = dp_t)  :: blobrad = 0.1d0
+    real (kind = dp_t), parameter  :: lambda = fourth
+    real (kind = dp_t), parameter  :: Um = one
+    real (kind = dp_t), parameter  :: delta = 2.d-2
+!    real (kind = dp_t)  :: x,y,dist
+!    real (kind = dp_t)  :: xblob1 = 0.5d0, yblob1 = 0.5d0, densfact = 2.0d0
+!    real (kind = dp_t)  :: xblob2 = 0.2d0, yblob2 = 0.2d0
+!    real (kind = dp_t)  :: xblob3 = 0.2d0, yblob3 = 0.8d0
+!    real (kind = dp_t)  :: blobrad = 0.1d0
    
+
+    ! shear layer w/ roll-up
+!    do i=lo(1),hi(1)   
+!       do j=lo(2),hi(2)
+!          u(i,j,1) = Um*(one + lambda * tanh(two*(dx(2)*j-half)/delta))
+!          u(i,j,2) = zero
+!          s(i,j,1) = ONE     ! density          
+!          s(i,j,4) = zero    ! species C
+!          if (j*dx(2) .le. half*prob_hi_y) then
+!             s(i,j,2) = one    ! species A
+!             s(i,j,3) = zero    ! species B
+!          else
+!             s(i,j,2) = zero    ! species A
+!             s(i,j,3) = one    ! species B
+!       end if
+!       enddo
+!    enddo
+
+    ! simple shear layer/plume
     do i=lo(1),hi(1)   
-       do j=lo(2),hi(2)/2
-          u(i,j,1) = one
-          u(i,j,2) = zero
-          s(i,j,1) = ONE     ! density
-          s(i,j,2) = one    ! species A
-          s(i,j,3) = zero    ! species B
+       do j=lo(2),hi(2)
+          if (j*dx(2) < half*prob_hi_y) then
+             u(i,j,1) = one
+             u(i,j,2) = zero
+             s(i,j,1) = ONE     ! density
+             s(i,j,2) = one    ! species A
+             s(i,j,3) = zero    ! species B
+             s(i,j,4) = zero    ! species C
+          else
+             u(i,j,1) = 10.d0
+             u(i,j,2) = zero
+             s(i,j,1) = ONE     ! density
+             s(i,j,2) = zero    ! species A
+             s(i,j,3) = one    ! species B
           s(i,j,4) = zero    ! species C
-       enddo
-       do j=hi(2)/2+1,hi(2)
-          u(i,j,1) = 10.d0
-          u(i,j,2) = zero
-          s(i,j,1) = ONE     ! density
-          s(i,j,2) = zero    ! species A
-          s(i,j,3) = one    ! species B
-          s(i,j,4) = zero    ! species C
+       end if
        enddo
     enddo
 

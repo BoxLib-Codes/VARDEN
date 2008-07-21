@@ -13,7 +13,7 @@ module viscous_module
 
 contains 
 
-  subroutine visc_solve(mla,unew,lapu,rho,dx,mu,the_bc_tower)
+  subroutine visc_solve(mla,unew,lapu,rho,dx,t,mu,the_bc_tower)
 
     use bl_constants_module
     use bndry_reg_module
@@ -27,12 +27,13 @@ contains
     type(multifab ), intent(inout) :: unew(:)
     type(multifab ), intent(in   ) :: lapu(:)
     type(multifab ), intent(in   ) :: rho(:)
-    real(dp_t)     , intent(in   ) :: dx(:,:),mu
+    real(dp_t)     , intent(in   ) :: dx(:,:),t,mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
-
+ 
     ! Local  
-    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-    type(bndry_reg), pointer    :: fine_flx(:) => Null()
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
+    type(multifab)  ::alpha(mla%nlevel),beta(mla%nlevel)
+    type(bndry_reg) :: fine_flx(2:mla%nlevel)
     integer                     :: n,nlevs,d,dm
     integer                     :: bc_comp,ng_cell
     real(kind=dp_t)             :: nrm1, nrm2
@@ -40,8 +41,6 @@ contains
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = unew(1)%ng
-
-    allocate(rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
 
     do n = 1,nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -68,7 +67,6 @@ contains
        end do
     endif
 
-    allocate(fine_flx(2:nlevs))
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
@@ -87,7 +85,7 @@ contains
 
     do n = 1, nlevs
        call multifab_fill_boundary(unew(n))
-       call multifab_physbc(unew(n),1,1,dm,the_bc_tower%bc_tower_array(n))
+       call multifab_physbc(unew(n),1,1,dm,the_bc_tower%bc_tower_array(n),dx(n,:),t)
     enddo
 
     do n = nlevs, 2, -1
@@ -96,7 +94,7 @@ contains
                                       ng_cell,mla%mba%rr(n-1,:), &
                                       the_bc_tower%bc_tower_array(n-1), &
                                       the_bc_tower%bc_tower_array(n  ), &
-                                      1,1,dm)
+                                      1,1,dm,dx(n-1:n,:),t)
     end do
 
     if ( verbose .ge. 1 ) then
@@ -121,14 +119,9 @@ contains
        call multifab_destroy(beta(n))
     end do
 
-    deallocate(rh)
-    deallocate(phi)
-    deallocate(alpha)
-    deallocate(beta)
     do n = 2,nlevs
        call bndry_reg_destroy(fine_flx(n))
     end do
-    deallocate(fine_flx)
 
   contains
 
@@ -225,7 +218,7 @@ contains
 
   end subroutine visc_solve
 
-  subroutine diff_scalar_solve(mla,snew,laps,dx,mu,the_bc_tower,icomp,bc_comp)
+  subroutine diff_scalar_solve(mla,snew,laps,dx,t,mu,the_bc_tower,icomp,bc_comp)
 
     use bndry_reg_module
     use bl_constants_module
@@ -239,22 +232,22 @@ contains
     type(multifab ), intent(inout) :: snew(:)
     type(multifab ), intent(in   ) :: laps(:)
     real(dp_t)     , intent(in   ) :: dx(:,:)
+    real(dp_t)     , intent(in   ) :: t
     real(dp_t)     , intent(in   ) :: mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
     integer        , intent(in   ) :: icomp,bc_comp
 
     ! Local  
-    type(multifab), allocatable :: rh(:),phi(:),alpha(:),beta(:)
-    type(bndry_reg), pointer    :: fine_flx(:) => Null()
-    integer                     :: n,nlevs,dm
-    integer                     :: ng_cell
-    real(kind=dp_t)             :: nrm1
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
+    type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel)
+    type(bndry_reg) :: fine_flx(mla%nlevel)
+    integer         :: n,nlevs,dm
+    integer         :: ng_cell
+    real(kind=dp_t) :: nrm1
 
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = snew(1)%ng
-
-    allocate (rh(nlevs),phi(nlevs),alpha(nlevs),beta(nlevs))
     
     if (mass_fractions) then
        do n = 1,nlevs
@@ -296,7 +289,6 @@ contains
        call mkrhs(rh(n),snew(n),laps(n),phi(n),mu,icomp)
     end do
 
-    allocate(fine_flx(2:nlevs))
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
@@ -310,7 +302,7 @@ contains
 
     do n = 1, nlevs
        call multifab_fill_boundary_c(snew(n),icomp,1)
-       call multifab_physbc(snew(n),icomp,bc_comp,1,the_bc_tower%bc_tower_array(n))
+       call multifab_physbc(snew(n),icomp,bc_comp,1,the_bc_tower%bc_tower_array(n),dx(n,:),t)
     enddo
 
     do n = nlevs, 2, -1
@@ -319,7 +311,7 @@ contains
                                       ng_cell,mla%mba%rr(n-1,:), &
                                       the_bc_tower%bc_tower_array(n-1), &
                                       the_bc_tower%bc_tower_array(n  ), &
-                                      icomp,bc_comp,1)
+                                      icomp,bc_comp,1,dx(n-1:n,:),t)
     end do
 
     if ( verbose .ge. 1 ) then
@@ -340,14 +332,9 @@ contains
        call multifab_destroy(beta(n))
     end do
 
-    deallocate(rh)
-    deallocate(phi)
-    deallocate(alpha)
-    deallocate(beta)
     do n = 2,nlevs
        call bndry_reg_destroy(fine_flx(n))
     end do
-    deallocate(fine_flx)
 
   contains
 

@@ -31,21 +31,18 @@ contains
     integer        , intent(in   ) :: bc_comp
 
     ! local variables
-    type(multifab), allocatable :: alpha(:), beta(:)
-    type(multifab), allocatable :: phi(:), Lphi(:)
+    type(multifab) :: alpha(mla%nlevel), beta(mla%nlevel)
+    type(multifab) :: phi(mla%nlevel), Lphi(mla%nlevel)
 
-    integer         :: n, comp_out
+    integer         :: n, comp
     integer         :: nlevs,dm
 
     nlevs = mla%nlevel
     dm    = mla%dim
 
     !***********************************
-    ! Allocate and build temporary arrays
+    ! build temporary arrays
     !***********************************
-
-    allocate(phi(nlevs),Lphi(nlevs))
-    allocate(alpha(nlevs),beta(nlevs))
 
     do n = 1, nlevs
        call multifab_build(  phi(n),mla%la(n),    1,1)
@@ -69,13 +66,13 @@ contains
                       bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
 
      if (sdc_iters > -1) then
-        comp_out = data_comp-1
+        comp = data_comp-1
      else 
-        comp_out = data_comp
+        comp = data_comp
      endif
 
      do n = 1, nlevs
-        call multifab_copy_c(lap_data(n),comp_out,Lphi(n),1)
+        call multifab_copy_c(lap_data(n),comp,Lphi(n),1)
      enddo
 
      do n = 1,nlevs
@@ -85,8 +82,6 @@ contains
         call multifab_destroy( Lphi(n))
      enddo
  
-     deallocate(phi,Lphi,alpha,beta)
-
-  end subroutine get_explicit_diffusive_term
+   end subroutine get_explicit_diffusive_term
 
 end module explicit_diffusive_module

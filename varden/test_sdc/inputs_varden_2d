@@ -4,11 +4,14 @@
 
 ! number of scalar quantities = density + # tracers 
  nscal = 4
+! number of traces/species
+ nspec = 3
 
 ! inputs for reactions
   reactions = T
 ! sdc_iters < 0 means use strang splitting
-  sdc_iters = -1
+  sdc_iters = 10
+  n_rxn_steps = 100
   k_rxn1 = 1050.0d0
   k_rxn2 = 132.0d0
 
@@ -20,7 +23,7 @@
 ! fixed_grids = "gr0_2d_2levels"
  fixed_grids = "gr0_2d"
 
-max_grid_size = 1024
+max_grid_size = 512
 
 !!!! Inputs for adaptive grids !!!!
 ! nlevs = 3
@@ -30,6 +33,10 @@ max_grid_size = 1024
 !   n_celly = 64
 ! ref_ratio = 2
 ! regrid_int = 2
+
+! nothing is ever done with this data in varden
+! prob_lo_x = 0
+! prob_lo_y = -0.5
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
@@ -45,7 +52,7 @@ max_grid_size = 1024
  init_shrink = 0.1
 
  visc_coef = 0.00
- diff_coef = 0.1
+ diff_coef = 1.d-2
 
 ! 1 = Crank-Nicolson, 2 = Backward Euler
  diffusion_type = 2
@@ -72,5 +79,5 @@ max_grid_size = 1024
  verbose = 0
  mg_verbose = 0
 
- restart = 140
+! restart = 30
 /

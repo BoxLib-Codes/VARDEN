@@ -105,28 +105,28 @@ contains
     call advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
                         the_bc_tower%bc_tower_array)
 
-    call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
+    call macproject(mla,umac,sold,dx,time,the_bc_tower,press_comp)
 
     if (reactions) then
        if (sdc_iters >= 0) then
           call scalar_advance_sdc(mla,uold,sold,snew,umac, &
-               ext_scal_force,dx,dt,the_bc_tower) 
+               ext_scal_force,dx,dt,time,the_bc_tower) 
        else     ! use strang splitting          
-          call react(mla,the_bc_tower,sold,half*dt,f_rxn)
+          call react(mla,the_bc_tower,sold,dx,half*dt,time,f_rxn)
           call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
-                              dx,dt,the_bc_tower)
-          call react(mla,the_bc_tower,snew,half*dt,f_rxn)  
+                              dx,dt,time,the_bc_tower)
+          call react(mla,the_bc_tower,snew,dx,half*dt,time,f_rxn)  
        endif
     else
        call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
-                        dx,dt,the_bc_tower)
+                        dx,dt,time,the_bc_tower)
     endif
 
 
-    call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)
+    call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array,dx,time)
 
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                          ext_vel_force,dx,dt,the_bc_tower)
+                          ext_vel_force,dx,dt,time,the_bc_tower)
 
 
 
@@ -198,7 +198,7 @@ contains
 !______________________________________________________________________________________
 
     ! Project the new velocity field.
-    call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
+    call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,time, &
                    the_bc_tower,press_comp)
 
     if ( verbose .ge. 1 ) call print_new(unew,proj_type,time,dt)

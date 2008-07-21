@@ -13,7 +13,7 @@ module update_module
 
 contains
 
-  subroutine update(mla,sold,umac,sedge,flux,force,snew,adv_s,dx,dt,is_vel,is_cons, &
+  subroutine update(mla,sold,umac,sedge,flux,force,snew,adv_s,dx,dt,t,is_vel,is_cons, &
                     the_bc_level)
 
     use bl_constants_module
@@ -29,7 +29,7 @@ contains
     type(multifab)    , intent(in   ) :: force(:)
     type(multifab)    , intent(inout) :: snew(:)
     type(multifab)    , intent(inout) :: adv_s(:)
-    real(kind = dp_t) , intent(in   ) :: dx(:,:),dt
+    real(kind = dp_t) , intent(in   ) :: dx(:,:),dt,t
     logical           , intent(in   ) :: is_vel,is_cons(:)
     type(bc_level)    , intent(in   ) :: the_bc_level(:)
 
@@ -96,12 +96,11 @@ contains
 
           call multifab_fill_boundary(snew(n))
 
-          call multifab_physbc(snew(n)   ,1,dm+1,nscal,the_bc_level(n))
-
+          call multifab_physbc(snew(n)   ,1,dm+1,nscal,the_bc_level(n),dx(n,:),t)
        else if (is_vel) then
 
           call multifab_fill_boundary(snew(n))
-          call multifab_physbc(snew(n),1,1,dm,the_bc_level(n))
+          call multifab_physbc(snew(n),1,1,dm,the_bc_level(n),dx(n,:),t)
 
        end if
 
@@ -115,7 +114,7 @@ contains
 
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
-                                         1,dm+1,nscal)
+                                         1,dm+1,nscal,dx(n-1:n,:),t)
 
        else if (is_vel) then
 
@@ -123,7 +122,7 @@ contains
 
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
-                                         1,1,dm)
+                                         1,1,dm,dx(n-1:n,:),t)
 
        end if
 
