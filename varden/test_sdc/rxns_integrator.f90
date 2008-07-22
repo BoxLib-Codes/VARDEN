@@ -10,7 +10,7 @@ module rxns_integrator
   use multifab_physbc_module
   use probin_module,  only : nscal, mass_fractions, n_rxn_steps
   use sdc_interpolation
-  use reaction_fn
+!  use reaction_fn
 
   implicit none
 
@@ -19,12 +19,11 @@ module rxns_integrator
      module procedure react_sdc
   end interface
 
-!  public :: provisional,sdc
 
 contains 
 
   ! used with strang splitting
-  subroutine react_strang(mla,the_bc_tower,s,dx,dt,t,f)  
+  subroutine react_strang(mla,the_bc_tower,s,dx,dt,t)!,f)  
 
     type(ml_layout), intent(in   ) :: mla   
     type(bc_tower) , intent(in   ) :: the_bc_tower
@@ -32,14 +31,14 @@ contains
     real(kind=dp_t),      intent(in   ) :: dx(:,:)
     real(kind=dp_t),      intent(in   ) :: dt
     real(kind=dp_t),      intent(in   ) :: t
-    interface
-       subroutine f(soln,u,t)
-         use bl_types
-         real(kind=dp_t),  intent(  out) :: soln(:)
-         real(kind=dp_t),  intent(in   ) :: u(:)
-         real(kind=dp_t),  intent(in   ) :: t
-       end subroutine f
-    end interface
+!     interface
+!        subroutine f(soln,u,t)
+!          use bl_types
+!          real(kind=dp_t),  intent(  out) :: soln(:)
+!          real(kind=dp_t),  intent(in   ) :: u(:)
+!          real(kind=dp_t),  intent(in   ) :: t
+!        end subroutine f
+!     end interface
 
     ! local
     integer             :: n,i,dm,ng,nlevs,ix,iy,iz
@@ -63,7 +62,7 @@ contains
           case (2)
              do iy = lo(2), hi(2)                   
                 do ix = lo(1),hi(1)
-                   call vode(sop(ix,iy,1,:),f)
+                   call vode(sop(ix,iy,1,:))!,f)
                 end do
              end do
 
@@ -71,7 +70,7 @@ contains
              do iz = lo(3), hi(3)
                 do iy = lo(2), hi(2)
                    do ix = lo(1), hi(1)
-                      call vode(sop(ix,iy,iz,:),f)
+                      call vode(sop(ix,iy,iz,:))!,f)
                    end do
                 end do
              end do
@@ -97,16 +96,16 @@ contains
 
   contains
 
-    subroutine vode(u,f)
+    subroutine vode(u)!,f)
       real(kind=dp_t), intent(inout) ::  u(:)
-      interface
-         subroutine f(soln,u,t)
-           use bl_types
-           real(kind=dp_t),  intent(  out)  :: soln(:)
-           real(kind=dp_t),  intent(in   )  :: u(:)
-           real(kind=dp_t),  intent(in   )  :: t
-         end subroutine f
-      end interface
+   !    interface
+!          subroutine f(soln,u,t)
+!            use bl_types
+!            real(kind=dp_t),  intent(  out)  :: soln(:)
+!            real(kind=dp_t),  intent(in   )  :: u(:)
+!            real(kind=dp_t),  intent(in   )  :: t
+!          end subroutine f
+!       end interface
 
       integer i,s
       real(kind=dp_t)  dtl, tl
@@ -145,10 +144,10 @@ contains
          !         enddo
 
          ! Runge-Kutta
-         call f(k1,u,               tl           )
-         call f(k2,u + half*dtl*k1, tl + half*dtl)
-         call f(k3,u + half*dtl*k2, tl + half*dtl)
-         call f(k4,u +      dtl*k3, tl +      dtl)
+         call f_rxn(k1,u,               tl           )
+         call f_rxn(k2,u + half*dtl*k1, tl + half*dtl)
+         call f_rxn(k3,u + half*dtl*k2, tl + half*dtl)
+         call f_rxn(k4,u +      dtl*k3, tl +      dtl)
 
          do s = 2,nscal
             u(s) = u(s) + dtl*(k1(s) + 2.d0*k2(s) + 2.d0*k3(s) + k4(s))/6.d0
@@ -166,8 +165,28 @@ contains
 
       return
 
-
     end subroutine vode
+
+    subroutine f_rxn(soln,u,t)  
+      use probin_module, only : k_rxn1, k_rxn2
+
+      real(kind=dp_t),  intent(  out) :: soln(:)
+      real(kind=dp_t),  intent(in   ) :: u(:)
+      real(kind=dp_t),  intent(in   ) :: t
+
+      real(kind=dp_t) :: u2,u3,u4
+
+      ! first component is density 
+      u2 = merge(u(2), zero, u(2) > 0.d0)
+      u3 = merge(u(3), zero, u(3) > 0.d0)
+      u4 = merge(u(4), zero, u(4) > 0.d0)
+
+      soln(2) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
+      soln(3) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
+      soln(4) = two*k_rxn1*u3*u2 -      k_rxn2*u4
+
+    end subroutine f_rxn
+
 
   end subroutine react_strang
 
@@ -423,6 +442,26 @@ contains
 
     !-----------------------------------------------------------------------
  
+    subroutine f_rxn(soln,u,t)  
+     use probin_module, only : k_rxn1, k_rxn2
+
+      real(kind=dp_t),  intent(  out) :: soln(:)
+      real(kind=dp_t),  intent(in   ) :: u(:)
+      real(kind=dp_t),  intent(in   ) :: t
+
+      real(kind=dp_t) :: u2,u3,u4
+
+      ! first component is density 
+      u2 = merge(u(2), zero, u(2) > 0.d0)
+      u3 = merge(u(3), zero, u(3) > 0.d0)
+      u4 = merge(u(4), zero, u(4) > 0.d0)
+
+      soln(2) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
+      soln(3) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
+      soln(4) = two*k_rxn1*u3*u2 -      k_rxn2*u4
+
+    end subroutine f_rxn
+
   end subroutine react_sdc
 
 end module rxns_integrator

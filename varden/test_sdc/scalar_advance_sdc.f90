@@ -288,9 +288,14 @@ contains
        !******************
        ! Solve snew = sold +dt*(delta A(s) + delta D(s)) + I_ADR
 
+!for debugging.  REMOVE ME
+!do n = 1, nlevs
+!   call multifab_plus_plus_c(snew(n),2,I_ADR(n),1,nspec)
+!end do
+
        do n = 1, nlevs
           call multifab_copy_c(source(n),1,D_s(n,2),1,nscal-1)
-          call multifab_mult_mult_s(source(n),-ONE)
+          call multifab_mult_mult_s(source(n),-ONE/diff_coef)
        enddo
 
        if (diff_coef > ZERO) then
@@ -354,14 +359,15 @@ contains
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters
-       write(*,*)
-       write(*,*)
-       write(*,*) 'SDC corrections:  k=',k
-       write(*,*) 's_k - s_k+1 min & max'
-       do n = 1, nlevs
+      write(*,*)
+      write(*,*)
+      write(*,*) 'SDC corrections:  k=',k
+      write(*,*) 's_k - s_k+1 min & max'
+      do n = 1, nlevs
           call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
           call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
           write(*,*)'LEVEL ',n
+          write(*,*) 'L2 norm', multifab_norm_l2(difference(n))
           do comp = 1,nscal
              smin = multifab_min_c(difference(n),comp) 
              smax = multifab_max_c(difference(n),comp)

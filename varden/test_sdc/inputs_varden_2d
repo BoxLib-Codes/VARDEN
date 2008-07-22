@@ -54,8 +54,10 @@ max_grid_size = 512
  visc_coef = 0.00
  diff_coef = 1.d-2
 
-! 1 = Crank-Nicolson, 2 = Backward Euler
- diffusion_type = 2
+! 1 = Crank-Nicolson or SDC, 2 = Backward Euler
+! SDC uses source terms in the diffusion solve, like CN does, 
+! so need to use type 1
+ diffusion_type = 1
 
  grav = 0
 
