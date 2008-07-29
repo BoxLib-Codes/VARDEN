@@ -146,7 +146,7 @@ contains
 !             s(i,j,3) = zero    ! species B
 !          else
 !             s(i,j,2) = zero    ! species A
-!             s(i,j,3) = one    ! species B
+!             s(i,j,3) = ten !one    ! species B
 !       end if
 !       enddo
 !    enddo
@@ -155,18 +155,20 @@ contains
     do i=lo(1),hi(1)   
        do j=lo(2),hi(2)
           if (j*dx(2) < half*prob_hi_y) then
-             u(i,j,1) = one
+             u(i,j,1) = zero !one
              u(i,j,2) = zero
              s(i,j,1) = ONE     ! density
-             s(i,j,2) = one    ! species A
-             s(i,j,3) = zero    ! species B
+             s(i,j,2) = half*(one + sin(two*M_PI*i*dx(1)))
+!one    ! species A
+             s(i,j,3) = half*(one + sin(two*M_PI*i*dx(1))) !zero    ! species B
              s(i,j,4) = zero    ! species C
           else
-             u(i,j,1) = 10.d0
+             u(i,j,1) = zero !two !ten
              u(i,j,2) = zero
              s(i,j,1) = ONE     ! density
-             s(i,j,2) = zero    ! species A
-             s(i,j,3) = one    ! species B
+             s(i,j,2) = half*(one + sin(two*M_PI*i*dx(1))) !zero    ! species A
+             s(i,j,3) = half*(one + sin(two*M_PI*i*dx(1)))
+!one    ! species B
           s(i,j,4) = zero    ! species C
        end if
        enddo

@@ -65,13 +65,13 @@ contains
        if (icomp.eq.1) then   
           do j = lo(2)-ng,hi(2)+ng
              if (j*dx(2) < half*prob_hi_y) then
-                s(lo(1)-ng:lo(1)-1,j) = one
+               s(lo(1)-ng:lo(1)-1,j) = zero !one
              else
-                s(lo(1)-ng:lo(1)-1,j) = 10.d0
+               s(lo(1)-ng:lo(1)-1,j) =  zero! two !ten
              end if
-             !s(lo(1)-ng:lo(1)-1,j) = Um*(one + lambda * tanh(two*(dx(2)*j-half)/delta))&
-              !                       * (one + 1.d-2 * sin(306.6*t) + &
-               !                               5.5d-3 * sin(102.2*t))
+!              s(lo(1)-ng:lo(1)-1,j) = Um*(one + lambda * tanh(two*(dx(2)*j-half)/delta))&
+!                                      * (one + 1.d-2 * sin(306.6*t) + &
+!                                               5.5d-3 * sin(102.2*t))
           enddo
        endif
        if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = zero
@@ -81,14 +81,14 @@ contains
              if (j*dx(2) < half*prob_hi_y) then
                 s(lo(1)-ng:lo(1)-1,j) = one
              else
-                s(lo(1)-ng:lo(1)-1,j) = zero
+                s(lo(1)-ng:lo(1)-1,j) = one !zero
              end if
           enddo
        endif
        if (icomp.eq.5) then
           do j = lo(2)-ng,hi(2)+ng
              if (j*dx(2) < half*prob_hi_y) then
-                s(lo(1)-ng:lo(1)-1,j) = zero
+                s(lo(1)-ng:lo(1)-1,j) = one !zero
              else
                 s(lo(1)-ng:lo(1)-1,j) = one
              end if

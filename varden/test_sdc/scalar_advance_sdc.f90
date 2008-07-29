@@ -160,6 +160,9 @@ contains
 
     call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,& 
                 is_vel,is_conservative,the_bc_tower%bc_tower_array)
+!write(*,*)'Provisional advection:'
+!call multifab_print(adv_s(1,0))
+!write(*,*)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -268,6 +271,9 @@ contains
 
        call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,&
                    is_vel,is_conservative,the_bc_tower%bc_tower_array)
+!write(*,*)'SDC advection'
+!call multifab_print(adv_s(1,0))
+!write(*,*)
 
        if (verbose .ge. 1) then
           do n = 1, nlevs
@@ -331,12 +337,6 @@ contains
        call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,D_s,sdc_flag=2)
        ! use sdc_flag=2 for SDC; =1 for provisional
 
-       if (k > 1) then
-          do n = 1, nlevs
-             call multifab_copy_c(D_s(n,2),1,D_s(n,3),1,nscal-1)
-          enddo
-       end if
-
        !*********************************************
        ! Compute D(s) at time n+1
 
@@ -356,6 +356,10 @@ contains
 
        call intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
 
+       do n = 1, nlevs
+          call multifab_copy_c(D_s(n,2),1,D_s(n,3),1,nscal-1)
+       enddo
+       
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters

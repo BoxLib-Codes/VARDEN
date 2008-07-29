@@ -256,7 +256,6 @@ contains
           call multifab_build(alpha(n), mla%la(n),  1, 1)
           call multifab_build( beta(n), mla%la(n), dm, 1)
 
-          ! not filling ghost cells here.  change?
           call multifab_copy_c(alpha(n),1,snew(n),1,1)
           call setval(beta(n),mu,all=.true.)
           call multifab_mult_mult_c(beta(n),1,snew(n),1,1)

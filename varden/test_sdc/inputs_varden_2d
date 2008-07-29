@@ -10,13 +10,15 @@
 ! inputs for reactions
   reactions = T
 ! sdc_iters < 0 means use strang splitting
-  sdc_iters = 10
+  sdc_iters = 5
   n_rxn_steps = 100
-  k_rxn1 = 1050.0d0
-  k_rxn2 = 132.0d0
+  k_rxn1 = 0.0
+  k_rxn2 = 0.0
+!  k_rxn1 = 1050.0d0
+!  k_rxn2 = 132.0d0
 
 ! default = T
- mass_fractions = T
+ mass_fractions = F
 
 
 !!!! Input for fixed grids !!!!
@@ -48,11 +50,12 @@ max_grid_size = 512
  chk_int   = 10
 
  stop_time = 0.0625
- cflfac = 0.5
+ cflfac = 0.1
  init_shrink = 0.1
 
+
  visc_coef = 0.00
- diff_coef = 1.d-2
+ diff_coef = 0.1
 
 ! 1 = Crank-Nicolson or SDC, 2 = Backward Euler
 ! SDC uses source terms in the diffusion solve, like CN does, 
