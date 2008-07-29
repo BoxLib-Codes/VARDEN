@@ -12,13 +12,13 @@
 ! sdc_iters < 0 means use strang splitting
   sdc_iters = 5
   n_rxn_steps = 100
-  k_rxn1 = 0.0
-  k_rxn2 = 0.0
-!  k_rxn1 = 1050.0d0
-!  k_rxn2 = 132.0d0
+!  k_rxn1 = 0.0
+!  k_rxn2 = 0.0
+  k_rxn1 = 1050.0d0
+  k_rxn2 = 132.0d0
 
 ! default = T
- mass_fractions = F
+ mass_fractions = T
 
 
 !!!! Input for fixed grids !!!!
