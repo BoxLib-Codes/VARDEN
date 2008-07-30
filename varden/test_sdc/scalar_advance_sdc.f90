@@ -58,14 +58,11 @@ contains
     real(kind=dp_t) :: smin,smax
 
     ! for convergence study--DELETE ME
-    type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
+!    type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
 
 
     nlevs = mla%nlevel
     dm    = mla%dim
- 
-!    allocate(snew_old(nlevs),difference(nlevs))
-
 
     if (mass_fractions) then
        ! using mass fractions
@@ -109,9 +106,9 @@ contains
        call setval(divu(n),0.0_dp_t,all=.true.)
        call setval(source(n),0.0_dp_t,all=.true.)
 
-       call multifab_build(snew_old(n),mla%la(n),  nscal,0)
-       call multifab_build(difference(n),mla%la(n),nscal,0)
-       call copy(snew_old(n), sold(n), 0)
+!       call multifab_build(snew_old(n),mla%la(n),  nscal,0)
+!       call multifab_build(difference(n),mla%la(n),nscal,0)
+!       call copy(snew_old(n), sold(n), 0)
     enddo
    
 
@@ -130,6 +127,7 @@ contains
           call multifab_mult_mult_s(D_s(n,0),diff_coef)
        enddo
     endif
+!write(*,*)'D_s(0) = ', D_s(1,0)%fbs(7)%p(64,64,1,3)
 
     !************************************************************
     ! Create scalar force at time n.
@@ -160,9 +158,6 @@ contains
 
     call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,& 
                 is_vel,is_conservative,the_bc_tower%bc_tower_array)
-!write(*,*)'Provisional advection:'
-!call multifab_print(adv_s(1,0))
-!write(*,*)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -271,9 +266,6 @@ contains
 
        call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,&
                    is_vel,is_conservative,the_bc_tower%bc_tower_array)
-!write(*,*)'SDC advection'
-!call multifab_print(adv_s(1,0))
-!write(*,*)
 
        if (verbose .ge. 1) then
           do n = 1, nlevs
@@ -363,23 +355,23 @@ contains
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters
-      write(*,*)
-      write(*,*)
-      write(*,*) 'SDC corrections:  k=',k
-      write(*,*) 's_k - s_k+1 min & max'
-      do n = 1, nlevs
-          call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
-          call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-          write(*,*)'LEVEL ',n
-          write(*,*) 'L2 norm', multifab_norm_l2(difference(n))
-          do comp = 1,nscal
-             smin = multifab_min_c(difference(n),comp) 
-             smax = multifab_max_c(difference(n),comp)
-             write(*,*)'component ',comp, ': ', smin, smax
-          enddo
-          write(*,*)
-          call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
-       enddo
+ !      write(*,*)
+!       write(*,*)
+!       write(*,*) 'SDC corrections:  k=',k
+!       write(*,*) 's_k - s_k+1 min & max'
+!       do n = 1, nlevs
+!           call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
+!           call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
+!           write(*,*)'LEVEL ',n
+!           write(*,*) 'L2 norm', multifab_norm_l2(difference(n))
+!           do comp = 1,nscal
+!              smin = multifab_min_c(difference(n),comp) 
+!              smax = multifab_max_c(difference(n),comp)
+!              write(*,*)'component ',comp, ': ', smin, smax
+!           enddo
+!           write(*,*)
+!           call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+!        enddo
 
 
     end do  ! sdc_iters loop
@@ -391,8 +383,8 @@ contains
        call multifab_destroy(divu(n))
        call multifab_destroy(source(n))
        call multifab_destroy(I_ADR(n))
-       call multifab_destroy(snew_old(n))
-       call multifab_destroy(difference(n))
+!       call multifab_destroy(snew_old(n))
+!       call multifab_destroy(difference(n))
        do i = 1,dm
          call multifab_destroy(sflux(n,i))
          call multifab_destroy(sedge(n,i))
