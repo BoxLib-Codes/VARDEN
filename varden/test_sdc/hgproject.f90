@@ -76,8 +76,8 @@ contains
     do n = 1, nlevs
        call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
        call multifab_build(gphi(n), mla%la(n), dm, 0) 
-       call multifab_copy(phi(n),p(n))
-       call multifab_mult_mult_s(phi(n),dt,phi(n)%ng)
+!       call multifab_copy(phi(n),p(n))
+!       call multifab_mult_mult_s(phi(n),dt,phi(n)%ng)
     end do
 
     if (verbose .ge. 1) then

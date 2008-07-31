@@ -241,7 +241,7 @@ contains
     type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
     type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel)
     type(bndry_reg) :: fine_flx(mla%nlevel)
-    integer         :: n,nlevs,dm
+    integer         :: n,nlevs,dm,i
     integer         :: ng_cell
     real(kind=dp_t) :: nrm1
 
@@ -256,9 +256,11 @@ contains
           call multifab_build(alpha(n), mla%la(n),  1, 1)
           call multifab_build( beta(n), mla%la(n), dm, 1)
 
-          call multifab_copy_c(alpha(n),1,snew(n),1,1)
+          call multifab_copy_c(alpha(n),1,snew(n),1,1,1)
           call setval(beta(n),mu,all=.true.)
-          call multifab_mult_mult_c(beta(n),1,snew(n),1,1)
+          do i = 1,dm
+             call multifab_mult_mult_c(beta(n),i,snew(n),1,1,1)
+          end do
        end do
       
     else
@@ -384,6 +386,11 @@ contains
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
+
+write(*,*)'rh: nx, ny = ', nx,ny
+write(*,*)'laps: nx, ny = ',size(laps,dim=1),size(laps,dim=2)
+write(*,*) 'mu = ', mu
+
 
       rh(1:nx,1:ny) = snew(1:nx,1:ny)
       phi(0:nx+1,0:ny+1) = snew(0:nx+1,0:ny+1)

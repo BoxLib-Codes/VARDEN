@@ -97,26 +97,26 @@ contains
        if (icomp.eq.6) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = zero
        if (icomp.eq.7) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = zero
    else if (bc(1,1) .eq. FOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           s(lo(1)-ng:lo(1)-1,j) = s(lo(1),j)
        end do
     else if (bc(1,1) .eq. HOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2) 
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2) 
           s(lo(1)-ng:lo(1)-1,j) = EIGHTH* &
                (15.0_dp_t*s(lo(1),j) - 10.0_dp_t*s(lo(1)+1,j) + 3.0_dp_t*s(lo(1)+2,j))
        end do
     else if (bc(1,1) .eq. REFLECT_EVEN) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           do i = 1, ng
              s(lo(1)-i,j) = s(lo(1)+i-1,j)
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_ODD) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           do i = 1, ng
              s(lo(1)-i,j) = -s(lo(1)+i-1,j)
           end do
@@ -137,26 +137,26 @@ contains
        if (icomp.eq.6) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_TRA_C
        if (icomp.eq.7) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_TRA_D
     else if (bc(1,2) .eq. FOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           s(hi(1)+1:hi(1)+ng,j) = s(hi(1),j)
        end do
     else if (bc(1,2) .eq. HOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           s(hi(1)+1:hi(1)+ng,j) = EIGHTH* &
                (15.0_dp_t * s(hi(1)  ,j) - 10.0_dp_t*s(hi(1)-1,j) + 3.0_dp_t*s(hi(1)-2,j))
        end do
     else if (bc(1,2) .eq. REFLECT_EVEN) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           do i = 1, ng
              s(hi(1)+i,j) = s(hi(1)-i+1,j)
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_ODD) then
-       do j = lo(2)-ng, hi(2)+ng
-!       do j = lo(2), hi(2)
+!       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2), hi(2)
           do i = 1, ng
              s(hi(1)+i,j) = -s(hi(1)-i+1,j)
           end do

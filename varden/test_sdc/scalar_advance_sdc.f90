@@ -81,7 +81,7 @@ contains
        call multifab_build( scal_force(n),ext_scal_force(n)%la,nscal,1)
        call multifab_build( divu(n),mla%la(n),    1,1)
 ! have no ghost cells--may need to change
-       call multifab_build( source(n),mla%la(n),nspec,1)
+       call multifab_build( source(n),mla%la(n),nspec,0)
        do j = 0, n_diff-1
           call multifab_build( D_s(n,j),mla%la(n),nspec,0)
           call setval(D_s(n,j),zero,all=.true.)
@@ -180,13 +180,13 @@ contains
 
        do n = 1,nlevs
           ! just a dummy to pass in zero to diffusion solve
-          call setval(scal_force(n),zero)
+          call setval(source(n),zero,all=.true.)
        end do
 
        do  comp = 2, nscal
            bc_comp = dm+comp
            visc_mu = dt*diff_coef
-           call diff_scalar_solve(mla,snew,scal_force,dx,t,visc_mu,&
+           call diff_scalar_solve(mla,snew,source,dx,t,visc_mu,&
                                   the_bc_tower,comp,bc_comp)
         end do
     end if
