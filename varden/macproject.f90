@@ -1502,8 +1502,8 @@ contains
        do i = mgt(n)%nlevels, 1, -1
           pdv = layout_boxarray(mgt(n)%ss(i)%la)
           call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
-                            pdv, mgt(n)%mm(i), xa, xb, pxa, pxb, pd, stencil_order, &
-                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
+                               pdv, mgt(n)%mm(i), xa, xb, pxa, pxb, pd, stencil_order, &
+                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
        end do
 
        if ( n == 1 .and. bottom_solver == 3 ) then
@@ -1741,7 +1741,7 @@ contains
        call destroy(bac)
     end do
 
-    call ml_cc_applyop(mla, mgt, res, phi, fine_mask, ref_ratio, do_diagnostics)
+    call ml_cc_applyop(mla, mgt, res, phi, fine_mask, ref_ratio)
 
     ! Copied in from ml_solve.f90:85 to destroy fine_mask
     do n = 1,nlevs
