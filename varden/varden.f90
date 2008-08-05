@@ -264,6 +264,10 @@ subroutine varden()
         end if  
 
         do n = 2, nlevs
+           print *,'FILLING AT LEVEL ',n
+           print *,'ASKING FOR NG CELLS ',ng_cell
+           call print(uold(n-1)%la,'CRSE LAYOUT ')
+           call print(uold(n  )%la,'FINE LAYOUT ')
            call multifab_fill_ghost_cells(uold(n),uold(n-1), &
                                           ng_cell,mla%mba%rr(n-1,:), &
                                           the_bc_tower%bc_tower_array(n-1), &

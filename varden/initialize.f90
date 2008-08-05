@@ -145,7 +145,7 @@ contains
 
      logical :: new_grid
      integer :: lo(dim_in), hi(dim_in)
-     integer :: i, ii, jj, n, nl, dm
+     integer :: n, nl, dm
 
      dm = dim_in
 
@@ -200,7 +200,7 @@ contains
      if (max_levs > 1) then
 
         ! Initialize the level 1 data only.
-        call initdata_on_level(uold(1),sold(1),dx(1,:),the_bc_tower%bc_tower_array(1),la_array(1))
+        call initdata_on_level(uold(1),sold(1),dx(1,:),the_bc_tower%bc_tower_array(1))
 
         new_grid = .true.
         nl = 1
@@ -222,7 +222,7 @@ contains
               call bc_tower_level_build(the_bc_tower,nl+1,la_array(nl+1))
             
              ! fills the physical region of each level with problem data (blob now)
-              call initdata_on_level(uold(nl+1),sold(nl+1),dx(nl+1,:),the_bc_tower%bc_tower_array(nl+1),la_array(nl+1))
+              call initdata_on_level(uold(nl+1),sold(nl+1),dx(nl+1,:),the_bc_tower%bc_tower_array(nl+1))
 
               nlevs = nl+1
               nl = nl + 1
