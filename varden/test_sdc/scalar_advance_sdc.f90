@@ -187,7 +187,7 @@ contains
            bc_comp = dm+comp
            visc_mu = dt*diff_coef
            call diff_scalar_solve(mla,snew,source,dx,t,visc_mu,&
-                                  the_bc_tower,comp,bc_comp)
+                                  the_bc_tower,comp,bc_comp,adj_index=.true.)
         end do
     end if
 
@@ -301,7 +301,7 @@ contains
              bc_comp = dm+comp
              visc_mu = dt*diff_coef
              call diff_scalar_solve(mla,snew,source,dx,t,visc_mu,&
-                                    the_bc_tower,comp,bc_comp)
+                                    the_bc_tower,comp,bc_comp,adj_index=.true.)
           end do
        end if
        

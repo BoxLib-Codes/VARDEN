@@ -218,7 +218,8 @@ contains
 
   end subroutine visc_solve
 
-  subroutine diff_scalar_solve(mla,snew,laps,dx,t,mu,the_bc_tower,icomp,bc_comp)
+  subroutine diff_scalar_solve(mla,snew,laps,dx,t,mu,the_bc_tower,icomp,&
+       bc_comp,adj_index)
 
     use bndry_reg_module
     use bl_constants_module
@@ -236,6 +237,7 @@ contains
     real(dp_t)     , intent(in   ) :: mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
     integer        , intent(in   ) :: icomp,bc_comp
+    logical, optional, intent(in ) :: adj_index 
 
     ! Local  
     type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
@@ -244,11 +246,14 @@ contains
     integer         :: n,nlevs,dm,i
     integer         :: ng_cell
     real(kind=dp_t) :: nrm1
+    logical         :: ladj_index
 
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = snew(1)%ng
-    
+    if (present(adj_index)) then; ladj_index = adj_index 
+    else ladj_index = .false.
+
     if (mass_fractions) then
        do n = 1,nlevs
           call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -286,9 +291,15 @@ contains
        end do
     end if
 
-    do n = 1,nlevs
-       call mkrhs(rh(n),snew(n),laps(n),phi(n),mu,icomp)
-    end do
+    if (ladj_index) then
+       do n = 1,nlevs
+          call mkrhs_adjusted(rh(n),snew(n),laps(n),phi(n),mu,icomp)
+       end do
+    else
+       do n = 1,nlevs
+          call mkrhs(rh(n),snew(n),laps(n),phi(n),mu,icomp)
+       end do
+    end if
 
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
@@ -366,6 +377,38 @@ contains
             call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), lp(:,:,1,comp), pp(:,:,1,1), mu, ng)
          case (3)
             call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), lp(:,:,:,comp), pp(:,:,:,1), mu, ng)
+         end select
+      end do
+
+    end subroutine mkrhs
+
+    subroutine mkrhs_adjusted(rh,snew,laps,phi,mu,comp)
+
+      type(multifab) , intent(in   ) :: snew,laps
+      type(multifab) , intent(inout) :: rh,phi
+      real(dp_t)     , intent(in   ) :: mu
+      integer        , intent(in   ) :: comp
+
+      real(kind=dp_t), pointer :: sp(:,:,:,:)
+      real(kind=dp_t), pointer :: rp(:,:,:,:)
+      real(kind=dp_t), pointer :: pp(:,:,:,:)
+      real(kind=dp_t), pointer :: lp(:,:,:,:)
+      integer :: i,dm,ng
+
+      dm   = rh%dim
+      ng   = snew%ng
+
+      do i = 1, snew%nboxes
+         if ( multifab_remote(snew, i) ) cycle
+         rp => dataptr(rh  , i)
+         pp => dataptr(phi , i)
+         sp => dataptr(snew, i)
+         lp => dataptr(laps, i)
+         select case (dm)
+         case (2)
+            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), lp(:,:,1,comp-1), pp(:,:,1,1), mu, ng)
+         case (3)
+            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), lp(:,:,:,comp-1), pp(:,:,:,1), mu, ng)
          end select
       end do
 

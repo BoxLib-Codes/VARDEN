@@ -687,7 +687,7 @@ contains
             beta(i,j,1) = TWO / (rho(i,j) + rho(i-1,j))
          end do
       end do
-
+      
       do j = 0,ny
          do i = 0,nx-1
             beta(i,j,2) = TWO / (rho(i,j) + rho(i,j-1))
