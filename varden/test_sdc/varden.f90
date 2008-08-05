@@ -376,10 +376,10 @@ subroutine varden()
 
   call delete_state(uold,sold,gp,p)
   call delete_temps()
-! need to call multifab destory on each level of below?
   deallocate(uold,sold,p,gp)
 
   call bc_tower_destroy(the_bc_tower)
+  call destroy(mla)
 
   if ( verbose > 0 ) then
      if ( parallel_IOProcessor() ) then

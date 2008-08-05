@@ -48,26 +48,21 @@ contains
     integer        , intent(in   ) :: press_comp
     integer        , intent(in   ) :: proj_type
 
-    type(multifab), allocatable :: lapu(:)
-    type(multifab), allocatable :: umac(:,:)
-    type(multifab), allocatable :: rhohalf(:)
+    type(multifab) :: lapu(mla%nlevel)
+    type(multifab) :: umac(mla%nlevel,mla%dim)
+    type(multifab) :: rhohalf(mla%nlevel)
 !    type(multifab), allocatable :: diffusive_update(:)
 !    type(multifab), allocatable :: viscous_update(:)
 
     integer    :: i,n,comp,dm,nlevs,bc_comp
     real(dp_t) :: visc_mu
-    logical, allocatable :: umac_nodal_flag(:)
+    logical :: umac_nodal_flag(mla%dim)
 
     dm    = mla%dim
     nlevs = mla%nlevel
 
-    allocate(lapu(nlevs))
-    allocate(umac(nlevs,dm))
-    allocate(rhohalf(nlevs))
 !    allocate(diffusive_update(nlevs))
 !    allocate(viscous_update(nlevs))
-
-    allocate(umac_nodal_flag(mla%dim))
 
     do n = 1,nlevs
        call multifab_build(   lapu(n), mla%la(n),    dm, 0)
@@ -213,11 +208,9 @@ contains
 !       call multifab_destroy(viscous_update(n))
     end do
 
-    deallocate(lapu)
-    deallocate(umac,rhohalf)
 !    deallocate(diffusive_update,viscous_update)
 
-  end subroutine advance_timestep
+contains
 
   subroutine print_old(u,proj_type,time)
 
@@ -306,5 +299,6 @@ contains
 2003 format('LEVEL: ',i3,' TIME: ',f14.8,' UNEW/VNEW/WOLD MAX: ',e15.9,1x,e15.9,1x,e15.9)
 
   end subroutine print_new
+end subroutine advance_timestep
 
-end module advance_module 
+end module advance_module

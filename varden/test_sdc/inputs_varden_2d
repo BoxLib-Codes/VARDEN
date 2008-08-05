@@ -82,7 +82,7 @@ max_grid_size = 512
  pmask_y = F
 
  verbose = 10
- mg_verbose = 10
+ mg_verbose = 0
 
 ! restart = 30
 /

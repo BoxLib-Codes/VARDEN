@@ -431,9 +431,9 @@ contains
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
 
-write(*,*)'rh: nx, ny = ', nx,ny
-write(*,*)'laps: nx, ny = ',size(laps,dim=1),size(laps,dim=2)
-write(*,*) 'mu = ', mu
+!write(*,*)'rh: nx, ny = ', nx,ny
+!write(*,*)'laps: nx, ny = ',size(laps,dim=1),size(laps,dim=2)
+!write(*,*) 'mu = ', mu
 
 
       rh(1:nx,1:ny) = snew(1:nx,1:ny)
