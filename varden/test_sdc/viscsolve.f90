@@ -252,7 +252,8 @@ contains
     dm    = mla%dim
     ng_cell = snew(1)%ng
     if (present(adj_index)) then; ladj_index = adj_index 
-    else ladj_index = .false.
+    else; ladj_index = .false.
+    end if
 
     if (mass_fractions) then
        do n = 1,nlevs
@@ -412,7 +413,7 @@ contains
          end select
       end do
 
-    end subroutine mkrhs
+    end subroutine mkrhs_adjusted
 
     subroutine mkrhs_2d(rh,snew,laps,phi,mu,ng)
       
