@@ -32,7 +32,7 @@ contains
      type(bc_tower), intent(inout) :: the_bc_tower
 
      logical           :: new_grid
-     integer           :: i, n, nl, dm, buf_wid
+     integer           :: n, nl, dm, buf_wid
      type(layout)      :: la_array(max_levs)
      type(ml_layout)   :: mla_old
      type(ml_boxarray) :: mba

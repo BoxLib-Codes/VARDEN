@@ -37,8 +37,7 @@ subroutine varden()
 
   integer    :: dm
   real(dp_t) :: time,dt,dtold,dt_lev,dt_temp
-  integer    :: istep
-  integer    :: i, n
+  integer    :: n,istep
   integer    :: n_chk_comps
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step
@@ -538,7 +537,7 @@ contains
     type(ml_layout)   , intent(in   ) :: mla
     integer           , intent(in   ) :: nstep
 
-    integer        :: i,d,un,nb,tp(mla%dim)
+    integer        :: i,un,nb,tp(mla%dim)
     type(box)      :: bx
 
     un = 11
