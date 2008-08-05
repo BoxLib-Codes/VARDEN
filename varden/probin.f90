@@ -140,7 +140,7 @@ contains
     ng_cell = 3
     ng_grow = 1
 
-    max_levs = -1
+    max_levs = 1
     nlevs = -1
 
     max_grid_size = 256
@@ -404,24 +404,23 @@ contains
     end do
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! If n_error_buf hasn't been set in the inputs file.
+    ! Need to specify regrid_int if max_levs > 1 and not 'fixed grids'
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (n_error_buf < 0 .and. fixed_grids == '') then
-       if (regrid_int > 0) then
-          n_error_buf = regrid_int
-       else
-          call bl_error('Cant have n_error_buf and regrid_int both unspecified')
+    if (max_levs > 1) then
+       if (fixed_grids == '' .and. regrid_int < 1) then
+          call bl_error('regrid_int must be specified if max_levs > 1')
+       else if (fixed_grids /= '' .and. regrid_int > 0) then
+          call bl_warn('Note: regrid_int will be ignored')
        end if
     end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Don't set regrid_int and fixed_grids
+    ! If n_error_buf hasn't been set in the inputs file.
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (fixed_grids /= '') then
-      if (regrid_int > 0) &
-         call bl_error('Cant have fixed_grids and regrid_int > 0.')
+    if ( max_levs > 1 .and. (n_error_buf < 0) .and. fixed_grids == '' ) then
+       n_error_buf = regrid_int
     end if
-    
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize prob_lo and prob_hi
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
