@@ -201,6 +201,9 @@ contains
      do nl = 1,nlevs-1
 
         call make_new_state(mla%la(nl+1),u(nl+1),s(nl+1),gp(nl+1),p(nl+1))
+
+        ! Define bc_tower at level nl+1.
+        call bc_tower_level_build(the_bc_tower,nl+1,mla%la(nl+1))
   
         ! Fill the data in the new level nl+1 state -- first from the coarser data.
          call fillpatch(u(nl+1),u(nl), &
