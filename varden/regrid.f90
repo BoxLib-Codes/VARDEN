@@ -176,7 +176,7 @@ contains
 
      ! check for proper nesting
      if (nlevs .ge. 3) &
-        call enforce_proper_nesting(mba,la_array)
+        call enforce_proper_nesting(mba,la_array,max_grid_size)
 
      do n = 1,nl
          call destroy(la_array(n))
