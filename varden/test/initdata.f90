@@ -14,11 +14,11 @@ module init_module
   implicit none
 
   private
-  public :: initdata, impose_pressure_bcs, initdata_on_level
+  public :: initdata, initdata_on_level
 
 contains
 
-  subroutine initdata_on_level(u,s,dx,bc,la)
+  subroutine initdata_on_level(u,s,dx,bc)
 
     use multifab_physbc_module
     use probin_module, only : nscal
@@ -26,7 +26,6 @@ contains
     type(multifab) , intent(inout) :: u,s
     real(kind=dp_t), intent(in   ) :: dx(:)
     type(bc_level) , intent(in   ) :: bc
-    type(layout)   , intent(inout) :: la
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
     integer :: lo(u%dim),hi(u%dim)
@@ -202,29 +201,5 @@ contains
     s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2  ,2) = ONE
     s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2  ,2) = ONE
   end subroutine initdata_3d
-
-  subroutine impose_pressure_bcs(p,mla,mult)
-
-    type(multifab ), intent(inout) :: p(:)
-    type(ml_layout), intent(in   ) :: mla
-    real(kind=dp_t), intent(in   ) :: mult
-
-    type(box)           :: bx,pd
-    integer             :: i,n,nlevs
-
-    nlevs = size(p,dim=1)
-
-    do n = 1,nlevs
-       pd = layout_get_pd(mla%la(n))
-       do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
-          bx = get_ibox(p(n),i)
-          if (bx%lo(2) == pd%lo(2)) then
-             bx%hi(2) = bx%lo(2)
-             call setval(p(n),mult,bx)
-          end if
-       end do
-    end do
-
-  end subroutine impose_pressure_bcs
 
 end module init_module
