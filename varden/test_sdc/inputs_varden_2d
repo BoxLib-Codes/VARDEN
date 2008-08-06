@@ -10,7 +10,7 @@
 ! inputs for reactions
   reactions = T
 ! sdc_iters < 0 means use strang splitting
-  sdc_iters = 1
+  sdc_iters = 10
   n_rxn_steps = 100
 !  k_rxn1 = 0.0
 !  k_rxn2 = 0.0
@@ -54,7 +54,7 @@ max_grid_size = 512
  init_shrink = 0.1
 
 
- visc_coef = 0.00
+ visc_coef = 0.001
  diff_coef = 0.001
 
 ! 1 = Crank-Nicolson or SDC, 2 = Backward Euler
@@ -82,7 +82,7 @@ max_grid_size = 512
  pmask_y = F
 
  verbose = 10
- mg_verbose = 0
+ mg_verbose = 10
 
 ! restart = 30
 /

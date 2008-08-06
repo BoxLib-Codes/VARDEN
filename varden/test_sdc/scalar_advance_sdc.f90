@@ -110,7 +110,7 @@ contains
 !       call multifab_build(difference(n),mla%la(n),nscal,0)
 !       call copy(snew_old(n), sold(n), 0)
     enddo
-   
+  
 
 
    !--Compute provisional solution at t=n+1 using forward/backward euler------------
@@ -121,7 +121,7 @@ contains
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(:,0),sold,comp,bc_comp,dx,the_bc_tower)
+          call get_explicit_diffusive_term(mla,D_s(:,0),sold,comp,bc_comp,dx,the_bc_tower,adj_index=.true.)
        end do
        do n = 1, nlevs
           call multifab_mult_mult_s(D_s(n,0),diff_coef)
@@ -198,7 +198,7 @@ contains
        do comp = 2, nscal
           bc_comp = dm+comp
           call get_explicit_diffusive_term(mla,D_s(:,1),snew,comp,bc_comp,&
-                                           dx,the_bc_tower)
+                                           dx,the_bc_tower,adj_index=.true.)
        end do
        do n = 1, nlevs
           call multifab_mult_mult_s(D_s(n,1),diff_coef)
@@ -222,7 +222,7 @@ contains
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(:,2),snew,comp,bc_comp,dx,the_bc_tower)
+          call get_explicit_diffusive_term(mla,D_s(:,2),snew,comp,bc_comp,dx,the_bc_tower,adj_index=.true.)
        end do
        do n = 1, nlevs
           call multifab_mult_mult_s(D_s(n,2),diff_coef)
@@ -312,7 +312,7 @@ contains
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,1),snew,comp,bc_comp,&
-                                              dx,the_bc_tower)
+                                              dx,the_bc_tower,adj_index=.true.)
           end do
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,1),diff_coef)
@@ -336,7 +336,7 @@ contains
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,3),snew,comp,bc_comp,&
-                                              dx,the_bc_tower)
+                                              dx,the_bc_tower,adj_index=.true.)
           end do
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,3),diff_coef)
@@ -355,9 +355,9 @@ contains
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters
- !      write(*,*)
-!       write(*,*)
-!       write(*,*) 'SDC corrections:  k=',k
+ !       write(*,*)
+!        write(*,*)
+!        write(*,*) 'SDC corrections:  k=',k
 !       write(*,*) 's_k - s_k+1 min & max'
 !       do n = 1, nlevs
 !           call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)

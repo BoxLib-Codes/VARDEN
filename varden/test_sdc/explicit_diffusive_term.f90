@@ -17,8 +17,8 @@ module explicit_diffusive_module
 
 contains
 
-  subroutine get_explicit_diffusive_term(mla,lap_data,data,data_comp,bc_comp,dx,&
-                                         the_bc_tower)
+  subroutine get_explicit_diffusive_term(mla,lap_data,data,data_comp,&
+                                         bc_comp,dx,the_bc_tower,adj_index)
 
     use bl_constants_module
 
@@ -29,13 +29,19 @@ contains
     real(kind=dp_t), intent(in   ) :: dx(:,:)
     integer        , intent(in   ) :: data_comp
     integer        , intent(in   ) :: bc_comp
+    logical, optional, intent(in ) :: adj_index
 
     ! local variables
     type(multifab) :: alpha(mla%nlevel), beta(mla%nlevel)
     type(multifab) :: phi(mla%nlevel), Lphi(mla%nlevel)
-
     integer         :: n, comp
     integer         :: nlevs,dm
+    logical         :: ladj_index
+
+
+    if(present(adj_index)) then; ladj_index = adj_index
+    else; ladj_index = .false.
+    endif
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -65,7 +71,7 @@ contains
      call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
                       bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
 
-     if (sdc_iters > -1) then
+     if (ladj_index) then
         comp = data_comp-1
      else 
         comp = data_comp
