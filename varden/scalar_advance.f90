@@ -104,7 +104,7 @@ contains
     ! Create edge state scalars/fluxes
     !***********************************
 
-    call mkflux(mla,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
+    call mkflux(mla,sold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                 the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
     !***********************************
