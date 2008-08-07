@@ -13,8 +13,9 @@
  
  prob_hi_x = 1.0
  prob_hi_y = 1.0
+ 
+ max_step = 400
 
- max_step  = 200
  init_iter = 1
  do_initial_projection = 1
 
@@ -41,6 +42,7 @@
  verbose = 0
  mg_verbose = 0
 
-! restart = 1
+!grids_file_name = grdlog
 
+! restart = 1
 /
