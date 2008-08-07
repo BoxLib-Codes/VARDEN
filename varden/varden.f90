@@ -141,14 +141,19 @@ subroutine varden()
         deallocate(rhohalf)
      end if
 
+     if (grids_file_name /= '') &
+        call write_grids(grids_file_name,mla,0)
+
+  else
+
+     if (grids_file_name /= '') &
+        call write_grids(grids_file_name,mla,restart)
+
   end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Write the grids into a "grdlog" file
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  if (grids_file_name /= '') &
-     call write_grids(grids_file_name,mla,0)
 
   call make_temps(mla)
 
