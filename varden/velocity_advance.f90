@@ -78,7 +78,7 @@ contains
     ! Create the edge state velocities
     !********************************************************
 
-    call mkflux(mla,uold,uold,uedge,uflux,umac,vel_force,divu,dx,dt,&
+    call mkflux(mla,uold,uedge,uflux,umac,vel_force,divu,dx,dt,&
                 the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
     !********************************************************

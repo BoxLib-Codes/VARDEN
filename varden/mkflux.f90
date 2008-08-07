@@ -13,7 +13,7 @@ module mkflux_module
 
 contains
 
-  subroutine mkflux(mla,sold,uold,sedge,flux,umac,force,divu,dx,dt,the_bc_level, &
+  subroutine mkflux(mla,sold,sedge,flux,umac,force,divu,dx,dt,the_bc_level, &
                     is_vel,is_conservative)
 
     use ml_restriction_module, only: ml_edge_restriction_c
@@ -21,7 +21,6 @@ contains
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(in   ) :: sold(:)
-    type(multifab) , intent(in   ) :: uold(:)
     type(multifab) , intent(inout) :: sedge(:,:)
     type(multifab) , intent(inout) :: flux(:,:)
     type(multifab) , intent(in   ) :: umac(:,:)
@@ -35,7 +34,6 @@ contains
     integer                  :: n,i,dm,ng,comp,ncomp,bccomp,nlevs
     integer                  :: lo(sold(1)%dim),hi(sold(1)%dim)
     real(kind=dp_t), pointer :: sop(:,:,:,:)
-    real(kind=dp_t), pointer :: uop(:,:,:,:)
     real(kind=dp_t), pointer :: sepx(:,:,:,:)
     real(kind=dp_t), pointer :: sepy(:,:,:,:)
     real(kind=dp_t), pointer :: sepz(:,:,:,:)
@@ -64,7 +62,6 @@ contains
        do i = 1, sold(n)%nboxes
           if ( multifab_remote(sold(n), i) ) cycle
           sop    => dataptr(sold(n), i)
-          uop    => dataptr(uold(n), i)
           sepx   => dataptr(sedge(n,1), i)
           sepy   => dataptr(sedge(n,2), i)
           fluxpx => dataptr(flux(n,1), i)
@@ -73,12 +70,12 @@ contains
           vmp    => dataptr(umac(n,2), i)
           fp     => dataptr(force(n) , i)
           dp     => dataptr(divu(n), i)
-          lo = lwb(get_box(uold(n), i))
-          hi = upb(get_box(uold(n), i))
+          lo = lwb(get_box(sold(n), i))
+          hi = upb(get_box(sold(n), i))
           select case (dm)
           case (2)
              if(use_godunov_debug) then
-                call mkflux_debug_2d(sop(:,:,1,:), uop(:,:,1,:), &
+                call mkflux_debug_2d(sop(:,:,1,:),  &
                                      sepx(:,:,1,:), sepy(:,:,1,:), &
                                      fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                      ump(:,:,1,1), vmp(:,:,1,1), &
@@ -88,7 +85,7 @@ contains
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
                                      ng, is_conservative)
              else
-                call mkflux_2d(sop(:,:,1,:), uop(:,:,1,:), &
+                call mkflux_2d(sop(:,:,1,:), &
                                sepx(:,:,1,:), sepy(:,:,1,:), &
                                fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                ump(:,:,1,1), vmp(:,:,1,1), &
@@ -103,7 +100,7 @@ contains
              fluxpz => dataptr(flux(n,3), i)
              wmp  => dataptr(umac(n,3), i)
              if(use_godunov_debug) then
-                call mkflux_debug_3d(sop(:,:,:,:), uop(:,:,:,:), &
+                call mkflux_debug_3d(sop(:,:,:,:), &
                                      sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                                      fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                      ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
@@ -113,7 +110,7 @@ contains
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
                                      ng, is_conservative)
              else
-                call mkflux_3d(sop(:,:,:,:), uop(:,:,:,:), &
+                call mkflux_3d(sop(:,:,:,:), &
                                sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                                fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
@@ -142,7 +139,7 @@ contains
   end subroutine mkflux
 
 
-  subroutine mkflux_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt,is_vel, &
+  subroutine mkflux_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt,is_vel, &
                        phys_bc,adv_bc,ng,is_conservative)
 
     use bc_module
@@ -153,7 +150,6 @@ contains
     integer, intent(in) :: lo(:),ng
 
     real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
-    real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
     real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
     real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
     real(kind=dp_t), intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,:)
@@ -623,7 +619,7 @@ contains
 
   end subroutine mkflux_2d
 
-  subroutine mkflux_debug_2d(s,u,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt, &
+  subroutine mkflux_debug_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt, &
                              is_vel,phys_bc,adv_bc,ng,is_conservative)
 
     use bc_module
@@ -634,7 +630,6 @@ contains
     integer, intent(in) :: lo(:),ng
 
     real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
-    real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
     real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
     real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
     real(kind=dp_t), intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,:)
@@ -1063,7 +1058,7 @@ contains
 
   end subroutine mkflux_debug_2d
 
-  subroutine mkflux_3d(s,u,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac,force, &
+  subroutine mkflux_3d(s,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac,force, &
                        divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,is_conservative)
 
     use bc_module
@@ -1074,7 +1069,6 @@ contains
     integer, intent(in) :: lo(:),ng
 
     real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-    real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
     real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
     real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
     real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
@@ -2201,7 +2195,7 @@ contains
 
   end subroutine mkflux_3d
 
-  subroutine mkflux_debug_3d(s,u,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac, &
+  subroutine mkflux_debug_3d(s,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac, &
                              force,divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,&
                              is_conservative)
     use bc_module
@@ -2212,7 +2206,6 @@ contains
     integer, intent(in) :: lo(:),ng
 
     real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-    real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
     real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
     real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
     real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
