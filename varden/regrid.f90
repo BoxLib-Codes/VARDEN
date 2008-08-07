@@ -24,7 +24,7 @@ contains
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                pmask, regrid_int, max_grid_size, ref_ratio, max_levs, &
-                               verbose
+                               min_eff, verbose
 
      type(ml_layout),intent(inout) :: mla
      type(multifab), pointer       :: u(:),s(:),gp(:),p(:)
@@ -115,8 +115,8 @@ contains
 
         ! Do we need finer grids?
 
-        call make_new_grids(la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
-                            ref_ratio,nl,max_grid_size,new_grid)
+        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
+                            ref_ratio,nl,max_grid_size)
         
         if (new_grid) then
 

@@ -130,7 +130,7 @@ contains
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                n_cellx, n_celly, n_cellz, &
                                regrid_int, max_grid_size, ref_ratio, max_levs, &
-                               verbose
+                               min_eff, verbose
 
      type(ml_layout),intent(inout)  :: mla
      logical       , intent(in   )  :: pmask(:)
@@ -208,8 +208,8 @@ contains
         do while ( (nl .lt. max_levs) .and. (new_grid) )
 
            ! Do we need finer grids?
-           call make_new_grids(la_array(nl),la_array(nl+1),sold(nl),dx(nl,1),buf_wid,&
-                               ref_ratio,nl,max_grid_size,new_grid)
+           call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1),buf_wid,&
+                               ref_ratio,nl,max_grid_size)
         
            if (new_grid) then
 
