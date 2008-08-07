@@ -38,6 +38,9 @@ module probin_module
   real(dp_t),save :: max_dt_growth
   integer, save   :: boussinesq
 
+  integer,save    :: min_width
+  real(dp_t),save :: min_eff
+
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
   logical   , allocatable, save :: pmask(:)
@@ -93,6 +96,8 @@ module probin_module
   namelist /probin/ max_grid_size
   namelist /probin/ boussinesq
   namelist /probin/ diffusion_type
+  namelist /probin/ min_eff
+  namelist /probin/ min_width
 
 contains
 
@@ -105,6 +110,7 @@ contains
     use bl_prof_module
     use bl_error_module
     use bl_constants_module
+    use cluster_module
     
     integer    :: narg, farg
 
@@ -151,6 +157,10 @@ contains
     plot_int  = 0
     chk_int  = 0
     regrid_int = -1
+
+    min_eff   = 0.7
+    min_width = 4
+
     prob_lo_x = ZERO
     prob_lo_y = ZERO
     prob_lo_z = ZERO
@@ -442,6 +452,13 @@ contains
     allocate(pmask(dim_in))
     pmask = .FALSE.
     pmask = pmask_xyz(1:dim_in)
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize min_eff
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    call cluster_set_min_eff(min_eff)
+    call cluster_set_minwidth(min_width)
 
   end subroutine probin_init
 
