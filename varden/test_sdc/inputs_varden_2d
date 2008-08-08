@@ -10,7 +10,7 @@
 ! inputs for reactions
   reactions = T
 ! sdc_iters < 0 means use strang splitting
-  sdc_iters = 10
+  sdc_iters = 2
   n_rxn_steps = 100
 !  k_rxn1 = 0.0
 !  k_rxn2 = 0.0
@@ -25,7 +25,7 @@
 ! fixed_grids = "gr0_2d_2levels"
  fixed_grids = "gr0_2d"
 
-max_grid_size = 512
+max_grid_size = 1023
 
 !!!! Inputs for adaptive grids !!!!
 ! nlevs = 3
@@ -81,8 +81,8 @@ max_grid_size = 512
  pmask_x = F
  pmask_y = F
 
- verbose = 10
- mg_verbose = 10
+ verbose = 0
+ mg_verbose = 0
 
-! restart = 30
+! restart = 185
 /

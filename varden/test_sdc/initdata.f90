@@ -123,9 +123,13 @@ contains
 
     !     Local variables
     integer :: i, j
-    real (kind = dp_t), parameter  :: lambda = fourth
-    real (kind = dp_t), parameter  :: Um = one
-    real (kind = dp_t), parameter  :: delta = 2.d-2
+!     real (kind = dp_t), parameter  :: lambda = fourth
+!     real (kind = dp_t), parameter  :: Um = one
+!     real (kind = dp_t), parameter  :: delta = 2.d-2
+    real (kind = dp_t), parameter  :: lambda = dble(9)/dble(11)
+    real (kind = dp_t), parameter  :: Um = 5.5d0
+    real (kind = dp_t), parameter  :: delta = 1.d-3
+    real (kind = dp_t), parameter  :: y
 !    real (kind = dp_t)  :: x,y,dist
 !    real (kind = dp_t)  :: xblob1 = 0.5d0, yblob1 = 0.5d0, densfact = 2.0d0
 !    real (kind = dp_t)  :: xblob2 = 0.2d0, yblob2 = 0.2d0
@@ -134,42 +138,43 @@ contains
    
 
     ! shear layer w/ roll-up
-!    do i=lo(1),hi(1)   
-!       do j=lo(2),hi(2)
-!          u(i,j,1) = Um*(one + lambda * tanh(two*(dx(2)*j-half)/delta))
-!          u(i,j,2) = zero
-!          s(i,j,1) = ONE     ! density          
-!          s(i,j,4) = zero    ! species C
-!          if (j*dx(2) .le. half*prob_hi_y) then
-!             s(i,j,2) = one    ! species A
-!             s(i,j,3) = zero    ! species B
-!          else
-!             s(i,j,2) = zero    ! species A
-!             s(i,j,3) = ten !one    ! species B
-!       end if
-!       enddo
-!    enddo
+    do j=lo(2),hi(2)
+       y = (dble(j)+half)*dx(2)
+       do i=lo(1),hi(1)   
+         u(i,j,1) = Um*(one + lambda * tanh(two*(y-half)/delta))
+         u(i,j,2) = zero
+         s(i,j,1) = ONE     ! density          
+         s(i,j,4) = zero    ! species C
+         if (y < half*prob_hi_y) then
+            s(i,j,2) = one    ! species A
+            s(i,j,3) = zero    ! species B
+         else
+            s(i,j,2) = zero    ! species A
+            s(i,j,3) = ten !one    ! species B
+      end if
+      enddo
+   enddo
 
     ! simple shear layer/plume
-    do i=lo(1),hi(1)   
-       do j=lo(2),hi(2)
-          if (j*dx(2) < half*prob_hi_y) then
-             u(i,j,1) = one
-             u(i,j,2) = zero
-             s(i,j,1) = ONE     ! density
-             s(i,j,2) = one    ! species A
-             s(i,j,3) = zero !half*(one + sin(two*M_PI*i*dx(1)))  ! species B
-             s(i,j,4) = zero    ! species C
-          else
-             u(i,j,1) = ten
-             u(i,j,2) = zero
-             s(i,j,1) = ONE     ! density
-             s(i,j,2) = zero    ! species A
-             s(i,j,3) = one    ! species B
-             s(i,j,4) = zero    ! species C
-       end if
-       enddo
-    enddo
+!     do i=lo(1),hi(1)   
+!        do j=lo(2),hi(2)
+!           if (j*dx(2) < half*prob_hi_y) then
+!              u(i,j,1) = one
+!              u(i,j,2) = zero
+!              s(i,j,1) = ONE     ! density
+!              s(i,j,2) = one    ! species A
+!              s(i,j,3) = zero !half*(one + sin(two*M_PI*i*dx(1)))  ! species B
+!              s(i,j,4) = zero    ! species C
+!           else
+!              u(i,j,1) = ten
+!              u(i,j,2) = zero
+!              s(i,j,1) = ONE     ! density
+!              s(i,j,2) = zero    ! species A
+!              s(i,j,3) = one    ! species B
+!              s(i,j,4) = zero    ! species C
+!        end if
+!        enddo
+!     enddo
 
     
 

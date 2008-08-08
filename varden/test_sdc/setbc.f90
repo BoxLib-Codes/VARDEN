@@ -33,10 +33,13 @@ contains
     integer, parameter  :: INLET_TRA_C = zero
     integer, parameter  :: INLET_TRA_D = zero
  
+!     real (kind = dp_t), parameter  :: lambda = fourth
+!     real (kind = dp_t), parameter  :: Um = one
+!     real (kind = dp_t), parameter  :: delta = 2.d-2
     real (kind = dp_t), parameter  :: lambda = fourth
     real (kind = dp_t), parameter  :: Um = one
     real (kind = dp_t), parameter  :: delta = 2.d-2
-
+    real (kind = dp_t), parameter  :: y
 
     integer :: i,j,hi(2)
 
@@ -64,12 +67,13 @@ contains
     if (bc(1,1) .eq. EXT_DIR) then
        if (icomp.eq.1) then   
           do j = lo(2)-ng,hi(2)+ng
-             if (j*dx(2) < half*prob_hi_y) then
-               s(lo(1)-ng:lo(1)-1,j) = one
-             else
-               s(lo(1)-ng:lo(1)-1,j) = ten
-             end if
-!              s(lo(1)-ng:lo(1)-1,j) = Um*(one + lambda * tanh(two*(dx(2)*j-half)/delta))&
+!             if (j*dx(2) < half*prob_hi_y) then
+!               s(lo(1)-ng:lo(1)-1,j) = one
+!             else
+!               s(lo(1)-ng:lo(1)-1,j) = ten
+!             end if
+             y = (dble(j)+half)*dx(2) 
+             s(lo(1)-ng:lo(1)-1,j) = Um*(one + lambda * tanh(two*(y-half)/delta))!&
 !                                      * (one + 1.d-2 * sin(306.6*t) + &
 !                                               5.5d-3 * sin(102.2*t))
           enddo
