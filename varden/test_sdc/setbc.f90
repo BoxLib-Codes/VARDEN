@@ -82,7 +82,8 @@ contains
        if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = one
        if (icomp.eq.4) then
           do j = lo(2)-ng,hi(2)+ng
-             if (j*dx(2) < half*prob_hi_y) then
+             y = (dble(j)+half)*dx(2) 
+             if (y < half*prob_hi_y) then
                 s(lo(1)-ng:lo(1)-1,j) = one
              else
                 s(lo(1)-ng:lo(1)-1,j) = zero
@@ -91,7 +92,8 @@ contains
        endif
        if (icomp.eq.5) then
           do j = lo(2)-ng,hi(2)+ng
-             if (j*dx(2) < half*prob_hi_y) then
+             y = (dble(j)+half)*dx(2) 
+             if (y < half*prob_hi_y) then
                 s(lo(1)-ng:lo(1)-1,j) = zero
              else
                 s(lo(1)-ng:lo(1)-1,j) = one
