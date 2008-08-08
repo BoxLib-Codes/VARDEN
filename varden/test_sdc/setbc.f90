@@ -36,9 +36,9 @@ contains
 !     real (kind = dp_t), parameter  :: lambda = fourth
 !     real (kind = dp_t), parameter  :: Um = one
 !     real (kind = dp_t), parameter  :: delta = 2.d-2
-    real (kind = dp_t), parameter  :: lambda = fourth
-    real (kind = dp_t), parameter  :: Um = one
-    real (kind = dp_t), parameter  :: delta = 2.d-2
+    real (kind = dp_t), parameter  :: lambda = dble(9)/dble(11)
+    real (kind = dp_t), parameter  :: Um = 5.5d0
+    real (kind = dp_t), parameter  :: delta = 1.d-3
     real (kind = dp_t), parameter  :: y
 
     integer :: i,j,hi(2)
