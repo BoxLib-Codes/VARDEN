@@ -24,7 +24,7 @@ contains
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                pmask, regrid_int, max_grid_size, ref_ratio, max_levs, &
-                               min_eff, verbose
+                               verbose
 
      type(ml_layout),intent(inout) :: mla
      type(multifab), pointer       :: u(:),s(:),gp(:),p(:)

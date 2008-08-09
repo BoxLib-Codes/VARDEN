@@ -130,7 +130,7 @@ contains
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                n_cellx, n_celly, n_cellz, &
                                regrid_int, max_grid_size, ref_ratio, max_levs, &
-                               min_eff, verbose
+                                verbose
 
      type(ml_layout),intent(inout)  :: mla
      logical       , intent(in   )  :: pmask(:)
