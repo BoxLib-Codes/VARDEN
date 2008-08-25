@@ -1586,7 +1586,6 @@ contains
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
-    type(lmultifab) :: fine_mask(mla%nlevel)
     type(boxarray)  :: bac
 
     !! Defaults:
@@ -1729,24 +1728,7 @@ contains
        do_diagnostics = 0
     end if
 
-    ! Copied in from ml_solve.f90:54 to create fine_mask
-    do n = nlevs, 1, -1
-       call lmultifab_build(fine_mask(n), mla%la(n), 1, 0)
-       call setval(fine_mask(n), val = .true., all = .true.)
-    end do
-    do n = nlevs-1, 1, -1
-       call copy(bac, get_boxarray(mla%la(n+1)))
-       call boxarray_coarsen(bac, ref_ratio(n,:))
-       call setval(fine_mask(n), .false., bac)
-       call destroy(bac)
-    end do
-
-    call ml_cc_applyop(mla, mgt, res, phi, fine_mask, ref_ratio)
-
-    ! Copied in from ml_solve.f90:85 to destroy fine_mask
-    do n = 1,nlevs
-       call lmultifab_destroy(fine_mask(n))
-    end do
+    call ml_cc_applyop(mla, mgt, res, phi, ref_ratio)
 
     do n = 1,nlevs
        call multifab_fill_boundary(phi(n))
