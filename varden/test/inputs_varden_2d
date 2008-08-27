@@ -7,18 +7,17 @@
 !!!! Inputs for adaptive grids !!!!
  max_levs = 4
  n_cellx = 32
- n_celly = 32    
+ n_celly = 32
  ref_ratio = 2
  regrid_int = 1
  
  prob_hi_x = 1.0
  prob_hi_y = 1.0
- 
- max_step = 400
 
  init_iter = 1
  do_initial_projection = 1
 
+ max_step  = 400
  plot_int  = 10
  chk_int   = 10
 
@@ -42,7 +41,6 @@
  verbose = 0
  mg_verbose = 0
 
-!grids_file_name = grdlog
-
 ! restart = 1
+
 /

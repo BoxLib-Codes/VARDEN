@@ -5,7 +5,7 @@
 ! fixed_grids = "gr0_3d"
 
 !!!! Inputs for adaptive grids !!!!
- nlevs = 3
+ max_levs = 4
  n_cellx = 32
  n_celly = 32
  n_cellz = 32
@@ -16,10 +16,10 @@
  prob_hi_y = 1.0
  prob_hi_z = 1.0
 
- max_step  = 200
  init_iter = 1
  do_initial_projection = 1
 
+ max_step  = 400
  plot_int  = 10
  chk_int   = 10
 
