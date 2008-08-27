@@ -18,7 +18,7 @@ module init_module
 
 contains
 
-  subroutine initdata_on_level(u,s,dx,bc,la)
+  subroutine initdata_on_level(u,s,dx,bc)
 
     use multifab_physbc_module
     use probin_module, only : nscal
@@ -26,7 +26,6 @@ contains
     type(multifab) , intent(inout) :: u,s
     real(kind=dp_t), intent(in   ) :: dx(:)
     type(bc_level) , intent(in   ) :: bc
-    type(layout)   , intent(inout) :: la
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
     integer :: lo(u%dim),hi(u%dim)
