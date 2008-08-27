@@ -5,20 +5,20 @@
  fixed_grids = "gr0_2d"
 
 !!!! Inputs for adaptive grids !!!!
-! nlevs = 4
+! max_levs = 4
 ! n_cellx = 32
-! n_celly = 32    
+! n_celly = 32
 ! ref_ratio = 2
 ! regrid_int = 1
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 50
+ max_step  = 500
  init_iter = 3
 
  plot_int  = 10
- chk_int   = 50
+ chk_int   = 100
 
  stop_time = 1000.0
  cflfac = 0.9
@@ -40,6 +40,6 @@
  verbose = 0
  mg_verbose = 0
 
-!restart = 1
 do_initial_projection = 1
+
 /

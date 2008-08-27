@@ -15,9 +15,7 @@
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step = 20
-!restart = 0
-
+ max_step  = 1000
  init_iter = 1
 
  plot_int  = 10
@@ -34,14 +32,14 @@
 
  bcx_lo = -1
  bcx_hi = -1
- pmask_x = T
-
  bcy_lo = 14
  bcy_hi = 14
+
+ pmask_x = T
  pmask_y = F
 
- verbose = 2
- mg_verbose = 1
+ verbose = 0
+ mg_verbose = 0
 
  do_initial_projection = 0
  use_godunov_debug = T
