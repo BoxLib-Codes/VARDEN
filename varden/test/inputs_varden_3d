@@ -32,12 +32,12 @@
 
  grav = -9.8d0
 
- bcx_lo = 14
- bcx_hi = 14
- bcy_lo = 14
- bcy_hi = 14
- bcz_lo = 14
- bcz_hi = 14
+ bcx_lo = 15
+ bcx_hi = 15
+ bcy_lo = 15
+ bcy_hi = 15
+ bcz_lo = 15
+ bcz_hi = 15
 
  pmask_x = F
  pmask_y = F
