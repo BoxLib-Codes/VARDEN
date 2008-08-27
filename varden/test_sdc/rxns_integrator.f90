@@ -449,16 +449,24 @@ contains
       real(kind=dp_t),  intent(in   ) :: u(:)
       real(kind=dp_t),  intent(in   ) :: t
 
-      real(kind=dp_t) :: u2,u3,u4
+      real(kind=dp_t) :: u2,u3,u4,k1,k2,k3
 
       ! first component is density 
-      u2 = merge(u(2), zero, u(2) > 0.d0)
-      u3 = merge(u(3), zero, u(3) > 0.d0)
-      u4 = merge(u(4), zero, u(4) > 0.d0)
+      u2 = merge(u(2), zero, u(2) > zero)
+      u3 = merge(u(3), zero, u(3) > zero)
+      u4 = merge(u(4), zero, u(4) > zero)
 
-      soln(2) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
-      soln(3) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
-      soln(4) = two*k_rxn1*u3*u2 -      k_rxn2*u4
+      k1 = merge(k_rxn2,zero,u(2)<= one)
+      k2 = merge(k_rxn2,zero,u(3)<= one)
+      k3 = merge(k_rxn1,zero,u(4)<= one)
+
+!      u2 = u(2)
+!      u3 = u(3)
+!      u4 = u(4)
+
+      soln(2) =    -k_rxn1*u3*u2 + half*k1*u4
+      soln(3) =    -k_rxn1*u3*u2 + half*k2*u4
+      soln(4) = two*k3*u3*u2     - k_rxn2*u4
 
     end subroutine f_rxn
 

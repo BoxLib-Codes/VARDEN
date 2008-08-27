@@ -116,8 +116,8 @@ contains
 
         ! Do we need finer grids?
 
-        call make_new_grids(la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
-                            ref_ratio,nl,max_grid_size,new_grid)
+        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
+                            ref_ratio,nl,max_grid_size)
         
         if (new_grid) then
 
@@ -177,7 +177,7 @@ contains
 
      ! check for proper nesting
      if (nlevs .ge. 3) &
-        call enforce_proper_nesting(mba,la_array)
+        call enforce_proper_nesting(mba,la_array,max_grid_size)
 
      do n = 1,nl
          call destroy(la_array(n))

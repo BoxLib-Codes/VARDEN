@@ -255,31 +255,24 @@ contains
     else; ladj_index = .false.
     end if
 
-    if (mass_fractions) then
-       do n = 1,nlevs
-          call multifab_build(   rh(n), mla%la(n),  1, 0)
-          call multifab_build(  phi(n), mla%la(n),  1, 1)
-          call multifab_build(alpha(n), mla%la(n),  1, 1)
-          call multifab_build( beta(n), mla%la(n), dm, 1)
-
+    do n = 1,nlevs
+       call multifab_build(   rh(n), mla%la(n),  1, 0)
+       call multifab_build(  phi(n), mla%la(n),  1, 1)
+       call multifab_build(alpha(n), mla%la(n),  1, 1)
+       call multifab_build( beta(n), mla%la(n), dm, 1)
+       
+       if (mass_fractions) then
           call multifab_copy_c(alpha(n),1,snew(n),1,1,1)
           call setval(beta(n),mu,all=.true.)
           do i = 1,dm
              call multifab_mult_mult_c(beta(n),i,snew(n),1,1,1)
           end do
-       end do
-      
-    else
-       do n = 1,nlevs
-          call multifab_build(   rh(n), mla%la(n),  1, 0)
-          call multifab_build(  phi(n), mla%la(n),  1, 1)
-          call multifab_build(alpha(n), mla%la(n),  1, 1)
-          call multifab_build( beta(n), mla%la(n), dm, 1)
-        
+
+       else
           call setval(alpha(n),ONE,all=.true.)
           call setval( beta(n), mu,all=.true.)
-       end do
-    end if
+       end if
+    end do
 
     if ( verbose .ge. 1 ) then
        if (parallel_IOProcessor()) then
@@ -312,6 +305,13 @@ contains
     do n = 1,nlevs
        call multifab_copy_c(snew(n),icomp,phi(n),1,1)
     end do
+
+    if (mass_fractions) then
+       ! multiply mass fraction (what we solved for) by density
+       do n = 1,nlevs
+          call multifab_mult_mult_c(snew(n),icomp,snew(n),1,1)
+       enddo
+    end if
 
     do n = 1, nlevs
        call multifab_fill_boundary_c(snew(n),icomp,1)

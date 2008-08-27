@@ -95,8 +95,8 @@ contains
        if (.not. is_vel) then
 
           call multifab_fill_boundary(snew(n))
+          call multifab_physbc(snew(n),1,dm+1,nscal,the_bc_level(n),dx(n,:),t)
 
-          call multifab_physbc(snew(n)   ,1,dm+1,nscal,the_bc_level(n),dx(n,:),t)
        else if (is_vel) then
 
           call multifab_fill_boundary(snew(n))

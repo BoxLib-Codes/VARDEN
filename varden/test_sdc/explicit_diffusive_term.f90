@@ -21,7 +21,8 @@ contains
                                          bc_comp,dx,the_bc_tower,adj_index)
 
     use bl_constants_module
-
+    use probin_module, only: mass_fractions
+    
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: lap_data(:)
     type(multifab) , intent(in   ) :: data(:)
@@ -34,7 +35,7 @@ contains
     ! local variables
     type(multifab) :: alpha(mla%nlevel), beta(mla%nlevel)
     type(multifab) :: phi(mla%nlevel), Lphi(mla%nlevel)
-    integer         :: n, comp
+    integer         :: n, comp,i
     integer         :: nlevs,dm
     logical         :: ladj_index
 
@@ -49,7 +50,7 @@ contains
     !***********************************
     ! build temporary arrays
     !***********************************
-
+       
     do n = 1, nlevs
        call multifab_build(  phi(n),mla%la(n),    1,1)
        call multifab_build( Lphi(n),mla%la(n),    1,1)
@@ -59,13 +60,25 @@ contains
        call setval(Lphi(n),0.0_dp_t,all=.true.)
        call setval(alpha(n),ZERO, all=.true.)
        call setval(beta(n),-ONE, all=.true.)
+       if (mass_fractions) then
+          do i = 1,dm
+             ! mult by dens
+             call multifab_mult_mult_c(beta(n),i,data(n),1,1,1)
+             ! should mult by diff_coeff here if spatially dependent 
+          end do
+       end if
     enddo
-
+       
     !***********************************
     ! Compute explicit diffusive_term
     !***********************************
      do n = 1, nlevs
         call multifab_copy_c(phi(n),1,data(n),data_comp,1,1)
+! phi just starts with an initial guess, for now doesn't matter whether
+! starts with rho*y_i or y_i .  FIX ME LATER??
+!        if (mass_fractions) then
+!           call multifab_mult_mult_c(phi(n),1,ONE/data(n),1,1,1)
+!        end if
      enddo
 
      call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
@@ -79,6 +92,9 @@ contains
 
      do n = 1, nlevs
         call multifab_copy_c(lap_data(n),comp,Lphi(n),1)
+        if (mass_fractions) then
+           call multifab_mult_mult_c(lap_data(n),1,data(n),1,1)
+        end if
      enddo
 
      do n = 1,nlevs

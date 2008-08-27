@@ -9,6 +9,7 @@ module scalar_advance_sdc_module
   use macproject_module
   use rxns_integrator
   use sdc_interpolation
+  use fabio_module
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose, sdc_iters, &
                             mass_fractions, nspec
@@ -58,7 +59,14 @@ contains
     real(kind=dp_t) :: smin,smax
 
     ! for convergence study--DELETE ME
-!    type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
+    type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
+    character(len=20)         :: plot_names(nspec)
+    character(len=20)         :: sd_name
+    integer, save             :: iter = 0
+
+    plot_names(1) = 'SpeciesA'
+    plot_names(2) = 'SpeciesB'
+    plot_names(3) = 'SpeciesC'
 
 
     nlevs = mla%nlevel
@@ -106,9 +114,9 @@ contains
        call setval(divu(n),0.0_dp_t,all=.true.)
        call setval(source(n),0.0_dp_t,all=.true.)
 
-!       call multifab_build(snew_old(n),mla%la(n),  nscal,0)
-!       call multifab_build(difference(n),mla%la(n),nscal,0)
-!       call copy(snew_old(n), sold(n), 0)
+       call multifab_build(snew_old(n),mla%la(n),  nscal,0)
+       call multifab_build(difference(n),mla%la(n),nscal,0)
+       call copy(snew_old(n), sold(n), 0)
     enddo
   
 
@@ -121,13 +129,15 @@ contains
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(:,0),sold,comp,bc_comp,dx,the_bc_tower,adj_index=.true.)
+          call get_explicit_diffusive_term(mla,D_s(:,0),sold,comp,bc_comp,dx,&
+                                           the_bc_tower,adj_index=.true.)
        end do
        do n = 1, nlevs
           call multifab_mult_mult_s(D_s(n,0),diff_coef)
        enddo
     endif
-!write(*,*)'D_s(0) = ', D_s(1,0)%fbs(7)%p(64,64,1,3)
+
+call write_plotfile(100+iter,nspec,D_s(:,0))
 
     !************************************************************
     ! Create scalar force at time n.
@@ -149,7 +159,7 @@ contains
     ! Create edge state scalars/fluxes
     !***********************************
 
-    call mkflux(mla,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
+    call mkflux(mla,sold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                 the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
     !*****************************************************************
@@ -158,6 +168,9 @@ contains
 
     call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,& 
                 is_vel,is_conservative,the_bc_tower%bc_tower_array)
+
+call write_plotfile(200+iter,nscal,snew)
+call write_plotfile(1000+iter,nspec,adv_s(:,0))
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -191,6 +204,7 @@ contains
         end do
     end if
 
+call write_plotfile(1400+iter,nscal,snew)
     !***************************************
     ! Compute a provisional D(s) at time n+1
     !***************************************
@@ -205,6 +219,8 @@ contains
        enddo
     endif
 
+call write_plotfile(300+iter,nspec,D_s(:,1))
+
     !***********************
     ! Integrate reactions
     !***********************
@@ -216,25 +232,34 @@ contains
     call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,D_s,sdc_flag=1)
     ! use sdc_flag=1 for provisional, =2 for SDC
 
+call write_plotfile(1500+iter,nscal,snew)
     !*********************************************
     ! Compute D(s) at time n+1
     !*********************************************
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,D_s(:,2),snew,comp,bc_comp,dx,the_bc_tower,adj_index=.true.)
+          call get_explicit_diffusive_term(mla,D_s(:,2),snew,comp,bc_comp,&
+                                           dx,the_bc_tower,adj_index=.true.)
        end do
        do n = 1, nlevs
           call multifab_mult_mult_s(D_s(n,2),diff_coef)
        enddo
     endif
     
+call write_plotfile(400+iter,nspec,D_s(:,2))
+
     !*****************************
     ! Compute aprrox to int(A+D+R)
     !*****************************
     call provisional_intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
 
+call write_plotfile(500+iter,nspec,I_ADR)
+
    !----SDC iters----------------------------------------------------
+!write(*,*)
+!!write(*,*)'*****************************************************************' 
+!write(*,*)'******************** IN SDC **********************************'
     do k = 1,sdc_iters
       
       ! Update advection:
@@ -245,11 +270,19 @@ contains
 
        diff_fac = ONE
        call mksource(nlevs,scal_force,ext_scal_force,I_ADR,diff_fac)
+!call setval(scal_force(1),zero,all=.true.)      
+! test for debugging purposes
+!        do n = 1, nlevs
+!           call multifab_copy_c(source(n),1,D_s(n,2),1,nscal-1)
+!           call multifab_mult_mult_s(source(n),-ONE)
+!           call multifab_sub_sub_c(scal_force(n),2,source(n),1,nspec)
+!           call multifab_fill_boundary(scal_force(n))
+!        enddo
 
        !***********************************
        ! Create edge state scalars/fluxes
        
-       call mkflux(mla,sold,uold,sedge,sflux,umac,scal_force,divu,dx,dt, &
+       call mkflux(mla,sold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                    the_bc_tower%bc_tower_array,is_vel,is_conservative)
        
        !*************************************************************
@@ -266,6 +299,9 @@ contains
 
        call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,&
                    is_vel,is_conservative,the_bc_tower%bc_tower_array)
+
+call write_plotfile(600+iter+k-1,nscal,snew)
+call write_plotfile(1100+iter+k-1,nspec,adv_s(:,0))
 
        if (verbose .ge. 1) then
           do n = 1, nlevs
@@ -308,17 +344,28 @@ contains
        !*********************************************
        ! Compute a provisional D(s) at time n+1
 
+       do n = 1,nlevs
+          call setval(D_s(n,1),zero,all=.true.)
+       end do
+!write(*,*)
+!write(*,*)'*****************************************************************' 
+!write(*,*)'************ Getting D(s) after advecting ***********************'
+
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,1),snew,comp,bc_comp,&
                                               dx,the_bc_tower,adj_index=.true.)
           end do
+call write_plotfile(1600+iter+k-1,nspec,D_s(:,1))
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,1),diff_coef)
           enddo
        endif
        
+call write_plotfile(700+iter+k-1,nspec,D_s(:,1))
+call write_plotfile(1200+iter+k-1,nscal,snew)
+
        !***********************
        ! Integrate reactions
        
@@ -329,8 +376,12 @@ contains
        call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,D_s,sdc_flag=2)
        ! use sdc_flag=2 for SDC; =1 for provisional
 
+call write_plotfile(1300+iter+k-1,nscal,snew)
        !*********************************************
        ! Compute D(s) at time n+1
+!write(*,*)
+!write(*,*)'*****************************************************************' 
+!write(*,*)'************ Getting D(s) after reacting ***********************'
 
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
@@ -343,10 +394,15 @@ contains
           enddo
        endif
     
+call write_plotfile(800+iter+k-1,nspec,D_s(:,3))
+
        !*****************************
        ! Compute aprrox to int(A+D+R)
 
        call intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
+
+call write_plotfile(900+iter+k-1,nspec,I_ADR)
+
 
        do n = 1, nlevs
           call multifab_copy_c(D_s(n,2),1,D_s(n,3),1,nscal-1)
@@ -355,26 +411,28 @@ contains
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters
- !       write(*,*)
-!        write(*,*)
-!        write(*,*) 'SDC corrections:  k=',k
-!       write(*,*) 's_k - s_k+1 min & max'
-!       do n = 1, nlevs
-!           call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
-!           call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-!           write(*,*)'LEVEL ',n
-!           write(*,*) 'L2 norm', multifab_norm_l2(difference(n))
-!           do comp = 1,nscal
-!              smin = multifab_min_c(difference(n),comp) 
-!              smax = multifab_max_c(difference(n),comp)
-!              write(*,*)'component ',comp, ': ', smin, smax
-!           enddo
-!           write(*,*)
-!           call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
-!        enddo
+       write(*,*)
+       write(*,*)
+       write(*,*) 'SDC corrections:  k=',k
+      write(*,*) 's_k - s_k+1 min & max'
+      do n = 1, nlevs
+          call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
+          call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
+          write(*,*)'LEVEL ',n
+          write(*,*) 'L2 norm', multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+          do comp = 1,nscal
+             smin = multifab_min_c(difference(n),comp) 
+             smax = multifab_max_c(difference(n),comp)
+             write(*,*)'component ',comp, ': ', smin, smax
+          enddo
+          write(*,*)
+          call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+       enddo
 
 
     end do  ! sdc_iters loop
+
+iter = iter + 1
 
     ! snew is copied into sold in varden.f90
 
@@ -383,8 +441,8 @@ contains
        call multifab_destroy(divu(n))
        call multifab_destroy(source(n))
        call multifab_destroy(I_ADR(n))
-!       call multifab_destroy(snew_old(n))
-!       call multifab_destroy(difference(n))
+       call multifab_destroy(snew_old(n))
+       call multifab_destroy(difference(n))
        do i = 1,dm
          call multifab_destroy(sflux(n,i))
          call multifab_destroy(sedge(n,i))
@@ -400,9 +458,42 @@ contains
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)
+    
+  contains
+  
+   subroutine write_plotfile(istep_to_write, n_plot_comps, mf)
+
+    integer,         intent(in   ) :: istep_to_write
+    integer,         intent(in   ) :: n_plot_comps
+    type(multifab),  intent(in   ) :: mf(:)
+
+
+    type(multifab), allocatable :: plotdata(:) 
+    integer        :: n
+
+ 
+    allocate(plotdata(nlevs))
+ 
+    do n = 1,nlevs
+       call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
+       call multifab_copy(plotdata(n), mf(n))
+
+    end do
+        
+    write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
+    call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
+                                   mla%mba%pd(1), t, dx(1,:))
+
+    do n = 1,nlevs
+      call multifab_destroy(plotdata(n))
+    end do
+    deallocate(plotdata)
+    
+  end subroutine write_plotfile
+
 
   end subroutine scalar_advance_sdc
 
- 
+
 
 end module scalar_advance_sdc_module

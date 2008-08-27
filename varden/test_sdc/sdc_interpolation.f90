@@ -80,6 +80,9 @@ contains
                       Iop(ix,iy,1,comp-1) = (snop(ix,iy,1,comp) - soop(ix,iy,1,comp))/dt&
                            + half*(D(2)%p(ix,iy,1,comp-1) + D(0)%p(ix,iy,1,comp-1))&
                            - D(1)%p(ix,iy,1,comp-1) - A(0)%p(ix,iy,1,comp-1)
+! this is for debugging
+!                           - A(0)%p(ix,iy,1,comp-1)!&
+!                           +D(2)%p(ix,iy,1,comp-1)!-D(2)%p(ix,iy,1,comp-1)
                    enddo
                 end do
              end do
@@ -183,6 +186,8 @@ contains
                    do comp = 2, nscal
                       Iop(ix,iy,1,comp-1) = (snop(ix,iy,1,comp) - soop(ix,iy,1,comp))/dt&
                            + half*(D(3)%p(ix,iy,1,comp-1) + D(2)%p(ix,iy,1,comp-1))&
+! for debugging
+!                           - half*(D(3)%p(ix,iy,1,comp-1) - D(2)%p(ix,iy,1,comp-1))& 
                            - D(1)%p(ix,iy,1,comp-1) - A(0)%p(ix,iy,1,comp-1)
                    enddo
                 end do

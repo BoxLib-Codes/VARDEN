@@ -39,7 +39,7 @@ contains
     real (kind = dp_t), parameter  :: lambda = dble(9)/dble(11)
     real (kind = dp_t), parameter  :: Um = 5.5d0
     real (kind = dp_t), parameter  :: delta = 1.d-3
-    real (kind = dp_t), parameter  :: y
+    real (kind = dp_t) :: y
 
     integer :: i,j,hi(2)
 

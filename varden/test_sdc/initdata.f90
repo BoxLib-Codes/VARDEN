@@ -129,7 +129,7 @@ contains
     real (kind = dp_t), parameter  :: lambda = dble(9)/dble(11)
     real (kind = dp_t), parameter  :: Um = 5.5d0
     real (kind = dp_t), parameter  :: delta = 1.d-3
-    real (kind = dp_t), parameter  :: y
+    real (kind = dp_t)  :: y,x
 !    real (kind = dp_t)  :: x,y,dist
 !    real (kind = dp_t)  :: xblob1 = 0.5d0, yblob1 = 0.5d0, densfact = 2.0d0
 !    real (kind = dp_t)  :: xblob2 = 0.2d0, yblob2 = 0.2d0
@@ -137,23 +137,53 @@ contains
 !    real (kind = dp_t)  :: blobrad = 0.1d0
    
 
-    ! shear layer w/ roll-up
+    !Ann's sheer layer w/ roll up
     do j=lo(2),hi(2)
-       y = (dble(j)+half)*dx(2)
-       do i=lo(1),hi(1)   
-         u(i,j,1) = Um*(one + lambda * tanh(two*(y-half)/delta))
-         u(i,j,2) = zero
-         s(i,j,1) = ONE     ! density          
-         s(i,j,4) = zero    ! species C
-         if (y < half*prob_hi_y) then
-            s(i,j,2) = one    ! species A
-            s(i,j,3) = zero    ! species B
-         else
-            s(i,j,2) = zero    ! species A
-            s(i,j,3) = ten !one    ! species B
-      end if
-      enddo
-   enddo
+       y = dx(2) * (dble(j) + half)
+       do i=lo(1),hi(1)
+          x = dx(1) * (dble(i) + half)
+          
+          u(i,j,1) = tanh(30.*(.25-abs(y-0.5d0)))
+          u(i,j,2) = .05*sin(two*M_PI*(x))
+          
+          s(i,j,1) = one
+          ! if these are mass fractions then should be multiplying by dens
+          s(i,j,2) = half*(1+tanh(30.*(.25-abs(y-0.5d0))))  !Species A
+          s(i,j,3) = half*(1-tanh(30.*(.25-abs(y-0.5d0))))  !Species B
+          s(i,j,4) = zero                                   !Species C
+
+!           if (y < fourth*prob_hi_y) then
+!              s(i,j,2) = zero    ! species A
+!              s(i,j,3) = one    ! species B
+!           else
+!              if (y < three*fourth*prob_hi_y) then
+!                 s(i,j,2) = one    ! species A
+!                 s(i,j,3) = zero    ! species B
+!              else
+!                 s(i,j,2) = zero    ! species A
+!                 s(i,j,3) = one    ! species B  
+!              end if
+!           end if
+       enddo
+    end do
+
+    ! shear layer w/ roll-up
+!     do j=lo(2),hi(2)
+!        y = (dble(j)+half)*dx(2)
+!        do i=lo(1),hi(1)   
+!          u(i,j,1) = Um*(one + lambda * tanh(two*(y-half)/delta))
+!          u(i,j,2) = zero
+!          s(i,j,1) = ONE     ! density          
+!          s(i,j,4) = zero    ! species C
+!          if (y < half*prob_hi_y) then
+!             s(i,j,2) = one    ! species A
+!             s(i,j,3) = zero    ! species B
+!          else
+!             s(i,j,2) = zero    ! species A
+!             s(i,j,3) = ten !one    ! species B
+!       end if
+!       enddo
+!    enddo
 
     ! simple shear layer/plume
 !     do i=lo(1),hi(1)   
