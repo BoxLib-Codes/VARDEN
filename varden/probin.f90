@@ -132,9 +132,6 @@ contains
     dim_in = 2
     nscal = 2
 
-    allocate(nodal(dim_in))
-    nodal = .true.
-
     grav = 0.d0
     boussinesq = 0
 
@@ -412,6 +409,9 @@ contains
 
        farg = farg + 1
     end do
+
+    allocate(nodal(dim_in))
+    nodal = .true.
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Need to specify regrid_int if max_levs > 1 and not 'fixed grids'
