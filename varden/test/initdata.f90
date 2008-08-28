@@ -133,29 +133,16 @@ contains
        enddo
     enddo
 
-    ! add a density perturbation
-!    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
-!    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
-!    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,1) = TWO
-!    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,1) = TWO
+    ! add a density and tracer perturbation
     do j=lo(2),hi(2)
-!       y = lo(2) + dx(2)*((j-lo(2)) + HALF)
        y = dx(2)*(j + HALF)
        do i=lo(1),hi(1)
-!          x = lo(1) + dx(1)*((i-lo(1)) + HALF)
           x = dx(1)*((i) + HALF)
           dist = SQRT((x-xblob)**2 + (y-yblob)**2)
           s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
           s(i,j,2) = s(i,j,1)
-!          write(*,*) i,j,s(i,j,1), s(i,j,2)
        enddo
     enddo
-
-    ! add a tracer perturbation
-!    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = ONE
-!    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = ONE
-!    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,2) = ONE
-!    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,2) = ONE
 
   end subroutine initdata_2d
 
@@ -168,6 +155,9 @@ contains
 
     !     Local variables
     integer :: i, j, k
+    real (kind = dp_t)  :: x,y,z,dist
+    real (kind = dp_t)  :: xblob = 0.5d0, yblob = 0.5d0, zblob = 0.5d0, densfact = 2.0d0
+    real (kind = dp_t)  :: blobrad = 0.1d0
 
     do k=lo(3),hi(3)
        do j=lo(2),hi(2)
@@ -181,25 +171,20 @@ contains
        enddo
     enddo
 
-    ! add a density perturbation
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2  ,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2  ,1) = TWO
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2  ,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2  ,1) = TWO
+    ! add a density and tracer perturbation
+    do k=lo(3),hi(3)
+       z = dx(3)*(k + HALF)
+       do j=lo(2),hi(2)
+          y = dx(2)*(j + HALF)
+          do i=lo(1),hi(1)
+             x = dx(1)*((i) + HALF)
+             dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
+             s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+             s(i,j,k,2) = s(i,j,k,1)
+          enddo
+       enddo
+    enddo
 
-    ! add a tracer perturbation
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,2) = ONE
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,2) = ONE
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,2) = ONE
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,2) = ONE
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2  ,2) = ONE
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2  ,2) = ONE
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2  ,2) = ONE
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2  ,2) = ONE
   end subroutine initdata_3d
 
 end module init_module
