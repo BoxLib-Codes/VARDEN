@@ -128,7 +128,6 @@ contains
 
           u(i,j,1) = ZERO
           u(i,j,2) = ZERO
-
           s(i,j,1) = ONE
           s(i,j,2) = ZERO
 
@@ -180,6 +179,7 @@ contains
 
              u(i,j,k,1) = ZERO
              u(i,j,k,2) = ZERO
+             u(i,j,k,3) = ZERO
              s(i,j,k,1) = ONE
              s(i,j,k,2) = ZERO
 
