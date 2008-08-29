@@ -462,4 +462,17 @@ contains
 
   end subroutine probin_init
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine probin_close()
+
+     deallocate(prob_hi)
+     deallocate(prob_lo)
+     deallocate(nodal)
+     deallocate(pmask)
+
+  end subroutine probin_close
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 end module probin_module

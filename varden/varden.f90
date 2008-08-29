@@ -31,7 +31,7 @@ subroutine varden()
                             init_iter, max_step, &
                             stop_time, restart, chk_int, plot_int, regrid_int, init_shrink, &
                             fixed_dt, nodal, ref_ratio, fixed_grids, grids_file_name, &
-                            do_initial_projection, grav, probin_init
+                            do_initial_projection, grav, probin_init, probin_close
 
   implicit none
 
@@ -383,6 +383,8 @@ subroutine varden()
   call bc_tower_destroy(the_bc_tower)
 
   call destroy(mla)
+
+  call probin_close()
 
   if ( verbose > 0 ) then
      if ( parallel_IOProcessor() ) then
