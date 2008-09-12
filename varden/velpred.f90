@@ -17,6 +17,7 @@ contains
 
     use ml_restriction_module, only: ml_edge_restriction
     use probin_module, only: use_godunov_debug
+    use create_umac_grown_module
 
     integer        , intent(in   ) :: nlevs
     type(multifab) , intent(in   ) :: u(:)
@@ -88,12 +89,20 @@ contains
              endif
           end select
        end do
-
-       do comp = 1, dm
-          call multifab_fill_boundary(umac(n,comp))
-       enddo
        
     enddo ! end loop over levels
+
+    if (nlevs .gt. 1) then
+       do n=2,nlevs
+          call create_umac_grown(n,umac(n,:),umac(n-1,:))
+       end do
+    else
+       do n=1,nlevs
+          do comp=1,dm
+             call multifab_fill_boundary(umac(n,comp))
+          enddo
+       end do
+    end if
 
     do n = nlevs,2,-1
        do comp = 1,dm

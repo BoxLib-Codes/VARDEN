@@ -8,6 +8,7 @@ module macproject_module
   use bl_constants_module
   use bl_error_module
   use sparse_solve_module
+  use create_umac_grown_module
 
   implicit none
 
@@ -117,13 +118,17 @@ contains
        call mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff_3d,.false.)
     end if
 
-    call create_umac_grown(nlevs,umac,phi)
-
-    do n = 1, nlevs
-       do i=1,dm
-          call multifab_fill_boundary(umac(n,i))
+    if (nlevs .gt. 1) then
+       do n=2,nlevs
+          call create_umac_grown(n,umac(n,:),umac(n-1,:))
        end do
-    end do
+    else
+       do n=1,nlevs
+          do i=1,dm
+             call multifab_fill_boundary(umac(n,i))
+          end do
+       end do
+    end if
 
     do n = 1, nlevs
        call multifab_destroy(rh(n))
@@ -1224,118 +1229,6 @@ contains
       end do
 
     end subroutine mkumac_3d
-
-   subroutine create_umac_grown(nlevs,umac,phi)
-
-      integer       , intent(in   ) :: nlevs
-      type(multifab), intent(inout) :: umac(:,:)
-      type(multifab), intent(in   ) :: phi(:)
-
-      integer :: i,n
-      integer :: lo(phi(1)%dim),hi(phi(1)%dim)
-
-      real(kind=dp_t), pointer :: ump(:,:,:,:) 
-      real(kind=dp_t), pointer :: vmp(:,:,:,:)
-      real(kind=dp_t), pointer :: wmp(:,:,:,:)
-
-      dm = size(umac,dim=2)
-
-      ! We only need to do this for fine levels
-      do n=2,nlevs
-         do i=1,phi(n)%nboxes
-            if ( multifab_remote(umac(n,1), i) ) cycle
-            ump => dataptr(umac(n,1), i)
-            vmp => dataptr(umac(n,2), i)
-            lo = lwb(get_box(phi(n), i))
-            hi = upb(get_box(phi(n), i))
-            select case (dm)
-            case (2)
-               call create_umac_grown_2d(ump(:,:,1,1),vmp(:,:,1,1),lo,hi)
-            case (3)
-               wmp => dataptr(umac(n,3), i)
-               call create_umac_grown_3d(ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),lo,hi)
-            end select
-         end do
-      end do
-
-    end subroutine create_umac_grown
-
-    subroutine create_umac_grown_2d(umac,vmac,lo,hi)
-
-      integer        , intent(in   ) :: lo(:),hi(:)
-      real(kind=dp_t), intent(inout) :: umac(lo(1)-1:,lo(2)-1:)
-      real(kind=dp_t), intent(inout) :: vmac(lo(1)-1:,lo(2)-1:)
-
-      integer i,j
-
-      ! use linear interpolation to fill fine level ghost cells needed for 
-      ! transverse derivatives
-      do i=lo(1),hi(1)+1
-         umac(i,lo(2)-1) = TWO*umac(i,lo(2)) - umac(i,lo(2)+1)
-         umac(i,hi(2)+1) = TWO*umac(i,hi(2)) - umac(i,hi(2)-1)
-      end do
-
-      do j=lo(2),hi(2)+1
-         vmac(lo(1)-1,j) = TWO*vmac(lo(1),j) - vmac(lo(1)+1,j)
-         vmac(hi(1)+1,j) = TWO*vmac(hi(1),j) - vmac(hi(1)-1,j)
-      end do
-
-    end subroutine create_umac_grown_2d
-
-    subroutine create_umac_grown_3d(umac,vmac,wmac,lo,hi)
-
-      integer        , intent(in   ) :: lo(:),hi(:)
-      real(kind=dp_t), intent(inout) :: umac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(inout) :: vmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(inout) :: wmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-
-      integer i,j,k
-
-      ! use linear interpolation to fill fine level ghost cells needed for 
-      ! transverse derivatives
-      do i=lo(1),hi(1)+1
-         do j=lo(2),hi(2)
-            umac(i,j,lo(3)-1) = TWO*umac(i,j,lo(3)) - umac(i,j,lo(3)+1)
-            umac(i,j,hi(3)+1) = TWO*umac(i,j,hi(3)) - umac(i,j,hi(3)-1)
-         end do
-      end do
-
-      do i=lo(1),hi(1)+1
-         do k=lo(3),hi(3)
-            umac(i,lo(2)-1,k) = TWO*umac(i,lo(2),k) - umac(i,lo(2)+1,k)
-            umac(i,hi(2)+1,k) = TWO*umac(i,hi(2),k) - umac(i,hi(2)-1,k)
-         end do
-      end do
-
-      do j=lo(2),hi(2)+1
-         do i=lo(1),hi(1)
-            vmac(i,j,lo(3)-1) = TWO*vmac(i,j,lo(3)) - vmac(i,j,lo(3)+1)
-            vmac(i,j,hi(3)+1) = TWO*vmac(i,j,hi(3)) - vmac(i,j,hi(3)-1)
-         end do
-      end do
-
-      do j=lo(2),hi(2)+1
-         do k=lo(3),hi(3)
-            vmac(lo(1)-1,j,k) = TWO*vmac(lo(1),j,k) - vmac(lo(1)+1,j,k)
-            vmac(hi(1)+1,j,k) = TWO*vmac(hi(1),j,k) - vmac(hi(1)-1,j,k)
-         end do
-      end do
-
-      do k=lo(3),hi(3)+1
-         do i=lo(1),hi(1)
-            wmac(i,lo(2)-1,k) = TWO*wmac(i,lo(2),k) - wmac(i,lo(2)+1,k)
-            wmac(i,hi(2)+1,k) = TWO*wmac(i,hi(2),k) - wmac(i,hi(2)-1,k)
-         end do
-      end do
-
-      do k=lo(3),hi(3)+1
-         do j=lo(2),hi(2)
-            wmac(lo(1)-1,j,k) = TWO*wmac(lo(1),j,k) - wmac(lo(1)+1,j,k)
-            wmac(hi(1)+1,j,k) = TWO*wmac(hi(1),j,k) - wmac(hi(1)-1,j,k)
-         end do
-      end do
-
-    end subroutine create_umac_grown_3d
 
   end subroutine macproject
 
