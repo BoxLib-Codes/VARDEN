@@ -126,8 +126,6 @@ contains
        do n = 1, nlevs
           do comp = 1, nscal
              smin = multifab_min_c(snew(n),comp) 
-             print *,'SMIN ',comp,smin
-             call print(snew(n),'SNEW')
              smax = multifab_max_c(snew(n),comp)
              if (comp .eq. 1) then
                 if (parallel_IOProcessor()) write(6,2000) n,smin,smax
