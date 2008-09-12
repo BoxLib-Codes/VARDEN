@@ -86,7 +86,7 @@ contains
 
     call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
-    call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
+    call scalar_advance(mla,sold,snew,umac,ext_scal_force, &
                         dx,dt,the_bc_tower)
     
     call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)

@@ -18,7 +18,7 @@ module scalar_advance_module
 
 contains
 
-  subroutine scalar_advance(mla,uold,sold,snew,umac, &
+  subroutine scalar_advance(mla,sold,snew,umac, &
                             ext_scal_force,dx,dt,the_bc_tower)
 
     use mkflux_module
@@ -27,7 +27,6 @@ contains
     use bl_constants_module
 
     type(ml_layout), intent(in   ) :: mla
-    type(multifab) , intent(in   ) :: uold(:)
     type(multifab) , intent(in   ) :: sold(:)
     type(multifab) , intent(inout) :: snew(:)
     type(multifab) , intent(in   ) :: umac(:,:)
@@ -127,6 +126,8 @@ contains
        do n = 1, nlevs
           do comp = 1, nscal
              smin = multifab_min_c(snew(n),comp) 
+             print *,'SMIN ',comp,smin
+             call print(snew(n),'SNEW')
              smax = multifab_max_c(snew(n),comp)
              if (comp .eq. 1) then
                 if (parallel_IOProcessor()) write(6,2000) n,smin,smax
