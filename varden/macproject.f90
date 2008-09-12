@@ -1479,8 +1479,6 @@ contains
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
-    type(boxarray)  :: bac
-
     !! Defaults:
 
     nlevs = mla%nlevel
