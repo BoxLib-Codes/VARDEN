@@ -1,3 +1,4 @@
+# putting anything here sets it to true.  leave blank for false
 NDEBUG := t
 MPI    := t
 OMP    :=

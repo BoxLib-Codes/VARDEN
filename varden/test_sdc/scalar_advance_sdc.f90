@@ -60,7 +60,7 @@ contains
 
     ! for convergence study--DELETE ME
     type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
-    character(len=20)         :: plot_names(nspec)
+    character(len=20)         :: plot_names(nscal)
     character(len=20)         :: sd_name
     integer, save             :: iter = 0
 
@@ -171,6 +171,13 @@ call write_plotfile(100+iter,nspec,D_s(:,0))
 
 call write_plotfile(200+iter,nscal,snew)
 call write_plotfile(1000+iter,nspec,adv_s(:,0))
+do n = 1, nlevs
+   call multifab_copy_c(difference(n),1,snew(n),1,nscal)
+   call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
+   visc_mu = one/dt
+   call multifab_mult_mult_s(difference(n),one/dt)
+enddo
+call write_plotfile(1600+iter,nscal,difference)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -205,6 +212,7 @@ call write_plotfile(1000+iter,nspec,adv_s(:,0))
     end if
 
 call write_plotfile(1400+iter,nscal,snew)
+
     !***************************************
     ! Compute a provisional D(s) at time n+1
     !***************************************
@@ -220,6 +228,18 @@ call write_plotfile(1400+iter,nscal,snew)
     endif
 
 call write_plotfile(300+iter,nspec,D_s(:,1))
+! do n = 1, nlevs
+!    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
+!    call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
+! !   visc_mu = one/dt
+!    call multifab_mult_mult_s(difference(n),one/dt)
+! enddo
+! call write_plotfile(1700+iter,nscal,difference)
+! do n = 1, nlevs
+!    call multifab_sub_sub_c(difference(n),2,adv_s(n,0),1,nspec)
+! enddo
+! call write_plotfile(1800+iter,nscal,difference)
+
 
     !***********************
     ! Integrate reactions
@@ -249,17 +269,63 @@ call write_plotfile(1500+iter,nscal,snew)
     
 call write_plotfile(400+iter,nspec,D_s(:,2))
 
+! do n = 1, nlevs
+!    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
+!    call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
+! !   visc_mu = one/dt
+!    call multifab_mult_mult_s(difference(n),one/dt)
+! enddo
+! call write_plotfile(1600+iter,nscal,difference)
+! do n = 1, nlevs
+!    call multifab_sub_sub_c(difference(n),2,adv_s(n,0),1,nspec)
+! enddo
+! call write_plotfile(1900+iter,nscal,difference)
+
     !*****************************
     ! Compute aprrox to int(A+D+R)
     !*****************************
     call provisional_intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
 
 call write_plotfile(500+iter,nspec,I_ADR)
+!pieces of I_ADR
+! do n = 1, nlevs
+!    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
+!    call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
+!    !   visc_mu = one/dt
+!    call multifab_mult_mult_s(difference(n),one/dt)
+! enddo
+! !(snew-sold)/dt
+! call write_plotfile(1600+iter,nscal,difference)
+
+! do n = 1, nlevs
+!    call multifab_copy_c(D_s(n,3),1,D_s(n,2),1,nspec)
+!    call multifab_mult_mult_s(D_s(n,3),half)
+!    call multifab_plus_plus_c(D_s(n,3),1,difference(n),2,nspec)
+! enddo
+! call write_plotfile(1700+iter,nspec,D_s(:,3))
+
+! do n = 1, nlevs
+!    call multifab_copy_c(D_s(n,3),1,D_s(n,0),1,nspec)
+!    call multifab_mult_mult_s(D_s(n,3),half)
+!    call multifab_plus_plus_c(D_s(n,3),1,difference(n),2,nspec)
+! enddo
+! call write_plotfile(1800+iter,nspec,D_s(:,3))
+
+! do n = 1, nlevs
+!    call multifab_copy_c(D_s(n,3),1,D_s(n,1),1,nspec)
+!    call multifab_sub_sub_c(D_s(n,3),1,difference(n),2,nspec)
+! enddo
+! call write_plotfile(1900+iter,nspec,D_s(:,3))
+
+! do n = 1, nlevs
+!    call multifab_copy_c(D_s(n,3),1,adv_s(n,0),1,nspec)
+!    call multifab_sub_sub_c(D_s(n,3),1,difference(n),2,nspec)
+! enddo
+! call write_plotfile(2000+iter,nspec,D_s(:,3))
+
+
 
    !----SDC iters----------------------------------------------------
-!write(*,*)
-!!write(*,*)'*****************************************************************' 
-!write(*,*)'******************** IN SDC **********************************'
     do k = 1,sdc_iters
       
       ! Update advection:
@@ -270,14 +336,6 @@ call write_plotfile(500+iter,nspec,I_ADR)
 
        diff_fac = ONE
        call mksource(nlevs,scal_force,ext_scal_force,I_ADR,diff_fac)
-!call setval(scal_force(1),zero,all=.true.)      
-! test for debugging purposes
-!        do n = 1, nlevs
-!           call multifab_copy_c(source(n),1,D_s(n,2),1,nscal-1)
-!           call multifab_mult_mult_s(source(n),-ONE)
-!           call multifab_sub_sub_c(scal_force(n),2,source(n),1,nspec)
-!           call multifab_fill_boundary(scal_force(n))
-!        enddo
 
        !***********************************
        ! Create edge state scalars/fluxes
@@ -347,9 +405,6 @@ call write_plotfile(1100+iter+k-1,nspec,adv_s(:,0))
        do n = 1,nlevs
           call setval(D_s(n,1),zero,all=.true.)
        end do
-!write(*,*)
-!write(*,*)'*****************************************************************' 
-!write(*,*)'************ Getting D(s) after advecting ***********************'
 
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
@@ -357,7 +412,7 @@ call write_plotfile(1100+iter+k-1,nspec,adv_s(:,0))
              call get_explicit_diffusive_term(mla,D_s(:,1),snew,comp,bc_comp,&
                                               dx,the_bc_tower,adj_index=.true.)
           end do
-call write_plotfile(1600+iter+k-1,nspec,D_s(:,1))
+
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,1),diff_coef)
           enddo
@@ -365,6 +420,28 @@ call write_plotfile(1600+iter+k-1,nspec,D_s(:,1))
        
 call write_plotfile(700+iter+k-1,nspec,D_s(:,1))
 call write_plotfile(1200+iter+k-1,nscal,snew)
+
+!do n = 1, nlevs
+!   call multifab_copy_c(difference(n),1,snew(n),1,nscal)
+!   call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
+!   visc_mu = one/dt
+!   call multifab_mult_mult_s(difference(n),one/dt)
+!enddo
+! call write_plotfile(1600+iter,nscal,difference)
+! do n = 1, nlevs
+!    call multifab_sub_sub_c(difference(n),2,adv_s(n,0),1,nspec)
+!   call multifab_copy_c(difference(n),2,adv_s(n,0),1,nspec)
+! enddo
+! call write_plotfile(1700+iter,nscal,difference)
+! do n = 1, nlevs
+!    call multifab_sub_sub_c(difference(n),2,I_ADR(n),1,nspec)
+! enddo
+! call write_plotfile(1800+iter,nscal,difference)
+!do n = 1, nlevs
+!   call multifab_plus_plus_c(difference(n),2,D_s(n,2),1,nspec)
+!enddo
+!call write_plotfile(1900+iter,nscal,difference)
+
 
        !***********************
        ! Integrate reactions
@@ -379,9 +456,6 @@ call write_plotfile(1200+iter+k-1,nscal,snew)
 call write_plotfile(1300+iter+k-1,nscal,snew)
        !*********************************************
        ! Compute D(s) at time n+1
-!write(*,*)
-!write(*,*)'*****************************************************************' 
-!write(*,*)'************ Getting D(s) after reacting ***********************'
 
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
@@ -395,6 +469,7 @@ call write_plotfile(1300+iter+k-1,nscal,snew)
        endif
     
 call write_plotfile(800+iter+k-1,nspec,D_s(:,3))
+
 
        !*****************************
        ! Compute aprrox to int(A+D+R)
@@ -477,7 +552,6 @@ iter = iter + 1
     do n = 1,nlevs
        call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
        call multifab_copy(plotdata(n), mf(n))
-
     end do
         
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write

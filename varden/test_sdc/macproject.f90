@@ -1756,7 +1756,7 @@ contains
        call destroy(bac)
     end do
 
-    call ml_cc_applyop(mla, mgt, res, phi, fine_mask, ref_ratio)
+    call ml_cc_applyop(mla, mgt, res, phi, ref_ratio)
 
     ! Copied in from ml_solve.f90:85 to destroy fine_mask
     do n = 1,nlevs

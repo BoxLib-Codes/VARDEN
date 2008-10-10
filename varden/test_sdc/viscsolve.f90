@@ -272,7 +272,10 @@ contains
           call setval(alpha(n),ONE,all=.true.)
           call setval( beta(n), mu,all=.true.)
        end if
+! debugging test --REMOVE ME!
+!             call multifab_mult_mult_s_c(beta(n),2,zero,1,1)
     end do
+
 
     if ( verbose .ge. 1 ) then
        if (parallel_IOProcessor()) then
@@ -430,11 +433,6 @@ contains
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
-
-!write(*,*)'rh: nx, ny = ', nx,ny
-!write(*,*)'laps: nx, ny = ',size(laps,dim=1),size(laps,dim=2)
-!write(*,*) 'mu = ', mu
-
 
       rh(1:nx,1:ny) = snew(1:nx,1:ny)
       phi(0:nx+1,0:ny+1) = snew(0:nx+1,0:ny+1)

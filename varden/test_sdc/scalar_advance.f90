@@ -6,6 +6,7 @@ module scalar_advance_module
   use define_bc_module
   use explicit_diffusive_module
   use viscous_module
+  use fabio_module
   use macproject_module
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose, mass_fractions
@@ -53,6 +54,16 @@ contains
     logical         :: is_vel
     real(kind=dp_t) :: diff_fac,visc_mu
     real(kind=dp_t) :: smin,smax
+
+    character(len=20)         :: plot_names(nscal)
+    character(len=20)         :: sd_name
+    integer, save             :: iter = 0
+
+
+    plot_names(1) = 'Density'
+    plot_names(2) = 'SpeciesA'
+    plot_names(3) = 'SpeciesB'
+    plot_names(4) = 'SpeciesC'
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -180,14 +191,54 @@ contains
         enddo
      end if
 
+       do comp = 2, nscal
+          bc_comp = dm+comp
+          call get_explicit_diffusive_term(mla,laps,snew,comp,bc_comp,dx,the_bc_tower)
+       enddo
+call write_plotfile(100+iter,nscal,laps)
+call write_plotfile(200+iter,nscal,snew)
+
     do n = 1,nlevs
        call multifab_destroy(laps(n))
        call multifab_destroy(adv_s(n))
     end do
 
+    iter = iter + 1
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)
+
+  contains
+  
+   subroutine write_plotfile(istep_to_write, n_plot_comps, mf)
+
+    integer,         intent(in   ) :: istep_to_write
+    integer,         intent(in   ) :: n_plot_comps
+    type(multifab),  intent(in   ) :: mf(:)
+
+
+    type(multifab), allocatable :: plotdata(:) 
+    integer        :: n
+
+ 
+    allocate(plotdata(nlevs))
+ 
+    do n = 1,nlevs
+       call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
+       call multifab_copy(plotdata(n), mf(n))
+
+    end do
+        
+    write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
+    call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
+                                   mla%mba%pd(1), t, dx(1,:))
+
+    do n = 1,nlevs
+      call multifab_destroy(plotdata(n))
+    end do
+    deallocate(plotdata)
+    
+  end subroutine write_plotfile
 
   end subroutine scalar_advance
 

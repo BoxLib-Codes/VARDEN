@@ -103,6 +103,9 @@ module probin_module
   namelist /probin/ max_grid_size
   namelist /probin/ boussinesq
   namelist /probin/ diffusion_type
+  namelist /probin/ slope_order
+
+
   namelist /probin/ reactions
   namelist /probin/ sdc_iters
   namelist /probin/ k_rxn1

@@ -7,7 +7,7 @@ module explicit_diffusive_module
   use viscous_module
   use macproject_module
   use probin_module, only : stencil_order, verbose, mg_verbose, cg_verbose, &
-                            sdc_iters
+                            sdc_iters, nspec
 
   implicit none
 
@@ -62,11 +62,14 @@ contains
        call setval(beta(n),-ONE, all=.true.)
        if (mass_fractions) then
           do i = 1,dm
-             ! mult by dens
+             ! mult by density
              call multifab_mult_mult_c(beta(n),i,data(n),1,1,1)
              ! should mult by diff_coeff here if spatially dependent 
           end do
        end if
+! debugging test --REMOVE ME!
+!             call multifab_mult_mult_s_c(beta(n),2,zero,1,1)
+
     enddo
        
     !***********************************
@@ -74,11 +77,9 @@ contains
     !***********************************
      do n = 1, nlevs
         call multifab_copy_c(phi(n),1,data(n),data_comp,1,1)
-! phi just starts with an initial guess, for now doesn't matter whether
-! starts with rho*y_i or y_i .  FIX ME LATER??
-!        if (mass_fractions) then
-!           call multifab_mult_mult_c(phi(n),1,ONE/data(n),1,1,1)
-!        end if
+        if (mass_fractions) then
+           call multifab_div_div_c(phi(n),1,data(n),1,1,1)
+        end if
      enddo
 
      call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
