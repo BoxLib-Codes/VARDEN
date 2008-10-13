@@ -679,9 +679,6 @@ contains
       nx = size(beta,dim=1) - 2
       ny = size(beta,dim=2) - 2
 
-!test
-      beta(:,:,:) = zero
-      
       do j = 0,ny-1
          do i = 0,nx
             beta(i,j,1) = TWO / (rho(i,j) + rho(i-1,j))
@@ -694,13 +691,6 @@ contains
          end do
       end do
       
-!test
-!      beta(nx,ny,1) = zero
-!      beta(nx,ny,2) = zero
-!      beta(nx+1,ny,1) = zero
-!      beta(nx,ny+1,1) = zero
-!      beta(nx+1,ny+1,1) = zero
-
     end subroutine mk_mac_coeffs_2d
 
     subroutine mk_mac_coeffs_3d(beta,rho,ng)

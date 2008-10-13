@@ -84,7 +84,8 @@ contains
     ! Compute lapu
     if (visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
        do comp = 1, dm
-         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
+         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,&
+                                          the_bc_tower,is_vel=.true.)
          do n = 1, nlevs
 !            call multifab_copy_c(viscous_update(n),comp,lapu(n),comp,1,0)
 !            call multifab_mult_mult_s(viscous_update(n),HALF,0)            
@@ -133,7 +134,7 @@ contains
 !    if (visc_coef .gt. ZERO) then
 
 !       do comp = 1, dm
-!         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
+!         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower,is_vel=.true.)
 !       end do
 
 !       if (diffusion_type .eq. 1) then

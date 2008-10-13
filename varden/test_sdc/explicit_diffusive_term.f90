@@ -18,7 +18,8 @@ module explicit_diffusive_module
 contains
 
   subroutine get_explicit_diffusive_term(mla,lap_data,data,data_comp,&
-                                         bc_comp,dx,the_bc_tower,adj_index)
+                                         bc_comp,dx,the_bc_tower,adj_index,&
+                                         is_vel)
 
     use bl_constants_module
     use probin_module, only: mass_fractions
@@ -31,6 +32,7 @@ contains
     integer        , intent(in   ) :: data_comp
     integer        , intent(in   ) :: bc_comp
     logical, optional, intent(in ) :: adj_index
+    logical, optional, intent(in ) :: is_vel
 
     ! local variables
     type(multifab) :: alpha(mla%nlevel), beta(mla%nlevel)
@@ -38,10 +40,14 @@ contains
     integer         :: n, comp,i
     integer         :: nlevs,dm
     logical         :: ladj_index
+    logical         :: lis_vel
 
 
     if(present(adj_index)) then; ladj_index = adj_index
     else; ladj_index = .false.
+    endif
+    if(present(is_vel)) then; lis_vel = is_vel
+    else; lis_vel = .false.
     endif
 
     nlevs = mla%nlevel
@@ -60,7 +66,8 @@ contains
        call setval(Lphi(n),0.0_dp_t,all=.true.)
        call setval(alpha(n),ZERO, all=.true.)
        call setval(beta(n),-ONE, all=.true.)
-       if (mass_fractions) then
+
+       if (mass_fractions .AND. (.NOT. lis_vel)) then
           do i = 1,dm
              ! mult by density
              call multifab_mult_mult_c(beta(n),i,data(n),1,1,1)
@@ -77,7 +84,7 @@ contains
     !***********************************
      do n = 1, nlevs
         call multifab_copy_c(phi(n),1,data(n),data_comp,1,1)
-        if (mass_fractions) then
+        if (mass_fractions .AND. (.NOT.lis_vel)) then
            call multifab_div_div_c(phi(n),1,data(n),1,1,1)
         end if
      enddo
@@ -93,7 +100,7 @@ contains
 
      do n = 1, nlevs
         call multifab_copy_c(lap_data(n),comp,Lphi(n),1)
-        if (mass_fractions) then
+        if (mass_fractions .AND. (.NOT. lis_vel)) then
            call multifab_mult_mult_c(lap_data(n),1,data(n),1,1)
         end if
      enddo
