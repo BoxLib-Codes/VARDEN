@@ -252,8 +252,8 @@ contains
                       vbar = half*(vmac(i,j,k) + vmac(i,j+1,k))
                       wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
                       ugrads = ubar*(sedgex(i+1,j,k,comp) - sedgex(i,j,k,comp))/dx(1) + &
-                           vbar*(sedgey(i,j+1,k,comp) - sedgey(i,j,k,comp))/dx(2) + &
-                           wbar*(sedgez(i,j,k+1,comp) - sedgez(i,j,k,comp))/dx(3)
+                               vbar*(sedgey(i,j+1,k,comp) - sedgey(i,j,k,comp))/dx(2) + &
+                               wbar*(sedgez(i,j,k+1,comp) - sedgez(i,j,k,comp))/dx(3)
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * ugrads + dt * force(i,j,k,comp)
                    enddo
                 enddo
