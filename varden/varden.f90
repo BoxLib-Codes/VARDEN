@@ -135,11 +135,14 @@ subroutine varden()
                        the_bc_tower,press_comp)
          do n = 1,nlevs
            call multifab_destroy(rhohalf(n))
-           call setval( p(n)  ,0.0_dp_t, all=.true.)
-           call setval(gp(n)  ,0.0_dp_t, all=.true.)
         end do
         deallocate(rhohalf)
      end if
+
+     do n = 1,nlevs
+        call setval( p(n)  ,0.0_dp_t, all=.true.)
+        call setval(gp(n)  ,0.0_dp_t, all=.true.)
+     end do
 
      if (grids_file_name /= '') &
         call write_grids(grids_file_name,mla,0)
