@@ -2100,7 +2100,6 @@ contains
                             sedgey(i,js,k-1,n) = merge(ZERO,sedgery(i,js),phys_bc(2,1).eq.NO_SLIP_WALL)
                          else 
                             sedgey(i,js,k-1,n) = sedgery(i,js)
-                            print *,'EDGE ',i,js,k-1,sedgey(i,js,k-1,n)
                          endif
                       elseif (phys_bc(2,1) .eq. INLET) then
                          sedgey(i,js,k-1,n) = s(i,js-1,k-1,n)
