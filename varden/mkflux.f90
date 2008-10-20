@@ -70,9 +70,6 @@ contains
           vmp    => dataptr(umac(n,2), i)
           fp     => dataptr(force(n) , i)
           dp     => dataptr(divu(n), i)
-          lo = lwb(get_box(sold(n), i))
-          hi = upb(get_box(sold(n), i))
-          select case (dm)
           case (2)
              if(use_godunov_debug) then
                 call mkflux_debug_2d(sop(:,:,1,:),  &
@@ -322,10 +319,9 @@ contains
                       slx(i,jc) = srx(i,jc)
                    endif
                 endif
-             endif
-
+             
              ! impose hi side bc's
-             if(i .eq. ie+1) then
+             else if(i .eq. ie+1) then
                 slx(i,jc) = merge(s(ie+1,j,n),slx(i,jc),phys_bc(1,2) .eq. INLET)
                 srx(i,jc) = merge(s(ie+1,j,n),srx(i,jc),phys_bc(1,2) .eq. INLET)
                 if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
@@ -371,7 +367,7 @@ contains
                 endif
 
                 ! impose lo side bc's
-                if(j .eq. js) then
+                if (j .eq. js) then
                    sly(i,jc) = merge(s(is,j-1,n),sly(i,jc),phys_bc(2,1) .eq. INLET)
                    sry(i,jc) = merge(s(is,j-1,n),sry(i,jc),phys_bc(2,1) .eq. INLET)
                    if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
@@ -385,10 +381,9 @@ contains
                          sly(i,jc) = sry(i,jc)
                       endif
                    endif
-                endif
 
                 ! impose hi side bc's
-                if(j .eq. je+1) then
+                else if (j .eq. je+1) then
                    sly(i,jc) = merge(s(i,je+1,n),sly(i,jc),phys_bc(2,2) .eq. INLET)
                    sry(i,jc) = merge(s(i,je+1,n),sry(i,jc),phys_bc(2,2) .eq. INLET)
                    if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
@@ -500,7 +495,7 @@ contains
 
           endif ! end if(j .gt. js-1)
 
-          if(j .gt. js) then
+          if (j .gt. js) then
 
              !******************************************************************
              ! 4. Compute sedgex(is:ie+1,j-1)
@@ -1283,7 +1278,7 @@ contains
     ! Pseudo code
     !*************************************
     !
-    !  do j=ks-1,ke+1
+    !  do k=ks-1,ke+1
     !     1. Compute simhx (is  :ie+1,js-1:je+1,k) 
     !     2. Compute simhy (is-1:ie+1,js  :je+1,k)
     !     3. Compute simhxy(is  :ie+1,js  :je  ,k)
@@ -1705,14 +1700,17 @@ contains
                          end if
                       endif
                    endif
-
-                   ! create fluxes
-                   if(is_conservative(n)) then
-                      fluxz(i,j,k,n) = sedgez(i,j,k,n)*wmac(i,j,k)
-                   endif
-
                 enddo
              enddo
+
+             ! create fluxes
+             if (is_conservative(n)) then
+                do j=js,je
+                   do i=is,ie
+                      fluxz(i,j,k,n) = sedgez(i,j,k,n)*wmac(i,j,k)
+                   enddo
+                enddo
+             endif
 
              !******************************************************************
              ! 7. Compute simhzx(is  :ie  ,js-1:je+1,k)
@@ -1826,9 +1824,9 @@ contains
                 enddo
              enddo
 
-          endif ! end if(k .gt. ks-1)
+          endif ! end if (k .gt. ks-1)
 
-          if(k .gt. ks) then
+          if (k .gt. ks) then
 
              !******************************************************************
              ! 9. Compute simhxz(is  :ie+1,js-1:je+1,k-1)
@@ -1948,6 +1946,7 @@ contains
 
              do j=js,je
                 do i=is,ie+1
+
                    ! make sedgelx, sedgerx
                    if(is_conservative(n)) then
                       sedgelx(i,j) = slx(i,j,kp) &
@@ -1988,58 +1987,59 @@ contains
                    sedgex(i,j,k-1,n) = merge(sedgelx(i,j),sedgerx(i,j),umac(i,j,k-1) .gt. ZERO)
                    savg = HALF*(sedgelx(i,j)+sedgerx(i,j))
                    sedgex(i,j,k-1,n) = merge(sedgex(i,j,k-1,n),savg,abs(umac(i,j,k-1)) .gt. eps)
+
+                   ! sedgex boundary conditions
+                   if (i .eq. is) then
+                      ! lo side
+                      if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+                         if (is_vel .and. n .eq. 1) then
+                            sedgex(i,j,k-1,n) = ZERO
+                         elseif (is_vel .and. n .ne. 1) then
+                            sedgex(i,j,k-1,n) = merge(ZERO,sedgerx(i,j),phys_bc(1,1).eq.NO_SLIP_WALL)
+                         else
+                            sedgex(i,j,k-1,n) = sedgerx(i,j)
+                         endif
+                      elseif (phys_bc(1,1) .eq. INLET) then
+                         sedgex(i,j,k-1,n) = s(is-1,j,k-1,n)
+                      elseif (phys_bc(1,1) .eq. OUTLET) then
+                         if (is_vel .and. n.eq.1) then
+                            sedgex(i,j,k-1,n) = MIN(sedgerx(i,j),ZERO)
+                         else
+                            sedgex(i,j,k-1,n) = sedgerx(i,j)
+                         end if
+                      endif
+                   else if (i .eq. ie+1) then
+                      ! hi side
+                      if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+                         if (is_vel .and. n .eq. 1) then
+                            sedgex(i,j,k-1,n) = ZERO
+                         else if (is_vel .and. n .ne. 1) then
+                            sedgex(i,j,k-1,n) = merge(ZERO,sedgelx(i,j),phys_bc(1,2).eq.NO_SLIP_WALL)
+                         else 
+                            sedgex(i,j,k-1,n) = sedgelx(i,j)
+                         endif
+                      elseif (phys_bc(1,2) .eq. INLET) then
+                         sedgex(i,j,k-1,n) = s(i,j,k-1,n)
+                      elseif (phys_bc(1,2) .eq. OUTLET) then
+                         if (is_vel .and. n.eq.1) then
+                            sedgex(i,j,k-1,n) = MAX(sedgelx(ie+1,j),ZERO)
+                         else
+                            sedgex(i,j,k-1,n) = sedgelx(i,j)
+                         end if
+                      endif
+                   endif
+
                 enddo
              enddo
-
-             ! sedgex boundary conditions
-             if(i .eq. is) then
-                ! lo side
-                if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
-                   if (is_vel .and. n .eq. 1) then
-                      sedgex(is,j,k-1,n) = ZERO
-                   elseif (is_vel .and. n .ne. 1) then
-                      sedgex(is,j,k-1,n) = merge(ZERO,sedgerx(is,j),phys_bc(1,1).eq.NO_SLIP_WALL)
-                   else
-                      sedgex(is,j,k-1,n) = sedgerx(is,j)
-                   endif
-                elseif (phys_bc(1,1) .eq. INLET) then
-                   sedgex(is,j,k-1,n) = s(is-1,j,k-1,n)
-                elseif (phys_bc(1,1) .eq. OUTLET) then
-                   if (is_vel .and. n.eq.1) then
-                      sedgex(is,j,k-1,n) = MIN(sedgerx(is,j),ZERO)
-                   else
-                      sedgex(is,j,k-1,n) = sedgerx(is,j)
-                   end if
-                endif
-             else if(i .eq. ie+1) then
-                ! hi side
-                if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
-                   if (is_vel .and. n .eq. 1) then
-                      sedgex(ie+1,j,k-1,n) = ZERO
-                   else if (is_vel .and. n .ne. 1) then
-                      sedgex(ie+1,j,k-1,n) = merge(ZERO,sedgelx(ie+1,j),phys_bc(1,2).eq.NO_SLIP_WALL)
-                   else 
-                      sedgex(ie+1,j,k-1,n) = sedgelx(ie+1,j)
-                   endif
-                elseif (phys_bc(1,2) .eq. INLET) then
-                   sedgex(ie+1,j,k-1,n) = s(ie+1,j,k-1,n)
-                elseif (phys_bc(1,2) .eq. OUTLET) then
-                   if (is_vel .and. n.eq.1) then
-                      sedgex(ie+1,j,k-1,n) = MAX(sedgelx(ie+1,j),ZERO)
-                   else
-                      sedgex(ie+1,j,k-1,n) = sedgelx(ie+1,j)
-                   end if
-                endif
-             endif
 
              ! create fluxes
-             do j=js,je
-                do i=is,ie+1
-                   if(is_conservative(n)) then
+             if (is_conservative(n)) then
+                do j=js,je
+                   do i=is,ie+1
                       fluxx(i,j,k-1,n) = sedgex(i,j,k-1,n)*umac(i,j,k-1)
-                   endif
+                   enddo
                 enddo
-             enddo
+             endif
 
              !******************************************************************
              ! 12.Compute sedgey(is  :ie  ,js  :je+1,k-1)
@@ -2086,58 +2086,59 @@ contains
                    sedgey(i,j,k-1,n) = merge(sedgely(i,j),sedgery(i,j),vmac(i,j,k-1) .gt. ZERO)
                    savg = HALF*(sedgely(i,j)+sedgery(i,j))
                    sedgey(i,j,k-1,n) = merge(sedgey(i,j,k-1,n),savg,abs(vmac(i,j,k-1)) .gt. eps)
+
+                   ! sedgey boundary conditions
+                   if (j .eq. js) then
+                      ! lo side
+                      if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
+                         if (is_vel .and. n .eq. 2) then
+                            sedgey(i,js,k-1,n) = ZERO
+                         elseif (is_vel .and. n .ne. 2) then
+                            sedgey(i,js,k-1,n) = merge(ZERO,sedgery(i,js),phys_bc(2,1).eq.NO_SLIP_WALL)
+                         else 
+                            sedgey(i,js,k-1,n) = sedgery(i,js)
+                            print *,'EDGE ',i,js,k-1,sedgey(i,js,k-1,n)
+                         endif
+                      elseif (phys_bc(2,1) .eq. INLET) then
+                         sedgey(i,js,k-1,n) = s(i,js-1,k-1,n)
+                      elseif (phys_bc(2,1) .eq. OUTLET) then
+                         if (is_vel .and. n.eq.2) then
+                            sedgey(i,js,k-1,n) = MIN(sedgery(i,js),ZERO)
+                         else
+                            sedgey(i,js,k-1,n) = sedgery(i,js)
+                         end if
+                      endif
+                   else if (j .eq. je+1) then
+                      ! hi side
+                      if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
+                         if (is_vel .and. n .eq. 2) then
+                            sedgey(i,je+1,k-1,n) = ZERO
+                         elseif (is_vel .and. n .ne. 2) then
+                            sedgey(i,je+1,k-1,n) = merge(ZERO,sedgely(i,je+1),phys_bc(2,2).eq.NO_SLIP_WALL)
+                         else 
+                            sedgey(i,je+1,k-1,n) = sedgely(i,je+1)
+                         endif
+                      elseif (phys_bc(2,2) .eq. INLET) then
+                         sedgey(i,je+1,k-1,n) = s(i,je+1,k-1,n)
+                      elseif (phys_bc(2,2) .eq. OUTLET) then
+                         if (is_vel .and. n.eq.2) then
+                            sedgey(i,je+1,k-1,n) = MAX(sedgely(i,je+1),ZERO)
+                         else
+                            sedgey(i,je+1,k-1,n) = sedgely(i,je+1)
+                         end if
+                      endif
+                   endif
                 enddo
              enddo
-
-             ! sedgey boundary conditions
-             if(j .eq. js) then
-                ! lo side
-                if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                   if (is_vel .and. n .eq. 2) then
-                      sedgey(i,js,k-1,n) = ZERO
-                   elseif (is_vel .and. n .ne. 2) then
-                      sedgey(i,js,k-1,n) = merge(ZERO,sedgery(i,js),phys_bc(2,1).eq.NO_SLIP_WALL)
-                   else 
-                      sedgey(i,js,k-1,n) = sedgery(i,js)
-                   endif
-                elseif (phys_bc(2,1) .eq. INLET) then
-                   sedgey(i,js,k-1,n) = s(i,js-1,k-1,n)
-                elseif (phys_bc(2,1) .eq. OUTLET) then
-                   if (is_vel .and. n.eq.2) then
-                      sedgey(i,js,k-1,n) = MIN(sedgery(i,js),ZERO)
-                   else
-                      sedgey(i,js,k-1,n) = sedgery(i,js)
-                   end if
-                endif
-             else if(j .eq. je+1) then
-                ! hi side
-                if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                   if (is_vel .and. n .eq. 2) then
-                      sedgey(i,je+1,k-1,n) = ZERO
-                   elseif (is_vel .and. n .ne. 2) then
-                      sedgey(i,je+1,k-1,n) = merge(ZERO,sedgely(i,je+1),phys_bc(2,2).eq.NO_SLIP_WALL)
-                   else 
-                      sedgey(i,je+1,k-1,n) = sedgely(i,je+1)
-                   endif
-                elseif (phys_bc(2,2) .eq. INLET) then
-                   sedgey(i,je+1,k-1,n) = s(i,je+1,k-1,n)
-                elseif (phys_bc(2,2) .eq. OUTLET) then
-                   if (is_vel .and. n.eq.2) then
-                      sedgey(i,je+1,k-1,n) = MAX(sedgely(i,je+1),ZERO)
-                   else
-                      sedgey(i,je+1,k-1,n) = sedgely(i,je+1)
-                   end if
-                endif
-             endif
 
              ! create fluxes
-             do j=js,je+1
-                do i=is,ie
-                   if(is_conservative(n)) then
+             if (is_conservative(n)) then
+                do j=js,je+1
+                   do i=is,ie
                       fluxy(i,j,k-1,n) = sedgey(i,j,k-1,n)*vmac(i,j,k-1)
-                   endif
+                   enddo
                 enddo
-             enddo
+             endif
 
           endif ! end if(k .gt. ks)
 
@@ -3122,17 +3123,16 @@ contains
           enddo
        enddo
 
-       ! loop over appropriate y-faces
+       ! create fluxes
+       if (is_conservative(n)) then
        do k=ks,ke
           do j=js,je+1
              do i=is,ie
-                ! create fluxes
-                if(is_conservative(n)) then
                    fluxy(i,j,k,n) = sedgey(i,j,k,n)*vmac(i,j,k)
-                endif
              enddo
           enddo
        enddo
+       endif
 
        ! loop over appropriate z-faces
        do k=ks,ke+1
