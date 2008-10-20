@@ -70,6 +70,9 @@ contains
           vmp    => dataptr(umac(n,2), i)
           fp     => dataptr(force(n) , i)
           dp     => dataptr(divu(n), i)
+          lo = lwb(get_box(sold(n), i))
+          hi = upb(get_box(sold(n), i))
+          select case (dm)
           case (2)
              if(use_godunov_debug) then
                 call mkflux_debug_2d(sop(:,:,1,:),  &
