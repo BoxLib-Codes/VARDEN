@@ -237,12 +237,13 @@ contains
                 do j = lo(2), hi(2)
                    do i = lo(1), hi(1)
                       divsu = (fluxx(i+1,j,k,comp)-fluxx(i,j,k,comp))/dx(1) &
-                           + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
-                           + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
+                            + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
+                            + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
                       snew(i,j,k,comp) = sold(i,j,k,comp) - dt * divsu + dt * force(i,j,k,comp)
                    enddo
                 enddo
              enddo
+
           else 
 
              do k = lo(3), hi(3)
