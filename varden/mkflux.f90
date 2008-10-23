@@ -3227,16 +3227,16 @@ contains
           enddo
        enddo
 
+       ! create fluxes
+       if (is_conservative(n)) then
        do k=ks,ke+1
           do j=js,je
              do i=is,ie
-                ! create fluxes
-                if(is_conservative(n)) then
                    fluxz(i,j,k,n) = sedgez(i,j,k,n)*wmac(i,j,k)
-                endif
+                enddo
              enddo
           enddo
-       enddo
+       endif
 
     enddo ! end loop over components
 
