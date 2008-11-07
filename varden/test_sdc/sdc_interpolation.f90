@@ -95,7 +95,7 @@ contains
 !                      call get_single_location_array(diff,D,n,i,ix,iy,iz,D_last)
     
                       do comp = 2, nscal
-                         Iop(ix,iy,1,comp-1) = (snop(ix,iy,iz,comp) - soop(ix,iy,iz,comp))/dt&
+                         Iop(ix,iy,iz,comp-1) = (snop(ix,iy,iz,comp) - soop(ix,iy,iz,comp))/dt&
                               + half*(D(2)%p(ix,iy,iz,comp-1) + D(0)%p(ix,iy,iz,comp-1))&
                               - D(1)%p(ix,iy,iz,comp-1) - A(0)%p(ix,iy,iz,comp-1)
                        !  + half*dt*(D(2,comp-1) + D(0,comp-1)) &

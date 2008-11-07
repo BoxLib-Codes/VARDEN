@@ -63,6 +63,7 @@ contains
     character(len=20)         :: plot_names(nscal)
     character(len=20)         :: sd_name
     integer, save             :: iter = 0
+    integer, save             :: kiter = 0
 
     plot_names(1) = 'SpeciesA'
     plot_names(2) = 'SpeciesB'
@@ -358,8 +359,8 @@ call write_plotfile(500+iter,nspec,I_ADR)
        call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,&
                    is_vel,is_conservative,the_bc_tower%bc_tower_array)
 
-call write_plotfile(600+iter+k-1,nscal,snew)
-call write_plotfile(1100+iter+k-1,nspec,adv_s(:,0))
+call write_plotfile(600+kiter+k-1,nscal,snew)
+call write_plotfile(1100+kiter+k-1,nspec,adv_s(:,0))
 
        if (verbose .ge. 1) then
           do n = 1, nlevs
@@ -418,8 +419,8 @@ call write_plotfile(1100+iter+k-1,nspec,adv_s(:,0))
           enddo
        endif
        
-call write_plotfile(700+iter+k-1,nspec,D_s(:,1))
-call write_plotfile(1200+iter+k-1,nscal,snew)
+call write_plotfile(700+kiter+k-1,nspec,D_s(:,1))
+call write_plotfile(1200+kiter+k-1,nscal,snew)
 
 !do n = 1, nlevs
 !   call multifab_copy_c(difference(n),1,snew(n),1,nscal)
@@ -453,7 +454,7 @@ call write_plotfile(1200+iter+k-1,nscal,snew)
        call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,D_s,sdc_flag=2)
        ! use sdc_flag=2 for SDC; =1 for provisional
 
-call write_plotfile(1300+iter+k-1,nscal,snew)
+call write_plotfile(1300+kiter+k-1,nscal,snew)
        !*********************************************
        ! Compute D(s) at time n+1
 
@@ -468,7 +469,7 @@ call write_plotfile(1300+iter+k-1,nscal,snew)
           enddo
        endif
     
-call write_plotfile(800+iter+k-1,nspec,D_s(:,3))
+call write_plotfile(800+kiter+k-1,nspec,D_s(:,3))
 
 
        !*****************************
@@ -476,7 +477,7 @@ call write_plotfile(800+iter+k-1,nspec,D_s(:,3))
 
        call intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
 
-call write_plotfile(900+iter+k-1,nspec,I_ADR)
+call write_plotfile(900+kiter+k-1,nspec,I_ADR)
 
 
        do n = 1, nlevs
@@ -508,6 +509,7 @@ call write_plotfile(900+iter+k-1,nspec,I_ADR)
     end do  ! sdc_iters loop
 
 iter = iter + 1
+kiter = kiter + 2
 
     ! snew is copied into sold in varden.f90
 
