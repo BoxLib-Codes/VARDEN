@@ -456,9 +456,9 @@ contains
       real(kind=dp_t) :: u2,u3,u4,k1,k2,k3
 
       ! first component is density 
-!       u2 = merge(u(2), zero, u(2) > zero)
-!       u3 = merge(u(3), zero, u(3) > zero)
-!       u4 = merge(u(4), zero, u(4) > zero)
+       u2 = merge(u(2), zero, u(2) > zero)
+       u3 = merge(u(3), zero, u(3) > zero)
+       u4 = merge(u(4), zero, u(4) > zero)
 
 !       if(mass_fractions) then
 !          k1 = merge(k_rxn2,zero,u(2)<= one)
@@ -466,9 +466,9 @@ contains
 !          k3 = merge(k_rxn1,zero,u(4)<= one)
 !       endif
       
-      u2 = u(2)
-      u3 = u(3)
-      u4 = u(4)
+!      u2 = u(2)
+!      u3 = u(3)
+!      u4 = u(4)
 
       k1 = k_rxn2
       k2 = k_rxn2

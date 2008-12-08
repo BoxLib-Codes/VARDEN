@@ -170,7 +170,7 @@ contains
 !       call multifab_fill_boundary(snew(n))
 !    end do
 
-    call mkflux(mla,snew,sedge,sflux,umac,scal_force,divu,dx,dt, &
+    call mkflux(mla,sold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                 the_bc_tower%bc_tower_array,is_vel,is_conservative)
 
 
@@ -199,7 +199,7 @@ contains
                    dt*sdc_dt_fac(j),t,is_vel,is_conservative,&
                    the_bc_tower%bc_tower_array)
 
-call write_plotfile(100+(j-1)*100+iter,nspec,adv_s(:,1))
+!call write_plotfile(100+(j-1)*100+iter,nspec,adv_s(:,1))
 !call write_plotfile(200+iter,nspec,adv_s(:,1))
 
        if (verbose .ge. 1) then
@@ -249,7 +249,7 @@ call write_plotfile(100+(j-1)*100+iter,nspec,adv_s(:,1))
           enddo
        endif
 
-call write_plotfile(300+(j-1)*100+iter,nspec,D_s(:,j))
+call write_plotfile(100+(j-1)*100+iter,nspec,D_s(:,j))
 ! do n = 1, nlevs
 !    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
 !    call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
@@ -290,7 +290,7 @@ call write_plotfile(300+(j-1)*100+iter,nspec,D_s(:,j))
 
        call mk_provis_I_R(j,snew,dt*sdc_dt_fac(j))
 
-call write_plotfile(500+(j-1)*100+iter,nspec,I_R(:,j))
+!call write_plotfile(500+(j-1)*100+iter,nspec,I_R(:,j))
 
        !***************************************
        ! Compute a provisional D(s) at intermediate time
@@ -306,7 +306,7 @@ call write_plotfile(500+(j-1)*100+iter,nspec,I_R(:,j))
           enddo
        endif
 
-call write_plotfile(700+100*(j-1)+iter,nspec,D_s(:,j))
+call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
 
 ! do n = 1, nlevs
 !    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
@@ -331,10 +331,10 @@ call write_plotfile(700+100*(j-1)+iter,nspec,D_s(:,j))
     ! Compute aprrox to int(A+D)
     !*****************************
     call mk_I_AD(I_AD,adv_s,D_s,nlevs)
-call write_plotfile(900+iter,nspec,I_AD(:,1))
-call write_plotfile(1000+iter,nspec,I_AD(:,2))
-call write_plotfile(1100+iter,nspec,I_AD(:,3))
-call write_plotfile(1200+iter,nspec,I_R(:,3))
+!call write_plotfile(900+iter,nspec,I_AD(:,1))
+!call write_plotfile(1000+iter,nspec,I_AD(:,2))
+!call write_plotfile(1100+iter,nspec,I_AD(:,3))
+!call write_plotfile(1200+iter,nspec,I_R(:,3))
 
 
 ! call multifab_copy_c(snew_old(1),2,I_R(3,1),1,nspec)
@@ -392,8 +392,8 @@ call write_plotfile(1200+iter,nspec,I_R(:,3))
                       is_vel,is_conservative,the_bc_tower%bc_tower_array)
 
 !call write_plotfile(800+(j-1)*100+iter,nscal,snew_temp)
-call write_plotfile(1300+(j-1)*100+iter,nscal,scal_force)
-call write_plotfile(1500+(j-1)*100+iter,nspec,adv_s(:,1))
+!call write_plotfile(1300+(j-1)*100+iter,nscal,scal_force)
+!call write_plotfile(1500+(j-1)*100+iter,nspec,adv_s(:,1))
 
           if (verbose .ge. 1) then
              do n = 1, nlevs

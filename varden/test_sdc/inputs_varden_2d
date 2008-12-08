@@ -12,7 +12,7 @@
 ! inputs for reactions
   reactions = T
 ! sdc_iters < 0 means use strang splitting
-  sdc_iters = 1
+  sdc_iters = 10
 
 ! 1 = Crank-Nicolson or SDC, 2 = Backward Euler
 ! SDC uses source terms in the diffusion solve, like CN does, 
@@ -20,9 +20,9 @@
  diffusion_type = 1
 
 ! stop_time = 0.0625
- stop_time = 1.0
+ stop_time = 2.0
 ! fixed_dt = 0.00390625 !128
- fixed_dt = 0.001953125 !256
+! fixed_dt = 0.001953125 !256
 ! fixed_dt = 0.0009765625 !256
 ! fixed_dt = 0.00048828125 !256
 ! fixed_dt = 0.015625 !32
@@ -30,19 +30,19 @@
 ! fixed_dt = 0.000078125 !64
 ! fixed_dt = 0.03125 !16
 
- cflfac = 0.5
- init_shrink = 0.1
+ cflfac = 0.7
+! init_shrink = 0.1
 
 ! visc_coef = 0.001
- visc_coef = 0.00
+ visc_coef = 0.001
  diff_coef = 0.10
 
-  n_rxn_steps = 100
+  n_rxn_steps = 25
 !  k_rxn1 = 5111.d0
-  k_rxn1 = 217131.d0
+!  k_rxn1 = 217131.d0
 !  k_rxn1 = 0.d0
   k_rxn2 = 0.d0
-!  k_rxn1 = 1050.0d0
+  k_rxn1 = 50.0d0
 !  k_rxn2 = 132.0d0
 
 ! default = T
@@ -50,7 +50,7 @@
 
 !!!! Input for fixed grids !!!!
 ! fixed_grids = "gr0_2d_2levels"
- fixed_grids = "gr0_2d"
+ fixed_grids = 'gr0_2d'
 
 max_grid_size = 1024
 
@@ -99,5 +99,5 @@ max_grid_size = 1024
  mg_verbose = 0
  cg_verbose = 0
 
-! restart = 20
+! restart = 512
 /
