@@ -1381,8 +1381,8 @@ contains
 
              ! impose lo side bc's
              if(k .eq. ks) then
-                vlzx(i,j,k) = merge(u(i,j,ks-1,1),vlzx(i,j,k),phys_bc(3,1) .eq. INLET)
-                vrzx(i,j,k) = merge(u(i,j,ks-1,1),vrzx(i,j,k),phys_bc(3,1) .eq. INLET)
+                vlzx(i,j,k) = merge(u(i,j,ks-1,2),vlzx(i,j,k),phys_bc(3,1) .eq. INLET)
+                vrzx(i,j,k) = merge(u(i,j,ks-1,2),vrzx(i,j,k),phys_bc(3,1) .eq. INLET)
                 if(phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
                    vlzx(i,j,k) = merge(ZERO,vrzx(i,j,k),phys_bc(3,1) .eq. NO_SLIP_WALL)
                    vrzx(i,j,k) = merge(ZERO,vrzx(i,j,k),phys_bc(3,1) .eq. NO_SLIP_WALL)
@@ -1391,8 +1391,8 @@ contains
 
              ! impose hi side bc's
              if(k .eq. ke+1) then
-                vlzx(i,j,k) = merge(u(i,j,ke+1,1),vlzx(i,j,k),phys_bc(3,2) .eq. INLET)
-                vrzx(i,j,k) = merge(u(i,j,ke+1,1),vrzx(i,j,k),phys_bc(3,2) .eq. INLET)
+                vlzx(i,j,k) = merge(u(i,j,ke+1,2),vlzx(i,j,k),phys_bc(3,2) .eq. INLET)
+                vrzx(i,j,k) = merge(u(i,j,ke+1,2),vrzx(i,j,k),phys_bc(3,2) .eq. INLET)
                 if(phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
                    vlzx(i,j,k) = merge(ZERO,vlzx(i,j,k),phys_bc(3,2) .eq. NO_SLIP_WALL)
                    vrzx(i,j,k) = merge(ZERO,vlzx(i,j,k),phys_bc(3,2) .eq. NO_SLIP_WALL)
