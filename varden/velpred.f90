@@ -2048,43 +2048,49 @@ contains
                 urx(i,j,kc,2) = urx(i,j,kc,2) + dt2*force(i  ,j,k,2)
                 urx(i,j,kc,3) = urx(i,j,kc,3) + dt2*force(i  ,j,k,3)
              endif
+          end do
+       end do
+       
+       ! impose lo side bc's
+       if (phys_bc(1,1) .eq. INLET) then
+          ulx(is,js-1:je+1,kc,1:3) = u(is-1,js-1:je+1,k,1:3)
+          urx(is,js-1:je+1,kc,1:3) = u(is-1,js-1:je+1,k,1:3)
+       else if (phys_bc(1,1) .eq. SLIP_WALL) then
+          ulx(is,js-1:je+1,kc,1) = ZERO
+          urx(is,js-1:je+1,kc,1) = ZERO
+          ulx(is,js-1:je+1,kc,2) = urx(is,js-1:je+1,kc,2)
+          ulx(is,js-1:je+1,kc,3) = urx(is,js-1:je+1,kc,3)
+       else if (phys_bc(1,1) .eq. NO_SLIP_WALL) then
+          ulx(is,js-1:je+1,kc,1:3) = ZERO
+          urx(is,js-1:je+1,kc,1:3) = ZERO
+       else if (phys_bc(1,1) .eq. OUTLET) then
+          ulx(is,js-1:je+1,kc,1) = min(urx(is,js-1:je+1,kc,1),ZERO)
+          ulx(is,js-1:je+1,kc,1) = min(urx(is,js-1:je+1,kc,1),ZERO)
+          ulx(is,js-1:je+1,kc,2) = urx(is,js-1:je+1,kc,2)
+          ulx(is,js-1:je+1,kc,3) = urx(is,js-1:je+1,kc,3)
+       end if
 
-             ! impose lo side bc's
-             if(i .eq. is) then
-                ulx(i,j,kc,1) = merge(u(is-1,j,k,1),ulx(i,j,kc,1),phys_bc(1,1) .eq. INLET)
-                urx(i,j,kc,1) = merge(u(is-1,j,k,1),urx(i,j,kc,1),phys_bc(1,1) .eq. INLET)
-                ulx(i,j,kc,2) = merge(u(is-1,j,k,2),ulx(i,j,kc,2),phys_bc(1,1) .eq. INLET)
-                urx(i,j,kc,2) = merge(u(is-1,j,k,2),urx(i,j,kc,2),phys_bc(1,1) .eq. INLET)
-                ulx(i,j,kc,3) = merge(u(is-1,j,k,3),ulx(i,j,kc,3),phys_bc(1,1) .eq. INLET)
-                urx(i,j,kc,3) = merge(u(is-1,j,k,3),urx(i,j,kc,3),phys_bc(1,1) .eq. INLET)
-                if(phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
-                   ulx(i,j,kc,1) = ZERO
-                   urx(i,j,kc,1) = ZERO
-                   ulx(i,j,kc,2) = merge(ZERO,urx(i,j,kc,2),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                   urx(i,j,kc,2) = merge(ZERO,urx(i,j,kc,2),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                   ulx(i,j,kc,3) = merge(ZERO,urx(i,j,kc,3),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                   urx(i,j,kc,3) = merge(ZERO,urx(i,j,kc,3),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                endif
-             endif
+       ! impose hi side bc's
+       if (phys_bc(1,2) .eq. INLET) then
+          ulx(ie+1,js-1:je+1,kc,1:3) = u(ie+1,js-1:je+1,k,1:3)
+          urx(ie+1,js-1:je+1,kc,1:3) = u(ie+1,js-1:je+1,k,1:3)
+       else if (phys_bc(1,2) .eq. SLIP_WALL) then
+          ulx(ie+1,js-1:je+1,kc,1) = ZERO
+          urx(ie+1,js-1:je+1,kc,1) = ZERO
+          urx(ie+1,js-1:je+1,kc,2) = ulx(ie+1,js-1:je+1,kc,2)
+          urx(ie+1,js-1:je+1,kc,3) = ulx(ie+1,js-1:je+1,kc,3)
+       else if (phys_bc(1,2) .eq. NO_SLIP_WALL) then
+          ulx(ie+1,js-1:je+1,kc,1:3) = ZERO
+          urx(ie+1,js-1:je+1,kc,1:3) = ZERO
+       else if (phys_bc(1,2) .eq. OUTLET) then
+          ulx(ie+1,js-1:je+1,kc,1) = min(ulx(ie+1,js-1:je+1,kc,1),ZERO)
+          urx(ie+1,js-1:je+1,kc,1) = min(ulx(ie+1,js-1:je+1,kc,1),ZERO)
+          urx(ie+1,js-1:je+1,kc,2) = ulx(ie+1,js-1:je+1,kc,2)
+          urx(ie+1,js-1:je+1,kc,3) = ulx(ie+1,js-1:je+1,kc,3)
+       end if
 
-             ! impose hi side bc's
-             if(i .eq. ie+1) then
-                ulx(i,j,kc,1) = merge(u(ie+1,j,k,1),ulx(i,j,kc,1),phys_bc(1,2) .eq. INLET)
-                urx(i,j,kc,1) = merge(u(ie+1,j,k,1),urx(i,j,kc,1),phys_bc(1,2) .eq. INLET)
-                ulx(i,j,kc,2) = merge(u(ie+1,j,k,2),ulx(i,j,kc,2),phys_bc(1,2) .eq. INLET)
-                urx(i,j,kc,2) = merge(u(ie+1,j,k,2),urx(i,j,kc,2),phys_bc(1,2) .eq. INLET)
-                ulx(i,j,kc,3) = merge(u(ie+1,j,k,3),ulx(i,j,kc,3),phys_bc(1,2) .eq. INLET)
-                urx(i,j,kc,3) = merge(u(ie+1,j,k,3),urx(i,j,kc,3),phys_bc(1,2) .eq. INLET)
-                if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
-                   ulx(i,j,kc,1) = ZERO
-                   urx(i,j,kc,1) = ZERO
-                   ulx(i,j,kc,2) = merge(ZERO,ulx(i,j,kc,2),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                   urx(i,j,kc,2) = merge(ZERO,ulx(i,j,kc,2),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                   ulx(i,j,kc,3) = merge(ZERO,ulx(i,j,kc,3),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                   urx(i,j,kc,3) = merge(ZERO,ulx(i,j,kc,3),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                endif
-             endif
-
+       do j=js-1,je+1
+          do i=is,ie+1
              ! make normal component of uimhx by first solving a normal Riemann problem
              uavg = HALF*(ulx(i,j,kc,1)+urx(i,j,kc,1))
              test = ((ulx(i,j,kc,1) .le. ZERO .and. urx(i,j,kc,1) .ge. ZERO) .or. &
@@ -2128,43 +2134,49 @@ contains
                 ury(i,j,kc,2) = ury(i,j,kc,2) + dt2*force(i,j  ,k,2)
                 ury(i,j,kc,3) = ury(i,j,kc,3) + dt2*force(i,j  ,k,3)
              endif
+          end do
+       end do
+       
+       ! impose lo side bc's
+       if (phys_bc(2,1) .eq. INLET) then
+          uly(is-1:ie+1,js,kc,1:3) = u(is-1:ie+1,js-1,k,1:3)
+          ury(is-1:ie+1,js,kc,1:3) = u(is-1:ie+1,js-1,k,1:3)
+       else if (phys_bc(2,1) .eq. SLIP_WALL) then
+          uly(is-1:ie+1,js,kc,1) = ury(is-1:ie+1,js,kc,1)
+          uly(is-1:ie+1,js,kc,2) = ZERO
+          ury(is-1:ie+1,js,kc,2) = ZERO
+          uly(is-1:ie+1,js,kc,3) = ury(is-1:ie+1,js,kc,3) 
+       else if (phys_bc(2,1) .eq. NO_SLIP_WALL) then
+          uly(is-1:ie+1,js,kc,1:3) = ZERO
+          ury(is-1:ie+1,js,kc,1:3) = ZERO
+       else if (phys_bc(2,1) .eq. OUTLET) then
+          uly(is-1:ie+1,js,kc,1) = ury(is-1:ie+1,js,kc,1)
+          uly(is-1:ie+1,js,kc,2) = min(ury(is-1:ie+1,js,kc,2),ZERO)
+          ury(is-1:ie+1,js,kc,2) = min(ury(is-1:ie+1,js,kc,2),ZERO)
+          uly(is-1:ie+1,js,kc,3) = ury(is-1:ie+1,js,kc,3) 
+       end if
 
-             ! impose lo side bc's
-             if(j .eq. js) then
-                uly(i,j,kc,1) = merge(u(i,js-1,k,1),uly(i,j,kc,1),phys_bc(2,1) .eq. INLET)
-                ury(i,j,kc,1) = merge(u(i,js-1,k,1),ury(i,j,kc,1),phys_bc(2,1) .eq. INLET)
-                uly(i,j,kc,2) = merge(u(i,js-1,k,2),uly(i,j,kc,2),phys_bc(2,1) .eq. INLET)
-                ury(i,j,kc,2) = merge(u(i,js-1,k,2),ury(i,j,kc,2),phys_bc(2,1) .eq. INLET)
-                uly(i,j,kc,3) = merge(u(i,js-1,k,3),uly(i,j,kc,3),phys_bc(2,1) .eq. INLET)
-                ury(i,j,kc,3) = merge(u(i,js-1,k,3),ury(i,j,kc,3),phys_bc(2,1) .eq. INLET)
-                if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                   uly(i,j,kc,1) = merge(ZERO,ury(i,j,kc,1),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                   ury(i,j,kc,1) = merge(ZERO,ury(i,j,kc,1),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                   uly(i,j,kc,2) = ZERO
-                   ury(i,j,kc,2) = ZERO
-                   uly(i,j,kc,3) = merge(ZERO,ury(i,j,kc,3),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                   ury(i,j,kc,3) = merge(ZERO,ury(i,j,kc,3),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                endif
-             endif
+       ! impose hi side bc's
+       if (phys_bc(2,2) .eq. INLET) then
+          uly(is-1:ie+1,je+1,kc,1:3) = u(is-1:ie+1,je+1,k,1:3)
+          ury(is-1:ie+1,je+1,kc,1:3) = u(is-1:ie+1,je+1,k,1:3)
+       else if (phys_bc(2,2) .eq. SLIP_WALL) then
+          ury(is-1:ie+1,je+1,kc,1) = uly(is-1:ie+1,je+1,kc,1)
+          uly(is-1:ie+1,je+1,kc,2) = ZERO
+          ury(is-1:ie+1,je+1,kc,2) = ZERO
+          ury(is-1:ie+1,je+1,kc,3) = uly(is-1:ie+1,je+1,kc,3)
+       else if (phys_bc(2,2) .eq. NO_SLIP_WALL) then
+          uly(is-1:ie+1,je+1,kc,1:3) = ZERO
+          ury(is-1:ie+1,je+1,kc,1:3) = ZERO
+       else if (phys_bc(2,2) .eq. OUTLET) then
+          ury(is-1:ie+1,je+1,kc,1) = uly(is-1:ie+1,je+1,kc,1)
+          uly(is-1:ie+1,je+1,kc,2) = max(uly(is-1:ie+1,je+1,kc,2),ZERO)
+          ury(is-1:ie+1,je+1,kc,2) = max(uly(is-1:ie+1,je+1,kc,2),ZERO)
+          ury(is-1:ie+1,je+1,kc,3) = uly(is-1:ie+1,je+1,kc,3)
+       end if
 
-             ! impose hi side bc's
-             if(j .eq. je+1) then
-                uly(i,j,kc,1) = merge(u(i,je+1,k,1),uly(i,j,kc,1),phys_bc(2,2) .eq. INLET)
-                ury(i,j,kc,1) = merge(u(i,je+1,k,1),ury(i,j,kc,1),phys_bc(2,2) .eq. INLET)
-                uly(i,j,kc,2) = merge(u(i,je+1,k,2),uly(i,j,kc,2),phys_bc(2,2) .eq. INLET)
-                ury(i,j,kc,2) = merge(u(i,je+1,k,2),ury(i,j,kc,2),phys_bc(2,2) .eq. INLET)
-                uly(i,j,kc,3) = merge(u(i,je+1,k,3),uly(i,j,kc,3),phys_bc(2,2) .eq. INLET)
-                ury(i,j,kc,3) = merge(u(i,je+1,k,3),ury(i,j,kc,3),phys_bc(2,2) .eq. INLET)
-                if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                   uly(i,j,kc,1) = merge(ZERO,uly(i,j,kc,1),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                   ury(i,j,kc,1) = merge(ZERO,uly(i,j,kc,1),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                   uly(i,j,kc,2) = ZERO
-                   ury(i,j,kc,2) = ZERO
-                   uly(i,j,kc,3) = merge(ZERO,uly(i,j,kc,3),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                   ury(i,j,kc,3) = merge(ZERO,uly(i,j,kc,3),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                endif
-             endif
-
+       do j=js,je+1
+          do i=is-1,ie+1
              ! make normal component of uimhy by first solving a normal Riemann problem
              uavg = HALF*(uly(i,j,kc,2)+ury(i,j,kc,2))
              test = ((uly(i,j,kc,2) .le. ZERO .and. ury(i,j,kc,2) .ge. ZERO) .or. &
@@ -2194,27 +2206,33 @@ contains
                   - (dt6/hy)*(uimhy(i-1,j+1,kc,2)+uimhy(i-1,j,kc,2))*(uimhy(i-1,j+1,kc,3)-uimhy(i-1,j,kc,3))
              wrxy(i,j,kc) = urx(i,j,kc,3) &
                   - (dt6/hy)*(uimhy(i  ,j+1,kc,2)+uimhy(i  ,j,kc,2))*(uimhy(i  ,j+1,kc,3)-uimhy(i  ,j,kc,3))
+          end do
+       end do
+       
+       ! impose lo side bc's
+       if (phys_bc(1,1) .eq. INLET) then
+          wlxy(is,js:je,kc) = u(is-1,js:je,k,3)
+          wrxy(is,js:je,kc) = u(is-1,js:je,k,3)
+       else if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. OUTLET) then
+          wlxy(is,js:je,kc) = wrxy(is,js:je,kc)
+       else if (phys_bc(1,1) .eq. NO_SLIP_WALL) then
+          wlxy(is,js:je,kc) = ZERO
+          wrxy(is,js:je,kc) = ZERO
+       end if
 
-             ! impose lo side bc's
-             if(i .eq. is) then
-                wlxy(i,j,kc) = merge(u(is-1,j,k,3),wlxy(i,j,kc),phys_bc(1,1) .eq. INLET)
-                wrxy(i,j,kc) = merge(u(is-1,j,k,3),wrxy(i,j,kc),phys_bc(1,1) .eq. INLET)
-                if(phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
-                   wlxy(i,j,kc) = merge(ZERO,wrxy(i,j,kc),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                   wrxy(i,j,kc) = merge(ZERO,wrxy(i,j,kc),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                endif
-             endif
+       ! impose hi side bc's
+       if (phys_bc(1,2) .eq. INLET) then
+          wlxy(ie+1,js:je,kc) = u(ie+1,js:je,k,3)
+          wrxy(ie+1,js:je,kc) = u(ie+1,js:je,k,3)
+       else if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. OUTLET) then
+          wrxy(ie+1,js:je,kc) = wlxy(ie+1,js:je,kc)
+       else if (phys_bc(1,2) .eq. NO_SLIP_WALL) then
+          wlxy(ie+1,js:je,kc) = ZERO
+          wrxy(ie+1,js:je,kc) = ZERO
+       end if
 
-             ! impose hi side bc's
-             if(i .eq. ie+1) then
-                wlxy(i,j,kc) = merge(u(ie+1,j,k,3),wlxy(i,j,kc),phys_bc(1,2) .eq. INLET)
-                wrxy(i,j,kc) = merge(u(ie+1,j,k,3),wrxy(i,j,kc),phys_bc(1,2) .eq. INLET)
-                if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
-                   wlxy(i,j,kc) = merge(ZERO,wlxy(i,j,kc),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                   wrxy(i,j,kc) = merge(ZERO,wlxy(i,j,kc),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                endif
-             endif
-
+       do j=js,je
+          do i=is,ie+1
              ! upwind
              wimhxy(i,j,kc) = merge(wlxy(i,j,kc),wrxy(i,j,kc),uimhx(i,j,kc,1).gt.ZERO)
              uavg = HALF*(wlxy(i,j,kc)+wrxy(i,j,kc))
@@ -2233,27 +2251,33 @@ contains
                   - (dt6/hx)*(uimhx(i+1,j-1,kc,1)+uimhx(i,j-1,kc,1))*(uimhx(i+1,j-1,kc,3)-uimhx(i,j-1,kc,3))
              wryx(i,j,kc) = ury(i,j,kc,3) &
                   - (dt6/hx)*(uimhx(i+1,j  ,kc,1)+uimhx(i,j  ,kc,1))*(uimhx(i+1,j  ,kc,3)-uimhx(i,j  ,kc,3))
+          end do
+       end do
+       
+       ! impose lo side bc's
+       if (phys_bc(2,1) .eq. INLET) then
+          wlyx(is:ie,js,kc) = u(is:ie,js-1,k,3)
+          wryx(is:ie,js,kc) = u(is:ie,js-1,k,3)
+       else if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. OUTLET) then
+          wlyx(is:ie,js,kc) = wryx(is:ie,js,kc)
+       else if (phys_bc(2,1) .eq. NO_SLIP_WALL) then
+          wlyx(is:ie,js,kc) = ZERO
+          wryx(is:ie,js,kc) = ZERO
+       end if
 
-             ! impose lo side bc's
-             if(j .eq. js) then
-                wlyx(i,j,kc) = merge(u(i,js-1,k,3),wlyx(i,j,kc),phys_bc(2,1) .eq. INLET)
-                wryx(i,j,kc) = merge(u(i,js-1,k,3),wryx(i,j,kc),phys_bc(2,1) .eq. INLET)
-                if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                   wlyx(i,j,kc) = merge(ZERO,wryx(i,j,kc),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                   wryx(i,j,kc) = merge(ZERO,wryx(i,j,kc),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                endif
-             endif
+       ! impose hi side bc's
+       if (phys_bc(2,2) .eq. INLET) then
+          wlyx(is:ie,je+1,kc) = u(is:ie,je+1,k,3)
+          wryx(is:ie,je+1,kc) = u(is:ie,je+1,k,3)
+       else if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. OUTLET) then
+          wryx(is:ie,je+1,kc) = wlyx(is:ie,je+1,kc)
+       else if (phys_bc(2,2) .eq. NO_SLIP_WALL) then
+          wlyx(is:ie,je+1,kc) = ZERO
+          wryx(is:ie,je+1,kc) = ZERO
+       end if
 
-             ! impose hi side bc's
-             if(j .eq. je+1) then
-                wlyx(i,j,kc) = merge(u(i,je+1,k,3),wlyx(i,j,kc),phys_bc(2,2) .eq. INLET)
-                wryx(i,j,kc) = merge(u(i,je+1,k,3),wryx(i,j,kc),phys_bc(2,2) .eq. INLET)
-                if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                   wlyx(i,j,kc) = merge(ZERO,wlyx(i,j,kc),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                   wryx(i,j,kc) = merge(ZERO,wlyx(i,j,kc),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                endif
-             endif
-
+       do j=js,je+1
+          do i=is,ie
              ! upwind
              wimhyx(i,j,kc) = merge(wlyx(i,j,kc),wryx(i,j,kc),uimhy(i,j,kc,2).gt.ZERO)
              uavg = HALF*(wlyx(i,j,kc)+wryx(i,j,kc))
@@ -2288,43 +2312,53 @@ contains
                    urz(i,j,kc,2) = urz(i,j,kc,2) + dt2*force(i,j,k  ,2)
                    urz(i,j,kc,3) = urz(i,j,kc,3) + dt2*force(i,j,k  ,3)
                 endif
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if(k .eq. ks) then
+             if (phys_bc(3,1) .eq. INLET) then
+                ulz(is-1:ie+1,js-1:je+1,kc,1:3) = u(is-1:ie+1,js-1:je+1,ks-1,1:3)
+                urz(is-1:ie+1,js-1:je+1,kc,1:3) = u(is-1:ie+1,js-1:je+1,ks-1,1:3)
+             else if (phys_bc(3,1) .eq. SLIP_WALL) then
+                ulz(is-1:ie+1,js-1:je+1,kc,1) = urz(is-1:ie+1,js-1:je+1,kc,1)
+                ulz(is-1:ie+1,js-1:je+1,kc,2) = urz(is-1:ie+1,js-1:je+1,kc,2)
+                ulz(is-1:ie+1,js-1:je+1,kc,3) = ZERO
+                urz(is-1:ie+1,js-1:je+1,kc,3) = ZERO
+             else if (phys_bc(3,1) .eq. NO_SLIP_WALL) then
+                ulz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
+                urz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
+             else if (phys_bc(3,1) .eq. OUTLET) then
+                ulz(is-1:ie+1,js-1:je+1,kc,1) = urz(is-1:ie+1,js-1:je+1,kc,1)
+                ulz(is-1:ie+1,js-1:je+1,kc,2) = urz(is-1:ie+1,js-1:je+1,kc,2)
+                ulz(is-1:ie+1,js-1:je+1,kc,3) = min(urz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
+                urz(is-1:ie+1,js-1:je+1,kc,3) = min(urz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
+             end if
+          end if
 
-                ! impose lo side bc's
-                if(k .eq. ks) then
-                   ulz(i,j,kc,1) = merge(u(i,j,ks-1,1),ulz(i,j,kc,1),phys_bc(3,1) .eq. INLET)
-                   urz(i,j,kc,1) = merge(u(i,j,ks-1,1),urz(i,j,kc,1),phys_bc(3,1) .eq. INLET)
-                   ulz(i,j,kc,2) = merge(u(i,j,ks-1,2),ulz(i,j,kc,2),phys_bc(3,1) .eq. INLET)
-                   urz(i,j,kc,2) = merge(u(i,j,ks-1,2),urz(i,j,kc,2),phys_bc(3,1) .eq. INLET)
-                   ulz(i,j,kc,3) = merge(u(i,j,ks-1,3),ulz(i,j,kc,3),phys_bc(3,1) .eq. INLET)
-                   urz(i,j,kc,3) = merge(u(i,j,ks-1,3),urz(i,j,kc,3),phys_bc(3,1) .eq. INLET)
-                   if(phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
-                      ulz(i,j,kc,1) = merge(ZERO,urz(i,j,kc,1),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                      urz(i,j,kc,1) = merge(ZERO,urz(i,j,kc,1),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                      ulz(i,j,kc,2) = merge(ZERO,urz(i,j,kc,2),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                      urz(i,j,kc,2) = merge(ZERO,urz(i,j,kc,2),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                      ulz(i,j,kc,3) = ZERO
-                      urz(i,j,kc,3) = ZERO
-                   endif
-                endif
+          if (k .eq. ke+1) then
+             ! impose hi side bc's
+             if (phys_bc(3,2) .eq. INLET) then
+                ulz(is-1:ie+1,js-1:je+1,kc,1:3) = u(is-1:ie+1,js-1:je+1,ke+1,1:3)
+                urz(is-1:ie+1,js-1:je+1,kc,1:3) = u(is-1:ie+1,js-1:je+1,ke+1,1:3)
+             else if (phys_bc(3,2) .eq. SLIP_WALL) then
+                urz(is-1:ie+1,js-1:je+1,kc,1) = ulz(is-1:ie+1,js-1:je+1,kc,1)
+                urz(is-1:ie+1,js-1:je+1,kc,2) = ulz(is-1:ie+1,js-1:je+1,kc,2)
+                ulz(is-1:ie+1,js-1:je+1,kc,3) = ZERO
+                urz(is-1:ie+1,js-1:je+1,kc,3) = ZERO
+             else if (phys_bc(3,2) .eq. NO_SLIP_WALL) then
+                ulz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
+                urz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
+             else if (phys_bc(3,2) .eq. OUTLET) then
+                urz(is-1:ie+1,js-1:je+1,kc,1) = ulz(is-1:ie+1,js-1:je+1,kc,1)
+                urz(is-1:ie+1,js-1:je+1,kc,2) = ulz(is-1:ie+1,js-1:je+1,kc,2)
+                ulz(is-1:ie+1,js-1:je+1,kc,3) = max(ulz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
+                urz(is-1:ie+1,js-1:je+1,kc,3) = max(ulz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
+             end if
+          end if
 
-                ! impose hi side bc's
-                if(k .eq. ke+1) then
-                   ulz(i,j,kc,1) = merge(u(i,j,ke+1,1),ulz(i,j,kc,1),phys_bc(3,2) .eq. INLET)
-                   urz(i,j,kc,1) = merge(u(i,j,ke+1,1),urz(i,j,kc,1),phys_bc(3,2) .eq. INLET)
-                   ulz(i,j,kc,2) = merge(u(i,j,ke+1,2),ulz(i,j,kc,2),phys_bc(3,2) .eq. INLET)
-                   urz(i,j,kc,2) = merge(u(i,j,ke+1,2),urz(i,j,kc,2),phys_bc(3,2) .eq. INLET)
-                   ulz(i,j,kc,3) = merge(u(i,j,ke+1,3),ulz(i,j,kc,3),phys_bc(3,2) .eq. INLET)
-                   urz(i,j,kc,3) = merge(u(i,j,ke+1,3),urz(i,j,kc,3),phys_bc(3,2) .eq. INLET)
-                   if(phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
-                      ulz(i,j,kc,1) = merge(ZERO,ulz(i,j,kc,1),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                      urz(i,j,kc,1) = merge(ZERO,ulz(i,j,kc,1),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                      ulz(i,j,kc,2) = merge(ZERO,ulz(i,j,kc,2),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                      urz(i,j,kc,2) = merge(ZERO,ulz(i,j,kc,2),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                      ulz(i,j,kc,3) = ZERO
-                      urz(i,j,kc,3) = ZERO
-                   endif
-                endif
-
+          do j=js-1,je+1
+             do i=is-1,ie+1
                 ! make normal component of uimhz by first solving a normal Riemann problem
                 uavg = HALF*(ulz(i,j,kc,3)+urz(i,j,kc,3))
                 test = ((ulz(i,j,kc,3) .le. ZERO .and. urz(i,j,kc,3) .ge. ZERO) .or. &
@@ -2370,29 +2404,30 @@ contains
                      (abs(wmacl(i,j)+wmacr(i,j)) .lt. eps))
                 wmac(i,j,k) = merge(wmacl(i,j),wmacr(i,j),uavg .gt. ZERO)
                 wmac(i,j,k) = merge(ZERO,wmac(i,j,k),test)
+             end do
+          end do
+          
+          ! impose hi side bc's
+          if(k .eq. ks) then
+             if (phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
+                wmac(is:ie,js:je,ks) = ZERO
+             else if (phys_bc(3,1) .eq. INLET) then
+                wmac(is:ie,js:je,ks) = u(is:ie,js:je,ks-1,3)
+             else if (phys_bc(3,1) .eq. OUTLET) then
+                wmac(is:ie,js:je,ks) = min(wmacr(is:ie,js:je),ZERO)
+             endif
+          end if
 
-                ! Apply boundary conditions
-                if(k .eq. ks) then
-                   ! lo side
-                   if (phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
-                      wmac(i,j,ks) = ZERO
-                   elseif (phys_bc(3,1) .eq. INLET) then
-                      wmac(i,j,ks) = u(i,j,ks-1,3)
-                   elseif (phys_bc(3,1) .eq. OUTLET) then
-                      wmac(i,j,ks) = min(wmacr(i,j),ZERO)
-                   endif
-                else if(k .eq. ke+1) then
-                   ! hi side
-                   if (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
-                      wmac(i,j,ke+1) = ZERO
-                   elseif (phys_bc(3,2) .eq. INLET) then
-                      wmac(i,j,ke+1) = u(i,j,ke+1,3)
-                   elseif (phys_bc(3,2) .eq. OUTLET) then
-                      wmac(i,j,ke+1) = max(wmacl(i,j),ZERO)
-                   endif
-                endif
-             enddo
-          enddo
+          ! impose lo side bc's
+          if(k .eq. ke+1) then
+             if (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
+                wmac(is:ie,js:je,ke+1) = ZERO
+             else if (phys_bc(3,2) .eq. INLET) then
+                wmac(is:ie,js:je,ke+1) = u(is:ie,js:je,ke+1,3)
+             else if (phys_bc(3,2) .eq. OUTLET) then
+                wmac(is:ie,js:je,ke+1) = max(wmacl(is:ie,js:je),ZERO)
+             endif
+          end if
 
           !******************************************************************
           ! 7. Compute vimhzx(is  :ie  ,js-1:je+1,k)
@@ -2405,27 +2440,37 @@ contains
                      - (dt6/hx)*(uimhx(i+1,j,kp,1)+uimhx(i,j,kp,1))*(uimhx(i+1,j,kp,2)-uimhx(i,j,kp,2))
                 vrzx(i,j,kc) = urz(i,j,kc,2) &
                      - (dt6/hx)*(uimhx(i+1,j,kc,1)+uimhx(i,j,kc,1))*(uimhx(i+1,j,kc,2)-uimhx(i,j,kc,2))
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if(k .eq. ks) then
+             if (phys_bc(3,1) .eq. INLET) then
+                vlzx(is:ie,js-1:je+1,kc) = u(is:ie,js-1:je+1,ks-1,2)
+                vrzx(is:ie,js-1:je+1,kc) = u(is:ie,js-1:je+1,ks-1,2)
+             else if (phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. OUTLET) then
+                vlzx(is:ie,js-1:je+1,kc) = vrzx(is:ie,js-1:je+1,kc)
+             else if (phys_bc(3,1) .eq. NO_SLIP_WALL) then
+                vlzx(is:ie,js-1:je+1,kc) = ZERO
+                vrzx(is:ie,js-1:je+1,kc) = ZERO       
+             end if
+          end if
 
-                ! impose lo side bc's
-                if(k .eq. ks) then
-                   vlzx(i,j,kc) = merge(u(i,j,ks-1,1),vlzx(i,j,kc),phys_bc(3,1) .eq. INLET)
-                   vrzx(i,j,kc) = merge(u(i,j,ks-1,1),vrzx(i,j,kc),phys_bc(3,1) .eq. INLET)
-                   if(phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
-                      vlzx(i,j,kc) = merge(ZERO,vrzx(i,j,kc),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                      vrzx(i,j,kc) = merge(ZERO,vrzx(i,j,kc),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                   endif
-                endif
+          ! impose hi side bc's
+          if(k .eq. ke+1) then
+             if (phys_bc(3,2) .eq. INLET) then
+                vlzx(is:ie,js-1:je+1,kc) = u(is:ie,js-1:je+1,ke+1,2)
+                vrzx(is:ie,js-1:je+1,kc) = u(is:ie,js-1:je+1,ke+1,2)
+             else if (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. OUTLET) then
+                vrzx(is:ie,js-1:je+1,kc) = vlzx(is:ie,js-1:je+1,kc)
+             else if (phys_bc(3,2) .eq. NO_SLIP_WALL) then
+                vlzx(is:ie,js-1:je+1,kc) = ZERO
+                vrzx(is:ie,js-1:je+1,kc) = ZERO
+             end if
+          end if
 
-                ! impose hi side bc's
-                if(k .eq. ke+1) then
-                   vlzx(i,j,kc) = merge(u(i,j,ke+1,1),vlzx(i,j,kc),phys_bc(3,2) .eq. INLET)
-                   vrzx(i,j,kc) = merge(u(i,j,ke+1,1),vrzx(i,j,kc),phys_bc(3,2) .eq. INLET)
-                   if(phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
-                      vlzx(i,j,kc) = merge(ZERO,vlzx(i,j,kc),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                      vrzx(i,j,kc) = merge(ZERO,vlzx(i,j,kc),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                   endif
-                endif
-
+          do j=js-1,je+1
+             do i=is,ie
                 ! upwind
                 vimhzx(i,j,kc) = merge(vlzx(i,j,kc),vrzx(i,j,kc),uimhz(i,j,kc,3).gt.ZERO)
                 uavg = HALF*(vlzx(i,j,kc)+vrzx(i,j,kc))
@@ -2444,27 +2489,37 @@ contains
                      - (dt6/hy)*(uimhy(i,j+1,kp,2)+uimhy(i,j,kp,2))*(uimhy(i,j+1,kp,1)-uimhy(i,j,kp,1))
                 urzy(i,j,kc) = urz(i,j,kc,1) &
                      - (dt6/hy)*(uimhy(i,j+1,kc,2)+uimhy(i,j,kc,2))*(uimhy(i,j+1,kc,1)-uimhy(i,j,kc,1))
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if(k .eq. ks) then
+             if (phys_bc(3,1) .eq. INLET) then
+                ulzy(is-1:ie+1,js:je,kc) = u(is-1:ie+1,js:je,ks-1,1)
+                urzy(is-1:ie+1,js:je,kc) = u(is-1:ie+1,js:je,ks-1,1)
+             else if (phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. OUTLET) then
+                ulzy(is-1:ie+1,js:je,kc) = urzy(is-1:ie+1,js:je,kc)
+             else if (phys_bc(3,1) .eq. NO_SLIP_WALL) then
+                ulzy(is-1:ie+1,js:je,kc) = ZERO
+                urzy(is-1:ie+1,js:je,kc) = ZERO
+             end if
+          end if
 
-                ! impose lo side bc's
-                if(k .eq. ks) then
-                   ulzy(i,j,kc) = merge(u(i,j,ks-1,1),ulzy(i,j,kc),phys_bc(3,1) .eq. INLET)
-                   urzy(i,j,kc) = merge(u(i,j,ks-1,1),urzy(i,j,kc),phys_bc(3,1) .eq. INLET)
-                   if(phys_bc(3,1) .eq. SLIP_WALL .or. phys_bc(3,1) .eq. NO_SLIP_WALL) then
-                      ulzy(i,j,kc) = merge(ZERO,urzy(i,j,kc),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                      urzy(i,j,kc) = merge(ZERO,urzy(i,j,kc),phys_bc(3,1) .eq. NO_SLIP_WALL)
-                   endif
-                endif
+          ! impose hi side bc's
+          if(k .eq. ke+1) then
+             if (phys_bc(3,2) .eq. INLET) then
+                ulzy(is-1:ie+1,js:je,kc) = u(is-1:ie+1,js:je,ke+1,1)
+                urzy(is-1:ie+1,js:je,kc) = u(is-1:ie+1,js:je,ke+1,1)
+             else if (phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. OUTLET) then
+                urzy(is-1:ie+1,js:je,kc) = ulzy(is-1:ie+1,js:je,kc)
+             else if (phys_bc(3,2) .eq. NO_SLIP_WALL) then
+                ulzy(is-1:ie+1,js:je,kc) = ZERO
+                urzy(is-1:ie+1,js:je,kc) = ZERO
+             end if
+          end if
 
-                ! impose hi side bc's
-                if(k .eq. ke+1) then
-                   ulzy(i,j,kc) = merge(u(i,j,ke+1,1),ulzy(i,j,kc),phys_bc(3,2) .eq. INLET)
-                   urzy(i,j,kc) = merge(u(i,j,ke+1,1),urzy(i,j,kc),phys_bc(3,2) .eq. INLET)
-                   if(phys_bc(3,2) .eq. SLIP_WALL .or. phys_bc(3,2) .eq. NO_SLIP_WALL) then
-                      ulzy(i,j,kc) = merge(ZERO,ulzy(i,j,kc),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                      urzy(i,j,kc) = merge(ZERO,ulzy(i,j,kc),phys_bc(3,2) .eq. NO_SLIP_WALL)
-                   endif
-                endif
-
+          do j=js,je
+             do i=is-1,ie+1
                 ! upwind
                 uimhzy(i,j,kc) = merge(ulzy(i,j,kc),urzy(i,j,kc),uimhz(i,j,kc,3).gt.ZERO)
                 uavg = HALF*(ulzy(i,j,kc)+urzy(i,j,kc))
@@ -2487,27 +2542,33 @@ contains
                      - (dt6/hz)*(uimhz(i-1,j,kc,3)+uimhz(i-1,j,kp,3))*(uimhz(i-1,j,kc,2)-uimhz(i-1,j,kp,2))
                 vrxz(i,j,kp) = urx(i,j,kp,2) &
                      - (dt6/hz)*(uimhz(  i,j,kc,3)+uimhz(i  ,j,kp,3))*(uimhz(i  ,j,kc,2)-uimhz(i  ,j,kp,2))
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if (phys_bc(1,1) .eq. INLET) then
+             vlxz(is,js-1:je+1,kp) = u(is-1,js-1:je+1,k-1,2)
+             vrxz(is,js-1:je+1,kp) = u(is-1,js-1:je+1,k-1,2)
+          else if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. OUTLET) then
+             vlxz(is,js-1:je+1,kp) = vrxz(is,js-1:je+1,kp)
+          else if (phys_bc(1,1) .eq. NO_SLIP_WALL) then
+             vlxz(is,js-1:je+1,kp) = ZERO
+             vrxz(is,js-1:je+1,kp) = ZERO       
+          end if
 
-                ! impose lo side bc's
-                if(i .eq. is) then
-                   vlxz(i,j,kp) = merge(u(is-1,j,k-1,2),vlxz(i,j,kp),phys_bc(1,1) .eq. INLET)
-                   vrxz(i,j,kp) = merge(u(is-1,j,k-1,2),vrxz(i,j,kp),phys_bc(1,1) .eq. INLET)
-                   if(phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
-                      vlxz(i,j,kp) = merge(ZERO,vrxz(i,j,kp),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                      vrxz(i,j,kp) = merge(ZERO,vrxz(i,j,kp),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                   endif
-                endif
+          ! impose hi side bc's
+          if (phys_bc(1,2) .eq. INLET) then
+             vlxz(ie+1,js-1:je+1,kp) = u(ie+1,js-1:je+1,k-1,2)
+             vrxz(ie+1,js-1:je+1,kp) = u(ie+1,js-1:je+1,k-1,2)
+          else if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. OUTLET) then
+             vrxz(ie+1,js-1:je+1,kp) = vlxz(ie+1,js-1:je+1,kp)
+          else if (phys_bc(1,2) .eq. NO_SLIP_WALL) then
+             vlxz(ie+1,js-1:je+1,kp) = ZERO
+             vrxz(ie+1,js-1:je+1,kp) = ZERO
+          end if
 
-                ! impose hi side bc's
-                if(i .eq. ie+1) then
-                   vlxz(i,j,kp) = merge(u(ie+1,j,k-1,2),vlxz(i,j,kp),phys_bc(1,2) .eq. INLET)
-                   vrxz(i,j,kp) = merge(u(ie+1,j,k-1,2),vrxz(i,j,kp),phys_bc(1,2) .eq. INLET)
-                   if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
-                      vlxz(i,j,kp) = merge(ZERO,vlxz(i,j,kp),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                      vrxz(i,j,kp) = merge(ZERO,vlxz(i,j,kp),phys_bc(1,2) .eq. NO_SLIP_WALL)
-                   endif
-                endif
-
+          do j=js-1,je+1
+             do i=is,ie+1
                 ! upwind
                 vimhxz(i,j,kp) = merge(vlxz(i,j,kp),vrxz(i,j,kp),uimhx(i,j,kp,1).gt.ZERO)
                 uavg = HALF*(vlxz(i,j,kp)+vrxz(i,j,kp))
@@ -2526,27 +2587,33 @@ contains
                      - (dt6/hz)*(uimhz(i,j-1,kc,3)+uimhz(i,j-1,kp,3))*(uimhz(i,j-1,kc,1)-uimhz(i,j-1,kp,1))               
                 uryz(i,j,kp) = ury(i,j,kp,1) &
                      - (dt6/hz)*(uimhz(i,j  ,kc,3)+uimhz(i,j  ,kp,3))*(uimhz(i,j  ,kc,1)-uimhz(i,j  ,kp,1)) 
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if (phys_bc(2,1) .eq. INLET) then
+             ulyz(is-1:ie+1,js,kp) = u(is-1:ie+1,js-1,k-1,1)
+             uryz(is-1:ie+1,js,kp) = u(is-1:ie+1,js-1,k-1,1)
+          else if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. OUTLET) then
+             ulyz(is-1:ie+1,js,kp) = uryz(is-1:ie+1,js,kp)
+          else if (phys_bc(2,1) .eq. NO_SLIP_WALL) then
+             ulyz(is-1:ie+1,js,kp) = ZERO
+             uryz(is-1:ie+1,js,kp) = ZERO
+          end if
 
-                ! impose lo side bc's
-                if(j .eq. js) then
-                   ulyz(i,j,kp) = merge(u(i,js-1,k-1,1),ulyz(i,j,kp),phys_bc(2,1) .eq. INLET)
-                   uryz(i,j,kp) = merge(u(i,js-1,k-1,1),uryz(i,j,kp),phys_bc(2,1) .eq. INLET)
-                   if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                      ulyz(i,j,kp) = merge(ZERO,uryz(i,j,kp),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                      uryz(i,j,kp) = merge(ZERO,uryz(i,j,kp),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                   endif
-                endif
+          ! impose hi side bc's
+          if (phys_bc(2,2) .eq. INLET) then
+             ulyz(is-1:ie+1,je+1,kp) = u(is-1:ie+1,je+1,k-1,1)
+             uryz(is-1:ie+1,je+1,kp) = u(is-1:ie+1,je+1,k-1,1)
+          else if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. OUTLET) then
+             uryz(is-1:ie+1,je+1,kp) = ulyz(is-1:ie+1,je+1,kp)
+          else if (phys_bc(2,2) .eq. NO_SLIP_WALL) then
+             ulyz(is-1:ie+1,je+1,kp) = ZERO
+             uryz(is-1:ie+1,je+1,kp) = ZERO
+          end if
 
-                ! impose hi side bc's
-                if(j .eq. je+1) then
-                   ulyz(i,j,kp) = merge(u(i,je+1,k-1,1),ulyz(i,j,kp),phys_bc(2,2) .eq. INLET)
-                   uryz(i,j,kp) = merge(u(i,je+1,k-1,1),uryz(i,j,kp),phys_bc(2,2) .eq. INLET)
-                   if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                      ulyz(i,j,kp) = merge(ZERO,ulyz(i,j,kp),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                      uryz(i,j,kp) = merge(ZERO,ulyz(i,j,kp),phys_bc(2,2) .eq. NO_SLIP_WALL)
-                   endif
-                endif
-
+          do j=js,je+1
+             do i=is-1,ie+1
                 ! upwind
                 uimhyz(i,j,kp) = merge(ulyz(i,j,kp),uryz(i,j,kp),uimhy(i,j,kp,2).gt.ZERO)
                 uavg = HALF*(ulyz(i,j,kp)+uryz(i,j,kp))
@@ -2581,28 +2648,26 @@ contains
                      (abs(umacl(i,j)+umacr(i,j)) .lt. eps))
                 umac(i,j,k-1) = merge(umacl(i,j),umacr(i,j),uavg .gt. ZERO)
                 umac(i,j,k-1) = merge(ZERO,umac(i,j,k-1),test)
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+             umac(is,js:je,k-1) = ZERO
+          else if (phys_bc(1,1) .eq. INLET) then
+             umac(is,js:je,k-1) = u(is-1,js:je,k-1,1)
+          else if (phys_bc(1,1) .eq. OUTLET) then
+             umac(is,js:je,k-1) = min(umacr(is,js:je),ZERO)
+          endif
 
-                if(i .eq. is) then
-                   ! lo side
-                   if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
-                      umac(is,j,k-1) = ZERO
-                   elseif (phys_bc(1,1) .eq. INLET) then
-                      umac(is,j,k-1) = u(is-1,j,k-1,1)
-                   elseif (phys_bc(1,1) .eq. OUTLET) then
-                      umac(is,j,k-1) = min(umacr(is,j),ZERO)
-                   endif
-                else if(i .eq. ie+1) then
-                   ! hi side
-                   if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
-                      umac(ie+1,j,k-1) = ZERO
-                   elseif (phys_bc(1,2) .eq. INLET) then
-                      umac(ie+1,j,k-1) = u(ie+1,j,k-1,1)
-                   elseif (phys_bc(1,2) .eq. OUTLET) then
-                      umac(ie+1,j,k-1) = max(umacl(ie+1,j),ZERO)
-                   endif
-                endif
-             enddo
-          enddo
+          ! impose hi side bc's
+          if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+             umac(ie+1,js:je,k-1) = ZERO
+          else if (phys_bc(1,2) .eq. INLET) then
+             umac(ie+1,js:je,k-1) = u(ie+1,js:je,k-1,1)
+          else if (phys_bc(1,2) .eq. OUTLET) then
+             umac(ie+1,js:je,k-1) = max(umacl(ie+1,js:je),ZERO)
+          endif
 
           !******************************************************************
           ! 12.Compute vmac  (is  :ie  ,js  :je+1,k-1)
@@ -2631,29 +2696,26 @@ contains
                      (abs(vmacl(i,j)+vmacr(i,j)) .lt. eps))
                 vmac(i,j,k-1) = merge(vmacl(i,j),vmacr(i,j),uavg .gt. ZERO)
                 vmac(i,j,k-1) = merge(ZERO,vmac(i,j,k-1),test)
+             end do
+          end do
+          
+          ! impose lo side bc's
+          if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
+             vmac(is:ie,js,k-1) = ZERO
+          else if (phys_bc(2,1) .eq. INLET) then
+             vmac(is:ie,js,k-1) = u(is:ie,js-1,k-1,2)
+          else if (phys_bc(2,1) .eq. OUTLET) then
+             vmac(is:ie,js,k-1) = min(vmacr(is:ie,js),ZERO)
+          endif
 
-                ! Apply boundary conditions
-                if(j .eq. js) then
-                   ! lo side
-                   if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                      vmac(i,js,k-1) = ZERO
-                   elseif (phys_bc(2,1) .eq. INLET) then
-                      vmac(i,js,k-1) = u(i,js-1,k-1,2)
-                   elseif (phys_bc(2,1) .eq. OUTLET) then
-                      vmac(i,js,k-1) = min(vmacr(i,js),ZERO)
-                   endif
-                else if(j .eq. je+1) then
-                   ! hi side
-                   if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                      vmac(i,je+1,k-1) = ZERO
-                   elseif (phys_bc(2,2) .eq. INLET) then
-                      vmac(i,je+1,k-1) = u(i,je+1,k-1,2)
-                   elseif (phys_bc(2,2) .eq. OUTLET) then
-                      vmac(i,je+1,k-1) = max(vmacl(i,je+1),ZERO)
-                   endif
-                endif
-             enddo
-          enddo
+          ! impose hi side bc's
+          if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
+             vmac(is:ie,je+1,k-1) = ZERO
+          else if (phys_bc(2,2) .eq. INLET) then
+             vmac(is:ie,je+1,k-1) = u(is:ie,je+1,k-1,2)
+          else if (phys_bc(2,2) .eq. OUTLET) then
+             vmac(is:ie,je+1,k-1) = max(vmacl(is:ie,je+1),ZERO)
+          endif
 
        endif ! end if(k .gt. ks)
 
