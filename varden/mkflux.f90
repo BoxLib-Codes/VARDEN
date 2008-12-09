@@ -306,40 +306,63 @@ contains
                 slx(i,jc) = slx(i,jc) - dt2*s(i-1,j,comp)*divu(i-1,j)
                 srx(i,jc) = srx(i,jc) - dt2*s(i  ,j,comp)*divu(i  ,j)
              endif
+          end do
+          
+          ! impose lo side bc's
+          if (phys_bc(1,1) .eq. INLET) then
+             slx(is,jc) = s(is-1,j,comp)
+             srx(is,jc) = s(is-1,j,comp)
+          else if (phys_bc(1,1) .eq. SLIP_WALL) then
+             if (is_vel .and. comp .eq. 1) then
+                slx(is,jc) = ZERO
+                srx(is,jc) = ZERO
+             else
+                slx(is,jc) = srx(is,jc)
+             end if
+          else if (phys_bc(1,1) .eq. NO_SLIP_WALL) then
+             if (is_vel) then
+                slx(is,jc) = ZERO
+                srx(is,jc) = ZERO
+             else
+                slx(is,jc) = srx(is,jc)
+             end if
+          else if (phys_bc(1,1) .eq. OUTLET) then
+             if (is_vel .and. comp .eq. 1) then
+                slx(is,jc) = min(srx(is,jc),ZERO)
+                srx(is,jc) = min(srx(is,jc),ZERO)
+             else
+                slx(is,jc) = srx(is,jc)
+             end if
+          end if
 
-             ! impose lo side bc's
-             if(i .eq. is) then
-                slx(i,jc) = merge(s(is-1,j,comp),slx(i,jc),phys_bc(1,1) .eq. INLET)
-                srx(i,jc) = merge(s(is-1,j,comp),srx(i,jc),phys_bc(1,1) .eq. INLET)
-                if(phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
-                   if(is_vel .and. comp .eq. 1) then
-                      slx(i,jc) = ZERO
-                      srx(i,jc) = ZERO
-                   else if(is_vel .and. comp .ne. 1) then
-                      slx(i,jc) = merge(ZERO,srx(i,jc),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                      srx(i,jc) = merge(ZERO,srx(i,jc),phys_bc(1,1) .eq. NO_SLIP_WALL)
-                   else
-                      slx(i,jc) = srx(i,jc)
-                   endif
-                endif
-             
-             ! impose hi side bc's
-             else if(i .eq. ie+1) then
-                slx(i,jc) = merge(s(ie+1,j,comp),slx(i,jc),phys_bc(1,2) .eq. INLET)
-                srx(i,jc) = merge(s(ie+1,j,comp),srx(i,jc),phys_bc(1,2) .eq. INLET)
-                if(phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
-                   if (is_vel .and. comp .eq. 1) then
-                      slx(i,jc) = ZERO
-                      srx(i,jc) = ZERO
-                   else if (is_vel .and. comp .ne. 1) then
-                      slx(i,jc) = merge(ZERO,slx(i,jc),phys_bc(1,2).eq.NO_SLIP_WALL)
-                      srx(i,jc) = merge(ZERO,slx(i,jc),phys_bc(1,2).eq.NO_SLIP_WALL)
-                   else
-                      srx(i,jc) = slx(i,jc)
-                   endif
-                endif
-             endif
+          ! impose hi side bc's
+          if (phys_bc(1,2) .eq. INLET) then
+             slx(ie+1,jc) = s(ie+1,j,comp)
+             srx(ie+1,jc) = s(ie+1,j,comp)
+          else if (phys_bc(1,2) .eq. SLIP_WALL) then
+             if (is_vel .and. comp .eq. 1) then
+                slx(ie+1,jc) = ZERO
+                srx(ie+1,jc) = ZERO
+             else
+                srx(ie+1,jc) = slx(ie+1,jc)
+             end if
+          else if (phys_bc(1,2) .eq. NO_SLIP_WALL) then
+             if (is_vel) then
+                slx(ie+1,jc) = ZERO
+                srx(ie+1,jc) = ZERO
+             else
+                srx(ie+1,jc) = slx(ie+1,jc)
+             end if
+          else if (phys_bc(1,2) .eq. OUTLET) then       
+             if (is_vel .and. comp .eq. 1) then
+                slx(ie+1,jc) = max(slx(ie+1,jc),ZERO)
+                srx(ie+1,jc) = max(slx(ie+1,jc),ZERO)
+             else
+                srx(ie+1,jc) = slx(ie+1,jc)
+             end if
+          end if
 
+          do i=is,ie+1
              ! make simhx by solving Riemann problem
              simhx(i,jc) = merge(slx(i,jc),srx(i,jc),umac(i,j) .gt. ZERO)
              savg = HALF*(slx(i,jc)+srx(i,jc))
@@ -368,40 +391,67 @@ contains
                    sly(i,jc) = sly(i,jc) - dt2*s(i,j-1,comp)*divu(i,j-1)
                    sry(i,jc) = sry(i,jc) - dt2*s(i,j  ,comp)*divu(i,j  )
                 endif
+             end do
+             
+             ! impose lo side bc's
+             if(j .eq. js) then
+                if (phys_bc(2,1) .eq. INLET) then
+                   sly(is-1:ie+1,jc) = s(is-1:ie+1,js-1,comp)
+                   sry(is-1:ie+1,jc) = s(is-1:ie+1,js-1,comp)
+                else if (phys_bc(2,1) .eq. SLIP_WALL) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sly(is-1:ie+1,jc) = ZERO
+                      sry(is-1:ie+1,jc) = ZERO
+                   else
+                      sly(is-1:ie+1,jc) = sry(is-1:ie+1,jc)
+                   end if
+                else if (phys_bc(2,1) .eq. NO_SLIP_WALL) then
+                   if (is_vel) then
+                      sly(is-1:ie+1,jc) = ZERO
+                      sry(is-1:ie+1,jc) = ZERO
+                   else
+                      sly(is-1:ie+1,jc) = sry(is-1:ie+1,jc)
+                   end if
+                else if (phys_bc(2,1) .eq. OUTLET) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sly(is-1:ie+1,jc) = min(sry(is-1:ie+1,jc),ZERO)
+                      sry(is-1:ie+1,jc) = min(sry(is-1:ie+1,jc),ZERO)
+                   else
+                      sly(is-1:ie+1,jc) = sry(is-1:ie+1,js)
+                   end if
+                end if
+             end if
 
-                ! impose lo side bc's
-                if (j .eq. js) then
-                   sly(i,jc) = merge(s(is,j-1,comp),sly(i,jc),phys_bc(2,1) .eq. INLET)
-                   sry(i,jc) = merge(s(is,j-1,comp),sry(i,jc),phys_bc(2,1) .eq. INLET)
-                   if(phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                      if(is_vel .and. comp .eq. 2) then
-                         sly(i,jc) = ZERO
-                         sry(i,jc) = ZERO
-                      else if(is_vel .and. comp .ne. 2) then
-                         sly(i,jc) = merge(ZERO,sry(i,jc),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                         sry(i,jc) = merge(ZERO,sry(i,jc),phys_bc(2,1) .eq. NO_SLIP_WALL)
-                      else
-                         sly(i,jc) = sry(i,jc)
-                      endif
-                   endif
-
+             if(j .eq. je+1) then
                 ! impose hi side bc's
-                else if (j .eq. je+1) then
-                   sly(i,jc) = merge(s(i,je+1,comp),sly(i,jc),phys_bc(2,2) .eq. INLET)
-                   sry(i,jc) = merge(s(i,je+1,comp),sry(i,jc),phys_bc(2,2) .eq. INLET)
-                   if(phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                      if (is_vel .and. comp .eq. 2) then
-                         sly(i,jc) = ZERO
-                         sry(i,jc) = ZERO
-                      else if (is_vel .and. comp .ne. 2) then
-                         sly(i,jc) = merge(ZERO,sly(i,jc),phys_bc(2,2).eq.NO_SLIP_WALL)
-                         sry(i,jc) = merge(ZERO,sly(i,jc),phys_bc(2,2).eq.NO_SLIP_WALL)
-                      else
-                         sry(i,jc) = sly(i,jc)
-                      endif
-                   endif
-                endif
+                if (phys_bc(2,2) .eq. INLET) then
+                   sly(is-1:ie+1,jc) = s(is-1:ie+1,je+1,comp)
+                   sry(is-1:ie+1,jc) = s(is-1:ie+1,je+1,comp)
+                else if (phys_bc(2,2) .eq. SLIP_WALL) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sly(is-1:ie+1,jc) = ZERO
+                      sry(is-1:ie+1,jc) = ZERO
+                   else
+                      sry(is-1:ie+1,jc) = sly(is-1:ie+1,jc)
+                   end if
+                else if (phys_bc(2,2) .eq. NO_SLIP_WALL) then
+                   if (is_vel) then
+                      sly(is-1:ie+1,jc) = ZERO
+                      sry(is-1:ie+1,jc) = ZERO
+                   else
+                      sry(is-1:ie+1,jc) = sly(is-1:ie+1,jc)
+                   end if
+                else if (phys_bc(2,2) .eq. OUTLET) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sly(is-1:ie+1,jc) = max(sly(is-1:ie+1,jc),ZERO)
+                      sry(is-1:ie+1,jc) = max(sly(is-1:ie+1,jc),ZERO)
+                   else
+                      sry(is-1:ie+1,jc) = sly(is-1:ie+1,jc)
+                   end if
+                end if
+             end if
 
+             do i=is-1,ie+1
                 ! make simhy by solving Riemann problem
                 simhy(i,jc) = merge(sly(i,jc),sry(i,jc),vmac(i,j) .gt. ZERO)
                 savg = HALF*(sly(i,jc)+sry(i,jc))
@@ -447,53 +497,63 @@ contains
                 sedgey(i,j,comp) = merge(sedgely(i),sedgery(i),vmac(i,j) .gt. ZERO)
                 savg = HALF*(sedgely(i)+sedgery(i))
                 sedgey(i,j,comp) = merge(sedgey(i,j,comp),savg,abs(vmac(i,j)) .gt. eps)
+             end do
+             
+             ! impose lo side bc's
+             if(j .eq. js) then
+                if (phys_bc(2,1) .eq. INLET) then
+                   sedgey(is:ie,js,comp) = s(is:ie,js-1,comp)
+                else if (phys_bc(2,1) .eq. SLIP_WALL) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sedgey(is:ie,js,comp) = ZERO
+                   else
+                      sedgey(is:ie,js,comp) = sedgery(is:ie)
+                   end if
+                else if (phys_bc(2,1) .eq. NO_SLIP_WALL) then
+                   if (is_vel) then
+                      sedgey(is:ie,js,comp) = ZERO
+                   else
+                      sedgey(is:ie,js,comp) = sedgery(is:ie)
+                   end if
+                else if (phys_bc(2,1) .eq. OUTLET) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sedgey(is:ie,js,comp) = min(sedgery(is:ie),ZERO)
+                   else
+                      sedgey(is:ie,js,comp) = sedgery(is:ie)
+                   end if
+                end if
+             end if
 
-                ! sedgey boundary conditions
-                if(j .eq. js) then
-                   ! lo side
-                   if (phys_bc(2,1) .eq. SLIP_WALL .or. phys_bc(2,1) .eq. NO_SLIP_WALL) then
-                      if (is_vel .and. comp .eq. 2) then
-                         sedgey(i,js,comp) = ZERO
-                      elseif (is_vel .and. comp .ne. 2) then
-                         sedgey(i,js,comp) = merge(ZERO,sedgery(i),phys_bc(2,1).eq.NO_SLIP_WALL)
-                      else 
-                         sedgey(i,js,comp) = sedgery(i)
-                      endif
-                   elseif (phys_bc(2,1) .eq. INLET) then
-                      sedgey(i,js,comp) = s(i,js-1,comp)
-                   elseif (phys_bc(2,1) .eq. OUTLET) then
-                      if (is_vel .and. comp.eq.2) then
-                         sedgey(i,js,comp) = MIN(sedgery(i),ZERO)
-                      else
-                         sedgey(i,js,comp) = sedgery(i)
-                      end if
-                   endif
-                else if(j .eq. je+1) then
-                   ! hi side
-                   if (phys_bc(2,2) .eq. SLIP_WALL .or. phys_bc(2,2) .eq. NO_SLIP_WALL) then
-                      if (is_vel .and. comp .eq. 2) then
-                         sedgey(i,je+1,comp) = ZERO
-                      elseif (is_vel .and. comp .ne. 2) then
-                         sedgey(i,je+1,comp) = merge(ZERO,sedgely(i),phys_bc(2,2).eq.NO_SLIP_WALL)
-                      else 
-                         sedgey(i,je+1,comp) = sedgely(i)
-                      endif
-                   elseif (phys_bc(2,2) .eq. INLET) then
-                      sedgey(i,je+1,comp) = s(i,je+1,comp)
-                   elseif (phys_bc(2,2) .eq. OUTLET) then
-                      if (is_vel .and. comp.eq.2) then
-                         sedgey(i,je+1,comp) = MAX(sedgely(i),ZERO)
-                      else
-                         sedgey(i,je+1,comp) = sedgely(i)
-                      end if
-                   endif
-                endif
+             ! impose hi side bc's
+             if(j .eq. je+1) then
+                if (phys_bc(2,2) .eq. INLET) then
+                   sedgey(is:ie,je+1,comp) = s(is:ie,je+1,comp)
+                else if (phys_bc(2,2) .eq. SLIP_WALL) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sedgey(is:ie,je+1,comp) = ZERO
+                   else
+                      sedgey(is:ie,je+1,comp) = sedgely(is:ie)
+                   end if
+                else if (phys_bc(2,2) .eq. NO_SLIP_WALL) then
+                   if (is_vel) then
+                      sedgey(is:ie,je+1,comp) = ZERO
+                   else
+                      sedgey(is:ie,je+1,comp) = sedgely(is:ie)
+                   end if
+                else if (phys_bc(2,2) .eq. OUTLET) then
+                   if (is_vel .and. comp .eq. 2) then
+                      sedgey(is:ie,je+1,comp) = max(sedgely(is:ie),ZERO)
+                   else
+                      sedgey(is:ie,je+1,comp) = sedgely(is:ie)
+                   end if
+                end if
+             end if
 
+             do i=is,ie
                 ! create fluxes
                 if(is_conservative(comp)) then
                    fluxy(i,j,comp) = sedgey(i,j,comp)*vmac(i,j)
                 endif
-
              enddo
 
           endif ! end if(j .gt. js-1)
@@ -540,45 +600,52 @@ contains
                 savg = HALF*(sedgelx(i)+sedgerx(i))
                 sedgex(i,j-1,comp) = merge(sedgex(i,j-1,comp),savg,abs(umac(i,j-1)) .gt. eps)
              enddo
-
-             ! sedgex boundary conditions
-             ! lo side
-             if (phys_bc(1,1) .eq. SLIP_WALL .or. phys_bc(1,1) .eq. NO_SLIP_WALL) then
+             
+             ! impose lo side bc's
+             if (phys_bc(1,1) .eq. INLET) then
+                sedgex(is,j-1,comp) = s(is-1,j-1,comp)
+             else if (phys_bc(1,1) .eq. SLIP_WALL) then
                 if (is_vel .and. comp .eq. 1) then
                    sedgex(is,j-1,comp) = ZERO
-                elseif (is_vel .and. comp .ne. 1) then
-                   sedgex(is,j-1,comp) = merge(ZERO,sedgerx(is),phys_bc(1,1).eq.NO_SLIP_WALL)
-                else
-                   sedgex(is,j-1,comp) = sedgerx(is)
-                endif
-             elseif (phys_bc(1,1) .eq. INLET) then
-                sedgex(is,j-1,comp) = s(is-1,j-1,comp)
-             elseif (phys_bc(1,1) .eq. OUTLET) then
-                if (is_vel .and. comp.eq.1) then
-                   sedgex(is,j-1,comp) = MIN(sedgerx(is),ZERO)
                 else
                    sedgex(is,j-1,comp) = sedgerx(is)
                 end if
-             endif
+             else if (phys_bc(1,1) .eq. NO_SLIP_WALL) then
+                if (is_vel) then
+                   sedgex(is,j-1,comp) = ZERO
+                else
+                   sedgex(is,j-1,comp) = sedgerx(is)
+                end if
+             else if (phys_bc(1,1) .eq. OUTLET) then
+                if (is_vel .and. comp .eq. 1) then
+                   sedgex(is,j-1,comp) = min(sedgerx(is),ZERO)
+                else
+                   sedgex(is,j-1,comp) = sedgerx(is)
+                end if
+             end if
 
-             ! hi side
-             if (phys_bc(1,2) .eq. SLIP_WALL .or. phys_bc(1,2) .eq. NO_SLIP_WALL) then
+             ! impose hi side bc's
+             if (phys_bc(1,2) .eq. INLET) then
+                sedgex(ie+1,j-1,comp) = s(ie+1,j-1,comp)
+             else if (phys_bc(1,2) .eq. SLIP_WALL) then
                 if (is_vel .and. comp .eq. 1) then
                    sedgex(ie+1,j-1,comp) = ZERO
-                else if (is_vel .and. comp .ne. 1) then
-                   sedgex(ie+1,j-1,comp) = merge(ZERO,sedgelx(ie+1),phys_bc(1,2).eq.NO_SLIP_WALL)
-                else 
-                   sedgex(ie+1,j-1,comp) = sedgelx(ie+1)
-                endif
-             elseif (phys_bc(1,2) .eq. INLET) then
-                sedgex(ie+1,j-1,comp) = s(ie+1,j-1,comp)
-             elseif (phys_bc(1,2) .eq. OUTLET) then
-                if (is_vel .and. comp.eq.1) then
-                   sedgex(ie+1,j-1,comp) = MAX(sedgelx(ie+1),ZERO)
                 else
                    sedgex(ie+1,j-1,comp) = sedgelx(ie+1)
                 end if
-             endif
+             else if (phys_bc(1,2) .eq. NO_SLIP_WALL) then
+                if (is_vel) then
+                   sedgex(ie+1,j-1,comp) = ZERO
+                else
+                   sedgex(ie+1,j-1,comp) = sedgelx(ie+1)
+                end if
+             else if (phys_bc(1,2) .eq. OUTLET) then
+                if (is_vel .and. comp .eq. 1) then
+                   sedgex(ie+1,j-1,comp) = max(sedgelx(ie+1),ZERO)
+                else
+                   sedgex(ie+1,j-1,comp) = sedgelx(ie+1)
+                end if
+             end if
 
              ! create fluxes
              if(is_conservative(comp)) then
