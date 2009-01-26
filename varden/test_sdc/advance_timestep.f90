@@ -85,11 +85,11 @@ contains
     if (visc_coef .gt. ZERO .and. diffusion_type .eq. 1) then
        do comp = 1, dm
          call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,&
-                                          the_bc_tower,is_vel=.true.)
-         do n = 1, nlevs
+                                          the_bc_tower)
+!         do n = 1, nlevs
 !            call multifab_copy_c(viscous_update(n),comp,lapu(n),comp,1,0)
 !            call multifab_mult_mult_s(viscous_update(n),HALF,0)            
-         enddo
+!         enddo
        end do
     else
        do n = 1, nlevs
@@ -134,7 +134,7 @@ contains
 !    if (visc_coef .gt. ZERO) then
 
 !       do comp = 1, dm
-!         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower,is_vel=.true.)
+!         call get_explicit_diffusive_term(mla,lapu,uold,comp,comp,dx,the_bc_tower)
 !       end do
 
 !       if (diffusion_type .eq. 1) then
@@ -164,7 +164,7 @@ contains
  
 !       if (diffusion_type .eq. 1) then
 
-!          call get_explicit_diffusive_term(mla,lapu,sold,comp,bc_comp,dx,the_bc_tower)
+!          call get_explicit_diffusive_term(mla,lapu,sold,comp,bc_comp,dx,the_bc_tower,is_vel=.false.)
 
 !          do n = 1, nlevs
 !             call multifab_mult_mult_s(lapu(n),HALF,0)
@@ -172,7 +172,7 @@ contains
 !          end do
 
 ! i think this should actually be snew before 2nd react for strang? 
-!          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower)
+!          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower,is_vel=.false.)
 
 !          do n = 1, nlevs
 !             call multifab_mult_mult_s(lapu(n),HALF,0)
@@ -182,7 +182,7 @@ contains
 
 !       else if (diffusion_type .eq. 2) then
 
-!          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower)
+!          call get_explicit_diffusive_term(mla,lapu,snew,comp,bc_comp,dx,the_bc_tower,is_vel=.false.)
 
 !          do n = 1, nlevs
 !             call multifab_copy_c(diffusive_update(n),comp,lapu(n),comp,1,0)

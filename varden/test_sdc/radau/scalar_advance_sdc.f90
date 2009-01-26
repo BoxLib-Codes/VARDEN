@@ -52,7 +52,7 @@ contains
     ! advection term:  adv_s(level,time) = - div(su) 
     ! these values are used to interpolate int(A+D+R)
     type(multifab)  :: adv_s(mla%nlevel,n_adv)
-    type(multifab)  :: adv_rho(mla%nlevel,n_adv)
+    type(multifab), allocatable  :: adv_rho(:)
     ! diffusion at various times:  D_s(level,time)
     type(multifab)  :: D_s(mla%nlevel,n_diff)
     type(multifab)  :: snew_temp(mla%nlevel)
@@ -81,11 +81,10 @@ contains
     if (mass_fractions) then
        ! using mass fractions
        is_conservative(:) = .true.
+       allocate(adv_rho(mla%nlevel))
        do n = 1,nlevs
-          do j = 1, n_adv
-             call multifab_build(adv_rho(n,j),mla%la(n),1,0)
-             call setval(adv_rho(n,j),zero,all=.true.)
-          enddo
+          call multifab_build(adv_rho(n),mla%la(n),1,0)
+          call setval(adv_rho(n),zero,all=.true.)
        end do
     else
        is_conservative(1) = .true.
@@ -205,7 +204,7 @@ contains
        call update(mla,snew_temp,umac,sedge,sflux,scal_force,snew_temp,&
                    adv_s(:,1),dx,&
                    dt*sdc_dt_fac(j),t,is_vel,is_conservative,&
-                   the_bc_tower%bc_tower_array,adv_rho(:,1))
+                   the_bc_tower%bc_tower_array,adv_rho)
 
 !call write_plotfile(100+(j-1)*100+iter,nspec,adv_s(:,1))
 !call write_plotfile(200+iter,nspec,adv_s(:,1))
@@ -250,7 +249,7 @@ call write_plotfile(300+(j-1)*100+iter,nscal,snew_temp)
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,j),snew_temp,comp,&
-                                     bc_comp,dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
+                  bc_comp,dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
           end do
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,j),diff_coef)
@@ -402,7 +401,7 @@ call write_plotfile(500+(j-1)*100+iter,nscal,snew)
           call update(mla,snew_temp,umac,sedge,sflux,scal_force,snew_temp,&
                       adv_s(:,1),dx,dt*sdc_dt_fac(j),t,&
                       is_vel,is_conservative,the_bc_tower%bc_tower_array,&
-                      adv_rho(:,1))
+                      adv_rho)
 
 !call write_plotfile(800+(j-1)*100+iter,nscal,snew_temp)
 !call write_plotfile(1300+(j-1)*100+iter,nscal,scal_force)
@@ -580,9 +579,7 @@ kiter = kiter + 2
 
    if (mass_fractions) then
       do n = 1,nlevs
-         do i = 1,n_adv
-            call multifab_destroy(adv_rho(n,i))
-         end do
+         call multifab_destroy(adv_rho(n))
       end do
    end if
 

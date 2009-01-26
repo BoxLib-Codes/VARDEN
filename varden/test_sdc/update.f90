@@ -4,6 +4,7 @@ module update_module
   use multifab_module
   use define_bc_module
   use ml_layout_module
+  use probin_module, only : mass_fractions, sdc_iters
 
   implicit none
 
@@ -13,8 +14,8 @@ module update_module
 
 contains
 
-  subroutine update(mla,sold,umac,sedge,flux,force,snew,adv_s,dx,dt,t,is_vel,is_cons, &
-                    the_bc_level)
+  subroutine update(mla,sold,umac,sedge,flux,force,snew,adv_s,dx,&
+       dt,t,is_vel,is_cons,the_bc_level,adv_rho)
 
     use bl_constants_module
     use multifab_physbc_module
@@ -32,11 +33,13 @@ contains
     real(kind = dp_t) , intent(in   ) :: dx(:,:),dt,t
     logical           , intent(in   ) :: is_vel,is_cons(:)
     type(bc_level)    , intent(in   ) :: the_bc_level(:)
+    type(multifab)    , intent(inout), optional :: adv_rho(:)
 
     ! local
     real(kind=dp_t), pointer :: sop(:,:,:,:)
     real(kind=dp_t), pointer :: snp(:,:,:,:)
-    real(kind=dp_t), pointer ::  ap(:,:,:,:)
+    real(kind=dp_t), pointer :: ap(:,:,:,:)
+    real(kind=dp_t), pointer :: arhop(:,:,:,:)
     real(kind=dp_t), pointer :: ump(:,:,:,:)
     real(kind=dp_t), pointer :: vmp(:,:,:,:)
     real(kind=dp_t), pointer :: wmp(:,:,:,:)
@@ -63,7 +66,7 @@ contains
           if ( multifab_remote(sold(n),i) ) cycle
           sop    => dataptr(sold(n),i)
           snp    => dataptr(snew(n),i)
-           ap    => dataptr(adv_s(n),i)
+          ap     => dataptr(adv_s(n),i)
           ump    => dataptr(umac(n,1),i)
           vmp    => dataptr(umac(n,2),i)
           sepx   => dataptr(sedge(n,1),i)
@@ -73,23 +76,44 @@ contains
           fp     => dataptr(force(n),i)
           lo = lwb(get_box(sold(n),i))
           hi = upb(get_box(sold(n),i))
-          select case (dm)
-          case (2)
-             call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
-                  sepx(:,:,1,:), sepy(:,:,1,:), &
-                  fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                  fp(:,:,1,:) , snp(:,:,1,:), ap(:,:,1,:), &
-                  lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
-          case (3)
-             wmp    => dataptr( umac(n,3),i)
-             sepz   => dataptr(sedge(n,3),i)
-             fluxpz => dataptr( flux(n,3),i)
-             call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                  sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
-                  fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                  fp(:,:,:,:) , snp(:,:,:,:), ap(:,:,:,:), &
-                  lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
-          end select
+          if (mass_fractions .AND. (.not. is_vel) .AND. sdc_iters >= 0) then
+             arhop => dataptr(adv_rho(n),i)
+             select case (dm)
+             case (2)
+                call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+                     sepx(:,:,1,:), sepy(:,:,1,:), &
+                     fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
+                     fp(:,:,1,:) , snp(:,:,1,:), ap(:,:,1,:), &
+                     lo, hi, ng, dx(n,:), dt, is_vel, is_cons, arhop(:,:,1,:))
+             case (3)
+                wmp    => dataptr( umac(n,3),i)
+                sepz   => dataptr(sedge(n,3),i)
+                fluxpz => dataptr( flux(n,3),i)
+                call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                     sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                     fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
+                     fp(:,:,:,:) , snp(:,:,:,:), ap(:,:,:,:), &
+                     lo, hi, ng, dx(n,:), dt, is_vel, is_cons,arhop(:,:,:,:))
+             end select
+          else !adv_rho not needed without mass-fractions
+             select case (dm)
+             case (2)
+                call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
+                     sepx(:,:,1,:), sepy(:,:,1,:), &
+                     fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
+                     fp(:,:,1,:) , snp(:,:,1,:), ap(:,:,1,:), &
+                     lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
+             case (3)
+                wmp    => dataptr( umac(n,3),i)
+                sepz   => dataptr(sedge(n,3),i)
+                fluxpz => dataptr( flux(n,3),i)
+                call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
+                     sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                     fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
+                     fp(:,:,:,:) , snp(:,:,:,:), ap(:,:,:,:), &
+                     lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
+             end select
+          end if
        end do
 
        if (.not. is_vel) then
@@ -130,8 +154,8 @@ contains
 
   end subroutine update
 
-  subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,adv_s,&
-                       lo,hi,ng,dx,dt,is_vel,is_cons)
+  subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,&
+       adv_s,lo,hi,ng,dx,dt,is_vel,is_cons,adv_rho)
 
     use bl_constants_module
 
@@ -150,6 +174,7 @@ contains
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
     logical           , intent(in   ) :: is_cons(:)
+    real (kind = dp_t), intent(  out), optional :: adv_rho(lo(1):,lo(2):,:)  
 
     integer :: i, j, comp
     real (kind = dp_t) ubar,vbar
@@ -164,8 +189,11 @@ contains
                 do i = lo(1), hi(1)
                    divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
                          + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
-                   if (comp > 1) adv_s(i,j,comp-1) = -divsu
-                   snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
+                   if (comp > 1) then; adv_s(i,j,comp-1) = -divsu
+                   else
+                      if (mass_fractions .AND.sdc_iters >= 0) adv_rho(i,j,1) = -divsu
+                   endif
+                   snew(i,j,comp) = sold(i,j,comp) - dt*divsu + dt*force(i,j,comp)
                 enddo
              enddo
           else
@@ -175,6 +203,10 @@ contains
                    vbar = HALF*(vmac(i,j) + vmac(i,j+1))
                    ugrads = ubar*(sedgex(i+1,j,comp) - sedgex(i,j,comp))/dx(1) + &
                             vbar*(sedgey(i,j+1,comp) - sedgey(i,j,comp))/dx(2)
+                   if (comp > 1) adv_s(i,j,comp-1) = -ugrads
+! mass_fractions require is_cons = TRUE
+!                   else; if (mass_fractions) adv_rho(i,j,1) = -ugrads
+!                   endif
                    if (comp > 1) adv_s(i,j,comp-1) = -ugrads
                    snew(i,j,comp) = sold(i,j,comp) - dt * ugrads + dt * force(i,j,comp)
                 enddo
@@ -209,7 +241,7 @@ contains
   end subroutine update_2d
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
-                       force,snew,adv_s,lo,hi,ng,dx,dt,is_vel,is_cons)
+                       force,snew,adv_s,lo,hi,ng,dx,dt,is_vel,is_cons,adv_rho)
 
     use bl_constants_module
 
@@ -231,6 +263,7 @@ contains
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
     logical           , intent(in   ) :: is_cons(:)
+    real (kind = dp_t), intent(  out), optional :: adv_rho(lo(1)   :,lo(2)   :,lo(3)   :,:)  
 
     !     Local variables
     integer :: i, j, k, comp
@@ -248,8 +281,10 @@ contains
                       divsu = (fluxx(i+1,j,k,comp)-fluxx(i,j,k,comp))/dx(1) &
                             + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
                             + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
-                      if (comp > 1) adv_s(i,j,k,comp) = -divsu
-                      snew(i,j,k,comp) = sold(i,j,k,comp) - dt * divsu + dt * force(i,j,k,comp)
+                      if (comp > 1) then; adv_s(i,j,k,comp-1) = -divsu
+                      else; if (sdc_iters >= 0) adv_rho(i,j,k,1) = -divsu
+                      endif
+                      snew(i,j,k,comp) = sold(i,j,k,comp) - dt*divsu + dt*force(i,j,k,comp)
                    enddo
                 enddo
              enddo
@@ -265,7 +300,7 @@ contains
                            vbar*(sedgey(i,j+1,k,comp) - sedgey(i,j,k,comp))/dx(2) + &
                            wbar*(sedgez(i,j,k+1,comp) - sedgez(i,j,k,comp))/dx(3)
                       if (comp > 1) adv_s(i,j,k,comp) = -ugrads
-                      snew(i,j,k,comp) = sold(i,j,k,comp) - dt * ugrads + dt * force(i,j,k,comp)
+                      snew(i,j,k,comp) = sold(i,j,k,comp) - dt*ugrads + dt*force(i,j,k,comp)
                    enddo
                 enddo
              enddo

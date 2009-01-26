@@ -378,9 +378,9 @@ contains
          lp => dataptr(laps, i)
          select case (dm)
          case (2)
-            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), lp(:,:,1,comp), pp(:,:,1,1), mu, ng)
+            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), sp(:,:,1,1), lp(:,:,1,comp), pp(:,:,1,1), mu, ng)
          case (3)
-            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), lp(:,:,:,comp), pp(:,:,:,1), mu, ng)
+            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp),  sp(:,:,:,1), lp(:,:,:,comp), pp(:,:,:,1), mu, ng)
          end select
       end do
 
@@ -410,46 +410,51 @@ contains
          lp => dataptr(laps, i)
          select case (dm)
          case (2)
-            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp), lp(:,:,1,comp-1), pp(:,:,1,1), mu, ng)
+            call mkrhs_2d(rp(:,:,1,1), sp(:,:,1,comp),  sp(:,:,1,1), lp(:,:,1,comp-1), pp(:,:,1,1), mu, ng)
          case (3)
-            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), lp(:,:,:,comp-1), pp(:,:,:,1), mu, ng)
+            call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp),  sp(:,:,:,1), lp(:,:,:,comp-1), pp(:,:,:,1), mu, ng)
          end select
       end do
 
     end subroutine mkrhs_adjusted
 
-    subroutine mkrhs_2d(rh,snew,laps,phi,mu,ng)
+    subroutine mkrhs_2d(rh,snew,rho,laps,phi,mu,ng)
       
       use probin_module, only: diffusion_type
 
-      integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::   rh(    :,    :)
       real(kind=dp_t), intent(in   ) :: snew(1-ng:,1-ng:)
+      real(kind=dp_t), intent(in   ) :: rho(1-ng:,1-ng:)
       real(kind=dp_t), intent(in   ) :: laps(1   :,   1:)
       real(kind=dp_t), intent(inout) ::  phi(0   :,   0:)
       real(dp_t)     , intent(in   ) :: mu
-
+      integer        , intent(in   ) :: ng
       integer :: nx,ny
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
 
       rh(1:nx,1:ny) = snew(1:nx,1:ny)
-      phi(0:nx+1,0:ny+1) = snew(0:nx+1,0:ny+1)
-
       if (diffusion_type .eq. 1) then
          rh(1:nx,1:ny) = rh(1:nx,1:ny) + mu*laps(1:nx,1:ny)
       end if
 
+      if(mass_fractions) then
+         phi(0:nx+1,0:ny+1) = snew(0:nx+1,0:ny+1)/rho(0:nx+1,0:ny+1)
+      else
+         phi(0:nx+1,0:ny+1) = snew(0:nx+1,0:ny+1)
+      endif
+
     end subroutine mkrhs_2d
 
-    subroutine mkrhs_3d(rh,snew,laps,phi,mu,ng)
+    subroutine mkrhs_3d(rh,snew,rho,laps,phi,mu,ng)
 
       use probin_module, only: diffusion_type
 
       integer        , intent(in   ) :: ng
       real(kind=dp_t), intent(inout) ::   rh(    :,    :,    :)
       real(kind=dp_t), intent(in   ) :: snew(1-ng:,1-ng:,1-ng:)
+      real(kind=dp_t), intent(in   ) :: rho(1-ng:,1-ng:,1-ng:)
       real(kind=dp_t), intent(in   ) :: laps(1   :,   1:,   1:)
       real(kind=dp_t), intent(inout) ::  phi(0   :,   0:,   0:)
       real(dp_t)     , intent(in   ) :: mu
@@ -461,11 +466,15 @@ contains
       nz = size(rh,dim=3)
 
       rh(1:nx,1:ny,1:nz) = snew(1:nx,1:ny,1:nz)
-      phi(0:nx+1,0:ny+1,0:nz+1) = snew(0:nx+1,0:ny+1,0:nz+1)
-
       if (diffusion_type .eq. 1) then
          rh(1:nx,1:ny,1:nz) = rh(1:nx,1:ny,1:nz) + mu*laps(1:nx,1:ny,1:nz)
       end if
+
+      if(mass_fractions) then
+         phi(0:nx+1,0:ny+1,0:nz+1) = snew(0:nx+1,0:ny+1,0:nz+1)/rho(0:nx+1,0:ny+1,0:nz+1)
+      else
+         phi(0:nx+1,0:ny+1,0:nz+1) = snew(0:nx+1,0:ny+1,0:nz+1)
+      endif
 
     end subroutine mkrhs_3d
 

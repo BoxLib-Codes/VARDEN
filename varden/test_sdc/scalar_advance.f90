@@ -109,7 +109,7 @@ contains
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower)
+          call get_explicit_diffusive_term(mla,laps,sold,comp,bc_comp,dx,the_bc_tower,is_vel=.false.)
        enddo
     else
       do n = 1, nlevs
@@ -191,12 +191,14 @@ contains
         enddo
      end if
 
-       do comp = 2, nscal
-          bc_comp = dm+comp
-          call get_explicit_diffusive_term(mla,laps,snew,comp,bc_comp,dx,the_bc_tower)
-       enddo
-call write_plotfile(100+iter,nscal,laps)
-call write_plotfile(200+iter,nscal,snew)
+!--- for debugging -- FIX ME 
+!       do comp = 2, nscal
+!          bc_comp = dm+comp
+!          call get_explicit_diffusive_term(mla,laps,snew,comp,bc_comp,dx,the_bc_tower,is_vel=.false.)
+!       enddo
+!call write_plotfile(100+iter,nscal,laps)
+!call write_plotfile(200+iter,nscal,snew)
+!--------
 
     do n = 1,nlevs
        call multifab_destroy(laps(n))
@@ -208,6 +210,8 @@ call write_plotfile(200+iter,nscal,snew)
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)
 
+
+!-- For debugging -- Fix me
   contains
   
    subroutine write_plotfile(istep_to_write, n_plot_comps, mf)

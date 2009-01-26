@@ -52,6 +52,7 @@ contains
     ! advection term:  adv_s(level,time) = - div(su) 
     ! these values are used to interpolate int(A+D+R)
     type(multifab)  :: adv_s(mla%nlevel,n_adv)
+    type(multifab)  :: adv_rho(mla%nlevel,n_adv)
     ! diffusion at various times:  D_s(level,time)
     type(multifab)  :: D_s(mla%nlevel,n_diff)
     type(multifab)  :: snew_temp(mla%nlevel)
@@ -80,6 +81,12 @@ contains
     if (mass_fractions) then
        ! using mass fractions
        is_conservative(:) = .true.
+       do n = 1,nlevs
+          do j = 1, n_adv
+             call multifab_build(adv_rho(n,j),mla%la(n),1,0)
+             call setval(adv_rho(n,j),zero,all=.true.)
+          enddo
+       end do
     else
        is_conservative(1) = .true.
        ! using concentrations
@@ -162,13 +169,13 @@ contains
     !***********************************
     ! Create edge state scalars/fluxes
     !***********************************
-!    do n = 1, nlevs
-!       call multifab_copy(snew(n),sold(n))
-!       call multifab_copy_c(snew_temp(n),2,I_R(n,n_interp_pts+1),1,nspec)
-!       call multifab_mult_mult_s(snew_temp(n),HALF*dt)
-!       call multifab_plus_plus_c(snew(n),2,snew_temp(n),2,nspec)
-!       call multifab_fill_boundary(snew(n))
-!    end do
+ !   do n = 1, nlevs
+ !      call multifab_copy(snew(n),sold(n))
+ !      call multifab_copy_c(snew_temp(n),2,I_R(n,n_interp_pts+1),1,nspec)
+ !      call multifab_mult_mult_s(snew_temp(n),HALF*dt)
+ !      call multifab_plus_plus_c(snew(n),2,snew_temp(n),2,nspec)
+ !      call multifab_fill_boundary(snew(n))
+ !   end do
 
     call mkflux(mla,sold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                 the_bc_tower%bc_tower_array,is_vel,is_conservative)
@@ -179,13 +186,14 @@ contains
        call multifab_copy(snew(n),sold(n))
     end do
 
+
     do j = 1, n_interp_pts
 
        do n = 1, nlevs
 !          call multifab_mult_mult_s(I_R(n,j),HALF*dt*sdc_dt_fac(j))
 !          call multifab_plus_plus_c(snew_temp(n),2,I_R(n,j),1,nspec)
 !          call multifab_fill_boundary(snew_temp(n))
-! do i want to use snew or snew_temp here? 
+ !do i want to use snew or snew_temp here? 
 ! snew -- still need to react the whole step
           call multifab_copy_c(I_R(n,j),1,snew(n),2,nspec)        
        enddo
@@ -197,7 +205,7 @@ contains
        call update(mla,snew_temp,umac,sedge,sflux,scal_force,snew_temp,&
                    adv_s(:,1),dx,&
                    dt*sdc_dt_fac(j),t,is_vel,is_conservative,&
-                   the_bc_tower%bc_tower_array)
+                   the_bc_tower%bc_tower_array,adv_rho(:,1))
 
 !call write_plotfile(100+(j-1)*100+iter,nspec,adv_s(:,1))
 !call write_plotfile(200+iter,nspec,adv_s(:,1))
@@ -233,7 +241,7 @@ contains
           end do
        end if
 
-!call write_plotfile(300+iter,nscal,snew_temp)
+call write_plotfile(300+(j-1)*100+iter,nscal,snew_temp)
 
        !***************************************
        ! Compute a provisional D(s) for reactions
@@ -242,14 +250,14 @@ contains
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,j),snew_temp,comp,&
-                                     bc_comp,dx,the_bc_tower,adj_index=.true.)
+                                     bc_comp,dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
           end do
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,j),diff_coef)
           enddo
        endif
 
-call write_plotfile(100+(j-1)*100+iter,nspec,D_s(:,j))
+!call write_plotfile(100+(j-1)*100+iter,nspec,D_s(:,j))
 ! do n = 1, nlevs
 !    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
 !    call multifab_sub_sub_c(difference(n),1,sold(n),1,nscal)
@@ -266,7 +274,7 @@ call write_plotfile(100+(j-1)*100+iter,nspec,D_s(:,j))
        !***********************
        ! Integrate reactions
        !***********************
-       call react(mla,the_bc_tower,snew,dx,dt,t,j,adv_s,D_s,&
+       call react(mla,the_bc_tower,snew,dx,dt,t,j,adv_s,adv_rho,D_s,&
                   sdc_flag=1)
        ! use sdc_flag=1 for provisional, =2 for SDC
 
@@ -291,6 +299,7 @@ call write_plotfile(100+(j-1)*100+iter,nspec,D_s(:,j))
        call mk_provis_I_R(j,snew,dt*sdc_dt_fac(j))
 
 !call write_plotfile(500+(j-1)*100+iter,nspec,I_R(:,j))
+call write_plotfile(500+(j-1)*100+iter,nscal,snew)
 
        !***************************************
        ! Compute a provisional D(s) at intermediate time
@@ -299,14 +308,14 @@ call write_plotfile(100+(j-1)*100+iter,nspec,D_s(:,j))
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,j),snew,comp,&
-                                bc_comp,dx,the_bc_tower,adj_index=.true.)
+                                bc_comp,dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
           end do
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,j),diff_coef)
           enddo
        endif
 
-call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
+!call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
 
 ! do n = 1, nlevs
 !    call multifab_copy_c(difference(n),1,snew(n),1,nscal)
@@ -321,7 +330,8 @@ call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
 ! call write_plotfile(1900+iter,nscal,difference)
 
        do n = 1, nlevs
-          call multifab_copy(snew_temp(n),snew(n))
+          call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
+          call multifab_copy_c(snew(n),1,snew_temp(n),1,1)
        end do
 
     enddo  ! do j = 1, n_nterp_pts
@@ -337,7 +347,9 @@ call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
 !call write_plotfile(1200+iter,nspec,I_R(:,3))
 
 
-! call multifab_copy_c(snew_old(1),2,I_R(3,1),1,nspec)
+    do n = 1,nlevs
+       call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+    enddo
 ! call multifab_copy_c(difference(1),2,I_R(2,1),1,nspec)
 ! call multifab_mult_mult_s(difference(1),sdc_dt_fac(2))
 ! call multifab_sub_sub(snew_old(1),difference(1))
@@ -389,7 +401,8 @@ call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
 
           call update(mla,snew_temp,umac,sedge,sflux,scal_force,snew_temp,&
                       adv_s(:,1),dx,dt*sdc_dt_fac(j),t,&
-                      is_vel,is_conservative,the_bc_tower%bc_tower_array)
+                      is_vel,is_conservative,the_bc_tower%bc_tower_array,&
+                      adv_rho(:,1))
 
 !call write_plotfile(800+(j-1)*100+iter,nscal,snew_temp)
 !call write_plotfile(1300+(j-1)*100+iter,nscal,scal_force)
@@ -427,7 +440,8 @@ call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
              end do
           end if
 
-!call write_plotfile(1500+(j-1)*100+iter,nscal,snew_temp)
+call write_plotfile(1500+(j-1)*100+(k-1)*200+iter,nscal,snew_temp)
+!call write_plotfile(1500+(j-1)*100+k,nscal,snew_temp)
 
           !***************************************
           ! Compute a provisional D(s) for reactions
@@ -436,18 +450,18 @@ call write_plotfile(1200+100*(j-1)+iter,nspec,D_s(:,j))
              do comp = 2, nscal
                 bc_comp = dm+comp
                 call get_explicit_diffusive_term(mla,D_s(:,j+n_interp_pts),&
-                     snew_temp,comp,bc_comp,dx,the_bc_tower,adj_index=.true.)
+                     snew_temp,comp,bc_comp,dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
              end do
              do n = 1, nlevs
                 call multifab_mult_mult_s(D_s(n,j+n_interp_pts),diff_coef)
              enddo
           endif
-call write_plotfile(1700+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
+!call write_plotfile(1700+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
 
           !***********************
           ! Integrate reactions
           !***********************
-          call react(mla,the_bc_tower,snew,dx,dt,t,j,adv_s,D_s,&
+          call react(mla,the_bc_tower,snew,dx,dt,t,j,adv_s,adv_rho,D_s,&
                      sdc_flag=2)
           ! use sdc_flag=1 for provisional, =2 for SDC
 
@@ -471,7 +485,9 @@ call write_plotfile(1700+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
 
           call mk_sdc_I_R(j,snew,dt*sdc_dt_fac(j))
 
-!call write_plotfile(1200+(j-1)*100+iter,nscal,snew)
+call write_plotfile(1100+(j-1)*100+(k-1)*200+iter,nscal,snew)
+!call write_plotfile(1100+(j-1)*100+k,nscal,snew)
+
 
           !***************************************
           ! Compute a provisional D(s) at intermediate time
@@ -480,16 +496,17 @@ call write_plotfile(1700+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
              do comp = 2, nscal
                 bc_comp = dm+comp
                 call get_explicit_diffusive_term(mla,D_s(:,j+n_interp_pts),&
-                     snew,comp,bc_comp,dx,the_bc_tower,adj_index=.true.)
+                     snew,comp,bc_comp,dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
              end do
              do n = 1, nlevs
                 call multifab_mult_mult_s(D_s(n,j+n_interp_pts),diff_coef)
              enddo
           endif
-call write_plotfile(1900+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
+!call write_plotfile(1900+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
 
           do n = 1, nlevs
-             call multifab_copy(snew_temp(n),snew(n))
+             call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
+             call multifab_copy_c(snew(n),1,snew_temp(n),1,1)
           end do
 
        enddo  ! do j = 1, n_nterp_pts
@@ -560,6 +577,14 @@ kiter = kiter + 2
 !         call multifab_destroy(I_R(n,i))          
       enddo
    end do
+
+   if (mass_fractions) then
+      do n = 1,nlevs
+         do i = 1,n_adv
+            call multifab_destroy(adv_rho(n,i))
+         end do
+      end do
+   end if
 
 
 2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
@@ -766,7 +791,8 @@ kiter = kiter + 2
           case (2)
              do iy = lo(2), hi(2)          
                 do ix = lo(1),hi(1)
-
+                   ! scal-force was set = ext_scal-force in the beginning
+                   ! so sop(comp = 1) remains unchanged
                    do comp = 1, nspec
                       sop(ix,iy,1,comp+1) = IAD(j)%p(ix,iy,1,comp) + &
                            IR(j)%p(ix,iy,1,comp)&! - A(1)%p(ix,iy,1,comp) &

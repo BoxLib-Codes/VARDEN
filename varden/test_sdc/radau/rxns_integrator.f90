@@ -210,15 +210,15 @@ contains
     real(kind=dp_t), intent(in   ) :: t
     integer        , intent(in   ) :: j
     type(multifab) , intent(in   ) :: adv(:,:), diff(:,:)
-    type(multifab) , intent(in   ) :: adv_rho(:,:)
+    type(multifab) , intent(in   ) :: adv_rho(:)
     integer        , intent(in   ) :: sdc_flag
 
     ! local
     integer                 :: n,i,dm,ng,nlevs
     integer                 :: ix,iy,iz
     integer                 :: lo(s(1)%dim),hi(s(1)%dim)
-    real(kind=dp_t), pointer     :: sop(:,:,:,:)
-    type(dpt_pntr) :: A(n_adv), D(n_diff), Arho(n_adv)         
+    real(kind=dp_t), pointer     :: sop(:,:,:,:), arop(:,:,:,:)
+    type(dpt_pntr) :: A(n_adv), D(n_diff)         
 
 
     nlevs = mla%nlevel
@@ -232,7 +232,7 @@ contains
           if ( multifab_remote(s(n), i) ) cycle
           call get_interp_pts_array(adv,A,n,i,n_adv)
           call get_interp_pts_array(diff,D,n,i,n_diff)
-          if(mass_fractions) call get_interp_pts_array(adv_rho,Arho,n,i,n_adv)
+          if(mass_fractions) arop => dataptr(adv_rho(n),i)
           sop    => dataptr(s(n), i)
           lo = lwb(get_box(s(n), i))
           hi = upb(get_box(s(n), i))
@@ -397,8 +397,8 @@ contains
       ! compute the adv-diff for the provisional solution
       ! depends only on choice of provisional method
       do i = 1, nspec
-         soln(i+1) = A(1)%p(ix,iy,iz,i) + D(j)%p(ix,iy,iz,i)
-         soln(i+1) = dt*sdc_dt_fac(j)*(soln(i+1) + rxns(i+1))
+         soln(i+1) = (A(1)%p(ix,iy,iz,i) + D(j)%p(ix,iy,iz,i)
+                      + rxns(i+1))*dt*sdc_dt_fac(j)
       end do
 
     end subroutine provisional
@@ -425,11 +425,11 @@ contains
       ! compute the adv-diff: 
       ! (interpolation of A+D) + (D_new-D_old) + (A_new-A_old)
       do i = 1, nspec
-           soln(i+1) = A(1)%p(ix,iy,iz,i) + D(j+n_interp_pts)%p(ix,iy,iz,i) &
+           soln(i+1) = (A(1)%p(ix,iy,iz,i) + D(j+n_interp_pts)%p(ix,iy,iz,i) &
                        - D(j)%p(ix,iy,iz,i) + D(1)%p(ix,iy,iz,i)  & 
                        + (D(2)%p(ix,iy,iz,i) - D(1)%p(ix,iy,iz,i)) &
-                       *THREE*(sdc_dt_fac(j)*t + pts(j-1) - THIRD)/TWO 
-           soln(i+1) = dt*sdc_dt_fac(j)*(soln(i+1) + rxns(i+1))  
+                       *THREE*(sdc_dt_fac(j)*t + pts(j-1) - THIRD)/TWO &
+                       + rxns(i+1))*dt*sdc_dt_fac(j)
       end do      
 
     end subroutine sdc
@@ -444,7 +444,7 @@ contains
       real(kind=dp_t),  intent(in   ) :: t
 
       real(kind=dp_t) :: u2,u3,u4,k1,k2,k3
-      real(kind=dp_t) :: rho,rho2
+      real(kind=dp_t) :: rho
 
       ! first component is density 
        u2 = merge(u(2), zero, u(2) > zero)
@@ -465,10 +465,9 @@ contains
       k2 = k_rxn2
       k3 = k_rxn1
 
-
       if(mass_fractions) then
-         soln(1) = Arho(1)%p(ix,iy,iz,1)
          rho = u(1)
+         soln(1) = arop(ix,iy,iz,1)
          soln(2) = -k_rxn1*u3*u2/rho + half*k1*u4
          soln(3) = -k_rxn1*u3*u2/rho + half*k2*u4
          soln(4) =  two*k3*u3*u2/rho - k_rxn2*u4

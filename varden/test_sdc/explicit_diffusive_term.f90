@@ -47,7 +47,7 @@ contains
     else; ladj_index = .false.
     endif
     if(present(is_vel)) then; lis_vel = is_vel
-    else; lis_vel = .false.
+    else; lis_vel = .true.
     endif
 
     nlevs = mla%nlevel
@@ -74,9 +74,6 @@ contains
              ! should mult by diff_coeff here if spatially dependent 
           end do
        end if
-! debugging test --REMOVE ME!
-!             call multifab_mult_mult_s_c(beta(n),2,zero,1,1)
-
     enddo
        
     !***********************************
@@ -101,7 +98,7 @@ contains
      do n = 1, nlevs
         call multifab_copy_c(lap_data(n),comp,Lphi(n),1)
         if (mass_fractions .AND. (.NOT. lis_vel)) then
-           call multifab_mult_mult_c(lap_data(n),1,data(n),1,1)
+           call multifab_mult_mult_c(lap_data(n),comp,data(n),1,1)
         end if
      enddo
 
