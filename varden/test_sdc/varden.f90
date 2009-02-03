@@ -481,7 +481,7 @@ contains
   subroutine write_plotfile(istep_to_write)
 
     integer, intent(in   ) :: istep_to_write
-    integer                :: n,n_plot_comps
+    integer                :: n,nc,n_plot_comps
 
     allocate(plotdata(nlevs))
     n_plot_comps = 2*dm + nscal + 1
@@ -490,7 +490,11 @@ contains
        call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
        call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
        call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
-
+       if(mass_fractions) then
+          do nc = 1, nspec
+             call multifab_div_div_c(plotdata(n),1+dm+nc,sold(n),1,1)
+          end do
+       end if
        vort_comp = 1+dm+nscal
        call make_vorticity(plotdata(n),vort_comp,uold(n),dx(n,:), &
                            the_bc_tower%bc_tower_array(n))
@@ -498,8 +502,8 @@ contains
        call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
     end do
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
-    call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
-                                   mla%mba%pd(1), time, dx(1,:))
+    call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, &
+                                   plot_names, mla%mba%pd(1), time, dx(1,:))
 
     do n = 1,nlevs
       call multifab_destroy(plotdata(n))
