@@ -61,7 +61,7 @@ contains
     integer         :: comp,bc_comp,nlevs,dm
     logical         :: is_vel
     real(kind=dp_t) :: diff_fac,visc_mu
-    real(kind=dp_t) :: smin,smax
+    real(kind=dp_t) :: smin,smax,norm
 
     ! for convergence study--DELETE ME
     type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
@@ -328,10 +328,16 @@ call write_plotfile(500+(j-1)*100+iter,nscal,snew)
 ! enddo
 ! call write_plotfile(1900+iter,nscal,difference)
 
-       do n = 1, nlevs
-          call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
-          call multifab_copy_c(snew(n),1,snew_temp(n),1,1)
-       end do
+       if (mass_fractions) then
+          do n =1, nlevs
+             call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
+          end do
+       else !using volume concentrations
+          do n = 1, nlevs
+             call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
+             call multifab_copy_c(snew(n),1,snew_temp(n),1,1)
+          end do
+       endif
 
     enddo  ! do j = 1, n_nterp_pts
     
@@ -346,16 +352,28 @@ call write_plotfile(500+(j-1)*100+iter,nscal,snew)
 !call write_plotfile(1200+iter,nspec,I_R(:,3))
 
 
-    do n = 1,nlevs
-       call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
-    enddo
-! call multifab_copy_c(difference(1),2,I_R(2,1),1,nspec)
-! call multifab_mult_mult_s(difference(1),sdc_dt_fac(2))
-! call multifab_sub_sub(snew_old(1),difference(1))
-! call multifab_copy_c(difference(1),2,I_R(1,1),1,nspec)
-! call multifab_mult_mult_s(difference(1),sdc_dt_fac(1))
-! call multifab_sub_sub(snew_old(1),difference(1))
-! call write_plotfile(1000+iter,nscal,snew_old)
+
+!Remove me:
+!*****************************
+! Check changes over a timestep
+     if (parallel_IOProcessor()) write(*,*)  'Initial/Provisional change in s'
+     if (parallel_IOProcessor()) write(*,*) '(s_new^0 - s_old) min & max'
+     do n = 1, nlevs
+         call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
+         call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
+         norm =  multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+         if (parallel_IOProcessor()) write(*,*) 'L2 norm',norm
+         do comp = 1,nscal
+            smin = multifab_min_c(difference(n),comp) 
+            smax = multifab_max_c(difference(n),comp)
+            if (comp .eq. 1) then
+               if (parallel_IOProcessor()) write(6,2000) n,smin,smax
+            else 
+               if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
+            end if
+         enddo
+         call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+      enddo
 
 !----SDC iters----------------------------------------------------
     do k = 1,sdc_iters
@@ -503,10 +521,16 @@ call write_plotfile(1100+(j-1)*100+(k-1)*200+iter,nscal,snew)
           endif
 !call write_plotfile(1900+(j-1)*100+iter,nspec,D_s(:,j+n_interp_pts))
 
-          do n = 1, nlevs
-             call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
-             call multifab_copy_c(snew(n),1,snew_temp(n),1,1)
-          end do
+          if (mass_fractions) then
+             do n = 1, nlevs
+                call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
+             end do
+          else !using volume concentrations
+             do n = 1, nlevs
+                call multifab_copy_c(snew_temp(n),2,snew(n),2,nspec)
+                call multifab_copy_c(snew(n),1,snew_temp(n),1,1)
+             end do
+          endif
 
        enddo  ! do j = 1, n_nterp_pts
 
@@ -524,30 +548,52 @@ call write_plotfile(1100+(j-1)*100+(k-1)*200+iter,nscal,snew)
           call mk_I_AD(I_AD,adv_s,D_s,nlevs)         
        end if
        
-    
  !Remove me:
  !*****************************
  ! Check convergence of SDC iters
-       write(*,*)
-       write(*,*)
-       write(*,*) 'SDC corrections:  k=',k
-      write(*,*) 's_k - s_k+1 min & max'
+      if (parallel_IOProcessor()) write(*,*) 'SDC corrections:  k=',k
+      if (parallel_IOProcessor()) write(*,*) '(s_k - s_k+1) min & max'
       do n = 1, nlevs
           call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
           call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-          write(*,*)'LEVEL ',n
-          write(*,*) 'L2 norm', multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+          norm = multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+          if (parallel_IOProcessor()) write(*,*) 'L2 norm', norm
           do comp = 1,nscal
              smin = multifab_min_c(difference(n),comp) 
              smax = multifab_max_c(difference(n),comp)
-             write(*,*)'component ',comp, ': ', smin, smax
+             if (comp .eq. 1) then
+                if (parallel_IOProcessor()) write(6,2000) n,smin,smax
+             else 
+                if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
+             end if
+!             write(*,*)'component ',comp, ': ', smin, smax
           enddo
-          write(*,*)
           call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
        enddo
 
 
     end do  ! sdc_iters loop
+
+    if (.NOT. remote(snew(1),1)) then
+       write(10,FMT=1000) t,snew(1)%fbs(1)%p(64,64,1,2),snew(1)%fbs(1)%p(64,64,1,3),snew(1)%fbs(1)%p(64,64,1,4)   
+       write(11,FMT=1000) t,snew(1)%fbs(1)%p(64,94,1,2),snew(1)%fbs(1)%p(64,94,1,3),snew(1)%fbs(1)%p(64,94,1,4)   
+       write(12,FMT=1000) t,snew(1)%fbs(1)%p(64,128,1,2),snew(1)%fbs(1)%p(64,128,1,3),snew(1)%fbs(1)%p(64,128,1,4)   
+    endif
+
+    if (.NOT. remote(D_s(1,4),1)) then
+       write(13,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,64,1,2),D_s(1,4)%fbs(1)%p(64,64,1,3),D_s(1,4)%fbs(1)%p(64,64,1,4)   
+       write(14,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,94,1,2),D_s(1,4)%fbs(1)%p(64,94,1,3),D_s(1,4)%fbs(1)%p(64,94,1,4)   
+       write(15,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,128,1,2),D_s(1,4)%fbs(1)%p(64,128,1,3),D_s(1,4)%fbs(1)%p(64,128,1,4)   
+    endif
+
+    if (.NOT. remote(adv_s(1,1),1)) then
+       write(16,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,64,1,2),adv_s(1,1)%fbs(1)%p(64,64,1,3),adv_s(1,1)%fbs(1)%p(64,64,1,4)   
+       write(17,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,94,1,2),adv_s(1,1)%fbs(1)%p(64,94,1,3),adv_s(1,1)%fbs(1)%p(64,94,1,4)   
+       write(18,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,128,1,2),adv_s(1,1)%fbs(1)%p(64,128,1,3),adv_s(1,1)%fbs(1)%p(64,128,1,4)   
+    endif
+
+1000 FORMAT(5(E15.8,1X))
+1001 FORMAT(I5,4(E15.8,1X))
 
 iter = iter + 1
 kiter = kiter + 2
@@ -583,10 +629,9 @@ kiter = kiter + 2
       end do
    end if
 
+2000 format('... level ', i2,' min/max diff : density      ',e17.10,2x,e17.10)
+2001 format('... level ', i2,' min/max diff :  tracer ',i2,'   ',e17.10,2x,e17.10)    
 
-2000 format('... level ', i2,' new min/max : density           ',e17.10,2x,e17.10)
-2001 format('... level ', i2,' new min/max :  tracer           ',e17.10,2x,e17.10)
-    
   contains
   
    subroutine write_plotfile(istep_to_write, n_plot_comps, mf)

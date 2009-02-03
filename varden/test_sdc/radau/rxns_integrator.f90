@@ -288,7 +288,7 @@ contains
 !      k4(:) = zero
 
       ! Integrals adjusted to go from 0 -> 1
-      dtl = ONE/dble(n_rxn_steps)
+      dtl = dt*sdc_dt_fac(j)/dble(n_rxn_steps)
       tl = zero
 
       select case (sdc_flag)
@@ -377,7 +377,8 @@ contains
     !--------------------------------------------------------------------
     ! The integrals
     ! make sure to adjust integral to 0 -> 1        
-  
+    ! changed to 0 -> (b-a)*dt
+
     ! for provisional soln in SDC
     subroutine provisional(soln,u,t)!,adv,diff)
       real(kind=dp_t),  intent(  out) :: soln(:)
@@ -392,13 +393,13 @@ contains
 !      rxns(:) = zero
       ! compute the rxns 
       call f_rxn(rxns,u,t)
-      soln(1) = dt*sdc_dt_fac(j)*rxns(1)
+      soln(1) = rxns(1)
 
       ! compute the adv-diff for the provisional solution
       ! depends only on choice of provisional method
       do i = 1, nspec
-         soln(i+1) = (A(1)%p(ix,iy,iz,i) + D(j)%p(ix,iy,iz,i)
-                      + rxns(i+1))*dt*sdc_dt_fac(j)
+         soln(i+1) = A(1)%p(ix,iy,iz,i) + D(j)%p(ix,iy,iz,i)&
+                      + rxns(i+1)
       end do
 
     end subroutine provisional
@@ -420,16 +421,19 @@ contains
 
       ! compute the rxns
       call f_rxn(rxns,u,t)
-      soln(1) = dt*sdc_dt_fac(j)*rxns(1)
+      soln(1) = rxns(1)
 
       ! compute the adv-diff: 
       ! (interpolation of A+D) + (D_new-D_old) + (A_new-A_old)
       do i = 1, nspec
-           soln(i+1) = (A(1)%p(ix,iy,iz,i) + D(j+n_interp_pts)%p(ix,iy,iz,i) &
+           soln(i+1) = A(1)%p(ix,iy,iz,i) + D(j+n_interp_pts)%p(ix,iy,iz,i) &
                        - D(j)%p(ix,iy,iz,i) + D(1)%p(ix,iy,iz,i)  & 
                        + (D(2)%p(ix,iy,iz,i) - D(1)%p(ix,iy,iz,i)) &
-                       *THREE*(sdc_dt_fac(j)*t + pts(j-1) - THIRD)/TWO &
-                       + rxns(i+1))*dt*sdc_dt_fac(j)
+! integrate 0 -> 1
+!                       *THREE*(sdc_dt_fac(j)*t + pts(j-1) - THIRD)/TWO &
+! integrate 0 -> (b-a)dt
+                       *(t/dt + pts(j-1) - THIRD)/TWO3RD &
+                       + rxns(i+1)
       end do      
 
     end subroutine sdc
@@ -442,6 +446,13 @@ contains
       real(kind=dp_t),  intent(  out) :: soln(:)
       real(kind=dp_t),  intent(in   ) :: u(:)
       real(kind=dp_t),  intent(in   ) :: t
+
+
+
+
+
+
+
 
       real(kind=dp_t) :: u2,u3,u4,k1,k2,k3
       real(kind=dp_t) :: rho
