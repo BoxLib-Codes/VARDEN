@@ -45,6 +45,9 @@ module probin_module
   integer, save   :: nspec
   integer, save   :: n_rxn_steps
 
+  integer,save    :: min_width
+  real(dp_t),save :: min_eff
+
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
   logical   , allocatable, save :: pmask(:)
@@ -104,7 +107,8 @@ module probin_module
   namelist /probin/ boussinesq
   namelist /probin/ diffusion_type
   namelist /probin/ slope_order
-
+  namelist /probin/ min_eff
+  namelist /probin/ min_width
 
   namelist /probin/ reactions
   namelist /probin/ sdc_iters
@@ -126,6 +130,7 @@ contains
     use bl_prof_module
     use bl_error_module
     use bl_constants_module
+    use cluster_module
     
     integer    :: narg, farg
 
@@ -162,7 +167,7 @@ contains
     ng_cell = 3
     ng_grow = 1
     nlevs    = -1
-    max_levs = -1
+    max_levs = 1
 
     max_grid_size = 256
 !    max_grid_size = 2048
@@ -173,6 +178,10 @@ contains
     plot_int  = 0
     chk_int  = 0
     regrid_int = -1
+
+    min_eff   = 0.7
+    min_width = 4
+
     prob_lo_x = ZERO
     prob_lo_y = ZERO
     prob_lo_z = ZERO
@@ -433,28 +442,27 @@ contains
        farg = farg + 1
     end do
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! If n_error_buf hasn't been set in the inputs file.
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (n_error_buf < 0 .and. fixed_grids == '') then
-       if (regrid_int > 0) then
-          n_error_buf = regrid_int
-       else
-          call bl_error('Cant have n_error_buf and regrid_int both unspecified')
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Need to specify regrid_int if max_levs > 1 and not 'fixed grids'
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if (max_levs > 1) then
+       if (fixed_grids == '' .and. regrid_int < 1) then
+          call bl_error('regrid_int must be specified if max_levs > 1')
+       else if (fixed_grids /= '' .and. regrid_int > 0) then
+          call bl_warn('Note: regrid_int will be ignored')
        end if
     end if
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Don't set regrid_int and fixed_grids
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (fixed_grids /= '') then
-      if (regrid_int > 0) &
-         call bl_error('Cant have fixed_grids and regrid_int > 0.')
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! If n_error_buf hasn't been set in the inputs file.
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if ( max_levs > 1 .and. (n_error_buf < 0) .and. fixed_grids == '' ) then
+       n_error_buf = regrid_int
     end if
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize prob_lo and prob_hi
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     allocate(prob_lo(dim_in))
     prob_lo(1) = prob_lo_x
@@ -466,13 +474,20 @@ contains
     if (dim_in > 1) prob_hi(2) = prob_hi_y
     if (dim_in > 2) prob_hi(3) = prob_hi_z
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize pmask
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     allocate(pmask(dim_in))
     pmask = .FALSE.
     pmask = pmask_xyz(1:dim_in)
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize min_eff
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    call cluster_set_min_eff(min_eff)
+    call cluster_set_minwidth(min_width)
 
   end subroutine probin_init
 
