@@ -106,6 +106,7 @@ contains
     ! Compute laps for passive scalar only
     !***********************************
 
+call write_plotfile(8000+iter,nscal,sold)
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
@@ -116,14 +117,15 @@ contains
          call setval(laps(n),ZERO)
       enddo
     endif
-
+! REMOVE ME
+call write_plotfile(9000+iter,nscal,laps)
     !***********************************
     ! Create scalar force at time n.
     !***********************************
 
     diff_fac = ONE
     call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
-
+call write_plotfile(9100+iter,nscal,scal_force)
     !***********************************
     ! Create edge state scalars/fluxes
     !***********************************
@@ -139,13 +141,14 @@ contains
     ! for Crank-Nicolson
     diff_fac = ZERO
     call mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
-
+call write_plotfile(9200+iter,nscal,scal_force)
     !***********************************
     ! Update the scalars with conservative or convective differencing.
     !***********************************
 
     call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s,dx,dt,t,is_vel, &
                 is_conservative,the_bc_tower%bc_tower_array)
+call write_plotfile(9300+iter,nscal,snew)
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -197,7 +200,7 @@ contains
 !          call get_explicit_diffusive_term(mla,laps,snew,comp,bc_comp,dx,the_bc_tower,is_vel=.false.)
 !       enddo
 !call write_plotfile(100+iter,nscal,laps)
-!call write_plotfile(200+iter,nscal,snew)
+call write_plotfile(9400+iter,nscal,snew)
 !--------
 
     do n = 1,nlevs

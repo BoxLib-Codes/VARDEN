@@ -2,7 +2,7 @@
 ! Computes error for convergence study
 !
 
-module convergence
+module difference
 
   use bl_types
   use multifab_module
@@ -15,9 +15,11 @@ module convergence
  
 contains
  
-  subroutine conv(loc,files)
-    integer, intent(in   ) :: loc(:)
+  subroutine conv(sdc_loc,strang_loc,files,cfl)
+    integer, intent(in   ) :: sdc_loc(:)
+    integer, intent(in   ) :: strang_loc(:)
     integer, intent(in   ) :: files(:)
+    real(dp_t), intent(in   ) :: cfl
 
     !local variables   
     integer, parameter :: dm        = 2, &
@@ -26,24 +28,20 @@ contains
                           nspec     = 3, &
                           n_grids   = 4, &
                           ng_cell   = 3, &
-                          ng_grow   = 1, &
-                          exact_loc = 1024
-    real(dp_t), parameter :: cfl = 0.5d0
-! dont'r forget to check ir, dx
-
+                          ng_grow   = 1
+! dont'r forget to check  dx
     integer                   :: nlevs,n,i
-    integer                   :: ir(n_grids,dm)
-    type(ml_layout)           :: mla(n_grids+1)
+    type(ml_layout)           :: mla(n_grids*2)
     real(dp_t)                :: time,dt
-    type(multifab)            :: s_exact,s(n_grids)
-    type(multifab)            :: uold,gp,p
+    type(multifab)            :: sdc(n_grids),strang(n_grids)
+    type(multifab)            :: u_sdc,u_strang
+    type(multifab)            :: gp,p_sdc,p_strang
     type(ml_boxarray)         :: mba
     logical                   :: nodal(dm)
     logical                   :: pmask(dm)
-    type(multifab)            :: avg(n_grids)
-    real(dp_t)                :: l2_error(n_grids,nspec+1), l1_error(n_grids,nspec+1)
+    real(dp_t)                :: l2_error(n_grids,nscal+4), l1_error(n_grids,nscal+4)
     real(dp_t)                :: dx(n_grids,dm)
-    character(len=20)         :: plot_names(nscal)
+    character(len=20)         :: plot_names(nscal+3)
     character(len=20)         :: sd_name
     type(multifab), allocatable  :: plotdata(:)
 
@@ -52,90 +50,85 @@ contains
     nodal(:) = .true.
     pmask(:) = .true.
     
-    ir(1,:) = 32
-    dx(1,:) = 1.d0/32.d0 !1.d0/dble(ir(1,:))
+    dx(1,:) = 1./32.
 
     do n = 2, n_grids
-       ir(n,:) = ir(n-1,:)/2.d0
-       dx(n,:) = dx(n-1,:)/2.d0
+       dx(n,:) = dx(n-1,:)/2.
     end do
 
     plot_names(1) = 'density'
     plot_names(2) = 'species A'
     plot_names(3) = 'species B'
     plot_names(4) = 'species C'
+    plot_names(5) = 'x-velocity'
+    plot_names(6) = 'y-velocity'
+    plot_names(7) = 'pressure'
 
 
-
-    write(*,*) loc(1),loc(2),loc(3),loc(4)
-    write(*,*) files(1),files(2)
-! read  in data
-    call initialize_from_restart(mla(n_grids+1),exact_loc,time,dt,pmask,uold,&
-                                 s_exact,gp,p)
-    call destroy(uold)
-    call destroy(gp)
-    call destroy(p)
 
     do n = 1, n_grids
-       call initialize_from_restart(mla(n),loc(n),time,dt,pmask,uold,&
-                                    s(n),gp,p)
-       call destroy(uold)
+       ! read  in data
+       call initialize_from_restart(mla(n),sdc_loc(n),time,dt,pmask,u_sdc,&
+                                    sdc(n),gp,p_sdc)
        call destroy(gp)
-       call destroy(p)
-    enddo
 
-!call print(s(1))
-!call print(s(2))
-!call print(s(3))
-!call print(s(4))
+       i = n+n_grids
+       call initialize_from_restart(mla(i),strang_loc(n),time,dt,pmask,u_strang,&
+                                    strang(n),gp,p_strang)
 
-! avg the exact data down onto course grids
-    do n = 1,n_grids
-       call multifab_build(avg(n),s(n)%la,nscal)
-       call ml_cc_restriction(avg(n),s_exact,ir(n,:))
-       call write_plotfile(n, mla(n),avg(n))
-       call multifab_sub_sub(avg(n),s(n))
-       call write_plotfile(n+n_grids, mla(n),avg(n))
-    enddo
+       call multifab_sub_sub(sdc(n),strang(n))
+       call multifab_sub_sub(u_sdc,u_strang)
+       call multifab_sub_sub(p_sdc,p_strang)
+       call write_plotfile(n, mla(n),sdc(n),u_sdc,p_sdc)
 
-! calculate l1 error
-    do i = 1,n_grids
-       l1_error(i,nspec+1) = 0.d0
-       do n = 1,nspec
-          l1_error(i,n) = multifab_norm_l1_c(avg(i),n+1,1,all=.false.)
-          l1_error(i,nspec+1) = l1_error(i,nspec+1) + l1_error(i,n)
+       ! calculate l1 error
+       l1_error(n,nscal+1) = 0.d0
+       do i = 1,nscal
+          l1_error(n,i) = multifab_norm_l1_c(sdc(n),i,1,all=.false.)
+          l1_error(n,nscal+1) = l1_error(n,nscal+1) + l1_error(n,i)
        enddo
-       l1_error(i,:) = l1_error(i,:)*(dx(i,1)*dx(i,2))
-       l1_error(i,nspec+1) = l1_error(i,nspec+1)/dble(nspec)
-    end do
-
-
-! calculate l2 error
-    do i = 1,n_grids
-       l2_error(i,nspec+1) = 0.d0
-       do n = 1,nspec
-          l2_error(i,n) = multifab_norm_l2_c(avg(i),n+1,1,all=.false.)
-          l2_error(i,nspec+1) = l2_error(i,nspec+1) + l2_error(i,n)
+       do i = 1,dm
+          l1_error(n,nscal+1+i) = multifab_norm_l1_c(u_sdc,i,1,all=.false.)
        enddo
-       l2_error(i,:) = l2_error(i,:)*sqrt(dx(i,1)*dx(i,2))
-       l2_error(i,nspec+1) = l2_error(i,nspec+1)/dble(nspec)
-    end do
+       l1_error(n,nscal+4) = multifab_norm_l1_c(p_sdc,1,1,all=.false.)
+
+       l1_error(n,:) = l1_error(n,:)*(dx(n,1)*dx(n,2))
+       l1_error(n,nscal+1) = l1_error(n,nscal+1)/dble(nscal)
+
+       ! calculate l2 error
+       l2_error(n,nscal+1) = 0.d0
+       do i = 1,nscal
+          l2_error(n,i) = multifab_norm_l2_c(sdc(n),i,1,all=.false.)
+          l2_error(n,nscal+1) = l2_error(n,nscal+1) + l2_error(n,i)
+       enddo
+       do i = 1,dm
+          l2_error(n,nscal+1+i) = multifab_norm_l2_c(u_sdc,i,1,all=.false.)
+       enddo
+       l2_error(n,nscal+4) = multifab_norm_l2_c(p_sdc,1,1,all=.false.)
+
+       l2_error(n,:) = l2_error(n,:)*sqrt(dx(n,1)*dx(n,2))
+       l2_error(n,nscal+1) = l2_error(n,nscal+1)/dble(nscal)
+
+       call destroy(gp)
+       call destroy(u_sdc)
+       call destroy(p_sdc)
+       call destroy(u_strang)
+       call destroy(p_strang)
+    enddo
 
     write(files(1),*)'#Convergence study data -- L1 norm'
-    write(files(1),*)'#    dt     SpeciesA     SpeciesB    SpeciesC     Combined'
-    do n = 1, n_grids
-       write(files(1),1000) cfl*dx(n,1),l1_error(n,1),l1_error(n,2),l1_error(n,3),&
-                   l1_error(n,4)
-    end do
-
+    write(files(1),*)'#    dt     SpeciesA     SpeciesB    SpeciesC    Combined'
     write(files(2),*)'#Convergence study data -- L2 norm'
     write(files(2),*)'#    dt     SpeciesA     SpeciesB    SpeciesC    Combined'
+
     do n = 1, n_grids
+       write(files(1),1000) cfl*dx(n,1),l1_error(n,1),l1_error(n,2),l1_error(n,3),&
+                   l1_error(n,4), l1_error(n,5),l1_error(n,6),l1_error(n,7), l1_error(n,8)
        write(files(2),1000) cfl*dx(n,1),l2_error(n,1),l2_error(n,2),l2_error(n,3),&
-                   l2_error(n,4)
+                   l2_error(n,4), l2_error(n,5),l2_error(n,6),l2_error(n,7),l2_error(n,8)
     end do
 
-    do n = 1,n_grids+1
+    do n = 1,n_grids*2
        call destroy(mla(n))
     end do
     
@@ -216,21 +209,22 @@ contains
 
   end subroutine fill_restart_data
 
-  subroutine write_plotfile(istep_to_write, mla, mf)
+  subroutine write_plotfile(istep_to_write, mla, mf, u, p)
 
     integer,         intent(in   ) :: istep_to_write
     type(ml_layout), intent(in   ) :: mla
-    type(multifab),  intent(in   ) :: mf
+    type(multifab),  intent(in   ) :: mf,u,p
   
     integer                        :: n,n_plot_comps
 
     allocate(plotdata(levs))
-    n_plot_comps = nscal
+    n_plot_comps = nscal+dm+1
 
     do n = 1,levs
        call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
-       call multifab_copy_c(plotdata(n),1        ,mf,1,nscal)
-
+       call multifab_copy_c(plotdata(n),1         ,mf,1,nscal)
+       call multifab_copy_c(plotdata(n),nscal+1   ,u ,1,dm)
+       call multifab_copy_c(plotdata(n),nscal+dm+1,p ,1,1)
     end do
 
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
@@ -246,4 +240,4 @@ contains
 
 end subroutine conv
 
-end module convergence
+end module difference

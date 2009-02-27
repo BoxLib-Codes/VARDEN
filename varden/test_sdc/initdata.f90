@@ -121,7 +121,7 @@ contains
     real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,:)  
     real (kind = dp_t), intent(in ) :: dx(:)
 
-    !     Local variables
+!    Local variables
     integer :: i, j
 !     real (kind = dp_t), parameter  :: lambda = fourth
 !     real (kind = dp_t), parameter  :: Um = one
@@ -143,13 +143,16 @@ contains
        do i=lo(1),hi(1)
           x = dx(1) * (dble(i) + half)
           
-          u(i,j,1) = tanh(30.*(.25-abs(y-0.5d0)))
+          u(i,j,1) = tanh(30.*(.25-abs(y-half)))
           u(i,j,2) = .05*sin(two*M_PI*(x))
           
-          s(i,j,1) = one
+          s(i,j,1) = (one/51.)*(50.-tanh(30.*(.25-abs(y-half))))
+!          s(i,j,1) = one
           ! if these are mass fractions then should be multiplying by dens
-          s(i,j,2) = half*(1+tanh(30.*(.25-abs(y-0.5d0))))  !Species A
-          s(i,j,3) = half*(1-tanh(30.*(.25-abs(y-0.5d0))))  !Species B
+          s(i,j,2) = s(i,j,1)*half*(1+tanh(30.*(.25-abs(y-half))))/ten  !Species A
+          s(i,j,3) = s(i,j,1)*half*(1-tanh(30.*(.25-abs(y-half))))/ten  !Species B
+!          s(i,j,2) = s(i,j,1)*half*(1+tanh(30.*(.25-abs(y-0.5d0))))  !Species A
+!          s(i,j,3) = s(i,j,1)*half*(1-tanh(30.*(.25-abs(y-0.5d0))))  !Species B
           s(i,j,4) = zero                                   !Species C
 
 !           if (y < fourth*prob_hi_y) then

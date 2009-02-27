@@ -11,10 +11,13 @@
 
 ! inputs for reactions
   reactions = T
-! sdc_iters < 0 means use strang splitting
-  sdc_iters = -2
 
+! sdc_iters < 0 means use strang splitting
+  sdc_iters = 20
+
+ max_step  = 1
  init_iter = 0
+!gets over-written with fixed dt
 ! init_shrink = 0.1
 
 ! 1 = Crank-Nicolson or SDC, 2 = Backward Euler
@@ -22,47 +25,54 @@
 ! so need to use type 1
  diffusion_type = 1
 
-! stop_time = 0.0625
- stop_time = 2.0
+ stop_time = 0.0625
+! stop_time = 2.0
+! stop_time = 0.0875
 ! fixed_dt = 0.00390625 !128
 ! fixed_dt = 0.001953125 !256
-! fixed_dt = 0.0009765625 !256
- fixed_dt = 0.00068359375 !256
-! fixed_dt = 0.015625 !32
+ fixed_dt = 0.015625 !32
 ! fixed_dt = 0.0078125 !64
-! fixed_dt = 0.000078125 !64
 ! fixed_dt = 0.03125 !16
+! fixed_dt = 0.000078125 !
+! fixed_dt = 0.00048828125 !1024
+! fixed_dt = 0.00068359375 !1024
+! fixed_dt = 0.002734375 !256
+! fixed_dt = 0.00546875 !128
+! fixed_dt = 0.0109375 !64
+! fixed_dt = 0.021875 !32
+! fixed _dt = 0.000244140625 !2048
 
- cflfac = 0.7
+ cflfac = 0.5
 
 ! visc_coef = 0.001
- visc_coef = 0.001
- diff_coef = 0.010
+ visc_coef = 0.00
+ diff_coef = 0.01
 
-  n_rxn_steps = 25
+  n_rxn_steps = 1
 !  k_rxn1 = 5111.d0
 !  k_rxn1 = 217131.d0
 !  k_rxn1 = 0.d0
 !  k_rxn2 = 0.d0
-  k_rxn1 = 5.0d0
-  k_rxn2 = 1.0d0
+  k_rxn1 = 0.
+  k_rxn2 = 0.
 
 ! default = T
  mass_fractions = T
+
 !!!! Input for fixed grids !!!!
 ! fixed_grids = "gr0_2d_2levels"
  fixed_grids = 'gr0_2d'
 
-max_grid_size = 1024
+max_grid_size = 256
 
 !!!! Inputs for adaptive grids !!!!
-! nlevs = 3
-! n_cellx = 32
-! n_celly = 32    
-!   n_cellx = 64
-!   n_celly = 64
+!  max_levs = 1
+! n_cellx = 1024
+! n_celly = 1024    
+!   n_cellx = 2048
+!   n_celly = 2048
 ! ref_ratio = 2
-! regrid_int = 2
+! regrid_int = -2
 
 ! nothing is ever done with this data in varden
 ! prob_lo_x = 0
@@ -71,9 +81,8 @@ max_grid_size = 1024
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
- max_step  = 100000
 
- plot_int  = 1
+ plot_int  = 10
  chk_int   = 10
 
  grav = 0
@@ -99,5 +108,5 @@ max_grid_size = 1024
  mg_verbose = 0
  cg_verbose = 0
 
-! restart = 1
+! restart = 80
 /

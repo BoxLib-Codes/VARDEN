@@ -450,9 +450,9 @@ contains
 !       k2 = merge(k_rxn2,zero,u(3)<= one)
 !       k3 = merge(k_rxn1,zero,u(4)<= one)
 
-!      u2 = u(2)
-!      u3 = u(3)
-!      u4 = u(4)
+      u2 = u(2)
+      u3 = u(3)
+      u4 = u(4)
 
       k1 = k_rxn2
       k2 = k_rxn2

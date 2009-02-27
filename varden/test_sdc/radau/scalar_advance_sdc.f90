@@ -240,7 +240,7 @@ contains
           end do
        end if
 
-call write_plotfile(300+(j-1)*100+iter,nscal,snew_temp)
+!call write_plotfile(300+(j-1)*100+iter,nscal,snew_temp)
 
        !***************************************
        ! Compute a provisional D(s) for reactions
@@ -298,7 +298,7 @@ call write_plotfile(300+(j-1)*100+iter,nscal,snew_temp)
        call mk_provis_I_R(j,snew,dt*sdc_dt_fac(j))
 
 !call write_plotfile(500+(j-1)*100+iter,nspec,I_R(:,j))
-call write_plotfile(500+(j-1)*100+iter,nscal,snew)
+!call write_plotfile(500+(j-1)*100+iter,nscal,snew)
 
        !***************************************
        ! Compute a provisional D(s) at intermediate time
@@ -457,7 +457,7 @@ call write_plotfile(500+(j-1)*100+iter,nscal,snew)
              end do
           end if
 
-call write_plotfile(1500+(j-1)*100+(k-1)*200+iter,nscal,snew_temp)
+!call write_plotfile(1500+(j-1)*100+(k-1)*200+iter,nscal,snew_temp)
 !call write_plotfile(1500+(j-1)*100+k,nscal,snew_temp)
 
           !***************************************
@@ -502,7 +502,7 @@ call write_plotfile(1500+(j-1)*100+(k-1)*200+iter,nscal,snew_temp)
 
           call mk_sdc_I_R(j,snew,dt*sdc_dt_fac(j))
 
-call write_plotfile(1100+(j-1)*100+(k-1)*200+iter,nscal,snew)
+!call write_plotfile(1100+(j-1)*100+(k-1)*200+iter,nscal,snew)
 !call write_plotfile(1100+(j-1)*100+k,nscal,snew)
 
 
@@ -574,23 +574,23 @@ call write_plotfile(1100+(j-1)*100+(k-1)*200+iter,nscal,snew)
 
     end do  ! sdc_iters loop
 
-    if (.NOT. remote(snew(1),1)) then
-       write(10,FMT=1000) t,snew(1)%fbs(1)%p(64,64,1,2),snew(1)%fbs(1)%p(64,64,1,3),snew(1)%fbs(1)%p(64,64,1,4)   
-       write(11,FMT=1000) t,snew(1)%fbs(1)%p(64,94,1,2),snew(1)%fbs(1)%p(64,94,1,3),snew(1)%fbs(1)%p(64,94,1,4)   
-       write(12,FMT=1000) t,snew(1)%fbs(1)%p(64,128,1,2),snew(1)%fbs(1)%p(64,128,1,3),snew(1)%fbs(1)%p(64,128,1,4)   
-    endif
+!     if (.NOT. remote(snew(1),1)) then
+!        write(10,FMT=1000) t,snew(1)%fbs(1)%p(64,64,1,2),snew(1)%fbs(1)%p(64,64,1,3),snew(1)%fbs(1)%p(64,64,1,4)   
+!        write(11,FMT=1000) t,snew(1)%fbs(1)%p(64,94,1,2),snew(1)%fbs(1)%p(64,94,1,3),snew(1)%fbs(1)%p(64,94,1,4)   
+!        write(12,FMT=1000) t,snew(1)%fbs(1)%p(64,128,1,2),snew(1)%fbs(1)%p(64,128,1,3),snew(1)%fbs(1)%p(64,128,1,4)   
+!     endif
 
-    if (.NOT. remote(D_s(1,4),1)) then
-       write(13,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,64,1,2),D_s(1,4)%fbs(1)%p(64,64,1,3),D_s(1,4)%fbs(1)%p(64,64,1,4)   
-       write(14,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,94,1,2),D_s(1,4)%fbs(1)%p(64,94,1,3),D_s(1,4)%fbs(1)%p(64,94,1,4)   
-       write(15,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,128,1,2),D_s(1,4)%fbs(1)%p(64,128,1,3),D_s(1,4)%fbs(1)%p(64,128,1,4)   
-    endif
+!     if (.NOT. remote(D_s(1,4),1)) then
+!        write(13,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,64,1,2),D_s(1,4)%fbs(1)%p(64,64,1,3),D_s(1,4)%fbs(1)%p(64,64,1,4)   
+!        write(14,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,94,1,2),D_s(1,4)%fbs(1)%p(64,94,1,3),D_s(1,4)%fbs(1)%p(64,94,1,4)   
+!        write(15,FMT=1000) t,D_s(1,4)%fbs(1)%p(64,128,1,2),D_s(1,4)%fbs(1)%p(64,128,1,3),D_s(1,4)%fbs(1)%p(64,128,1,4)   
+!     endif
 
-    if (.NOT. remote(adv_s(1,1),1)) then
-       write(16,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,64,1,2),adv_s(1,1)%fbs(1)%p(64,64,1,3),adv_s(1,1)%fbs(1)%p(64,64,1,4)   
-       write(17,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,94,1,2),adv_s(1,1)%fbs(1)%p(64,94,1,3),adv_s(1,1)%fbs(1)%p(64,94,1,4)   
-       write(18,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,128,1,2),adv_s(1,1)%fbs(1)%p(64,128,1,3),adv_s(1,1)%fbs(1)%p(64,128,1,4)   
-    endif
+!     if (.NOT. remote(adv_s(1,1),1)) then
+!        write(16,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,64,1,2),adv_s(1,1)%fbs(1)%p(64,64,1,3),adv_s(1,1)%fbs(1)%p(64,64,1,4)   
+!        write(17,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,94,1,2),adv_s(1,1)%fbs(1)%p(64,94,1,3),adv_s(1,1)%fbs(1)%p(64,94,1,4)   
+!        write(18,FMT=1000) t,adv_s(1,1)%fbs(1)%p(64,128,1,2),adv_s(1,1)%fbs(1)%p(64,128,1,3),adv_s(1,1)%fbs(1)%p(64,128,1,4)   
+!     endif
 
 1000 FORMAT(5(E15.8,1X))
 1001 FORMAT(I5,4(E15.8,1X))

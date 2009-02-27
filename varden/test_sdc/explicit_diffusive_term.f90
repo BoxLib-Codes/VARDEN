@@ -97,9 +97,6 @@ contains
 
      do n = 1, nlevs
         call multifab_copy_c(lap_data(n),comp,Lphi(n),1)
-        if (mass_fractions .AND. (.NOT. lis_vel)) then
-           call multifab_mult_mult_c(lap_data(n),comp,data(n),1,1)
-        end if
      enddo
 
      do n = 1,nlevs
