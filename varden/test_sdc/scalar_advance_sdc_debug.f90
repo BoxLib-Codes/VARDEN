@@ -12,7 +12,7 @@ module scalar_advance_sdc_module
   use fabio_module
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose, sdc_iters, &
-                            mass_fractions, nspec, sdc_verbose
+                            mass_fractions, nspec
 
   implicit none
 
@@ -23,7 +23,8 @@ contains
 
 !************************************************************
 ! This does SDC with Gauss-Lobatto quadrature nodes 
-! (i.e. both interval endpoints are used)
+! (i.e. both interval endpoints are used).
+! This debug version has a write_plotfile function.
 !************************************************************
   subroutine scalar_advance_sdc(mla,uold,sold,snew,umac, &
                                 ext_scal_force,dx,dt,t,the_bc_tower)
@@ -62,6 +63,14 @@ contains
     real(kind=dp_t) :: smin,smax,norm
 
     type(multifab)  :: snew_old(mla%nlevel), difference(mla%nlevel)
+    character(len=20)         :: plot_names(nscal)
+    character(len=20)         :: sd_name
+    integer, save             :: iter = 0
+    integer, save             :: kiter = 0
+
+    plot_names(1) = 'SpeciesA'
+    plot_names(2) = 'SpeciesB'
+    plot_names(3) = 'SpeciesC'
 
 
     nlevs = mla%nlevel
@@ -119,6 +128,7 @@ contains
     enddo
   
 
+
 !---------------------------------------------------------------
 ! Compute a provisional solution at t=n+1 using Godunov for the
 ! advection term and implicit euler for diffusion
@@ -143,10 +153,16 @@ contains
     ! Create scalar force at time n.
     ! Provided as a source term to calculate advection term adv_s
     !************************************************************
-    ! could use D_s(n,0) and/or time lagged I_R as a source
-    diff_fac = zero     !in mkscalforce: diff_fac*source
-    call mkscalforce(nlevs,scal_force,ext_scal_force,source,diff_fac) 
-    ! use mksource() when source mf only holds the reactive speices
+    ! could use D_S(n,0) as a source here
+    do n = 1, nlevs
+       call multifab_copy_c(scal_force(n),1,ext_scal_force(n),1,&
+                            nscal,ext_scal_force(n)%ng)
+    enddo
+
+    ! another option to do the same thing
+    !diff_fac = zero     !in mkscalforce: diff_fac*source
+    !call mkscalforce(nlevs,scal_force,ext_scal_force,source,diff_fac) 
+    ! NOTE: use mksource when source mf only holds the reactive speices
 
     !***********************************
     ! Create edge state scalars/fluxes
@@ -160,6 +176,7 @@ contains
     call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,& 
                 is_vel,is_conservative,the_bc_tower%bc_tower_array,adv_rho)
 
+!call write_plotfile(1000+iter,nspec,adv_s(:,0))
 
     if (verbose .ge. 1) then
        do n = 1, nlevs
@@ -178,7 +195,7 @@ contains
     !***************************************
     ! Solve u_t = A + D using implicit euler
     !***************************************
-    if (diff_coef > ZERO) then
+   if (diff_coef > ZERO) then
        do n = 1,nlevs
           ! just a dummy to pass in zero to diffusion solve
           call setval(source(n),zero,all=.true.)
@@ -192,9 +209,9 @@ contains
         end do
     end if
 
-    !***********************************************
-    ! Compute a provisional Diffusion(s) at time n+1
-    !***********************************************
+    !***************************************
+    ! Compute a provisional D(s) at time n+1
+    !***************************************
     if (diff_coef .gt. ZERO) then
        do comp = 2, nscal
           bc_comp = dm+comp
@@ -206,6 +223,9 @@ contains
           call multifab_mult_mult_s(D_s(n,1),diff_coef)
        enddo
     endif
+
+!call write_plotfile(300+iter,nscal,snew)
+
 
     !***********************
     ! Integrate reactions
@@ -220,9 +240,10 @@ contains
        enddo
     end if
 
-    ! use sdc_flag=1 for provisional, =2 for SDC
     call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,adv_rho,D_s,sdc_flag=1)
+    ! use sdc_flag=1 for provisional, =2 for SDC
 
+!call write_plotfile(400+iter,nscal,snew)
     !*********************************************
     ! Compute D(s) at time n+1
     !*********************************************
@@ -230,68 +251,81 @@ contains
        do comp = 2, nscal
           bc_comp = dm+comp
           call get_explicit_diffusive_term(mla,D_s(:,2),snew,comp,bc_comp,&
-                                           dx,the_bc_tower,adj_index=.true.,&
-                                           is_vel=.false.)
+                                           dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
        end do
        do n = 1, nlevs
           call multifab_mult_mult_s(D_s(n,2),diff_coef)
        enddo
     endif
     
-    !****************************************************
-    ! Use quadrature to compute approx to integral(A+D+R)
-    !****************************************************
+!call write_plotfile(400+iter,nspec,D_s(:,2))
+
+    !*****************************
+    ! Compute aprrox to int(A+D+R)
+    !*****************************
     call provisional_intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
 
+!call write_plotfile(500+iter,nspec,I_ADR)
+
+!Remove me:
+!*****************************
+! Check changes over a timestep
+     if (parallel_IOProcessor()) write(*,*)  'Initial/Provisional change in s'
+     if (parallel_IOProcessor()) write(*,*) 's_new^0 - s_old min & max'
+     do n = 1, nlevs
+         call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
+         call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
+         norm =  multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+         if (parallel_IOProcessor()) write(*,*) 'L2 norm',norm
+         do comp = 1,nscal
+            smin = multifab_min_c(difference(n),comp) 
+            smax = multifab_max_c(difference(n),comp)
+            if (comp .eq. 1) then
+               if (parallel_IOProcessor()) write(6,2000) n,smin,smax
+            else 
+               if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
+            end if
+         enddo
+         call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+      enddo
 
 
-    !******************************
-    ! Check changes over a timestep
-    !******************************
-    if (sdc_verbose > 0) then
-       if (parallel_IOProcessor()) write(*,*)  'Initial/Provisional change in s'
-       if (parallel_IOProcessor()) write(*,*) 's_new^0 - s_old min & max'
-       do n = 1, nlevs
-          call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
-          call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-          norm =  multifab_norm_l2(difference(n))*sqrt(dx(1,1))
-          if (parallel_IOProcessor()) write(*,*) 'L2 norm',norm
-          do comp = 1,nscal
-             smin = multifab_min_c(difference(n),comp) 
-             smax = multifab_max_c(difference(n),comp)
-             if (comp .eq. 1) then
-                if (parallel_IOProcessor()) write(6,2000) n,smin,smax
-             else 
-                if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
-             end if
-          enddo
-          call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
-       enddo
-    end if
-
-!-----------------------------------------------------------------------
-! SDC iterations
-!-----------------------------------------------------------------------
+   !----SDC iters----------------------------------------------------
     do k = 1,sdc_iters
       
-       !**********************************
-       ! Create new forcing term at time n
-       !**********************************
+      ! Update advection:
+
+       !******************************************************
+       ! Create forcing term at time n.
+       ! used as source term to calculate advection term adv_s
+
        diff_fac = ONE
        call mksource(nlevs,scal_force,ext_scal_force,I_ADR,diff_fac)
 
-       !*********************************
+       !***********************************
        ! Create edge state scalars/fluxes
-       !*********************************
+       
        call mkflux(mla,sold,sedge,sflux,umac,scal_force,divu,dx,dt, &
                    the_bc_tower%bc_tower_array,is_vel,is_conservative)
        
-       !****************************************************************
-       ! Update the scalars with conservative or convective differencing
-       !****************************************************************
-       call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),&
-                   dx,dt,t,is_vel,is_conservative,&
-                   the_bc_tower%bc_tower_array,adv_rho)
+       !*************************************************************
+       ! Create scalar force at time n+1/2
+  
+       ! forcing term doesn't need to be changed
+       !do n = 1, nlevs
+       !   call multifab_copy_c(scal_force(n),1,ext_scal_force(n),1,&
+       !                        nscal,ext_scal_force(n)%ng)
+       !enddo
+
+
+       !*****************************************************************
+       ! Update the scalars with conservative or convective differencing.
+
+       call update(mla,sold,umac,sedge,sflux,scal_force,snew,adv_s(:,0),dx,dt,t,&
+                   is_vel,is_conservative,the_bc_tower%bc_tower_array,adv_rho)
+
+!call write_plotfile(600+kiter+k-1,nscal,snew)
+!call write_plotfile(1100+kiter+k-1,nspec,adv_s(:,0))
 
        if (verbose .ge. 1) then
           do n = 1, nlevs
@@ -307,10 +341,11 @@ contains
           end do
        end if
        
-       !********************************************************
-       ! Update Diffusion
+      
+       ! Update Diffusion:
+       !******************
        ! Solve snew = sold +dt*(delta A(s) + delta D(s)) + I_ADR
-       !********************************************************
+
        do n = 1, nlevs
           call multifab_copy_c(source(n),1,D_s(n,2),1,nscal-1)
           call multifab_mult_mult_s(source(n),-ONE/diff_coef)
@@ -325,9 +360,9 @@ contains
           end do
        end if
        
-       !********************************
-       ! Compute approx D(s) at time n+1
-       !********************************
+       !*********************************************
+       ! Compute a provisional D(s) at time n+1
+
        do n = 1,nlevs
           call setval(D_s(n,1),zero,all=.true.)
        end do
@@ -345,9 +380,12 @@ contains
           enddo
        endif
        
-       !********************
+!call write_plotfile(700+kiter+k-1,nspec,D_s(:,1))
+!call write_plotfile(500+k,nscal,snew)
+
+
+       !***********************
        ! Integrate reactions
-       !********************
        if(mass_fractions) then !rho gets integrated too
           do n = 1, nlevs
              call multifab_copy_c(snew(n),1,sold(n),1,nscal,sold(n)%ng)
@@ -357,63 +395,67 @@ contains
              call multifab_copy_c(snew(n),2,sold(n),2,nspec,sold(n)%ng)
           enddo
        end if
-       ! use sdc_flag=2 for SDC; =1 for provisional
-       call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,adv_rho,D_s,sdc_flag=2)
 
-       !*********************************
-       ! Compute updated D(s) at time n+1
-       !*********************************
+       call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,adv_rho,D_s,sdc_flag=2)
+       ! use sdc_flag=2 for SDC; =1 for provisional
+
+!call write_plotfile(600+k,nscal,snew)
+       !*********************************************
+       ! Compute D(s) at time n+1
+
        if (diff_coef .gt. ZERO) then
           do comp = 2, nscal
              bc_comp = dm+comp
              call get_explicit_diffusive_term(mla,D_s(:,3),snew,comp,bc_comp,&
-                                              dx,the_bc_tower,adj_index=.true.,&
-                                              is_vel=.false.)
+                                              dx,the_bc_tower,adj_index=.true.,is_vel=.false.)
           end do
           do n = 1, nlevs
              call multifab_mult_mult_s(D_s(n,3),diff_coef)
           enddo
        endif
  
-       !****************************************
-       ! Compute quadrature aprrox to int(A+D+R)
-       !****************************************
+!call write_plotfile(1000+k,nscal,snew)
+
+       !*****************************
+       ! Compute aprrox to int(A+D+R)
+
        call intgrl(I_ADR,sold,snew,adv_s,D_s,dt,nlevs)
+
+!call write_plotfile(900+kiter+k-1,nspec,I_ADR)
 
 
        do n = 1, nlevs
           call multifab_copy_c(D_s(n,2),1,D_s(n,3),1,nscal-1)
        enddo
        
-
-       !*******************************
-       ! Check convergence of SDC iters
-       !*******************************
-       if (sdc_verbose >0) then
-          if (parallel_IOProcessor()) write(*,*) 'SDC corrections:  k=',k
-          if (parallel_IOProcessor()) write(*,*) 's_k - s_k+1 min & max'
-          do n = 1, nlevs
-             call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
-             call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-             norm = multifab_norm_l2(difference(n))*sqrt(dx(1,1))
-             if (parallel_IOProcessor()) write(*,*) 'L2 norm', norm
-             do comp = 1,nscal
-                smin = multifab_min_c(difference(n),comp) 
-                smax = multifab_max_c(difference(n),comp)
-                if (comp .eq. 1) then
-                   if (parallel_IOProcessor()) write(6,2000) n,smin,smax
-                else 
-                   if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
-                end if
-             enddo
-             call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+ 
+ !*****************************
+ ! Check convergence of SDC iters
+      if (parallel_IOProcessor()) write(*,*) 'SDC corrections:  k=',k
+      if (parallel_IOProcessor()) write(*,*) 's_k - s_k+1 min & max'
+      do n = 1, nlevs
+          call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
+          call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
+          norm = multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+          if (parallel_IOProcessor()) write(*,*) 'L2 norm', norm
+          do comp = 1,nscal
+             smin = multifab_min_c(difference(n),comp) 
+             smax = multifab_max_c(difference(n),comp)
+             if (comp .eq. 1) then
+                if (parallel_IOProcessor()) write(6,2000) n,smin,smax
+             else 
+                if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
+             end if
           enddo
-          if (k .eq. sdc_iters) then
-             if (parallel_IOProcessor()) write(*,*)
-          end if
-       end if
+          call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
+       enddo
 
     end do  ! sdc_iters loop
+    write(*,*)
+iter = iter + 1
+kiter = kiter + 2
+
+    ! snew is copied into sold in varden.f90
 
     do n = 1,nlevs
        call multifab_destroy(scal_force(n))
@@ -442,6 +484,38 @@ contains
 
 2000 format('... level ', i2,' new min/max : density      ',e17.10,2x,e17.10)
 2001 format('... level ', i2,' new min/max :  tracer ',i2,'   ',e17.10,2x,e17.10)
+    
+  contains
+  
+   subroutine write_plotfile(istep_to_write, n_plot_comps, mf)
+
+    integer,         intent(in   ) :: istep_to_write
+    integer,         intent(in   ) :: n_plot_comps
+    type(multifab),  intent(in   ) :: mf(:)
+
+
+    type(multifab), allocatable :: plotdata(:) 
+    integer        :: n
+
+ 
+    allocate(plotdata(nlevs))
+ 
+    do n = 1,nlevs
+       call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
+       call multifab_copy(plotdata(n), mf(n))
+    end do
+       
+    write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
+    call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
+                                   mla%mba%pd(1), t, dx(1,:))
+
+    do n = 1,nlevs
+      call multifab_destroy(plotdata(n))
+    end do
+    deallocate(plotdata)
+    
+  end subroutine write_plotfile
+
 
   end subroutine scalar_advance_sdc
 

@@ -38,12 +38,13 @@ module probin_module
   real(dp_t),save :: max_dt_growth
   integer, save   :: boussinesq
 
-  logical,save    :: reactions
+  logical,save    :: use_sdc, use_strang
   integer, save   :: sdc_iters
   real(dp_t),save :: k_rxn1, k_rxn2
   logical,save    :: mass_fractions
   integer, save   :: nspec
   integer, save   :: n_rxn_steps
+  integer, save   :: sdc_verbose
 
   integer,save    :: min_width
   real(dp_t),save :: min_eff
@@ -110,7 +111,8 @@ module probin_module
   namelist /probin/ min_eff
   namelist /probin/ min_width
 
-  namelist /probin/ reactions
+  namelist /probin/ use_sdc
+  namelist /probin/ use_strang
   namelist /probin/ sdc_iters
   namelist /probin/ k_rxn1
   namelist /probin/ k_rxn2
@@ -118,6 +120,7 @@ module probin_module
   namelist /probin/ nscal
   namelist /probin/ nspec
   namelist /probin/ n_rxn_steps
+  namelist /probin/ sdc_verbose
 
 contains
 
@@ -189,6 +192,7 @@ contains
     verbose = 0
     mg_verbose = 0
     cg_verbose = 0
+    sdc_verbose = 0
 
     init_shrink =  1.0
     fixed_dt    = -1.0
@@ -221,8 +225,9 @@ contains
     use_godunov_debug = .false.
     use_minion = .false.
 
-    reactions = .false.
-    mass_fractions = .true.
+    use_sdc = .false.
+    use_strang = .false.
+    mass_fractions = .false.
     sdc_iters = -1
     n_rxn_steps = 100
     k_rxn1 = zero
@@ -450,6 +455,15 @@ contains
           call bl_error('regrid_int must be specified if max_levs > 1')
        else if (fixed_grids /= '' .and. regrid_int > 0) then
           call bl_warn('Note: regrid_int will be ignored')
+       end if
+    end if
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Need to specify number of SDC iterations if using SDC
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if (use_sdc) then
+       if (sdc_iters < 0) then
+          call bl_error('sdc_iters must be specified if using SDC')
        end if
     end if
 

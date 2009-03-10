@@ -380,6 +380,10 @@ contains
 
   end subroutine mkscalforce_3d
 
+  !----------------------------------------------------
+  ! This version is used in the SDC implementaion where
+  ! 'laps' only has nspec components rather then nscal
+  !----------------------------------------------------
   subroutine mksource(nlevs,scal_force,ext_scal_force,laps,diff_fac)
 
     integer        , intent(in   ) :: nlevs

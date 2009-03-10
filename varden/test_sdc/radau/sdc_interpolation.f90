@@ -7,7 +7,7 @@ module sdc_interpolation
 
   implicit none
   
-  ! number of terms at various times we need to save
+  ! number of terms at various times/quadrature points we need to save
   integer, parameter :: n_adv = 1
   integer, parameter :: n_diff = 4
   integer, parameter :: n_interp_pts = 2
@@ -19,15 +19,14 @@ module sdc_interpolation
      real(kind=dp_t), dimension(:), pointer :: p(:,:,:,:)
   end type dpt_pntr
 
-  public ::  mk_I_AD, get_single_location_array,&
-             get_interp_pts_array
+  public ::  mk_I_AD, get_interp_pts_array
 
 contains
   
   subroutine mk_I_AD(I_AD,adv,diff,nlevs)
-    !*************************************************************** 
-    ! This takes is really I_AD/(sdc_fac*dt) with A canceled with A's from I_R
-    !***************************************************************
+    !*******************************************************************
+    ! This is really I_AD/(sdc_fac*dt) with A canceled with A's from I_R
+    !*******************************************************************
     type(multifab) , intent(inout) :: I_AD(:,:)
     type(multifab) , intent(in   ) :: adv(:,:), diff(:,:)
     integer,         intent(in   ) :: nlevs
@@ -94,39 +93,13 @@ contains
 
   end subroutine mk_I_AD
 
-  subroutine get_single_location_array(full_array,sngl_pt,lev,box,x,y,z,hi)
-    !*********************************
-    ! this subroutine takes the full array of adv (or diff) data 
-    ! and creates an array that holds adv (diff) at all the various times 
-    ! (i.e. adv at all the quadrature points) 
-    ! associated with a single spatial location
-    !*********************************
-
-    type(multifab),   intent(in   ) :: full_array(:,0:)
-    real(kind=dp_t),  intent(  out) :: sngl_pt(0:,:)
-    integer,          intent(in   ) :: lev,box,hi
-    integer,          intent(in   ) :: x,y,z
-
-    integer             :: t,s
-    real(kind=dp_t), pointer :: aop(:,:,:,:)
-
-
-    do t = 0, hi
-       aop    => dataptr(full_array(lev,t), box)
-       do s = 1, nspec
-          sngl_pt(t,s) = aop(x,y,z,s)
-       end do
-    end do
-
-  end subroutine get_single_location_array
-
   subroutine get_interp_pts_array(full_array,times_array,lev,box,hi)
-    !*********************************
+    !********************************************************************
     ! this subroutine takes the full array of adv (or diff) data 
     ! and creates an array that holds adv (diff) at all the various times 
     ! (i.e. adv at all the quadrature points) 
     ! associated with a single spatial location
-    !*********************************
+    !********************************************************************
 
     type(multifab),  intent(in   ) :: full_array(:,:)
     type(dpt_pntr),  intent(  out) :: times_array(:)

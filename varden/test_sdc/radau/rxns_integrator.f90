@@ -10,7 +10,6 @@ module rxns_integrator
   use multifab_physbc_module
   use probin_module,  only : nscal, mass_fractions, n_rxn_steps
   use sdc_interpolation
-!  use reaction_fn
 
   implicit none
 
@@ -22,8 +21,8 @@ module rxns_integrator
 
 contains 
 
-  ! used with strang splitting
-  subroutine react_strang(mla,the_bc_tower,s,dx,dt,t)!,f)  
+  ! used with strang splitting to integrate reactions 0 -> dt
+  subroutine react_strang(mla,the_bc_tower,s,dx,dt,t)
 
     type(ml_layout), intent(in   ) :: mla   
     type(bc_tower) , intent(in   ) :: the_bc_tower
@@ -31,14 +30,6 @@ contains
     real(kind=dp_t),      intent(in   ) :: dx(:,:)
     real(kind=dp_t),      intent(in   ) :: dt
     real(kind=dp_t),      intent(in   ) :: t
-!     interface
-!        subroutine f(soln,u,t)
-!          use bl_types
-!          real(kind=dp_t),  intent(  out) :: soln(:)
-!          real(kind=dp_t),  intent(in   ) :: u(:)
-!          real(kind=dp_t),  intent(in   ) :: t
-!        end subroutine f
-!     end interface
 
     ! local
     integer             :: n,i,dm,ng,nlevs,ix,iy,iz
@@ -62,7 +53,7 @@ contains
           case (2)
              do iy = lo(2), hi(2)                   
                 do ix = lo(1),hi(1)
-                   call vode(sop(ix,iy,1,:))!,f)
+                   call vode(sop(ix,iy,1,:))
                 end do
              end do
 
@@ -70,7 +61,7 @@ contains
              do iz = lo(3), hi(3)
                 do iy = lo(2), hi(2)
                    do ix = lo(1), hi(1)
-                      call vode(sop(ix,iy,iz,:))!,f)
+                      call vode(sop(ix,iy,iz,:))
                    end do
                 end do
              end do
@@ -96,16 +87,8 @@ contains
 
   contains
 
-    subroutine vode(u)!,f)
+    subroutine vode(u)
       real(kind=dp_t), intent(inout) ::  u(:)
-   !    interface
-!          subroutine f(soln,u,t)
-!            use bl_types
-!            real(kind=dp_t),  intent(  out)  :: soln(:)
-!            real(kind=dp_t),  intent(in   )  :: u(:)
-!            real(kind=dp_t),  intent(in   )  :: t
-!          end subroutine f
-!       end interface
 
       integer i,s
       real(kind=dp_t)  dtl, tl
@@ -119,8 +102,6 @@ contains
       k3(:)=zero
       k4(:)=zero
 
-
-      ! either all the tracers are conserv or not convervative
       if (mass_fractions) then
          do i = 2,nscal
             u(i) = u(i)/u(1)
@@ -156,7 +137,6 @@ contains
          tl = tl + dtl
       enddo
 
-      ! either all the tracers are conserv or not convervative
       if (mass_fractions) then
          do i = 2,nscal
             u(i) = u(i)*u(1)
@@ -176,16 +156,10 @@ contains
 
       real(kind=dp_t) :: u2,u3,u4
 
-      ! first component is density 
+
       u2 = merge(u(2), zero, u(2) > 0.d0)
       u3 = merge(u(3), zero, u(3) > 0.d0)
       u4 = merge(u(4), zero, u(4) > 0.d0)
-
- !      if(mass_fractions) then
-!          k1 = merge(k_rxn2,zero,u(2)<= one)
-!          k2 = merge(k_rxn2,zero,u(3)<= one)
-!          k3 = merge(k_rxn1,zero,u(4)<= one)
-!       endif
 
       soln(2) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
       soln(3) =    -k_rxn1*u3*u2 + half*k_rxn2*u4
@@ -198,7 +172,7 @@ contains
 
 
 
-  ! used with SDC
+  ! used with SDC to integrate the system from 0 -> sdc_fac(j)*dt
   subroutine react_sdc(mla,the_bc_tower,s,dx,dt,t,j,adv,adv_rho,diff,&
        sdc_flag)  
 
@@ -281,13 +255,7 @@ contains
       !    real(kind=dp_t)  rxn1(nspecies), rxn2(nspecies)
       real(kind=dp_t) ::  k1(nscal), k2(nscal), k3(nscal), k4(nscal)
 
-!unneeded
-!      k1(:) = zero
-!      k2(:) = zero
-!      k3(:) = zero
-!      k4(:) = zero
 
-      ! Integrals adjusted to go from 0 -> 1
       dtl = dt*sdc_dt_fac(j)/dble(n_rxn_steps)
       tl = zero
 
@@ -296,7 +264,6 @@ contains
       ! for provisional integration   
       case(1)    
 
-         !NOTE to Candace: put if (mass_fractions) up here?  
          do i = 1,n_rxn_steps
 
             ! euler predictor-corrector method
@@ -315,11 +282,6 @@ contains
             call provisional(k2,u + half*dtl*k1, tl + half*dtl)
             call provisional(k3,u + half*dtl*k2, tl + half*dtl)
             call provisional(k4,u +      dtl*k3, tl +      dtl)
-
-!            call provisional(k1,u              , tl           ,adv,diff)
-!            call provisional(k2,u + half*dtl*k1, tl + half*dtl,adv,diff)
-!            call provisional(k3,u + half*dtl*k2, tl + half*dtl,adv,diff)
-!            call provisional(k4,u +      dtl*k3, tl +      dtl,adv,diff)
             
             do s = 1,nscal
                u(s) = u(s) + dtl*(k1(s) + 2.d0*k2(s) + 2.d0*k3(s) + k4(s))/six
@@ -349,15 +311,8 @@ contains
             call sdc(k3,u + half*dtl*k2, tl + half*dtl)
             call sdc(k4,u +      dtl*k3, tl +      dtl)
 
-!            call sdc(k1,u              , tl           ,adv,diff)
-!            call sdc(k2,u + half*dtl*k1, tl + half*dtl,adv,diff)
-!            call sdc(k3,u + half*dtl*k2, tl + half*dtl,adv,diff)
-!            call sdc(k4,u +      dtl*k3, tl +      dtl,adv,diff)
-            
             do s = 1,nscal
                u(s) = u(s) + dtl*(k1(s) + 2.d0*k2(s) + 2.d0*k3(s) + k4(s))/six
-! this was a bad idea
-!               u(s) = merge(u(s), zero, u(s) > zero)
             end do
 
             tl = tl + dtl
@@ -365,38 +320,29 @@ contains
 
       end select
 
-!      do i = 2,nscal
-!               u(s) = merge(u(s), zero, u(s) > zero)
-!         u(i) = u(i)*dt*sdc_dt_fac(j)
-!      enddo      
-
       return
     end subroutine vode_sdc
 
 
-    !--------------------------------------------------------------------
-    ! The integrals
-    ! make sure to adjust integral to 0 -> 1        
-    ! changed to 0 -> (b-a)*dt
-
+!---------------------------------------------------------------
+! The integrals
+! make sure to adjust integral to 0 -> (b-a)*dt
+!---------------------------------------------------------------
     ! for provisional soln in SDC
-    subroutine provisional(soln,u,t)!,adv,diff)
+    subroutine provisional(soln,u,t)
       real(kind=dp_t),  intent(  out) :: soln(:)
       real(kind=dp_t),  intent(in   ) :: u(:)
       real(kind=dp_t),  intent(in   ) :: t!,dt
-!      real(kind=dp_t),  intent(in   ) :: adv(:,:)
-!      real(kind=dp_t),  intent(in   ) :: diff(:,:)
 
       integer         :: i
       real(kind=dp_t) :: rxns(nscal)
 
-!      rxns(:) = zero
+
       ! compute the rxns 
       call f_rxn(rxns,u,t)
       soln(1) = rxns(1)
 
-      ! compute the adv-diff for the provisional solution
-      ! depends only on choice of provisional method
+      ! add in adv-diff for the provisional solution
       do i = 1, nspec
          soln(i+1) = A(1)%p(ix,iy,iz,i) + D(j)%p(ix,iy,iz,i)&
                       + rxns(i+1)
@@ -406,87 +352,58 @@ contains
 
 
     ! for computing SDC corrections
-    subroutine sdc(soln,u,t)!,adv,diff)
+    subroutine sdc(soln,u,t)
       real(kind=dp_t),  intent(  out) :: soln(:)
       real(kind=dp_t),  intent(in   ) :: u(:)
       real(kind=dp_t),  intent(in   ) :: t!,dt
-!      real(kind=dp_t),  intent(in   ) :: adv(:,:)
-!      real(kind=dp_t),  intent(in   ) :: diff(:,:)
 
       integer         :: i
       real(kind=dp_t) :: rxns(nscal)
 
 
-!      rxns(:) = zero
-
       ! compute the rxns
       call f_rxn(rxns,u,t)
       soln(1) = rxns(1)
 
-      ! compute the adv-diff: 
+      ! compute the adv-diff part: 
       ! (interpolation of A+D) + (D_new-D_old) + (A_new-A_old)
       do i = 1, nspec
            soln(i+1) = A(1)%p(ix,iy,iz,i) + D(j+n_interp_pts)%p(ix,iy,iz,i) &
                        - D(j)%p(ix,iy,iz,i) + D(1)%p(ix,iy,iz,i)  & 
                        + (D(2)%p(ix,iy,iz,i) - D(1)%p(ix,iy,iz,i)) &
-! integrate 0 -> 1
-!                       *THREE*(sdc_dt_fac(j)*t + pts(j-1) - THIRD)/TWO &
-! integrate 0 -> (b-a)dt
                        *(t/dt + pts(j-1) - THIRD)/TWO3RD &
                        + rxns(i+1)
       end do      
 
     end subroutine sdc
 
-    !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
  
     subroutine f_rxn(soln,u,t)  
-     use probin_module, only : k_rxn1, k_rxn2
-
+      use probin_module, only : k_rxn1, k_rxn2
+      
       real(kind=dp_t),  intent(  out) :: soln(:)
       real(kind=dp_t),  intent(in   ) :: u(:)
       real(kind=dp_t),  intent(in   ) :: t
-
-
-
-
-
-
-
-
+      
       real(kind=dp_t) :: u2,u3,u4,k1,k2,k3
       real(kind=dp_t) :: rho
-
-      ! first component is density 
-       u2 = merge(u(2), zero, u(2) > zero)
-       u3 = merge(u(3), zero, u(3) > zero)
-       u4 = merge(u(4), zero, u(4) > zero)
-
-!       if(mass_fractions) then
-!          k1 = merge(k_rxn2,zero,u(2)<= one)
-!          k2 = merge(k_rxn2,zero,u(3)<= one)
-!          k3 = merge(k_rxn1,zero,u(4)<= one)
-!       endif
       
-!      u2 = u(2)
-!      u3 = u(3)
-!      u4 = u(4)
-
-      k1 = k_rxn2
-      k2 = k_rxn2
-      k3 = k_rxn1
-
+      u2 = merge(u(2), zero, u(2) > zero)
+      u3 = merge(u(3), zero, u(3) > zero)
+      u4 = merge(u(4), zero, u(4) > zero)
+      
       if(mass_fractions) then
          rho = u(1)
          soln(1) = arop(ix,iy,iz,1)
-         soln(2) = -k_rxn1*u3*u2/rho + half*k1*u4
-         soln(3) = -k_rxn1*u3*u2/rho + half*k2*u4
-         soln(4) =  two*k3*u3*u2/rho - k_rxn2*u4
+         soln(2) = -k_rxn1*u3*u2/rho + half*k_rxn2*u4
+         soln(3) = -k_rxn1*u3*u2/rho + half*k_rxn2*u4
+         soln(4) =  two*k_rxn1*u3*u2/rho - k_rxn2*u4
       else
          soln(1) = zero
-         soln(2) = -k_rxn1*u3*u2 + half*k1*u4
-         soln(3) = -k_rxn1*u3*u2 + half*k2*u4
-         soln(4) =  two*k3*u3*u2 - k_rxn2*u4
+         soln(2) = -k_rxn1*u3*u2 + half*k_rxn2*u4
+         soln(3) = -k_rxn1*u3*u2 + half*k_rxn2*u4
+         soln(4) =  two*k_rxn1*u3*u2 - k_rxn2*u4
       end if
     end subroutine f_rxn
 

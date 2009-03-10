@@ -76,9 +76,9 @@ contains
     do n = 1, nlevs
        call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
        call multifab_build(gphi(n), mla%la(n), dm, 0) 
-!       call multifab_copy(phi(n),p(n))
-!       call multifab_mult_mult_s(phi(n),dt,phi(n)%ng)
+       call setval(phi(n),ZERO,all=.true.)
     end do
+
 
     if (verbose .ge. 1) then
        umin = 1.d30
@@ -119,10 +119,6 @@ contains
        call mult_by_3d_coeff(nlevs,unew,div_coeff_3d,.true.)
        call mult_by_3d_coeff(nlevs,rhohalf,div_coeff_3d,.false.)
     end if
-
-    do n = 1, nlevs
-       call setval(phi(n),ZERO,all=.true.)
-    end do
 
     if (present(divu_rhs)) then
        call enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)

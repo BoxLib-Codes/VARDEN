@@ -7,57 +7,53 @@
 ! number of traces/species
  nspec = 3
 
- slope_order = 4
-
 ! inputs for reactions
-  reactions = T
+! for SDC, must have n_rxns >= 1 
+  n_rxn_steps = 50
+!  k_rxn1 = 5111.d0
+!  k_rxn1 = 217131.d0
+  k_rxn1 = 20.
+  k_rxn2 = 10.
 
-! sdc_iters < 0 means use strang splitting
-  sdc_iters = 20
-
- max_step  = 1
- init_iter = 0
-!gets over-written with fixed dt
-! init_shrink = 0.1
+ use_strang = F
+ use_sdc = T
+! must set if using SDC
+ sdc_iters = 2
 
 ! 1 = Crank-Nicolson or SDC, 2 = Backward Euler
-! SDC uses source terms in the diffusion solve, like CN does, 
-! so need to use type 1
  diffusion_type = 1
 
+! default = F
+ mass_fractions = T
+
+ init_iter = 2
+ init_shrink = 1.0
+
+ max_step  = 100
+
  stop_time = 0.0625
-! stop_time = 2.0
 ! stop_time = 0.0875
-! fixed_dt = 0.00390625 !128
-! fixed_dt = 0.001953125 !256
+
+! fixed_dt = 0.03125 !16
  fixed_dt = 0.015625 !32
 ! fixed_dt = 0.0078125 !64
-! fixed_dt = 0.03125 !16
+! fixed_dt = 0.00390625 !128
+! fixed_dt = 0.001953125 !256
 ! fixed_dt = 0.000078125 !
 ! fixed_dt = 0.00048828125 !1024
-! fixed_dt = 0.00068359375 !1024
-! fixed_dt = 0.002734375 !256
-! fixed_dt = 0.00546875 !128
-! fixed_dt = 0.0109375 !64
+! fixed_dt = 0.000244140625 !2048
 ! fixed_dt = 0.021875 !32
-! fixed _dt = 0.000244140625 !2048
+! fixed_dt = 0.0109375 !64
+! fixed_dt = 0.00546875 !128
+! fixed_dt = 0.002734375 !256
+! fixed_dt = 0.00068359375 !1024
 
  cflfac = 0.5
 
-! visc_coef = 0.001
  visc_coef = 0.00
  diff_coef = 0.01
 
-  n_rxn_steps = 1
-!  k_rxn1 = 5111.d0
-!  k_rxn1 = 217131.d0
-!  k_rxn1 = 0.d0
-!  k_rxn2 = 0.d0
-  k_rxn1 = 0.
-  k_rxn2 = 0.
-
-! default = T
- mass_fractions = T
+ slope_order = 4
 
 !!!! Input for fixed grids !!!!
 ! fixed_grids = "gr0_2d_2levels"
@@ -80,7 +76,6 @@ max_grid_size = 256
 
  prob_hi_x = 1.0
  prob_hi_y = 1.0
-
 
  plot_int  = 10
  chk_int   = 10
@@ -107,6 +102,7 @@ max_grid_size = 256
  verbose = 0
  mg_verbose = 0
  cg_verbose = 0
+ sdc_verbose = 1
 
 ! restart = 80
 /

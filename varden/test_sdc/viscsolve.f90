@@ -272,8 +272,6 @@ contains
           call setval(alpha(n),ONE,all=.true.)
           call setval( beta(n), mu,all=.true.)
        end if
-! debugging test --REMOVE ME!
-!             call multifab_mult_mult_s_c(beta(n),2,zero,1,1)
     end do
 
 
@@ -310,7 +308,7 @@ contains
     end do
 
     if (mass_fractions) then
-       ! multiply mass fraction (what we solved for) by density
+       ! multiply mass fraction by density
        do n = 1,nlevs
           call multifab_mult_mult_c(snew(n),icomp,snew(n),1,1)
        enddo

@@ -71,7 +71,6 @@ contains
           do i = 1,dm
              ! mult by density
              call multifab_mult_mult_c(beta(n),i,data(n),1,1,1)
-             ! should mult by diff_coeff here if spatially dependent 
           end do
        end if
     enddo
@@ -82,6 +81,7 @@ contains
      do n = 1, nlevs
         call multifab_copy_c(phi(n),1,data(n),data_comp,1,1)
         if (mass_fractions .AND. (.NOT.lis_vel)) then
+           ! divide out density
            call multifab_div_div_c(phi(n),1,data(n),1,1,1)
         end if
      enddo

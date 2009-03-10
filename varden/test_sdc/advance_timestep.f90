@@ -19,14 +19,21 @@ module advance_module
   use rhohalf_module
   use explicit_diffusive_module
   use viscous_module
-  use probin_module, only : nscal, visc_coef, diff_coef, diffusion_type, stencil_order, &
-                            verbose, mg_verbose, cg_verbose, reactions, sdc_iters, &
-                            mass_fractions
+  use probin_module, only : nscal, visc_coef, diff_coef, diffusion_type,& 
+                            stencil_order, verbose, mg_verbose, cg_verbose,&
+                            use_strang, use_sdc, mass_fractions
   use proj_parameters
   use rxns_integrator
   use scalar_advance_sdc_module
 
 contains
+
+!******************************************************
+! In addition to the ability to use SDC for advancing the scalars in 
+! time, this code also has some lines, inserted by Ann (but commented 
+! out), for using SDC to advance the velocity.  
+! CEG - 3/9/09
+!****************************************************** 
 
   subroutine advance_timestep(istep,mla,sold,uold,snew,unew,gp,p,ext_vel_force,ext_scal_force,&
                               the_bc_tower,dt,time,dx,press_comp,proj_type)
@@ -103,19 +110,19 @@ contains
 
     call macproject(mla,umac,sold,dx,time,the_bc_tower,press_comp)
 
-    if (reactions) then
-       if (sdc_iters >= 0) then
-          call scalar_advance_sdc(mla,uold,sold,snew,umac, &
-               ext_scal_force,dx,dt,time,the_bc_tower) 
-       else     ! use strang splitting          
-          call react(mla,the_bc_tower,sold,dx,half*dt,time)!,f_rxn)
+    if (use_sdc) then
+       call scalar_advance_sdc(mla,uold,sold,snew,umac, &
+                               ext_scal_force,dx,dt,time,the_bc_tower) 
+    else
+       if (use_strang) then         
+          call react(mla,the_bc_tower,sold,dx,half*dt,time)
           call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
                               dx,dt,time,the_bc_tower)
-          call react(mla,the_bc_tower,snew,dx,half*dt,time)!,f_rxn)  
-       endif
-    else
-       call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
-                        dx,dt,time,the_bc_tower)
+          call react(mla,the_bc_tower,snew,dx,half*dt,time)  
+       else
+          call scalar_advance(mla,uold,sold,snew,umac,ext_scal_force, &
+                              dx,dt,time,the_bc_tower)
+       end if
     endif
 
 

@@ -135,9 +135,6 @@ subroutine varden()
           call setval(rhohalf(n),ONE, all=.true.)
         end do
 
-!call multifab_print(uold(1))
-!stop
-
         call hgproject(initial_projection,mla,uold,uold,rhohalf,p,gp,dx,&
                        dt_temp,time, the_bc_tower,press_comp)
 
@@ -491,6 +488,7 @@ contains
        call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
        call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
        if(mass_fractions) then
+          ! rho*y_i carried in s; need to divide out rho
           do nc = 1, nspec
              call multifab_div_div_c(plotdata(n),1+dm+nc,sold(n),1,1)
           end do
