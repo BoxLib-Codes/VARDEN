@@ -86,9 +86,6 @@ contains
     is_vel  = .false.
 
     ! for using time-lagged I_R as a source term in Godunov
-    ! would have to re-do computation of I_R and I_AD 
-    ! if were to actually use I_R in this way.  Currently I_R
-    ! isn't just the integral of the reactions.
     if (iter < 1) then
        allocate(I_R(mla%nlevel,n_interp_pts+1))
        do n = 1, nlevs

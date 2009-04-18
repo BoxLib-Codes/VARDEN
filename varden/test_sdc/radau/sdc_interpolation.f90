@@ -24,9 +24,10 @@ module sdc_interpolation
 contains
   
   subroutine mk_I_AD(I_AD,adv,diff,nlevs)
-    !*******************************************************************
-    ! This is really I_AD/(sdc_fac*dt) with A canceled with A's from I_R
-    !*******************************************************************
+    !*************************************************************
+    ! This is really I_AD/(sdc_fac*dt) with A(s_old) canceled with 
+    ! -A(s_old) from advection sdc update
+    !*************************************************************
     type(multifab) , intent(inout) :: I_AD(:,:)
     type(multifab) , intent(in   ) :: adv(:,:), diff(:,:)
     integer,         intent(in   ) :: nlevs
