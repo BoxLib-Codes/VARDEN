@@ -467,6 +467,15 @@ contains
        end if
     end if
 
+    if (use_sdc .AND. use_strang) then
+       call bl_error('must have only one of use_strang or use_sdc = TRUE')
+    end if
+
+    if (use_strang) then
+       sdc_iters = -1
+    end if
+
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! If n_error_buf hasn't been set in the inputs file.
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
