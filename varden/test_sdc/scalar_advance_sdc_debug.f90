@@ -12,7 +12,9 @@ module scalar_advance_sdc_module
   use fabio_module
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose, sdc_iters, &
-                            mass_fractions, nspec
+                            mass_fractions, nspec,&
+! For gatering "region of convergence" data.  REMOVE ME
+                            k_rxn1, k_rxn2
 
   implicit none
 
@@ -72,6 +74,17 @@ contains
     plot_names(2) = 'SpeciesB'
     plot_names(3) = 'SpeciesC'
 
+
+! For gatering "region of convergence" data.  REMOVE ME
+    if (iter .eq. 0) then
+       write(99,*)mass_fractions
+       write(99,*)diff_coef
+       write(99,*)nscal
+       write(99,*)nspec
+       write(99,*)k_rxn1,k_rxn2
+       write(99,*)sdc_iters
+       write(99,*)dt
+    endif
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -275,7 +288,7 @@ contains
      do n = 1, nlevs
          call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
          call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-         norm =  multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+         norm =  multifab_norm_l2(difference(n))*sqrt(dx(n,1)*dx(n,2))
          if (parallel_IOProcessor()) write(*,*) 'L2 norm',norm
          do comp = 1,nscal
             smin = multifab_min_c(difference(n),comp) 
@@ -436,24 +449,45 @@ contains
       do n = 1, nlevs
           call multifab_copy_c(difference(n),1,snew_old(n),1,nscal)
           call multifab_sub_sub_c(difference(n),1,snew(n),1,nscal)
-          norm = multifab_norm_l2(difference(n))*sqrt(dx(1,1))
+          norm = multifab_norm_l2(difference(n))*sqrt(dx(n,1)*dx(n,2))
           if (parallel_IOProcessor()) write(*,*) 'L2 norm', norm
           do comp = 1,nscal
              smin = multifab_min_c(difference(n),comp) 
              smax = multifab_max_c(difference(n),comp)
              if (comp .eq. 1) then
                 if (parallel_IOProcessor()) write(6,2000) n,smin,smax
+! For gatering "region of convergence" data.  REMOVE ME
+                if (parallel_IOProcessor()) then
+                   write(99,*) k
+                   write(99,*) comp,smin,smax
+                endif
              else 
                 if (parallel_IOProcessor()) write(6,2001) n,comp,smin,smax
+! For gatering "region of convergence" data.  REMOVE ME
+                if (parallel_IOProcessor()) write(99,*) comp,smin,smax
+                if (abs(smin)>1.d10) then
+                   if (parallel_IOProcessor()) then
+                      open(77,FILE = 'Lob_DNC.dat', ACCESS = 'APPEND', STATUS = 'OLD')
+                      write(66,*) 1
+                      write(77,*)'# from scalar_advance: dt = ',dt 
+                      write(77,*)k_rxn1,k_rxn2,0
+                      close(77)
+                   endif
+                   goto 100 
+                else 
+                   if (parallel_IOProcessor()) then 
+                      if (comp.eq.nscal .and. n.eq.nlevs .and. k.eq.sdc_iters) write(66,*)0
+                   endif
+                end if
              end if
           enddo
           call multifab_copy_c(snew_old(n),1,snew(n),1,nscal)
        enddo
 
     end do  ! sdc_iters loop
-    write(*,*)
-iter = iter + 1
-kiter = kiter + 2
+100    write(*,*)'continuing after sdc iters loop'
+    iter = iter + 1
+    kiter = kiter + 2
 
     ! snew is copied into sold in varden.f90
 
