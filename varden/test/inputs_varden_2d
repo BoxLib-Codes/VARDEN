@@ -1,10 +1,6 @@
 &PROBIN
  dim_in = 2
 
-!!!! Input for fixed grids !!!!
-! fixed_grids = "gr0_2d"
-
-!!!! Inputs for adaptive grids !!!!
  max_levs = 4
  n_cellx = 32
  n_celly = 32
