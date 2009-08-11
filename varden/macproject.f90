@@ -613,6 +613,7 @@ contains
             case (2)
                call mk_mac_coeffs_2d(bxp(:,:,1,1),byp(:,:,1,1),ng_b,rp(:,:,1,1),ng_r,lo,hi)
             case (3)
+               bzp => dataptr(beta(n,3), i)
                call mk_mac_coeffs_3d(bxp(:,:,:,1),byp(:,:,:,1),bzp(:,:,:,1),ng_b,rp(:,:,:,1),ng_r,lo,hi)
             end select
          end do
