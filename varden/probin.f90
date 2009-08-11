@@ -44,6 +44,7 @@ module probin_module
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
   logical   , allocatable, save :: pmask(:)
+  logical   , allocatable, save :: edge_nodal_flag(:,:)
   real(dp_t), allocatable, save :: prob_hi(:)
   real(dp_t), allocatable, save :: prob_lo(:)
 
@@ -120,7 +121,7 @@ contains
     logical :: lexist
     logical :: need_inputs
 
-    integer :: un, ierr
+    integer :: i, un, ierr
 
     narg = command_argument_count()
 
@@ -186,6 +187,20 @@ contains
     pmask_x = .false.
     pmask_y = .false.
     pmask_z = .false.
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize edge_nodal_flag
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    allocate(edge_nodal_flag(dim_in,dim_in))
+    edge_nodal_flag = .false.
+    do i = 1,dim_in
+       edge_nodal_flag(i,i) = .true.
+    end do
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize other stuff
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
     ! 1 = Crank-Nicolson, 2 = Backward Euler
     diffusion_type = 1

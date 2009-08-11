@@ -21,7 +21,8 @@ contains
   subroutine macproject(mla,umac,rho,dx,the_bc_tower,bc_comp,&
                         divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
-    use probin_module, only: stencil_order
+    use probin_module, only: stencil_order, edge_nodal_flag
+    use mac_multigrid_module
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: umac(:,:)
@@ -72,9 +73,9 @@ contains
     end do
 
     if (use_div_coeff_1d) then
-       call mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff_1d,div_coeff_half_1d,.true.)
+       call mult_edge_by_1d_coeff(mla,umac,div_coeff_1d,div_coeff_half_1d,.true.)
     else if (use_div_coeff_3d) then
-       call mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff_3d,.true.)
+       call mult_edge_by_3d_coeff(mla,umac,div_coeff_3d,.true.)
     end if
 
     ! Compute umac_norm to be used inside the MG solver as part of a stopping criterion
@@ -94,9 +95,9 @@ contains
     call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
     if (use_div_coeff_1d) then
-       call mult_beta_by_1d_coeff(nlevs,beta,div_coeff_1d,div_coeff_half_1d)
+       call mult_edge_by_1d_coeff(mla,beta,div_coeff_1d,div_coeff_half_1d,.true.)
     else if (use_div_coeff_3d) then
-       call mult_beta_by_3d_coeff(mla,nlevs,beta,div_coeff_3d)
+       call mult_edge_by_3d_coeff(mla,beta,div_coeff_3d,.true.)
     end if
 
     do n = 2,nlevs
@@ -115,9 +116,9 @@ contains
     end if
 
     if (use_div_coeff_1d) then
-       call mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff_1d,div_coeff_half_1d,.false.)
+       call mult_edge_by_1d_coeff(mla,umac,div_coeff_1d,div_coeff_half_1d,.false.)
     else if (use_div_coeff_3d) then
-       call mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff_3d,.false.)
+       call mult_edge_by_3d_coeff(mla,umac,div_coeff_3d,.false.)
     end if
 
     if (nlevs .gt. 1) then
@@ -136,7 +137,9 @@ contains
        call multifab_destroy(rh(n))
        call multifab_destroy(phi(n))
        call multifab_destroy(alpha(n))
-       call multifab_destroy(beta(n))
+       do d = 1,dm
+          call multifab_destroy(beta(n,d))
+       end do
     end do
 
     do n = 2,nlevs
@@ -265,13 +268,12 @@ contains
 
     end subroutine divumac_3d
 
-    subroutine mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff,div_coeff_half,do_mult)
+    subroutine mult_edge_by_1d_coeff(mla,edge,div_coeff,div_coeff_half,do_mult)
 
       use ml_restriction_module, only: ml_edge_restriction
 
       type(ml_layout), intent(in   ) :: mla
-      integer        , intent(in   ) :: nlevs
-      type(multifab) , intent(inout) :: umac(:,:)
+      type(multifab) , intent(inout) :: edge(:,:)
       real(dp_t)     , intent(in   ) :: div_coeff(:,0:)
       real(dp_t)     , intent(in   ) :: div_coeff_half(:,0:)
       logical        , intent(in   ) :: do_mult
@@ -279,25 +281,26 @@ contains
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
-      integer                  :: lo(umac(1,1)%dim)
-      integer                  :: i,dm,n
+      integer                  :: lo(edge(1,1)%dim)
+      integer                  :: i,dm,n,nlevs
 
-      dm = umac(1,1)%dim
+      dm    = mla%dim
+      nlevs = mla%nlevel
 
       do n=1,nlevs
          ! Multiply edge velocities by div coeff
-         do i = 1, umac(n,1)%nboxes
-            if ( multifab_remote(umac(n,1), i) ) cycle
-            ump => dataptr(umac(n,1), i)
-            vmp => dataptr(umac(n,2), i)
-            lo =  lwb(get_box(umac(n,1), i))
+         do i = 1, edge(n,1)%nboxes
+            if ( multifab_remote(edge(n,1), i) ) cycle
+            ump => dataptr(edge(n,1), i)
+            vmp => dataptr(edge(n,2), i)
+            lo =  lwb(get_box(edge(n,1), i))
             select case (dm)
             case (2)
                call mult_by_1d_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), &
                                         div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
                                         do_mult)
             case (3)
-               wmp => dataptr(umac(n,3), i)
+               wmp => dataptr(edge(n,3), i)
                call mult_by_1d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                         div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
                                         do_mult)
@@ -305,126 +308,91 @@ contains
          end do
 
          do i=1,dm
-            call multifab_fill_boundary(umac(n,i))
+            call multifab_fill_boundary(edge(n,i))
          enddo
       end do
 
       do n = nlevs,2,-1
          do i = 1,dm
-            call ml_edge_restriction(umac(n-1,i),umac(n,i),mla%mba%rr(n-1,:),i)
+            call ml_edge_restriction(edge(n-1,i),edge(n,i),mla%mba%rr(n-1,:),i)
          end do
       end do
       
-    end subroutine mult_umac_by_1d_coeff
+    end subroutine mult_edge_by_1d_coeff
 
-    subroutine mult_beta_by_1d_coeff(nlevs,beta,div_coeff,div_coeff_half)
+    subroutine mult_by_1d_coeff_2d(uedge,vedge,div_coeff,div_coeff_half,do_mult)
 
-      integer        , intent(in   ) :: nlevs
-      type(multifab) , intent(inout) :: beta(:)
-      real(dp_t)     , intent(in   ) :: div_coeff(:,0:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(:,0:)
-
-      real(kind=dp_t), pointer :: bp(:,:,:,:) 
-      integer                  :: lo(beta(1)%dim)
-      integer                  :: i,dm,n
-
-      dm = beta(1)%dim
-
-      do n=1,nlevs
-         ! Multiply edge coefficients by div coeff
-         do i = 1, beta(1)%nboxes
-            if ( multifab_remote(beta(n), i) ) cycle
-            bp => dataptr(beta(n),i)
-            lo =  lwb(get_box(beta(n), i))
-            select case (dm)
-            case (2)
-               call mult_by_1d_coeff_2d(bp(:,:,1,1), bp(:,:,1,2), &
-                                        div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
-                                        .true.)
-            case (3)
-               call mult_by_1d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
-                                        div_coeff(n,lo(dm):), div_coeff_half(n,lo(dm):), &
-                                        .true.)
-            end select
-         end do
-      end do
-
-    end subroutine mult_beta_by_1d_coeff
-
-    subroutine mult_by_1d_coeff_2d(umac,vmac,div_coeff,div_coeff_half,do_mult)
-
-      real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
-      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
+      real(kind=dp_t), intent(inout) :: uedge(-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vedge(-1:,-1:)
       real(dp_t)     , intent(in   ) :: div_coeff(0:)
       real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
 
       integer :: j,ny
 
-      ny = size(umac,dim=2)-2
+      ny = size(uedge,dim=2)-2
 
       if (do_mult) then
          do j = 0,ny-1
-            umac(:,j) = umac(:,j) * div_coeff(j)
+            uedge(:,j) = uedge(:,j) * div_coeff(j)
          end do
          do j = 0,ny
-            vmac(:,j) = vmac(:,j) * div_coeff_half(j)
+            vedge(:,j) = vedge(:,j) * div_coeff_half(j)
          end do
       else
          do j = 0,ny-1 
-            umac(:,j) = umac(:,j) / div_coeff(j)
+            uedge(:,j) = uedge(:,j) / div_coeff(j)
          end do
          do j = 0,ny
-            vmac(:,j) = vmac(:,j) / div_coeff_half(j)
+            vedge(:,j) = vedge(:,j) / div_coeff_half(j)
          end do
       end if
 
     end subroutine mult_by_1d_coeff_2d
 
-    subroutine mult_by_1d_coeff_3d(umac,vmac,wmac,div_coeff,div_coeff_half,do_mult)
+    subroutine mult_by_1d_coeff_3d(uedge,vedge,wedge,div_coeff,div_coeff_half,do_mult)
 
-      real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
-      real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
-      real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: uedge(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: vedge(-1:,-1:,-1:)
+      real(kind=dp_t), intent(inout) :: wedge(-1:,-1:,-1:)
       real(dp_t)     , intent(in   ) :: div_coeff(0:)
       real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
 
       integer :: k,nz
 
-      nz = size(umac,dim=3)-2
+      nz = size(uedge,dim=3)-2
 
       if (do_mult) then
          do k = 0,nz-1 
-            umac(:,:,k) = umac(:,:,k) * div_coeff(k)
+            uedge(:,:,k) = uedge(:,:,k) * div_coeff(k)
          end do
          do k = 0,nz-1 
-            vmac(:,:,k) = vmac(:,:,k) * div_coeff(k)
+            vedge(:,:,k) = vedge(:,:,k) * div_coeff(k)
          end do
          do k = 0,nz
-            wmac(:,:,k) = wmac(:,:,k) * div_coeff_half(k)
+            wedge(:,:,k) = wedge(:,:,k) * div_coeff_half(k)
          end do
       else
          do k = 0,nz-1 
-            umac(:,:,k) = umac(:,:,k) / div_coeff(k)
+            uedge(:,:,k) = uedge(:,:,k) / div_coeff(k)
          end do
          do k = 0,nz-1
-            vmac(:,:,k) = vmac(:,:,k) / div_coeff(k)
+            vedge(:,:,k) = vedge(:,:,k) / div_coeff(k)
          end do
          do k = 0,nz
-            wmac(:,:,k) = wmac(:,:,k) / div_coeff_half(k)
+            wedge(:,:,k) = wedge(:,:,k) / div_coeff_half(k)
          end do
       end if
 
     end subroutine mult_by_1d_coeff_3d
 
-    subroutine mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff,do_mult)
+    subroutine mult_edge_by_3d_coeff(mla,uedge,div_coeff,do_mult)
 
       use ml_restriction_module, only: ml_edge_restriction
 
       type(ml_layout), intent(in   ) :: mla
-      integer        , intent(in   ) :: nlevs
-      type(multifab) , intent(inout) :: umac(:,:)
+      type(multifab) , intent(inout) :: uedge(:,:)
       type(multifab) , intent(in   ) :: div_coeff(:)
       logical        , intent(in   ) :: do_mult
 
@@ -432,23 +400,27 @@ contains
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer ::  dp(:,:,:,:) 
-      integer :: i,n,lo(umac(1,1)%dim),hi(umac(1,1)%dim)
-      integer :: domlo(umac(1,1)%dim),domhi(umac(1,1)%dim)
+
+      integer :: i,n,nlevs
+      integer :: lo(uedge(1,1)%dim),hi(uedge(1,1)%dim)
+      integer :: domlo(uedge(1,1)%dim),domhi(uedge(1,1)%dim)
+
+      nlevs = mla%nlevel
 
       do n=1,nlevs
          domlo =  lwb(ml_layout_get_pd(mla,n))
          domhi =  upb(ml_layout_get_pd(mla,n))
 
          ! Multiply edge velocities by div coeff
-         do i = 1, umac(n,1)%nboxes
-            if ( multifab_remote(umac(n,1), i) ) cycle
-            ump => dataptr(umac(n,1), i)
-            vmp => dataptr(umac(n,2), i)
-            wmp => dataptr(umac(n,3), i)
+         do i = 1, uedge(n,1)%nboxes
+            if ( multifab_remote(uedge(n,1), i) ) cycle
+            ump => dataptr(uedge(n,1), i)
+            vmp => dataptr(uedge(n,2), i)
+            wmp => dataptr(uedge(n,3), i)
             dp => dataptr(div_coeff(n), i)
-            lo =  lwb(get_box(umac(n,1), i))
-            hi =  upb(get_box(umac(n,1), i))
-            select case (umac(n,1)%dim)
+            lo =  lwb(get_box(uedge(n,1), i))
+            hi =  upb(get_box(uedge(n,1), i))
+            select case (uedge(n,1)%dim)
             case (3)
                call mult_by_3d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                         dp(:,:,:,1), lo, hi, domlo, domhi, do_mult)
@@ -456,57 +428,24 @@ contains
          end do
 
          do i=1,dm
-            call multifab_fill_boundary(umac(n,i))
+            call multifab_fill_boundary(uedge(n,i))
          enddo
       enddo
 
       do n = nlevs,2,-1
          do i = 1,dm
-            call ml_edge_restriction(umac(n-1,i),umac(n,i),mla%mba%rr(n-1,:),i)
+            call ml_edge_restriction(uedge(n-1,i),uedge(n,i),mla%mba%rr(n-1,:),i)
          end do
       end do
 
-    end subroutine mult_umac_by_3d_coeff
+    end subroutine mult_edge_by_3d_coeff
 
-    subroutine mult_beta_by_3d_coeff(mla,nlevs,beta,div_coeff)
-
-      type(ml_layout), intent(in   ) :: mla
-      integer        , intent(in   ) :: nlevs
-      type(multifab) , intent(inout) :: beta(:)
-      type(multifab) , intent(in   ) :: div_coeff(:)
-
-      real(kind=dp_t), pointer :: bp(:,:,:,:) 
-      real(kind=dp_t), pointer :: dp(:,:,:,:) 
-      integer :: i,n,lo(beta(1)%dim),hi(beta(1)%dim)
-      integer :: domlo(beta(1)%dim),domhi(beta(1)%dim)
-
-      do n=1,nlevs
-         domlo =  lwb(ml_layout_get_pd(mla,n))
-         domhi =  upb(ml_layout_get_pd(mla,n))
-         
-         ! Multiply edge coefficients by div coeff
-         do i = 1, beta(n)%nboxes
-            if ( multifab_remote(beta(n), i) ) cycle
-            bp => dataptr(     beta(n),i)
-            dp => dataptr(div_coeff(n),i)
-            lo =  lwb(get_box(beta(n), i))
-            hi =  upb(get_box(beta(n), i))
-            select case (beta(1)%dim)
-            case (3)
-               call mult_by_3d_coeff_3d(bp(:,:,:,1), bp(:,:,:,2), bp(:,:,:,3), &
-                                        dp(:,:,:,1), lo, hi, domlo, domhi, .true.)
-            end select
-         end do
-      enddo
-
-    end subroutine mult_beta_by_3d_coeff
-
-    subroutine mult_by_3d_coeff_3d(umac,vmac,wmac,div_coeff,lo,hi,domlo,domhi,do_mult)
+    subroutine mult_by_3d_coeff_3d(uedge,vedge,wedge,div_coeff,lo,hi,domlo,domhi,do_mult)
 
       integer        , intent(in   ) :: lo(:),hi(:),domlo(:),domhi(:)
-      real(kind=dp_t), intent(inout) ::      umac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(inout) ::      vmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(inout) ::      wmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
+      real(kind=dp_t), intent(inout) ::      uedge(lo(1)-1:,lo(2)-1:,lo(3)-1:)
+      real(kind=dp_t), intent(inout) ::      vedge(lo(1)-1:,lo(2)-1:,lo(3)-1:)
+      real(kind=dp_t), intent(inout) ::      wedge(lo(1)-1:,lo(2)-1:,lo(3)-1:)
       real(dp_t)     , intent(in   ) :: div_coeff(lo(1)-1:,lo(2)-1:,lo(3)-1:)
       logical        , intent(in   ) :: do_mult
 
@@ -517,17 +456,17 @@ contains
          do k = lo(3),hi(3)
             do j = lo(2),hi(2)
                do i = lo(1)+1,hi(1)
-                  umac(i,j,k) = umac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k))
+                  uedge(i,j,k) = uedge(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k))
                end do
                if (lo(1).eq.domlo(1)) then
-                  umac(lo(1),j,k) = umac(lo(1),j,k) * div_coeff(lo(1),j,k)
+                  uedge(lo(1),j,k) = uedge(lo(1),j,k) * div_coeff(lo(1),j,k)
                else
-                  umac(lo(1),j,k) = umac(lo(1),j,k) * HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k))
+                  uedge(lo(1),j,k) = uedge(lo(1),j,k) * HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k))
                end if
                if (hi(1).eq.domhi(1)) then
-                  umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
+                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
                else
-                  umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) * HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k))
+                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) * HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k))
                end if
             end do
          end do
@@ -535,17 +474,17 @@ contains
          do k = lo(3),hi(3)
             do i = lo(1),hi(1)
                do j = lo(2)+1,hi(2)
-                  vmac(i,j,k) = vmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k))
+                  vedge(i,j,k) = vedge(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k))
                end do
                if (lo(2).eq.domlo(2)) then
-                  vmac(i,lo(2),k) = vmac(i,lo(2),k) * div_coeff(i,lo(2),k)
+                  vedge(i,lo(2),k) = vedge(i,lo(2),k) * div_coeff(i,lo(2),k)
                else
-                  vmac(i,lo(2),k) = vmac(i,lo(2),k) * HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k))
+                  vedge(i,lo(2),k) = vedge(i,lo(2),k) * HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k))
                end if
                if (hi(2).eq.domhi(2)) then
-                  vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
+                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
                else
-                  vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) * HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k))
+                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) * HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k))
                end if
             end do
          end do
@@ -553,17 +492,17 @@ contains
          do j = lo(2),hi(2)
             do i = lo(1),hi(1)
                do k = lo(3)+1,hi(3)
-                  wmac(i,j,k) = wmac(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1))
+                  wedge(i,j,k) = wedge(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1))
                end do
                if (lo(3).eq.domlo(3)) then
-                  wmac(i,j,lo(3)) = wmac(i,j,lo(3)) * div_coeff(i,j,lo(3))
+                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) * div_coeff(i,j,lo(3))
                else
-                  wmac(i,j,lo(3)) = wmac(i,j,lo(3)) * HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1))
+                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) * HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1))
                end if
                if (hi(3).eq.domhi(3)) then
-                  wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
+                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
                else
-                  wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) * HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3)))
+                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) * HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3)))
                end if
             end do
          end do
@@ -573,17 +512,17 @@ contains
          do k = lo(3),hi(3)
             do j = lo(2),hi(2)
                do i = lo(1)+1,hi(1)
-                  umac(i,j,k) = umac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k)))
+                  uedge(i,j,k) = uedge(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k)))
                end do
                if (lo(1).eq.domlo(1)) then
-                  umac(lo(1),j,k) = umac(lo(1),j,k) / div_coeff(lo(1),j,k)
+                  uedge(lo(1),j,k) = uedge(lo(1),j,k) / div_coeff(lo(1),j,k)
                else
-                  umac(lo(1),j,k) = umac(lo(1),j,k) / ( HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k)))
+                  uedge(lo(1),j,k) = uedge(lo(1),j,k) / ( HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k)))
                end if
                if (hi(1).eq.domhi(1)) then
-                  umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) / div_coeff(hi(1),j,k)
+                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) / div_coeff(hi(1),j,k)
                else
-                  umac(hi(1)+1,j,k) = umac(hi(1)+1,j,k) / ( HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k)))
+                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) / ( HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k)))
                end if
             end do
          end do
@@ -591,17 +530,17 @@ contains
          do k = lo(3),hi(3)
             do i = lo(1),hi(1)
                do j = lo(2)+1,hi(2)
-                  vmac(i,j,k) = vmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k)))
+                  vedge(i,j,k) = vedge(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k)))
                end do
                if (lo(2).eq.domlo(2)) then
-                  vmac(i,lo(2),k) = vmac(i,lo(2),k) / div_coeff(i,lo(2),k)
+                  vedge(i,lo(2),k) = vedge(i,lo(2),k) / div_coeff(i,lo(2),k)
                else
-                  vmac(i,lo(2),k) = vmac(i,lo(2),k) / ( HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k)))
+                  vedge(i,lo(2),k) = vedge(i,lo(2),k) / ( HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k)))
                end if
                if (hi(2).eq.domhi(2)) then
-                  vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) / div_coeff(i,hi(2),k)
+                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) / div_coeff(i,hi(2),k)
                else
-                  vmac(i,hi(2)+1,k) = vmac(i,hi(2)+1,k) / ( HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k)))
+                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) / ( HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k)))
                end if
             end do
          end do
@@ -609,17 +548,17 @@ contains
          do j = lo(2),hi(2)
             do i = lo(1),hi(1)
                do k = lo(3)+1,hi(3)
-                  wmac(i,j,k) = wmac(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1)))
+                  wedge(i,j,k) = wedge(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1)))
                end do
                if (lo(3).eq.domlo(3)) then
-                  wmac(i,j,lo(3)) = wmac(i,j,lo(3)) / div_coeff(i,j,lo(3))
+                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) / div_coeff(i,j,lo(3))
                else
-                  wmac(i,j,lo(3)) = wmac(i,j,lo(3)) / ( HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1)))
+                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) / ( HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1)))
                end if
                if (hi(3).eq.domhi(3)) then
-                  wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) / div_coeff(i,j,hi(3))
+                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) / div_coeff(i,j,hi(3))
                else
-                  wmac(i,j,hi(3)+1) = wmac(i,j,hi(3)+1) / ( HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3))))
+                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) / ( HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3))))
                end if
             end do
          end do
@@ -635,15 +574,21 @@ contains
       integer        , intent(in   ) :: nlevs
       type(ml_layout), intent(in   ) :: mla
       type(multifab ), intent(inout) :: rho(:)
-      type(multifab ), intent(inout) :: beta(:)
+      type(multifab ), intent(inout) :: beta(:,:)
       type(bc_tower ), intent(in   ) :: the_bc_tower
 
-      real(kind=dp_t), pointer :: bp(:,:,:,:) 
+      type(box)                :: bx
+      real(kind=dp_t), pointer :: bxp(:,:,:,:) 
+      real(kind=dp_t), pointer :: byp(:,:,:,:) 
+      real(kind=dp_t), pointer :: bzp(:,:,:,:) 
       real(kind=dp_t), pointer :: rp(:,:,:,:) 
-      integer :: i,dm,ng,ng_fill
 
-      dm = rho(nlevs)%dim
-      ng = rho(nlevs)%ng
+      integer :: lo(mla%dim),hi(mla%dim)
+      integer :: i,dm,ng_r,ng_b,ng_fill 
+
+      dm   = mla%dim
+      ng_r = rho(nlevs)%ng
+      ng_b = beta(nlevs,1)%ng
 
       ng_fill = 1
       do n = 2, nlevs
@@ -659,77 +604,75 @@ contains
          do i = 1, rho(n)%nboxes
             if ( multifab_remote(rho(n), i) ) cycle
             rp => dataptr(rho(n) , i)
-            bp => dataptr(beta(n), i)
+            bxp => dataptr(beta(n,1), i)
+            byp => dataptr(beta(n,2), i)
+            bx  = mla%mba%bas(n)%bxs(i)
+            lo  = lwb(bx)
+            hi  = upb(bx)
             select case (dm)
             case (2)
-               call mk_mac_coeffs_2d(bp(:,:,1,:), rp(:,:,1,1), ng)
+               call mk_mac_coeffs_2d(bxp(:,:,1,1),byp(:,:,1,1),ng_b,rp(:,:,1,1),ng_r,lo,hi)
             case (3)
-               call mk_mac_coeffs_3d(bp(:,:,:,:), rp(:,:,:,1), ng)
+               call mk_mac_coeffs_3d(bxp(:,:,:,1),byp(:,:,:,1),bzp(:,:,:,1),ng_b,rp(:,:,:,1),ng_r,lo,hi)
             end select
          end do
       end do
 
     end subroutine mk_mac_coeffs
 
-    subroutine mk_mac_coeffs_2d(beta,rho,ng)
+    subroutine mk_mac_coeffs_2d(betax,betay,ng_b,rho,ng_r,lo,hi)
 
-      integer :: ng
-      real(kind=dp_t), intent(inout) :: beta( -1:, -1:,:)
-      real(kind=dp_t), intent(inout) ::  rho(-ng:,-ng:)
+      integer        , intent(in   ) :: lo(2),hi(2),ng_b,ng_r
+      real(kind=dp_t), intent(inout) :: betax(lo(1)-ng_b:,lo(2)-ng_b:)
+      real(kind=dp_t), intent(inout) :: betay(lo(1)-ng_b:,lo(2)-ng_b:)
+      real(kind=dp_t), intent(in   ) ::   rho(lo(1)-ng_r:,lo(2)-ng_r:)
 
       integer :: i,j
-      integer :: nx,ny
 
-      nx = size(beta,dim=1) - 2
-      ny = size(beta,dim=2) - 2
-
-      do j = 0,ny-1
-         do i = 0,nx
-            beta(i,j,1) = TWO / (rho(i,j) + rho(i-1,j))
+      do j = lo(2),hi(2)
+         do i = lo(1),hi(1)+1
+            betax(i,j) = TWO / (rho(i,j) + rho(i-1,j))
          end do
       end do
 
-      do j = 0,ny
-         do i = 0,nx-1
-            beta(i,j,2) = TWO / (rho(i,j) + rho(i,j-1))
+      do j = lo(2),hi(2)+1
+         do i = lo(1),hi(1)
+            betay(i,j) = TWO / (rho(i,j) + rho(i,j-1))
          end do
       end do
 
     end subroutine mk_mac_coeffs_2d
 
-    subroutine mk_mac_coeffs_3d(beta,rho,ng)
+    subroutine mk_mac_coeffs_3d(betax,betay,betaz,ng_b,rho,ng_r,lo,hi)
 
-      integer :: ng
-      real(kind=dp_t), intent(inout) :: beta( -1:, -1:, -1:,:)
-      real(kind=dp_t), intent(inout) ::  rho(-ng:,-ng:,-ng:)
+      integer        , intent(in   ) :: lo(3),hi(3),ng_b,ng_r
+      real(kind=dp_t), intent(inout) :: betax(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
+      real(kind=dp_t), intent(inout) :: betay(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
+      real(kind=dp_t), intent(inout) :: betaz(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
+      real(kind=dp_t), intent(in   ) ::   rho(lo(1)-ng_r:,lo(2)-ng_r:,lo(3)-ng_r:)
 
       integer :: i,j,k
-      integer :: nx,ny,nz
 
-      nx = size(beta,dim=1) - 2
-      ny = size(beta,dim=2) - 2
-      nz = size(beta,dim=3) - 2
-
-      do k = 0,nz-1
-         do j = 0,ny-1
-            do i = 0,nx
-               beta(i,j,k,1) = TWO / (rho(i,j,k) + rho(i-1,j,k))
+      do k = lo(3),hi(3)
+         do j = lo(2),hi(2)
+            do i = lo(1),hi(1)+1
+               betax(i,j,k) = TWO / (rho(i,j,k) + rho(i-1,j,k))
             end do
          end do
       end do
 
-      do k = 0,nz-1
-         do j = 0,ny
-            do i = 0,nx-1
-               beta(i,j,k,2) = TWO / (rho(i,j,k) + rho(i,j-1,k))
+      do k = lo(3),hi(3)
+         do j = lo(2),hi(2)+1
+            do i = lo(1),hi(1)
+               betay(i,j,k) = TWO / (rho(i,j,k) + rho(i,j-1,k))
             end do
          end do
       end do
 
-      do k = 0,nz
-         do j = 0,ny-1
-            do i = 0,nx-1
-               beta(i,j,k,3) = TWO / (rho(i,j,k) + rho(i,j,k-1))
+      do k = lo(3),hi(3)+1
+         do j = lo(2),hi(2)
+            do i = lo(1),hi(1)
+               betaz(i,j,k) = TWO / (rho(i,j,k) + rho(i,j,k-1))
             end do
          end do
       end do
@@ -743,7 +686,7 @@ contains
       type(multifab), intent(inout) :: umac(:,:)
       type(multifab), intent(inout) ::   rh(:)
       type(multifab), intent(in   ) ::  phi(:)
-      type(multifab), intent(in   ) :: beta(:)
+      type(multifab), intent(in   ) :: beta(:,:)
       type(bndry_reg),intent(in   ) :: fine_flx(2:)
       real(dp_t)    , intent(in   ) :: dx(:,:)
       type(bc_tower), intent(in   ) :: the_bc_tower
@@ -757,7 +700,9 @@ contains
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer :: php(:,:,:,:) 
-      real(kind=dp_t), pointer ::  bp(:,:,:,:) 
+      real(kind=dp_t), pointer :: bxp(:,:,:,:) 
+      real(kind=dp_t), pointer :: byp(:,:,:,:) 
+      real(kind=dp_t), pointer :: bzp(:,:,:,:) 
       real(kind=dp_t), pointer :: lxp(:,:,:,:) 
       real(kind=dp_t), pointer :: hxp(:,:,:,:) 
       real(kind=dp_t), pointer :: lyp(:,:,:,:) 
@@ -775,7 +720,8 @@ contains
             ump => dataptr(umac(n,1), i)
             vmp => dataptr(umac(n,2), i)
             php => dataptr( phi(n), i)
-            bp => dataptr(beta(n), i)
+            bxp => dataptr(beta(n,1), i)
+            byp => dataptr(beta(n,2), i)
             select case (dm)
             case (2)
                if (n > 1) then
@@ -784,16 +730,17 @@ contains
                   lyp => dataptr(fine_flx(n)%bmf(2,0), i)
                   hyp => dataptr(fine_flx(n)%bmf(2,1), i)
                   call mkumac_2d(ump(:,:,1,1),vmp(:,:,1,1), &
-                                 php(:,:,1,1), bp(:,:,1,:), &
+                                 php(:,:,1,1), bxp(:,:,1,1), byp(:,:,1,1), &
                                  lxp(:,:,1,1),hxp(:,:,1,1),lyp(:,:,1,1),hyp(:,:,1,1), &
                                  dx(n,:),bc%ell_bc_level_array(i,:,:,press_comp))
                else 
                   call mkumac_2d_base(ump(:,:,1,1),vmp(:,:,1,1), & 
-                                      php(:,:,1,1), bp(:,:,1,:), &
+                                      php(:,:,1,1), bxp(:,:,1,1), byp(:,:,1,1), &
                                       dx(n,:),bc%ell_bc_level_array(i,:,:,press_comp))
                end if
             case (3)
                wmp => dataptr(umac(n,3), i)
+               bzp => dataptr(beta(n,3), i)
                if (n > 1) then
                   lxp => dataptr(fine_flx(n)%bmf(1,0), i)
                   hxp => dataptr(fine_flx(n)%bmf(1,1), i)
@@ -802,14 +749,14 @@ contains
                   lzp => dataptr(fine_flx(n)%bmf(3,0), i)
                   hzp => dataptr(fine_flx(n)%bmf(3,1), i)
                   call mkumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                 php(:,:,:,1), bp(:,:,:,:), &
-                                 lxp(:,:,:,1),hxp(:,:,:,1),lyp(:,:,:,1),hyp(:,:,:,1), &
-                                 lzp(:,:,:,1),hzp(:,:,:,1),dx(n,:),&
+                                 php(:,:,:,1), bxp(:,:,:,1), byp(:,:,:,1), bzp(:,:,:,1), &
+                                 lxp(:,:,:,1), hxp(:,:,:,1), lyp(:,:,:,1),hyp(:,:,:,1), &
+                                 lzp(:,:,:,1), hzp(:,:,:,1), dx(n,:),&
                                  bc%ell_bc_level_array(i,:,:,press_comp))
                else
                   call mkumac_3d_base(ump(:,:,:,1),vmp(:,:,:,1),wmp(:,:,:,1),& 
-                                      php(:,:,:,1), bp(:,:,:,:), dx(n,:), &
-                                      bc%ell_bc_level_array(i,:,:,press_comp))
+                                      php(:,:,:,1), bxp(:,:,:,1), byp(:,:,:,1), bzp(:,:,:,1), &
+                                      dx(n,:), bc%ell_bc_level_array(i,:,:,press_comp))
                end if
             end select
          end do
@@ -828,12 +775,13 @@ contains
 
     end subroutine mkumac
 
-    subroutine mkumac_2d_base(umac,vmac,phi,beta,dx,press_bc)
+    subroutine mkumac_2d_base(umac,vmac,phi,betax,betay,dx,press_bc)
 
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,:)
+      real(kind=dp_t), intent(in   ) :: betax(-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: betay(-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
 
@@ -883,27 +831,28 @@ contains
       do j = 0,ny-1
          do i = 0,nx
             gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
-            umac(i,j) = umac(i,j) - beta(i,j,1)*gpx
+            umac(i,j) = umac(i,j) - betax(i,j)*gpx
          end do
       end do
 
       do i = 0,nx-1
          do j = 0,ny
             gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
-            vmac(i,j) = vmac(i,j) - beta(i,j,2)*gpy
+            vmac(i,j) = vmac(i,j) - betay(i,j)*gpy
          end do
       end do
 
     end subroutine mkumac_2d_base
 
-    subroutine mkumac_2d(umac,vmac,phi,beta, &
+    subroutine mkumac_2d(umac,vmac,phi,betax,betay, &
          lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
          dx,press_bc)
 
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,:)
+      real(kind=dp_t), intent(in   ) :: betax(-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: betay(-1:,-1:)
       real(kind=dp_t), intent(in   ) :: lo_x_flx(:,0:), lo_y_flx(0:,:)
       real(kind=dp_t), intent(in   ) :: hi_x_flx(:,0:), hi_y_flx(0:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
@@ -957,7 +906,7 @@ contains
          umac(nx,j) = umac(nx,j) + hi_x_flx(1,j) * dx(1)
          do i = 1,nx-1
             gpx = (phi(i,j) - phi(i-1,j)) / dx(1)
-            umac(i,j) = umac(i,j) - beta(i,j,1)*gpx
+            umac(i,j) = umac(i,j) - betax(i,j)*gpx
          end do
       end do
 
@@ -967,19 +916,21 @@ contains
          vmac(i,ny) = vmac(i,ny) + hi_y_flx(i,1) * dx(2)
          do j = 1,ny-1
             gpy = (phi(i,j) - phi(i,j-1)) / dx(2)
-            vmac(i,j) = vmac(i,j) - beta(i,j,2)*gpy
+            vmac(i,j) = vmac(i,j) - betay(i,j)*gpy
          end do
       end do
 
     end subroutine mkumac_2d
 
-    subroutine mkumac_3d_base(umac,vmac,wmac,phi,beta,dx,press_bc)
+    subroutine mkumac_3d_base(umac,vmac,wmac,phi,betax,betay,betaz,dx,press_bc)
 
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,-1:,:)
+      real(kind=dp_t), intent(in   ) :: betax(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: betay(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: betaz(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: dx(:)
       integer        , intent(in   ) :: press_bc(:,:)
 
@@ -1073,7 +1024,7 @@ contains
          do j = 0,ny-1
             do i = 0,nx
                gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
-               umac(i,j,k) = umac(i,j,k) - beta(i,j,k,1)*gpx
+               umac(i,j,k) = umac(i,j,k) - betax(i,j,k)*gpx
             end do
          end do
       end do
@@ -1082,7 +1033,7 @@ contains
          do j = 0,ny
             do i = 0,nx-1
                gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
-               vmac(i,j,k) = vmac(i,j,k) - beta(i,j,k,2)*gpy
+               vmac(i,j,k) = vmac(i,j,k) - betay(i,j,k)*gpy
             end do
          end do
       end do
@@ -1091,21 +1042,24 @@ contains
          do j = 0,ny-1
             do i = 0,nx-1
                gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
-               wmac(i,j,k) = wmac(i,j,k) - beta(i,j,k,3)*gpz
+               wmac(i,j,k) = wmac(i,j,k) - betaz(i,j,k)*gpz
             end do
          end do
       end do
 
     end subroutine mkumac_3d_base
 
-    subroutine mkumac_3d(umac,vmac,wmac,phi,beta,lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
-         lo_z_flx,hi_z_flx,dx,press_bc)
+    subroutine mkumac_3d(umac,vmac,wmac,phi,betax,betay,betaz,&
+                         lo_x_flx,hi_x_flx,lo_y_flx,hi_y_flx, &
+                         lo_z_flx,hi_z_flx,dx,press_bc)
 
       real(kind=dp_t), intent(inout) :: umac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: vmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) :: wmac(-1:,-1:,-1:)
       real(kind=dp_t), intent(inout) ::  phi(-1:,-1:,-1:)
-      real(kind=dp_t), intent(in   ) :: beta(-1:,-1:,-1:,:)
+      real(kind=dp_t), intent(in   ) :: betax(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: betay(-1:,-1:,-1:)
+      real(kind=dp_t), intent(in   ) :: betaz(-1:,-1:,-1:)
       real(kind=dp_t), intent(in   ) :: lo_x_flx(:,0:,0:), lo_y_flx(0:,:,0:), lo_z_flx(0:,0:,:)
       real(kind=dp_t), intent(in   ) :: hi_x_flx(:,0:,0:), hi_y_flx(0:,:,0:), hi_z_flx(0:,0:,:)
       real(kind=dp_t), intent(in   ) :: dx(:)
@@ -1203,7 +1157,7 @@ contains
             umac(nx,j,k) = umac(nx,j,k) + hi_x_flx(1,j,k) * dx(1)
             do i = 1,nx-1
                gpx = (phi(i,j,k) - phi(i-1,j,k)) / dx(1)
-               umac(i,j,k) = umac(i,j,k) - beta(i,j,k,1)*gpx
+               umac(i,j,k) = umac(i,j,k) - betax(i,j,k)*gpx
             end do
          end do
       end do
@@ -1214,7 +1168,7 @@ contains
             vmac(i,ny,k) = vmac(i,ny,k) + hi_y_flx(i,1,k) * dx(2)
             do j = 1,ny-1
                gpy = (phi(i,j,k) - phi(i,j-1,k)) / dx(2)
-               vmac(i,j,k) = vmac(i,j,k) - beta(i,j,k,2)*gpy
+               vmac(i,j,k) = vmac(i,j,k) - betay(i,j,k)*gpy
             end do
          end do
       end do
@@ -1225,7 +1179,7 @@ contains
             wmac(i,j,nz) = wmac(i,j,nz) + hi_z_flx(i,j,1) * dx(3)
             do k = 1,nz-1
                gpz = (phi(i,j,k) - phi(i,j,k-1)) / dx(3)
-               wmac(i,j,k) = wmac(i,j,k) - beta(i,j,k,3)*gpz
+               wmac(i,j,k) = wmac(i,j,k) - betaz(i,j,k)*gpz
             end do
          end do
       end do

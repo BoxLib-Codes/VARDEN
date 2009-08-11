@@ -4,6 +4,7 @@ module viscous_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
+  use mac_multigrid_module
 
   implicit none
 
@@ -19,9 +20,8 @@ contains
     use bndry_reg_module
     use multifab_physbc_module
     use multifab_fill_ghost_module
-    use macproject_module,     only: mac_multigrid
     use ml_restriction_module, only: ml_cc_restriction
-    use probin_module, only: stencil_order,verbose
+    use probin_module, only: stencil_order,verbose, edge_nodal_flag
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -31,9 +31,10 @@ contains
     type(bc_tower ), intent(in   ) :: the_bc_tower
 
     ! Local  
-    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel),alpha(mla%nlevel),beta(mla%nlevel)
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
+    type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel,mla%dim)
     type(bndry_reg) :: fine_flx(2:mla%nlevel)
-    integer         :: n,nlevs,d,dm,bc_comp,ng_cell
+    integer         :: n,d,nlevs,dm,bc_comp,ng_cell
     real(kind=dp_t) :: nrm1, nrm2
 
     nlevs = mla%nlevel
@@ -44,10 +45,14 @@ contains
        call multifab_build(   rh(n), mla%la(n),  1, 0)
        call multifab_build(  phi(n), mla%la(n),  1, 1)
        call multifab_build(alpha(n), mla%la(n),  1, 1)
-       call multifab_build( beta(n), mla%la(n), dm, 1)
+       do d = 1,dm
+          call multifab_build( beta(n,d), mla%la(n), 1, 1, nodal = edge_nodal_flag(d,:))
+       end do
 
        call multifab_copy_c(alpha(n),1,rho(n),1,1)
-       call setval(beta(n),mu,all=.true.)
+       do d = 1,dm
+          call setval( beta(n,d), mu,all=.true.)
+       end do
     end do
 
     if (verbose .ge. 1) then
@@ -114,7 +119,9 @@ contains
        call multifab_destroy(rh(n))
        call multifab_destroy(phi(n))
        call multifab_destroy(alpha(n))
-       call multifab_destroy(beta(n))
+       do d = 1,dm
+          call multifab_destroy(beta(n,d))
+       end do
     end do
 
     do n = 2,nlevs
@@ -222,9 +229,8 @@ contains
     use bl_constants_module
     use multifab_physbc_module
     use multifab_fill_ghost_module
-    use macproject_module,     only: mac_multigrid
     use ml_restriction_module, only: ml_cc_restriction_c
-    use probin_module, only: stencil_order, verbose
+    use probin_module, only: stencil_order, verbose, edge_nodal_flag
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: snew(:)
@@ -235,9 +241,10 @@ contains
     integer        , intent(in   ) :: icomp,bc_comp
 
     ! Local  
-    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel),alpha(mla%nlevel),beta(mla%nlevel)
+    type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
+    type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel,mla%dim)
     type(bndry_reg) :: fine_flx(2:mla%nlevel)
-    integer         :: n,nlevs,dm,ng_cell
+    integer         :: n,d,nlevs,dm,ng_cell
     real(kind=dp_t) :: nrm1
 
     nlevs = mla%nlevel
@@ -248,9 +255,13 @@ contains
        call multifab_build(   rh(n), mla%la(n),  1, 0)
        call multifab_build(  phi(n), mla%la(n),  1, 1)
        call multifab_build(alpha(n), mla%la(n),  1, 1)
-       call multifab_build( beta(n), mla%la(n), dm, 1)
+       do d = 1,dm
+          call multifab_build( beta(n,d), mla%la(n), 1, 1, nodal = edge_nodal_flag(d,:))
+       end do
        call setval(alpha(n),ONE,all=.true.)
-       call setval( beta(n), mu,all=.true.)
+       do d = 1,dm
+          call setval( beta(n,d), mu,all=.true.)
+       end do
     end do
 
     if ( verbose .ge. 1 ) then
@@ -308,7 +319,9 @@ contains
        call multifab_destroy(rh(n))
        call multifab_destroy(phi(n))
        call multifab_destroy(alpha(n))
-       call multifab_destroy(beta(n))
+       do d = 1,dm
+          call multifab_destroy(beta(n,d))
+       end do
     end do
 
     do n = 2,nlevs

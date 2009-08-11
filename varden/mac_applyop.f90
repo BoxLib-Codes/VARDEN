@@ -42,7 +42,7 @@ contains
 
     type(multifab), allocatable :: coeffs(:)
 
-    type(multifab) , intent(in   ) :: alpha(:), beta(:)
+    type(multifab) , intent(in   ) :: alpha(:), beta(:,:)
     type(multifab) , intent(inout) ::    res(:), phi(:)
 
     type( multifab) :: ss
@@ -160,7 +160,10 @@ contains
 
        call multifab_build(coeffs(mgt(n)%nlevels), la, 1+dm, 1)
        call multifab_copy_c(coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=alpha(n)%ng)
-       call multifab_copy_c(coeffs(mgt(n)%nlevels),2, beta(n),1,dm,ng= beta(n)%ng)
+       call multifab_copy_c(coeffs(mgt(n)%nlevels),2,beta(n,1),1,1,ng=beta(n,1)%ng)
+       call multifab_copy_c(coeffs(mgt(n)%nlevels),3,beta(n,2),1,1,ng=beta(n,2)%ng)
+       if (dm > 2) &
+          call multifab_copy_c(coeffs(mgt(n)%nlevels),4,beta(n,3),1,1,ng=beta(n,3)%ng)
 
        do i = mgt(n)%nlevels-1, 1, -1
           call multifab_build(coeffs(i), mgt(n)%ss(i)%la, 1+dm, 1)

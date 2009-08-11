@@ -1,3 +1,23 @@
+module mac_multigrid_module
+
+  use bl_types
+  use ml_layout_module
+  use define_bc_module
+  use multifab_module
+  use bndry_reg_module
+  use bl_constants_module
+  use bl_error_module
+  use sparse_solve_module
+  use stencil_module
+
+  implicit none
+
+  private
+
+  public :: mac_multigrid
+
+contains
+
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
        the_bc_tower,bc_comp,stencil_order,ref_ratio,umac_norm)
 
@@ -21,7 +41,7 @@
 
     type(multifab), allocatable :: coeffs(:)
 
-    type(multifab) , intent(in   ) :: alpha(:), beta(:)
+    type(multifab) , intent(in   ) :: alpha(:), beta(:,:)
     type(multifab) , intent(inout) ::    rh(:),  phi(:)
     type(bndry_reg), intent(inout) :: fine_flx(2:)
 
@@ -140,7 +160,10 @@
 
        call multifab_build(coeffs(mgt(n)%nlevels), la, 1+dm, 1)
        call multifab_copy_c(coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=alpha(n)%ng)
-       call multifab_copy_c(coeffs(mgt(n)%nlevels),2, beta(n),1,dm,ng= beta(n)%ng)
+       call multifab_copy_c(coeffs(mgt(n)%nlevels),2, beta(n,1),1,1,ng=beta(n,1)%ng)
+       call multifab_copy_c(coeffs(mgt(n)%nlevels),3, beta(n,2),1,1,ng=beta(n,2)%ng)
+       if (dm > 2) &
+          call multifab_copy_c(coeffs(mgt(n)%nlevels),4, beta(n,3),1,1,ng=beta(n,3)%ng)
 
        do i = mgt(n)%nlevels-1, 1, -1
           call multifab_build(coeffs(i), mgt(n)%ss(i)%la, 1+dm, 1)
@@ -200,3 +223,5 @@
     end do
 
   end subroutine mac_multigrid
+
+end module mac_multigrid_module
