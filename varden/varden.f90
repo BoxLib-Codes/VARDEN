@@ -488,6 +488,8 @@ contains
 
   subroutine write_plotfile(istep_to_write)
 
+    use probin_module, only : prob_lo, prob_hi
+
     integer, intent(in   ) :: istep_to_write
     integer                :: n,n_plot_comps
 
@@ -507,7 +509,7 @@ contains
     end do
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
     call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
-                                   mla%mba%pd(1), time, dx(1,:))
+                                   mla%mba%pd(1), prob_lo, prob_hi, time, dx(1,:))
 
     do n = 1,nlevs
       call multifab_destroy(plotdata(n))
