@@ -56,7 +56,7 @@ contains
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: n, nu1, nu2, gamma, cycle, smoother
+    integer    :: n, nu1, nu2, gamma, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
     real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
@@ -78,7 +78,7 @@ contains
     nu2               = mgt(nlevs)%nu2
     gamma             = mgt(nlevs)%gamma
     omega             = mgt(nlevs)%omega
-    cycle             = mgt(nlevs)%cycle
+    cycle_type        = mgt(nlevs)%cycle_type
     bottom_solver     = mgt(nlevs)%bottom_solver
     bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
     bottom_max_iter   = mgt(nlevs)%bottom_max_iter
@@ -133,7 +133,7 @@ contains
                            nu1 = nu1, &
                            nu2 = nu2, &
                            gamma = gamma, &
-                           cycle = cycle, &
+                           cycle_type = cycle_type, &
                            omega = omega, &
                            bottom_solver = bottom_solver, &
                            bottom_max_iter = bottom_max_iter, &
