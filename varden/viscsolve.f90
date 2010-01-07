@@ -35,7 +35,7 @@ contains
     type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel,mla%dim)
     type(bndry_reg) :: fine_flx(2:mla%nlevel)
     integer         :: n,d,nlevs,dm,bc_comp,ng_cell
-    real(kind=dp_t) :: nrm1, nrm2
+    real(kind=dp_t) :: nrm1, nrm2, nrm3
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -66,6 +66,12 @@ contains
           if ( parallel_IOProcessor() ) then
              print *,'BEFORE: MAX OF U AT LEVEL ',n,nrm1
              print *,'BEFORE: MAX OF V AT LEVEL ',n,nrm2
+          end if
+          if (dm .eq. 3) then
+             nrm3 = norm_inf(unew(n),3,1)
+             if ( parallel_IOProcessor() ) then
+                print *,'BEFORE: MAX OF W AT LEVEL ',n,nrm3
+             end if
           end if
        end do
     endif
@@ -108,7 +114,14 @@ contains
              print *,' AFTER: MAX OF U AT LEVEL ',n,nrm1
              print *,' AFTER: MAX OF V AT LEVEL ',n,nrm2
           end if
+          if (dm .eq. 3) then
+             nrm3 = norm_inf(unew(n),3,1)
+             if ( parallel_IOProcessor() ) then
+                print *,' AFTER: MAX OF W AT LEVEL ',n,nrm3
+             end if
+          end if
        end do
+
        if ( parallel_IOProcessor() ) then
           print *,'...   end viscous solves  ... '
           print *,' '
