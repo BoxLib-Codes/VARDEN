@@ -189,16 +189,6 @@ contains
     pmask_z = .false.
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Initialize edge_nodal_flag
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    allocate(edge_nodal_flag(dim_in,dim_in))
-    edge_nodal_flag = .false.
-    do i = 1,dim_in
-       edge_nodal_flag(i,i) = .true.
-    end do
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize other stuff
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -427,6 +417,16 @@ contains
 
     allocate(nodal(dim_in))
     nodal = .true.
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize edge_nodal_flag
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    allocate(edge_nodal_flag(dim_in,dim_in))
+    edge_nodal_flag = .false.
+    do i = 1,dim_in
+       edge_nodal_flag(i,i) = .true.
+    end do
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Need to specify regrid_int if max_levs > 1 and not 'fixed grids'
