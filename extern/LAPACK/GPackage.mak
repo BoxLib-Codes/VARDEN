@@ -2,6 +2,10 @@ fsources += dcopy.f
 fsources += dgemm.f
 fsources += dgemv.f
 fsources += dger.f
+fsources += dgesv.f
+fsources += dgetf2.f
+fsources += dgetrf.f
+fsources += dgetrs.f
 fsources += dlae2.f
 fsources += dlaev2.f
 fsources += dlamc1.f
@@ -23,6 +27,7 @@ fsources += dlaset.f
 fsources += dlasr.f
 fsources += dlasrt.f
 fsources += dlassq.f
+fsources += dlaswp.f
 fsources += dlatrd.f
 fsources += dorg2l.f
 fsources += dorg2r.f
@@ -61,4 +66,6 @@ fsources += dtrti2.f
 fsources += ddot.f
 fsources += daxpy.f
 fsources += dnrm2.f
+
+fsources += idamax.f
 
