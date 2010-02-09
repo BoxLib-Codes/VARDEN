@@ -535,7 +535,7 @@ contains
     end do
     write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
 
-    call checkpoint_write(nlevs, sd_name, chkdata, p, mla%mba%rr, dx, time, dt, verbose)
+    call checkpoint_write(nlevs, sd_name, chkdata, p, mla%mba%rr, time, dt, verbose)
 
     do n = 1,nlevs
        call multifab_destroy(chkdata(n))

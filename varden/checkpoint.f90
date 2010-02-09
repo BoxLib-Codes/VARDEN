@@ -11,7 +11,7 @@ module checkpoint_module
 
 contains
 
-  subroutine checkpoint_write(nlevs_in, dirname, mfs, mfs_nodal, rrs, dx, time_in, dt_in, verbose)
+  subroutine checkpoint_write(nlevs_in, dirname, mfs, mfs_nodal, rrs, time_in, dt_in, verbose)
 
     use bl_IO_module
     use fab_module
@@ -21,7 +21,6 @@ contains
     integer       , intent(in) :: nlevs_in
     type(multifab), intent(in) :: mfs(:), mfs_nodal(:)
     integer       , intent(in) :: rrs(:,:)
-    real(kind=dp_t), intent(in) :: dx(:,:)
     character(len=*), intent(in) :: dirname
     real(kind=dp_t), intent(in) :: time_in, dt_in
     integer        , intent(in) :: verbose
@@ -72,9 +71,6 @@ contains
          status = "replace", action = "write")
     nlevs = nlevs_in
     write(unit=un, nml = chkpoint)
-    do n = 1,nlevs
-       write(unit=un,fmt=*) dx(n,1), dx(n,2)
-    end do
     do n = 1,nlevs-1
        write(unit=un,fmt=*) rrs(n,1)
     end do
@@ -97,7 +93,6 @@ contains
     integer         , intent(  out)          :: rrs_out(:)
 
     integer          ,               pointer :: rrs(:)
-    real(kind=dp_t) ,                pointer :: dx(:,:)
 
     integer :: n
     character(len=128) :: header, sd_name
@@ -119,11 +114,7 @@ contains
          status = "old", &
          action = "read")
     read(unit=un, nml = chkpoint)
-    allocate( dx(nlevs,2))
     allocate(rrs(nlevs-1))
-    do n = 1,nlevs
-       read(unit=un,fmt=*) dx(n,1), dx(n,2)
-    end do
     do n = 1,nlevs-1
        read(unit=un,fmt=*) rrs(n)
     end do
@@ -146,7 +137,7 @@ contains
 
     rrs_out(1:nlevs-1) = rrs(1:nlevs-1)
 
-    deallocate(dx,rrs)
+    deallocate(rrs)
 
   end subroutine checkpoint_read
 
