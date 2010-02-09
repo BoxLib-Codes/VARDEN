@@ -1,6 +1,7 @@
 module velocity_advance_module
 
   use bl_types
+  use define_bc_module
   use multifab_module
   use ml_layout_module
   use probin_module, only : verbose, visc_coef, diffusion_type
@@ -20,7 +21,6 @@ contains
     use mkflux_module
     use mkforce_module
     use update_module
-    use define_bc_module
     use bl_constants_module
 
     type(ml_layout), intent(in   ) :: mla
@@ -72,7 +72,7 @@ contains
     !********************************************************
 
     visc_fac = ONE
-    call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,lapu,visc_fac)
+    call mkvelforce(mla,vel_force,ext_vel_force,sold,gp,lapu,visc_fac,the_bc_tower)
 
     !********************************************************
     ! Create the edge state velocities
@@ -88,7 +88,7 @@ contains
     ! The lapu term will be added to the rhs in visc_solve
     ! for Crank-Nicolson
     visc_fac = ZERO
-    call mkvelforce(nlevs,vel_force,ext_vel_force,rhohalf,gp,lapu,visc_fac)
+    call mkvelforce(mla,vel_force,ext_vel_force,rhohalf,gp,lapu,visc_fac,the_bc_tower)
 
     !********************************************************
     ! Update the velocity with convective differencing

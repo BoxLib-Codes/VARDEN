@@ -89,34 +89,28 @@ contains
           end select
        end do
 
-       if (.not. is_vel) then
+       call multifab_fill_boundary(snew(n))
 
-          call multifab_fill_boundary(snew(n))
-
-          call multifab_physbc(snew(n)   ,1,dm+1,nscal,the_bc_level(n))
-
-       else if (is_vel) then
-
-          call multifab_fill_boundary(snew(n))
-          call multifab_physbc(snew(n),1,1,dm,the_bc_level(n))
-
+       if (is_vel) then
+          call multifab_physbc(snew(n),1,   1,   dm,the_bc_level(n))
+       else
+          call multifab_physbc(snew(n),1,dm+1,nscal,the_bc_level(n))
        end if
 
     enddo ! end loop over levels
 
-    do n=nlevs,2,-1
+    do n = nlevs,2,-1
+       call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
+    end do
 
+    do n = 2,nlevs
        if (.not. is_vel) then
-
-          call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
 
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
                                          1,dm+1,nscal)
 
        else if (is_vel) then
-
-          call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
 
           call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
@@ -272,16 +266,17 @@ contains
                 wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
 
                 ugradu = ubar*(sedgex(i+1,j,k,1) - sedgex(i,j,k,1))/dx(1) + &
-                     vbar*(sedgey(i,j+1,k,1) - sedgey(i,j,k,1))/dx(2) + &
-                     wbar*(sedgez(i,j,k+1,1) - sedgez(i,j,k,1))/dx(3)
+                         vbar*(sedgey(i,j+1,k,1) - sedgey(i,j,k,1))/dx(2) + &
+                         wbar*(sedgez(i,j,k+1,1) - sedgez(i,j,k,1))/dx(3)
 
-                ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1) + &
-                     vbar*(sedgey(i,j+1,k,2) - sedgey(i,j,k,2))/dx(2) + &
-                     wbar*(sedgez(i,j,k+1,2) - sedgez(i,j,k,2))/dx(3)
+                ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1)
+!               ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1) + &
+!                        vbar*(sedgey(i,j+1,k,2) - sedgey(i,j,k,2))/dx(2) + &
+!                        wbar*(sedgez(i,j,k+1,2) - sedgez(i,j,k,2))/dx(3)
 
                 ugradw = ubar*(sedgex(i+1,j,k,3) - sedgex(i,j,k,3))/dx(1) + &
-                     vbar*(sedgey(i,j+1,k,3) - sedgey(i,j,k,3))/dx(2) + &
-                     wbar*(sedgez(i,j,k+1,3) - sedgez(i,j,k,3))/dx(3)
+                         vbar*(sedgey(i,j+1,k,3) - sedgey(i,j,k,3))/dx(2) + &
+                         wbar*(sedgez(i,j,k+1,3) - sedgez(i,j,k,3))/dx(3)
 
                 snew(i,j,k,1) = sold(i,j,k,1) - dt * ugradu + dt * force(i,j,k,1)
                 snew(i,j,k,2) = sold(i,j,k,2) - dt * ugradv + dt * force(i,j,k,2)

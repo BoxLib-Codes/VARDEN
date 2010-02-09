@@ -99,6 +99,9 @@ contains
 
     do n = nlevs, 2, -1
        call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
+    end do
+
+    do n = 2, nlevs
        call multifab_fill_ghost_cells(unew(n),unew(n-1), &
                                       ng_cell,mla%mba%rr(n-1,:), &
                                       the_bc_tower%bc_tower_array(n-1), &
@@ -310,6 +313,9 @@ contains
 
     do n = nlevs, 2, -1
        call ml_cc_restriction_c(snew(n-1),icomp,snew(n),icomp,mla%mba%rr(n-1,:),1)
+    end do
+
+    do n = 2, nlevs
        call multifab_fill_ghost_cells(snew(n),snew(n-1), &
                                       ng_cell,mla%mba%rr(n-1,:), &
                                       the_bc_tower%bc_tower_array(n-1), &

@@ -37,6 +37,7 @@ module probin_module
   real(dp_t),save :: prob_hi_x,prob_hi_y,prob_hi_z
   real(dp_t),save :: max_dt_growth
   integer, save   :: boussinesq
+  integer, save   :: extrap_comp
 
   integer,save    :: min_width
   real(dp_t),save :: min_eff
@@ -485,6 +486,7 @@ contains
      deallocate(prob_lo)
      deallocate(nodal)
      deallocate(pmask)
+     deallocate(edge_nodal_flag)
 
   end subroutine probin_close
 

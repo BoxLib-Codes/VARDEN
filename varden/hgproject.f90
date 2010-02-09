@@ -324,7 +324,9 @@ contains
       do n = nlevs, 2, -1
          call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:)) 
          call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
+      end do
 
+      do n = 2, nlevs
          call multifab_fill_ghost_cells(unew(n),unew(n-1),ng,mla%mba%rr(n-1,:), &
                                         the_bc_level(n-1),the_bc_level(n),1,1,dm)
       end do

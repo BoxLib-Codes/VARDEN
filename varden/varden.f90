@@ -380,6 +380,7 @@ subroutine varden()
   call delete_state(uold,sold,gp,p)
 
   deallocate(uold,sold,p,gp)
+  deallocate(dx)
 
   call delete_temps()
 

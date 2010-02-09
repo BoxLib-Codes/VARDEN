@@ -81,8 +81,7 @@ contains
        enddo
     endif
 
-    call advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                        the_bc_tower%bc_tower_array)
+    call advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt,the_bc_tower)
 
     call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 

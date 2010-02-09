@@ -76,6 +76,9 @@ contains
           ! set level n-1 data to be the average of the level n data covering it
           call ml_cc_restriction(rhohalf(n-1),rhohalf(n),mla%mba%rr(n-1,:))
 
+       end do
+
+       do n = 2,nlevs
           ! fill level n ghost cells using interpolation from level n-1 data
           ! note that multifab_fill_boundary and multifab_physbc are called for
           ! both levels n-1 and n

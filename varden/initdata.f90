@@ -98,10 +98,12 @@ contains
 
     enddo
 
-    do n=nlevs,2,-1
+    do n = nlevs,2,-1
        call ml_cc_restriction(u(n-1),u(n),mla%mba%rr(n-1,:))
        call ml_cc_restriction(s(n-1),s(n),mla%mba%rr(n-1,:))
+    enddo
 
+    do n = 2,nlevs
        call multifab_fill_ghost_cells(u(n),u(n-1),ng,mla%mba%rr(n-1,:), &
                                       bc(n-1),bc(n),1,1,dm)
        call multifab_fill_ghost_cells(s(n),s(n-1),ng,mla%mba%rr(n-1,:), &

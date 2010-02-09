@@ -57,6 +57,7 @@ contains
     else if (bc(1,1) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(1,1) = ',bc(1,1)
        call bl_error('BC(1,1) = NOT YET SUPPORTED')
     end if
 
@@ -89,6 +90,7 @@ contains
     else if (bc(1,2) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(1,2) = ',bc(1,2)
        call bl_error('BC(1,2) = NOT YET SUPPORTED')
     end if
 
@@ -121,6 +123,7 @@ contains
     else if (bc(2,1) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(2,1) = ',bc(2,1)
        call bl_error('BC(2,1) = NOT YET SUPPORTED')
     end if
 
@@ -153,6 +156,7 @@ contains
     else if (bc(2,2) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(2,2) = ',bc(2,2)
        call bl_error('BC(2,2) = NOT YET SUPPORTED')
     end if
 
@@ -177,11 +181,13 @@ contains
     hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
 
     if (bc(1,1) .eq. EXT_DIR) then
+
        if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
        if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
        if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
        if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
        if (icomp.eq.5) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
+
     else if (bc(1,1) .eq. FOEXTRAP) then
        do k = lo(3)-ng,hi(3)+ng
           do j = lo(2)-ng,hi(2)+ng
@@ -216,6 +222,7 @@ contains
     else if (bc(1,1) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(1,1) = ',bc(1,1)
        call bl_error('BC(1,1) = NOT YET SUPPORTED')
     end if
 
@@ -259,6 +266,7 @@ contains
     else if (bc(1,2) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(1,2) = ',bc(1,2)
        call bl_error('BC(1,2) = NOT YET SUPPORTED')
     end if
 
@@ -302,6 +310,7 @@ contains
     else if (bc(2,1) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(2,1) = ',bc(2,1)
        call bl_error('BC(2,1) = NOT YET SUPPORTED')
     end if
 
@@ -345,6 +354,7 @@ contains
     else if (bc(2,2) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(2,2) = ',bc(2,2)
        call bl_error('BC(2,2) = NOT YET SUPPORTED')
     end if
 
@@ -388,6 +398,7 @@ contains
     else if (bc(3,1) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(3,1) = ',bc(3,1)
        call bl_error('BC(3,1) = NOT YET SUPPORTED')
     end if
 
@@ -431,6 +442,7 @@ contains
     else if (bc(3,2) .eq. INTERIOR) then
        ! do nothing
     else 
+       print *,'bc(3,2) = ',bc(3,2)
        call bl_error('BC(3,2) = NOT YET SUPPORTED')
     end if
 

@@ -14,8 +14,7 @@ module pre_advance_module
 
 contains
 
-  subroutine advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt, &
-                            the_bc_level)
+  subroutine advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt,the_bc_tower)
 
     use velpred_module
     use mkforce_module
@@ -28,7 +27,7 @@ contains
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
-    type(bc_level) , intent(in   ) :: the_bc_level(:)
+    type(bc_tower) , intent(in   ) :: the_bc_tower
 
     type(multifab)  :: vel_force(mla%nlevel)
     integer         :: dm,n,nlevs
@@ -43,9 +42,9 @@ contains
     enddo
 
     visc_fac = 1.0d0
-    call mkvelforce(nlevs,vel_force,ext_vel_force,sold,gp,lapu,visc_fac)
+    call mkvelforce(mla,vel_force,ext_vel_force,sold,gp,lapu,visc_fac,the_bc_tower)
 
-    call velpred(nlevs,uold,umac,vel_force,dx,dt,the_bc_level,mla)
+    call velpred(nlevs,uold,umac,vel_force,dx,dt,the_bc_tower%bc_tower_array,mla)
 
     do n = 1, nlevs
        call multifab_destroy(vel_force(n))

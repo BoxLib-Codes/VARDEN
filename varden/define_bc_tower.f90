@@ -84,7 +84,11 @@ module define_bc_module
     call phys_bc_level_build(bct%bc_tower_array(n)%phys_bc_level_array,la, &
                              bct%domain_bc,default_value)
 
-    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
+    ! Here we allocate bct%dim components for velocity
+    !                    nscal components for scalars
+    !                        1 component  for generic extrap
+    !                        1 component  for pressure
+    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+2))
     default_value = INTERIOR
     call adv_bc_level_build(bct%bc_tower_array(n)%adv_bc_level_array, &
                             bct%bc_tower_array(n)%phys_bc_level_array,default_value)
@@ -112,6 +116,8 @@ module define_bc_module
        deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
     end do
     deallocate(bct%bc_tower_array)
+
+    deallocate(bct%domain_bc)
 
   end subroutine bc_tower_destroy
 
@@ -148,7 +154,7 @@ module define_bc_module
 
   subroutine adv_bc_level_build(adv_bc_level,phys_bc_level,default_value)
 
-    use probin_module, only : nscal
+    use probin_module, only : nscal,extrap_comp
 
     implicit none
 
@@ -157,7 +163,7 @@ module define_bc_module
     integer  , intent(in   ) :: default_value
 
     integer :: dm, ns
-    integer :: comp,d,lohi
+    integer :: igrid,d,lohi
     integer :: press_comp
 
     adv_bc_level = default_value
@@ -168,7 +174,8 @@ module define_bc_module
 !   COMP = 2  : y-velocity
 !   COMP = 3  : density
 !   COMP = 4 - (4+nscal-1) : tracer_i
-!   last COMP   : pressure
+!   next-to-last COMP   : pressure
+!   last COMP   : generic extrap
 
 !    *** 3-D ***
 !   COMP = 1  : x-velocity
@@ -176,53 +183,67 @@ module define_bc_module
 !   COMP = 3  : z-velocity
 !   COMP = 4  : density
 !   COMP = 5 - (5+nscal-1) : tracer_i
-!   last COMP   : pressure
+!   next-to-last COMP   : pressure
+!   last COMP   : generic extrap
  
     dm = size(adv_bc_level,dim=2)
 
-    press_comp = dm+nscal+1
+    press_comp  = dm+nscal+1
+    extrap_comp = press_comp+1
 
-    do comp = 0, size(adv_bc_level,dim=1)-1
+    do igrid = 0, size(adv_bc_level,dim=1)-1
     do d = 1, dm
     do lohi = 1, 2
-       if (phys_bc_level(comp,d,lohi) == SLIP_WALL) then
-          adv_bc_level(comp,d,lohi,1:dm) = HOEXTRAP      ! tangential vel.
-          adv_bc_level(comp,d,lohi,   d) = EXT_DIR       ! normal vel.
-          do ns = 1, nscal
-             adv_bc_level(comp,d,lohi,dm+ns) = HOEXTRAP      ! density and tracers
-          enddo
-          adv_bc_level(comp,d,lohi,press_comp) = FOEXTRAP      ! pressure
 
-       else if (phys_bc_level(comp,d,lohi) == NO_SLIP_WALL) then
-          adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
-          do ns = 1, nscal
-             adv_bc_level(comp,d,lohi,dm+ns) = HOEXTRAP      ! density and tracers
-          enddo
-          adv_bc_level(comp,d,lohi,press_comp) = FOEXTRAP      ! pressure
+       if (phys_bc_level(igrid,d,lohi) == SLIP_WALL) then
 
-       else if (phys_bc_level(comp,d,lohi) == INLET) then
-          adv_bc_level(comp,d,lohi,1:dm) = EXT_DIR       ! vel.
+          adv_bc_level(igrid,d,lohi,1:dm) = HOEXTRAP      ! tangential vel.
+          adv_bc_level(igrid,d,lohi,   d) = EXT_DIR       ! normal vel.
           do ns = 1, nscal
-             adv_bc_level(comp,d,lohi,dm+ns) = EXT_DIR       ! density and tracers
+             adv_bc_level(igrid,d,lohi,dm+ns) = HOEXTRAP      ! density and tracers
           enddo
-          adv_bc_level(comp,d,lohi,press_comp) = FOEXTRAP      ! pressure
+          adv_bc_level(igrid,d,lohi, press_comp) = FOEXTRAP      ! pressure
+          adv_bc_level(igrid,d,lohi,extrap_comp) = FOEXTRAP      ! generic extrap bc
 
-       else if (phys_bc_level(comp,d,lohi) == OUTLET) then
-          adv_bc_level(comp,d,lohi,1:dm) = FOEXTRAP      ! vel.
-          do ns = 1, nscal
-             adv_bc_level(comp,d,lohi,dm+ns) = FOEXTRAP      ! density and tracers
-          enddo
-          adv_bc_level(comp,d,lohi,press_comp) = EXT_DIR       ! pressure
+       else if (phys_bc_level(igrid,d,lohi) == NO_SLIP_WALL) then
 
-       else if (phys_bc_level(comp,d,lohi) == SYMMETRY) then
-          adv_bc_level(comp,d,lohi,1:dm) = REFLECT_EVEN  ! tangential vel.
-          adv_bc_level(comp,d,lohi,   d) = REFLECT_ODD   ! normal vel.
+          adv_bc_level(igrid,d,lohi,1:dm) = EXT_DIR       ! vel.
           do ns = 1, nscal
-             adv_bc_level(comp,d,lohi,dm+ns) = REFLECT_EVEN  ! density and tracers
+             adv_bc_level(igrid,d,lohi,dm+ns) = HOEXTRAP      ! density and tracers
           enddo
-          adv_bc_level(comp,d,lohi,press_comp) = EXT_DIR       ! pressure
+          adv_bc_level(igrid,d,lohi, press_comp) = FOEXTRAP      ! pressure
+          adv_bc_level(igrid,d,lohi,extrap_comp) = FOEXTRAP      ! generic extrap bc
+
+       else if (phys_bc_level(igrid,d,lohi) == INLET) then
+
+          adv_bc_level(igrid,d,lohi,1:dm) = EXT_DIR       ! vel.
+          do ns = 1, nscal
+             adv_bc_level(igrid,d,lohi,dm+ns) = EXT_DIR       ! density and tracers
+          enddo
+          adv_bc_level(igrid,d,lohi,press_comp) = FOEXTRAP      ! pressure
+          adv_bc_level(igrid,d,lohi,extrap_comp) = FOEXTRAP      ! generic extrap bc
+
+       else if (phys_bc_level(igrid,d,lohi) == OUTLET) then
+
+          adv_bc_level(igrid,d,lohi,1:dm) = FOEXTRAP      ! vel.
+          do ns = 1, nscal
+             adv_bc_level(igrid,d,lohi,dm+ns) = FOEXTRAP      ! density and tracers
+          enddo
+          adv_bc_level(igrid,d,lohi,press_comp) = EXT_DIR       ! pressure
+          adv_bc_level(igrid,d,lohi,extrap_comp) = FOEXTRAP      ! generic extrap bc
+
+       else if (phys_bc_level(igrid,d,lohi) == SYMMETRY) then
+
+          adv_bc_level(igrid,d,lohi,1:dm) = REFLECT_EVEN  ! tangential vel.
+          adv_bc_level(igrid,d,lohi,   d) = REFLECT_ODD   ! normal vel.
+          do ns = 1, nscal
+             adv_bc_level(igrid,d,lohi,dm+ns) = REFLECT_EVEN  ! density and tracers
+          enddo
+          adv_bc_level(igrid,d,lohi,press_comp) = EXT_DIR       ! pressure
+          adv_bc_level(igrid,d,lohi,extrap_comp) = REFLECT_EVEN ! generic extrap bc
 
        end if
+
     end do
     end do
     end do

@@ -1,7 +1,12 @@
 module mkforce_module
 
   use bl_types
+  use bl_constants_module
   use multifab_module
+  use ml_layout_module
+  use ml_restriction_module
+  use multifab_fill_ghost_module
+  use define_bc_module
 
   implicit none
 
@@ -11,28 +16,34 @@ module mkforce_module
 
 contains
 
-  subroutine mkvelforce(nlevs,vel_force,ext_vel_force,s,gp,lapu,visc_fac)
+  subroutine mkvelforce(mla,vel_force,ext_vel_force,s,gp,lapu,visc_fac,the_bc_tower)
 
-    integer        , intent(in   ) :: nlevs
+    use probin_module, only: extrap_comp
+
+    type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: vel_force(:)
     type(multifab) , intent(in   ) :: ext_vel_force(:)
     type(multifab) , intent(in   ) :: s(:)
     type(multifab) , intent(in   ) :: gp(:)
     type(multifab) , intent(in   ) :: lapu(:)
     real(kind=dp_t), intent(in   ) :: visc_fac
+    type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
-    integer :: i,n,ng,dm
+    integer :: i,d,n,ng,ng_f,dm,nlevs
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     real(kind=dp_t), pointer :: gpp(:,:,:,:)
 
-    ng = s(1)%ng
-    dm = s(1)%dim
+    nlevs = mla%nlevel
+    ng    = s(1)%ng
+    ng_f  = vel_force(1)%ng
+    dm    = s(1)%dim
 
     do n=1,nlevs
+       call setval(vel_force(n),ZERO,all=.true.)
        do i = 1, vel_force(n)%nboxes
           if ( remote(vel_force(n),i) ) cycle
           fp  => dataptr(vel_force(n),i)
@@ -51,9 +62,27 @@ contains
                                 ng, visc_fac)
           end select
        end do
-
-       call multifab_fill_boundary(vel_force(n))
     enddo
+
+    do n = nlevs, 2, -1
+       call ml_cc_restriction(vel_force(n-1),vel_force(n),mla%mba%rr(n-1,:))
+    end do
+
+    do n = 2, nlevs
+       ! Note we have to call each component separately because we use extrap_comp
+       do d = 1, dm
+          call multifab_fill_ghost_cells(vel_force(n),vel_force(n-1), &
+                                         ng_f,mla%mba%rr(n-1,:), &
+                                         the_bc_tower%bc_tower_array(n-1), &
+                                         the_bc_tower%bc_tower_array(n  ), &
+                                         d,extrap_comp,1)
+       end do
+    end do
+
+    do n = 1, nlevs
+       call multifab_fill_boundary(vel_force(n))
+    end do
+
 
   end subroutine mkvelforce
 
@@ -221,23 +250,29 @@ contains
 
   end subroutine mkvelforce_3d
 
-  subroutine mkscalforce(nlevs,scal_force,ext_scal_force,laps,diff_fac)
+  subroutine mkscalforce(mla,scal_force,ext_scal_force,laps,diff_fac,the_bc_tower)
 
-    integer        , intent(in   ) :: nlevs
+    use probin_module, only: nscal,extrap_comp
+
+    type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: scal_force(:)
     type(multifab) , intent(in   ) :: ext_scal_force(:)
     type(multifab) , intent(in   ) :: laps(:)
     real(kind=dp_t), intent(in   ) :: diff_fac
+    type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
-    integer :: i,n,dm
+    integer :: i,d,n,ng_f,dm,nlevs
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
 
-    dm = scal_force(1)%dim
+    nlevs = mla%nlevel
+    dm    = scal_force(1)%dim
+    ng_f  = scal_force(1)%ng
 
     do n=1,nlevs
+       call setval(scal_force(n),ZERO,all=.true.)
        do i = 1, scal_force(n)%nboxes
           if ( remote(scal_force(n),i) ) cycle
           fp => dataptr(scal_force(n),i)
@@ -250,9 +285,26 @@ contains
              call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), lp(:,:,:,:), diff_fac)
           end select
        end do
-
-       call multifab_fill_boundary(scal_force(n))
     enddo
+
+    do n = nlevs, 2, -1
+       call ml_cc_restriction(scal_force(n-1),scal_force(n),mla%mba%rr(n-1,:))
+    end do
+
+    do n = 2, nlevs
+       ! Note we have to call each component separately because we use extrap_comp
+       do d = 1, nscal
+          call multifab_fill_ghost_cells(scal_force(n),scal_force(n-1), &
+                                         ng_f,mla%mba%rr(n-1,:), &
+                                         the_bc_tower%bc_tower_array(n-1), &
+                                         the_bc_tower%bc_tower_array(n  ), &
+                                         d,extrap_comp,1)
+       end do
+    end do
+
+    do n = 1, nlevs
+       call multifab_fill_boundary(scal_force(n))
+    end do
 
   end subroutine mkscalforce
 

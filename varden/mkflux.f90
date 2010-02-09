@@ -98,7 +98,7 @@ contains
           case (3)
              sepz   => dataptr(sedge(n,3), i)
              fluxpz => dataptr(flux(n,3), i)
-             wmp  => dataptr(umac(n,3), i)
+             wmp    => dataptr(umac(n,3), i)
              if(use_godunov_debug) then
                 call mkflux_debug_3d(sop(:,:,:,:), &
                                      sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
