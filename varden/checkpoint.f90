@@ -63,17 +63,20 @@ contains
     time = time_in
       dt =   dt_in
 
-    header = "Header"
-    un = unit_new()
-    open(unit=un, &
-         file = trim(dirname) // "/" // trim(header), &
-         form = "formatted", access = "sequential", &
-         status = "replace", action = "write")
-    nlevs = nlevs_in
-    write(unit=un, nml = chkpoint)
-    do n = 1,nlevs-1
-       write(unit=un,fmt=*) rrs(n,1)
-    end do
+    if (parallel_IOProcessor()) then
+       header = "Header"
+       un = unit_new()
+       open(unit=un, &
+            file = trim(dirname) // "/" // trim(header), &
+            form = "formatted", access = "sequential", &
+            status = "replace", action = "write")
+       nlevs = nlevs_in
+       write(unit=un, nml = chkpoint)
+       do n = 1,nlevs-1
+          write(unit=un,fmt=*) rrs(n,1)
+       end do
+       close(un)
+    end if
     
     deallocate(lo,hi)
 
