@@ -20,7 +20,6 @@ contains
     use bc_module
     use proj_parameters
     use nodal_divu_module
-    use stencil_module
     use ml_solve_module
     use ml_restriction_module
     use multifab_fill_ghost_module
@@ -690,8 +689,7 @@ contains
                           press_comp,stencil_type,divu_rhs,eps_in)
 
     use bl_constants_module
-    use stencil_module
-    use coeffs_module
+    use stencil_fill_module
     use ml_solve_module
     use nodal_divu_module, only: divu, subtract_divu_from_rh
     use probin_module, only : mg_verbose, cg_verbose
@@ -836,19 +834,8 @@ contains
        call mkcoeffs(rhohalf(n),coeffs(mgt(n)%nlevels))
        call multifab_fill_boundary(coeffs(mgt(n)%nlevels))
 
-       do i = mgt(n)%nlevels-1, 1, -1
-          call multifab_build(coeffs(i), mgt(n)%ss(i)%la, 1, 1)
-          call setval(coeffs(i), 0.0_dp_t, 1, all=.true.)
-          call coarsen_coeffs(coeffs(i+1),coeffs(i))
-          call multifab_fill_boundary(coeffs(i))
-       end do
+       call stencil_fill_nodal_all_mglevels(mgt(n), coeffs, stencil_type)
 
-       !    NOTE: we define the stencils with the finest dx.
-       do i = mgt(n)%nlevels, 1, -1
-          call stencil_fill_nodal(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
-                                  mgt(n)%mm(i), mgt(n)%face_type,stencil_type)
-          pd  = coarsen(pd,2)
-       end do
        if (stencil_type .eq. ST_CROSS .and. n .gt. 1) then
           i = mgt(n)%nlevels
           call stencil_fill_one_sided(one_sided_ss(n), coeffs(i), &
@@ -856,9 +843,7 @@ contains
                                       mgt(n)%mm(i), mgt(n)%face_type)
        end if
 
-       do i = mgt(n)%nlevels, 1, -1
-          call multifab_destroy(coeffs(i))
-       end do
+       call destroy(coeffs(mgt(n)%nlevels))
        deallocate(coeffs)
 
     end do

@@ -8,7 +8,6 @@ module mac_multigrid_module
   use bl_constants_module
   use bl_error_module
   use sparse_solve_module
-  use stencil_module
 
   implicit none
 
@@ -21,7 +20,7 @@ contains
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
        the_bc_tower,bc_comp,stencil_order,ref_ratio,umac_norm)
 
-     use coeffs_module
+     use stencil_fill_module, only: stencil_fill_cc_all_mglevels
      use mg_module, only: mg_tower, mg_tower_build, mg_tower_destroy
      use ml_solve_module
      use probin_module, only: mg_verbose, cg_verbose
@@ -36,7 +35,6 @@ contains
     real(dp_t), intent(in), optional :: umac_norm(:)
 
     type(layout  ) :: la
-    type(boxarray) :: pdv
     type(box     ) :: pd
 
     type(multifab), allocatable :: coeffs(:)
@@ -49,7 +47,7 @@ contains
     type(imultifab) :: mm
     type(sparse)    :: sparse_object
     type(mg_tower)  :: mgt(mla%nlevel)
-    integer         :: i, dm, ns, nlevs, test
+    integer         :: dm, ns, nlevs, test
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
@@ -165,12 +163,6 @@ contains
        if (dm > 2) &
           call multifab_copy_c(coeffs(mgt(n)%nlevels),4, beta(n,3),1,1,ng=beta(n,3)%ng)
 
-       do i = mgt(n)%nlevels-1, 1, -1
-          call multifab_build(coeffs(i), mgt(n)%ss(i)%la, 1+dm, 1)
-          call setval(coeffs(i), ZERO, 1, dm+1, all=.true.)
-          call coarsen_coeffs(coeffs(i+1),coeffs(i))
-       end do
-
        if (n > 1) then
           xa = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
           xb = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
@@ -181,20 +173,11 @@ contains
 
        pxa = ZERO
        pxb = ZERO
-       do i = mgt(n)%nlevels, 1, -1
-          pdv = layout_boxarray(mgt(n)%ss(i)%la)
-          call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
-                               pdv, mgt(n)%mm(i), xa, xb, pxa, pxb, pd, stencil_order, &
-                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
-       end do
 
-       if ( n == 1 .and. bottom_solver == 3 ) then
-          call sparse_build(mgt(n)%sparse_object, mgt(n)%ss(1), &
-                            mgt(n)%mm(1), mgt(n)%ss(1)%la, stencil_order, mgt(nlevs)%verbose)
-       end if
-       do i = mgt(n)%nlevels, 1, -1
-          call multifab_destroy(coeffs(i))
-       end do
+       call stencil_fill_cc_all_mglevels(mgt(n), coeffs, xa, xb, pxa, pxb, pd, stencil_order, &
+                                         the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
+ 
+       call destroy(coeffs(mgt(n)%nlevels))
        deallocate(coeffs)
 
     end do
@@ -204,6 +187,7 @@ contains
     else
        do_diagnostics = 0
     end if
+
     call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics)
 
     do n = 1,nlevs

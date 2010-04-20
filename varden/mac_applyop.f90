@@ -3,7 +3,6 @@ module mac_applyop_module
   use bl_types
   use ml_layout_module
   use define_bc_module
-  use stencil_module
   use multifab_module
   use bl_constants_module
   use bl_error_module
@@ -19,7 +18,7 @@ contains
   subroutine mac_applyop(mla,res,phi,alpha,beta,dx,&
        the_bc_tower,bc_comp,stencil_order,ref_ratio)
 
-     use coeffs_module
+     use stencil_fill_module, only: stencil_fill_cc_all_mglevels
      use mg_module, only: mg_tower, mg_tower_build, mg_tower_destroy
      use ml_cc_module, only: ml_cc_applyop
 
@@ -32,7 +31,6 @@ contains
     integer     ,intent(in   ) :: bc_comp
 
     type(layout  ) :: la
-    type(boxarray) :: pdv
     type(box     ) :: pd
 
     type(multifab), allocatable :: coeffs(:)
@@ -41,7 +39,7 @@ contains
     type(multifab) , intent(inout) ::    res(:), phi(:)
 
     type(mg_tower)  :: mgt(mla%nlevel)
-    integer         :: i, dm, ns, nlevs, test
+    integer         :: dm, ns, nlevs, test
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
@@ -121,12 +119,6 @@ contains
        if (dm > 2) &
           call multifab_copy_c(coeffs(mgt(n)%nlevels),4,beta(n,3),1,1,ng=beta(n,3)%ng)
 
-       do i = mgt(n)%nlevels-1, 1, -1
-          call multifab_build(coeffs(i), mgt(n)%ss(i)%la, 1+dm, 1)
-          call setval(coeffs(i), ZERO, 1, dm+1, all=.true.)
-          call coarsen_coeffs(coeffs(i+1),coeffs(i))
-       end do
-
        if (n > 1) then
           xa = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
           xb = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
@@ -137,16 +129,11 @@ contains
 
        pxa = ZERO
        pxb = ZERO
-       do i = mgt(n)%nlevels, 1, -1
-          pdv = layout_boxarray(mgt(n)%ss(i)%la)
-          call stencil_fill_cc(mgt(n)%ss(i), coeffs(i), mgt(n)%dh(:,i), &
-                            pdv, mgt(n)%mm(i), xa, xb, pxa, pxb, pd, stencil_order, &
-                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
-       end do
 
-       do i = mgt(n)%nlevels, 1, -1
-          call multifab_destroy(coeffs(i))
-       end do
+       call stencil_fill_cc_all_mglevels(mgt(n), coeffs, xa, xb, pxa, pxb, pd, stencil_order, &
+                                         the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
+ 
+       call destroy(coeffs(mgt(n)%nlevels))
        deallocate(coeffs)
 
     end do
