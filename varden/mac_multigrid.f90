@@ -25,23 +25,23 @@ contains
      use ml_solve_module
      use probin_module, only: mg_verbose, cg_verbose
 
-    type(ml_layout),intent(in   ) :: mla
-    integer        ,intent(in   ) :: stencil_order
-    integer        ,intent(in   ) :: ref_ratio(:,:)
+    type(ml_layout), intent(in   ) :: mla
+    type(multifab) , intent(inout) :: rh(:),phi(:)
+    type(bndry_reg), intent(inout) :: fine_flx(2:)
+    type(multifab) , intent(in   ) :: alpha(:), beta(:,:)
+    real(dp_t)     , intent(in   ) :: dx(:,:)
+    type(bc_tower) , intent(in   ) :: the_bc_tower
+    integer        , intent(in   ) :: bc_comp
+    integer        , intent(in   ) :: stencil_order
+    integer        , intent(in   ) :: ref_ratio(:,:)
 
-    real(dp_t), intent(in) :: dx(:,:)
-    type(bc_tower), intent(in) :: the_bc_tower
-    integer     ,intent(in   ) :: bc_comp
     real(dp_t), intent(in), optional :: umac_norm(:)
 
     type(layout  ) :: la
     type(box     ) :: pd
 
-    type(multifab), allocatable :: coeffs(:)
-
-    type(multifab) , intent(in   ) :: alpha(:), beta(:,:)
-    type(multifab) , intent(inout) ::    rh(:),  phi(:)
-    type(bndry_reg), intent(inout) :: fine_flx(2:)
+    type(multifab), allocatable :: cell_coeffs(:)
+    type(multifab), allocatable :: edge_coeffs(:,:)
 
     type( multifab) :: ss
     type(imultifab) :: mm
@@ -54,7 +54,7 @@ contains
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: n, nu1, nu2, gamma, cycle_type, smoother
+    integer    :: d, n, nu1, nu2, gamma, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
     real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
@@ -151,16 +151,18 @@ contains
 
     do n = nlevs,1,-1
 
-       allocate(coeffs(mgt(n)%nlevels))
+       allocate(cell_coeffs(mgt(n)%nlevels))
+       allocate(edge_coeffs(mgt(n)%nlevels,dm))
 
        la = mla%la(n)
 
-       call multifab_build(coeffs(mgt(n)%nlevels), la, 1+dm, 1)
-       call multifab_copy_c(coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=alpha(n)%ng)
-       call multifab_copy_c(coeffs(mgt(n)%nlevels),2, beta(n,1),1,1,ng=beta(n,1)%ng)
-       call multifab_copy_c(coeffs(mgt(n)%nlevels),3, beta(n,2),1,1,ng=beta(n,2)%ng)
-       if (dm > 2) &
-          call multifab_copy_c(coeffs(mgt(n)%nlevels),4, beta(n,3),1,1,ng=beta(n,3)%ng)
+       call multifab_build(cell_coeffs(mgt(n)%nlevels), la, 1, 1)
+       call multifab_copy_c(cell_coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=alpha(n)%ng)
+
+       do d = 1, dm
+          call multifab_build_edge(edge_coeffs(mgt(n)%nlevels,d),la,1,1,d)
+          call multifab_copy_c(edge_coeffs(mgt(n)%nlevels,d),1,beta(n,d),1,1,ng=beta(n,d)%ng)
+       end do
 
        if (n > 1) then
           xa = HALF*ref_ratio(n-1,:)*mgt(n)%dh(:,mgt(n)%nlevels)
@@ -173,11 +175,16 @@ contains
        pxa = ZERO
        pxb = ZERO
 
-       call stencil_fill_cc_all_mglevels(mgt(n), coeffs, xa, xb, pxa, pxb, stencil_order, &
+       call stencil_fill_cc_all_mglevels(mgt(n), cell_coeffs, edge_coeffs, xa, xb, pxa, pxb, stencil_order, &
                                          the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp))
  
-       call destroy(coeffs(mgt(n)%nlevels))
-       deallocate(coeffs)
+       call destroy(cell_coeffs(mgt(n)%nlevels))
+       deallocate(cell_coeffs)
+
+       do d = 1, dm
+          call destroy(edge_coeffs(mgt(n)%nlevels,d))
+       end do
+       deallocate(edge_coeffs)
 
     end do
 
