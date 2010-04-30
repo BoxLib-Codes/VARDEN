@@ -9,14 +9,18 @@
 
 ! inputs for reactions
 ! for SDC, must have n_rxns >= 1 
+! this is the number of timesteps used whenever the rxns integrator gets
+! called, so to compare with SDC, should manually divide by 2
   n_rxn_steps = 50
 !  k_rxn1 = 5111.d0
 !  k_rxn1 = 217131.d0
-  k_rxn1 = 20.
-  k_rxn2 = 10.
+!  k_rxn1 = 20.
+!  k_rxn2 = 10.
+  k_rxn1 = 2000.
+  k_rxn2 = 100.
 
- use_strang = F
- use_sdc = T
+ use_strang = T
+ use_sdc = F
 ! must set if using SDC
  sdc_iters = 2
 
@@ -26,16 +30,18 @@
 ! default = F
  mass_fractions = T
 
- init_iter = 2
+! init_iter = 0
+ init_iter = 4
  init_shrink = 1.0
 
- max_step  = 100
+ max_step  = 50
 
- stop_time = 0.0625
+! stop_time = 0.0625
 ! stop_time = 0.0875
 
 ! fixed_dt = 0.03125 !16
- fixed_dt = 0.015625 !32
+! fixed_dt = 0.015625 !32
+! fixed_dt = 0.0015625 !32 cfl .05
 ! fixed_dt = 0.0078125 !64
 ! fixed_dt = 0.00390625 !128
 ! fixed_dt = 0.001953125 !256
@@ -50,8 +56,8 @@
 
  cflfac = 0.5
 
- visc_coef = 0.00
- diff_coef = 0.01
+ visc_coef = 0.001
+ diff_coef = 0.1
 
  slope_order = 4
 
@@ -59,7 +65,7 @@
 ! fixed_grids = "gr0_2d_2levels"
  fixed_grids = 'gr0_2d'
 
-max_grid_size = 256
+max_grid_size = 64
 
 !!!! Inputs for adaptive grids !!!!
 !  max_levs = 1
@@ -104,5 +110,5 @@ max_grid_size = 256
  cg_verbose = 0
  sdc_verbose = 1
 
-! restart = 80
+! restart = 20
 /

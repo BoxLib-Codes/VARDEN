@@ -73,6 +73,8 @@ subroutine varden()
   dm = dim_in
   press_comp = dm + nscal + 1
 
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Set up plot_names for writing plot files.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -362,6 +364,10 @@ subroutine varden()
 
       end do ! istep loop
 
+! for debugging REMOVE ME
+      call fabio_multifab_write_d(snew(1),'.','fortMF')
+      
+
       if (istep > max_step) istep = max_step
 
       if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep)
@@ -477,6 +483,8 @@ contains
 
   subroutine write_plotfile(istep_to_write)
 
+    use probin_module, only : prob_lo, prob_hi
+
     integer, intent(in   ) :: istep_to_write
     integer                :: n,nc,n_plot_comps
 
@@ -501,7 +509,8 @@ contains
     end do
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
     call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, &
-                                   plot_names, mla%mba%pd(1), time, dx(1,:))
+                                   plot_names, mla%mba%pd(1), prob_lo, &
+                                   prob_hi, time, dx(1,:))
 
     do n = 1,nlevs
       call multifab_destroy(plotdata(n))

@@ -8,9 +8,9 @@ FPARALLEL := ../../..
 
 include $(FPARALLEL)/mk/GMakedefs.mak
 
-#f90sources += strang_main.f90
+f90sources += strang_main.f90
 #f90sources += subt_main.f90
-f90sources += main.f90
+#f90sources += main.f90
 f90sources += checkpoint.f90
 
 include $(FPARALLEL)/varden/test_sdc/convergence/GPackage.mak

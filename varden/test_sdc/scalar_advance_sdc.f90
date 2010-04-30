@@ -144,9 +144,8 @@ contains
     ! Provided as a source term to calculate advection term adv_s
     !************************************************************
     ! could use D_s(n,0) and/or time lagged I_R as a source
-    diff_fac = zero     !in mkscalforce: diff_fac*source
-    call mkscalforce(nlevs,scal_force,ext_scal_force,source,diff_fac) 
-    ! use mksource() when source mf only holds the reactive speices
+    diff_fac = zero     !in mksource: diff_fac*source
+    call mksource(nlevs,scal_force,ext_scal_force,source,diff_fac) 
 
     !***********************************
     ! Create edge state scalars/fluxes
@@ -220,6 +219,7 @@ contains
        enddo
     end if
 
+!    call multifab_print(snew(1))
     ! use sdc_flag=1 for provisional, =2 for SDC
     call react(mla,the_bc_tower,snew,dx,dt,t,adv_s,adv_rho,D_s,sdc_flag=1)
 

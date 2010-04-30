@@ -124,6 +124,7 @@ contains
     write(files(1),*)'#Convergence study data -- L1 norm'
     write(files(1),*)'#    dt     SpeciesA     SpeciesB    SpeciesC     Combined'
     do n = 1, n_grids
+       write(*,*) 'dt = ', cfl*dx(n,1)
        write(files(1),1000) cfl*dx(n,1),l1_error(n,1),l1_error(n,2),l1_error(n,3),&
                    l1_error(n,4)
     end do

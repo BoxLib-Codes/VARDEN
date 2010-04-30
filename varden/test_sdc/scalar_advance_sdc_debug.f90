@@ -173,9 +173,8 @@ contains
     enddo
 
     ! another option to do the same thing
-    !diff_fac = zero     !in mkscalforce: diff_fac*source
-    !call mkscalforce(nlevs,scal_force,ext_scal_force,source,diff_fac) 
-    ! NOTE: use mksource when source mf only holds the reactive speices
+    !diff_fac = zero     !in mksource: diff_fac*source
+    !call mksource(nlevs,scal_force,ext_scal_force,source,diff_fac) 
 
     !***********************************
     ! Create edge state scalars/fluxes
