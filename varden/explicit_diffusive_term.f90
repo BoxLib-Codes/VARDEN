@@ -20,7 +20,6 @@ contains
                                          the_bc_tower)
 
     use bl_constants_module
-    use probin_module, only: edge_nodal_flag
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: lap_data(:)
@@ -47,7 +46,7 @@ contains
        call multifab_build( Lphi(n),mla%la(n),    1,1)
        call multifab_build(alpha(n),mla%la(n),    1,1)
        do d = 1,dm
-          call multifab_build(beta(n,d),mla%la(n),1,1,nodal=edge_nodal_flag(d,:))
+          call multifab_build_edge(beta(n,d),mla%la(n),1,1,d)
        end do
        call setval( phi(n),0.0_dp_t,all=.true.)
        call setval(Lphi(n),0.0_dp_t,all=.true.)

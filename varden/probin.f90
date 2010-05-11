@@ -13,6 +13,7 @@ module probin_module
   integer,save    :: max_step,init_iter
   integer,save    :: plot_int, chk_int, regrid_int
   integer,save    :: verbose, mg_verbose, cg_verbose
+  integer,save    :: use_hypre
   integer,save    :: do_initial_projection
   integer,save    :: restart
   real(dp_t),save :: cflfac,init_shrink,fixed_dt
@@ -45,7 +46,6 @@ module probin_module
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
   logical   , allocatable, save :: pmask(:)
-  logical   , allocatable, save :: edge_nodal_flag(:,:)
   real(dp_t), allocatable, save :: prob_hi(:)
   real(dp_t), allocatable, save :: prob_lo(:)
 
@@ -83,6 +83,7 @@ module probin_module
   namelist /probin/ pmask_y
   namelist /probin/ pmask_z
   namelist /probin/ pmask_xyz
+  namelist /probin/ use_hypre
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
   namelist /probin/ cg_verbose
@@ -122,7 +123,7 @@ contains
     logical :: lexist
     logical :: need_inputs
 
-    integer :: i, un, ierr
+    integer :: un, ierr
 
     narg = command_argument_count()
 
@@ -163,6 +164,8 @@ contains
     prob_lo_x = ZERO
     prob_lo_y = ZERO
     prob_lo_z = ZERO
+
+    use_hypre = 0
 
     verbose = 0
     mg_verbose = 0
@@ -374,6 +377,11 @@ contains
           call get_command_argument(farg, value = fname)
           read(fname, *) verbose
 
+       case ('--use_hypre')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) use_hypre
+
        case ('--mg_verbose')
           farg = farg + 1
           call get_command_argument(farg, value = fname)
@@ -418,16 +426,6 @@ contains
 
     allocate(nodal(dim_in))
     nodal = .true.
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Initialize edge_nodal_flag
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    allocate(edge_nodal_flag(dim_in,dim_in))
-    edge_nodal_flag = .false.
-    do i = 1,dim_in
-       edge_nodal_flag(i,i) = .true.
-    end do
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Need to specify regrid_int if max_levs > 1 and not 'fixed grids'
@@ -486,7 +484,6 @@ contains
      deallocate(prob_lo)
      deallocate(nodal)
      deallocate(pmask)
-     deallocate(edge_nodal_flag)
 
   end subroutine probin_close
 

@@ -21,7 +21,7 @@ contains
     use multifab_physbc_module
     use multifab_fill_ghost_module
     use ml_restriction_module, only: ml_cc_restriction
-    use probin_module, only: stencil_order,verbose, edge_nodal_flag
+    use probin_module, only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -46,7 +46,7 @@ contains
        call multifab_build(  phi(n), mla%la(n),  1, 1)
        call multifab_build(alpha(n), mla%la(n),  1, 1)
        do d = 1,dm
-          call multifab_build( beta(n,d), mla%la(n), 1, 1, nodal = edge_nodal_flag(d,:))
+          call multifab_build_edge(beta(n,d), mla%la(n), 1, 1, d)
        end do
 
        call multifab_copy_c(alpha(n),1,rho(n),1,1)
@@ -246,7 +246,7 @@ contains
     use multifab_physbc_module
     use multifab_fill_ghost_module
     use ml_restriction_module, only: ml_cc_restriction_c
-    use probin_module, only: stencil_order, verbose, edge_nodal_flag
+    use probin_module, only: stencil_order, verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: snew(:)
@@ -272,7 +272,7 @@ contains
        call multifab_build(  phi(n), mla%la(n),  1, 1)
        call multifab_build(alpha(n), mla%la(n),  1, 1)
        do d = 1,dm
-          call multifab_build( beta(n,d), mla%la(n), 1, 1, nodal = edge_nodal_flag(d,:))
+          call multifab_build_edge(beta(n,d), mla%la(n), 1, 1, d)
        end do
        call setval(alpha(n),ONE,all=.true.)
        do d = 1,dm
