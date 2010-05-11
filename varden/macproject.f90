@@ -21,7 +21,8 @@ contains
   subroutine macproject(mla,umac,rho,dx,the_bc_tower,bc_comp,&
                         divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
-    use probin_module, only: stencil_order, edge_nodal_flag
+    use probin_module, only: stencil_order, use_hypre
+    use mac_hypre_module
     use mac_multigrid_module
 
     type(ml_layout), intent(in   ) :: mla
@@ -64,7 +65,7 @@ contains
        call multifab_build(  phi(n), mla%la(n),  1, 1)
        call multifab_build(alpha(n), mla%la(n),  1, 1)
        do d = 1,dm
-          call multifab_build( beta(n,d), mla%la(n), 1, 1, nodal = edge_nodal_flag(d,:))
+          call multifab_build_edge( beta(n,d), mla%la(n), 1, 1, d)
        end do
 
        call setval(alpha(n),ZERO,all=.true.)
@@ -104,8 +105,13 @@ contains
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
 
-    call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                       stencil_order,mla%mba%rr,umac_norm)
+    if (use_hypre) then
+       call mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,&
+                      the_bc_tower,bc_comp,stencil_order,mla%mba%rr,umac_norm)
+    else
+       call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
+                          stencil_order,mla%mba%rr,umac_norm)
+    end if
 
     call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)
 
