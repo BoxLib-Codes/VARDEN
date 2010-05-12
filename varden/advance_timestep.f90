@@ -1,7 +1,6 @@
 module advance_module 
 
   use BoxLib
-  use omp_module
   use f2kcli
   use bl_constants_module
   use list_box_module
