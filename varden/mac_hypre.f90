@@ -40,7 +40,7 @@ contains
     integer         :: pdlo(mla%dim),pdhi(mla%dim)
 
     integer         :: d, i, n, ioff
-    integer         :: dm, nlevs, ns
+    integer         :: dm, nlevs, ns_mg, ns_hy
 
     type(mg_tower)  :: mgt(mla%nlevel)
 
@@ -75,8 +75,12 @@ contains
     dm    = mla%dim
     nlevs = mla%nlevel
 
-    ! We use standard cross stencils (with an extra place for boundary conditions).
-    ns = 3*dm + 1
+    if (nlevs > 1) &
+       call bl_error('mac_hypre: not set up for nlevs > 1')
+
+    ! We use standard cross stencils (with an extra place in each direction for boundary conditions in the mg stencil).
+    ns_mg = 3*dm + 1
+    ns_hy = 2*dm + 1
 
 !   ******************************************************************************************************* 
 !   Set up a mg_tower so that we can use that functionality to make the stencil
@@ -89,7 +93,7 @@ contains
        call mg_tower_build(mgt(n), mla%la(n), pd, &
                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
                            dh = dx(n,:), &
-                           ns = ns, &
+                           ns = ns_mg, &
                            max_nlevel = 1, &
                            nodal = rh(nlevs)%nodal)
 
@@ -156,42 +160,19 @@ contains
     call HYPRE_StructGridAssemble(grid,ierr)
 
 !   ******************************************************************************************************* 
-!   Set the periodic flags correctly
+!   Define a stencil "hypre_stencil" with ns_hy entries in dm dimensions
 !   ******************************************************************************************************* 
 
-    pd = layout_get_pd(mla%la(1))
-    pdlo =  lwb(pd)
-    pdhi =  upb(pd)
-
-    allocate(periodic_flag(dm))
-    do i = 1,dm
-      if (pmask(i)) then
-         periodic_flag(i) = pdhi(i)-pdlo(i)
-      else
-         periodic_flag(i) = 0
-      end if
-    end do
-
-    call HYPRE_StructGridSetPeriodic(grid,periodic_flag)
-    deallocate(periodic_flag)
+    call HYPRE_StructStencilCreate(dm,ns_hy,hypre_stencil,ierr)
 
 !   ******************************************************************************************************* 
-!   Define a stencil "hypre_stencil" with ns entries in dm dimensions
+!   Define the offsets (locations) for the stencil entries
 !   ******************************************************************************************************* 
 
-    call HYPRE_StructStencilCreate(dm,ns,hypre_stencil,ierr)
+    allocate(stencil_indices(ns_hy))
+    allocate(offsets(dm,ns_hy))
 
-!   ******************************************************************************************************* 
-!   Define the offsets for the stencil
-!   ******************************************************************************************************* 
-
-    allocate(stencil_indices(ns))
-    allocate(offsets(dm,ns))
-
-    if (nlevs > 1) &
-       call bl_error('mac_hypre: not set up for nlevs > 1')
-
-    do i = 1, ns
+    do i = 1, ns_hy
        stencil_indices(i) = i-1
     enddo
    
@@ -201,39 +182,43 @@ contains
     ! Center
     ! All offsets are zero
 
-    !Left
+    ! Left (lo i)
     offsets(1,2) = -1
 
-    !Right
-    offsets(1,3) = 1
+    ! Right (hi i)
+    offsets(1,3) =  1
 
-    !Down(j)
+    ! Down (lo j)
     offsets(2,4) = -1
 
-    !Up(j)
-    offsets(2,5) = 1
+    ! Up (hi j)
+    offsets(2,5) =  1
 
     if (dm .eq. 3) then
 
-       !Down(k)
+       ! Back (lo k)
        offsets(3,6) = -1
 
-       !Up(k)
+       ! Front (hi k)
        offsets(3,7) = 1
 
     end if
 
-    do i = 1, ns
+    do i = 1, ns_hy
        call HYPRE_StructStencilSetElement(hypre_stencil,i-1,offsets(1,i),ierr);
     end do
 
 !   ******************************************************************************************************* 
-!   Define the offsets for the stencil
+!   Link the matrix "A" to the stencil "hypre_stencil" and initialize
 !   ******************************************************************************************************* 
 
     call HYPRE_StructMatrixCreate(MPI_COMM_WORLD,grid,hypre_stencil,A,ierr)
 
     call HYPRE_StructMatrixInitialize(A,ierr)
+
+!   ******************************************************************************************************* 
+!   Define the elements of "A"
+!   ******************************************************************************************************* 
 
     ! We have to use this offset to access into the mgt%ss array because it starts at 0 in stencil_fill codes...
     ioff = 1
@@ -253,7 +238,7 @@ contains
 
          if (dm.eq.2) then
 
-            allocate(values(1:ns,lo(1):hi(1),lo(2):hi(2),1))
+            allocate(values(1:ns_hy,lo(1):hi(1),lo(2):hi(2),1))
             values(:,:,:,:) = 0.d0
 
             ! Center
@@ -271,12 +256,12 @@ contains
             ! Up (hi j)
             values(5,lo(1):hi(1),lo(2):hi(2),1) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+3)
 
-            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns,stencil_indices,values,ierr)
+            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns_hy,stencil_indices,values,ierr)
             deallocate(values)
 
          else if (dm.eq.3) then
 
-            allocate(values(1:ns,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
+            allocate(values(1:ns_hy,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
             values(:,:,:,:) = 0.d0
 
             ! Center
@@ -300,10 +285,10 @@ contains
             ! Front (hi k)
             values(7,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+5)
 
-            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns,stencil_indices,values,ierr)
+            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns_hy,stencil_indices,values,ierr)
             deallocate(values)
 
-            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns,stencil_indices,values3d,ierr)
+            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns_hy,stencil_indices,values3d,ierr)
             deallocate(values3d)
 
          end if
@@ -311,7 +296,35 @@ contains
       end do
     end do
 
+!   ******************************************************************************************************* 
+!   Set the periodic flags correctly
+!   ******************************************************************************************************* 
+
+    pd = layout_get_pd(mla%la(1))
+    pdlo =  lwb(pd)
+    pdhi =  upb(pd)
+
+    allocate(periodic_flag(dm))
+    do i = 1,dm
+      if (pmask(i)) then
+         periodic_flag(i) = pdhi(i)-pdlo(i)+1
+      else
+         periodic_flag(i) = 0
+      end if
+    end do
+
+    call HYPRE_StructGridSetPeriodic(grid,periodic_flag)
+    deallocate(periodic_flag)
+
+!   ******************************************************************************************************* 
+!   "Assemble" the matrix A
+!   ******************************************************************************************************* 
+
     call HYPRE_StructMatrixAssemble(A,ierr)
+
+!   ******************************************************************************************************* 
+!   Create vectors "x" and "b".
+!   ******************************************************************************************************* 
 
     ! Create an empty vector object
     call HYPRE_StructVectorCreate(MPI_COMM_WORLD, grid, b, ierr)
@@ -320,6 +333,10 @@ contains
     ! Indicate that the vector coefficients are ready to be set
     call HYPRE_StructVectorInitialize(b,ierr)
     call HYPRE_StructVectorInitialize(x,ierr)
+
+!   ******************************************************************************************************* 
+!   Fill vector "b" with the "rh" multifab.
+!   ******************************************************************************************************* 
 
     do n = 1,nlevs
       do i = 1, rh(n)%nboxes
@@ -360,6 +377,9 @@ contains
     call HYPRE_StructVectorAssemble(b,ierr)
     call HYPRE_StructVectorAssemble(x,ierr)
 
+!   Print the matrix "A"
+    call HYPRE_StructMatrixPrint(A,0,ierr)
+
 !   Print the right-hand-side "b"
 !   call HYPRE_StructVectorPrint(b,0,ierr)
 
@@ -394,13 +414,14 @@ contains
     call HYPRE_StructPCGSetPrecond(solver, 1, precond, ierr)
     call HYPRE_StructPCGSetup(solver, A, b, x, ierr)
 
-!   Print the matrix "A"
-!   call HYPRE_StructMatrixPrint(A,0,ierr)
-
     call HYPRE_StructPCGSolve(solver, A, b, x, ierr)
 
 !   Print the solution "x"
 !   call HYPRE_StructVectorPrint(x,0,ierr)
+
+!   ******************************************************************************************************* 
+!   Fill multifab "phi" from the vector solution "x".
+!   ******************************************************************************************************* 
 
     do n = 1,nlevs
       do i = 1, phi(n)%nboxes
@@ -436,17 +457,17 @@ contains
       end do
     end do
 
-    call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
-    stop
+!   call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
+!   stop
 
 !   Free memory
 !   call HYPRE_StructPFMGDestroy(precond, ierr)
 !   call HYPRE_StructPCGDestroy(solver);
 !   call HYPRE_StructGridDestroy(grid);
 !   call HYPRE_StructStencilDestroy(hypre_stencil);
-!   call HYPRE_StructMatrixDestroy(A);
-!   call HYPRE_StructVectorDestroy(b);
-!   call HYPRE_StructVectorDestroy(x);
+    call HYPRE_StructMatrixDestroy(A);
+    call HYPRE_StructVectorDestroy(b);
+    call HYPRE_StructVectorDestroy(x);
 
     deallocate(stencil_indices)
     deallocate(offsets)
