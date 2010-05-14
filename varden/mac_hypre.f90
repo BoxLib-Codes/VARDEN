@@ -36,7 +36,8 @@ contains
     type(bndry_reg), intent(inout)        :: fine_flx(2:)
     real(dp_t)     , intent(in), optional :: umac_norm(:)
 
-    integer         :: lo(mla%dim),hi(mla%dim)
+    type(box)       :: pd
+    integer         :: lo(3),hi(3)
     integer         :: pdlo(mla%dim),pdhi(mla%dim)
 
     integer         :: d, i, n, ioff
@@ -53,19 +54,19 @@ contains
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
     real(dp_t) :: rel_eps, abs_eps
 
+    ! All the integers associated with Hypre are long.
     integer(kind=8) :: grid
     integer(kind=8) :: A,b,x
     integer(kind=8) :: hypre_stencil
     integer(kind=8) :: solver,precond
 
-    integer         :: ierr
+    integer              :: ierr
+    integer              :: periodic_flag(3)
     integer, allocatable :: stencil_indices(:)
     integer, allocatable :: offsets(:,:)
-    integer, allocatable :: periodic_flag(:)
-    type(box)       :: pd
+
     double precision :: tol
-    double precision, allocatable :: values2d(:,:,:)
-    double precision, allocatable :: values3d(:,:,:,:)
+    double precision, allocatable :: values(:,:,:,:)
 
     type(bl_prof_timer), save :: bpt
 
@@ -74,6 +75,10 @@ contains
 
     dm    = mla%dim
     nlevs = mla%nlevel
+
+    ! We dimension these for use in 2D
+    lo(3) = 1 
+    hi(3) = 1 
 
     if (nlevs > 1) &
        call bl_error('mac_hypre: not set up for nlevs > 1')
@@ -165,19 +170,6 @@ contains
     call HYPRE_StructGridCreate(MPI_COMM_WORLD,dm,grid,ierr) 
 
 !   ******************************************************************************************************* 
-!   Define the boxes with lo:hi
-!   ******************************************************************************************************* 
-
-    do n = 1,nlevs
-      do i = 1, rh(n)%nboxes
-         if ( multifab_remote(rh(n), i) ) cycle
-         lo =  lwb(get_box(rh(n), i))
-         hi =  upb(get_box(rh(n), i))
-         call HYPRE_StructGridSetExtents(grid,lo,hi,ierr)
-      end do
-    end do
-
-!   ******************************************************************************************************* 
 !   Set the periodic flags correctly
 !   ******************************************************************************************************* 
 
@@ -185,18 +177,28 @@ contains
     pdlo =  lwb(pd)
     pdhi =  upb(pd)
 
-    allocate(periodic_flag(3))
     periodic_flag(:) = 0
     do i = 1,dm
       if (pmask(i)) then
          periodic_flag(i) = pdhi(i)-pdlo(i)+1
-!     else
-!        periodic_flag(i) = 0
       end if
     end do
 
     call HYPRE_StructGridSetPeriodic(grid,periodic_flag)
-    deallocate(periodic_flag)
+    stop
+
+!   ******************************************************************************************************* 
+!   Define the boxes with lo:hi
+!   ******************************************************************************************************* 
+
+    do n = 1,nlevs
+      do i = 1, rh(n)%nboxes
+         if ( multifab_remote(rh(n), i) ) cycle
+         lo(1:dm) =  lwb(get_box(rh(n), i))
+         hi(1:dm) =  upb(get_box(rh(n), i))
+         call HYPRE_StructGridSetExtents(grid,lo,hi,ierr)
+      end do
+    end do
 
 !   ******************************************************************************************************* 
 !   "Assemble" the grid.
@@ -277,64 +279,59 @@ contains
 
       do i = 1, mgt(n)%ss(1)%nboxes
          if ( multifab_remote(mgt(n)%ss(1), i) ) cycle
-         lo =  lwb(get_box(mgt(n)%ss(1), i))
-         hi =  upb(get_box(mgt(n)%ss(1), i))
+         lo(1:dm) =  lwb(get_box(mgt(n)%ss(1), i))
+         hi(1:dm) =  upb(get_box(mgt(n)%ss(1), i))
 
          ssp => dataptr(mgt(n)%ss(1), i)
 
+         allocate(values(1:ns_hy,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
+         values(:,:,:,:) = 0.d0
+
          if (dm.eq.2) then
 
-            allocate(values2d(1:ns_hy,lo(1):hi(1),lo(2):hi(2)))
-            values2d(:,:,:) = 0.d0
-
             ! Center
-            values2d(1,lo(1):hi(1),lo(2):hi(2)) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+0)
+            values(1,lo(1):hi(1),lo(2):hi(2),1) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+0)
 
             ! Left (lo i)
-            values2d(2,lo(1):hi(1),lo(2):hi(2)) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+2)
+            values(2,lo(1):hi(1),lo(2):hi(2),1) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+2)
 
             ! Right (hi i)
-            values2d(3,lo(1):hi(1),lo(2):hi(2)) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+1)
+            values(3,lo(1):hi(1),lo(2):hi(2),1) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+1)
 
             ! Down (lo j)
-            values2d(4,lo(1):hi(1),lo(2):hi(2)) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+4)
+            values(4,lo(1):hi(1),lo(2):hi(2),1) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+4)
 
             ! Up (hi j)
-            values2d(5,lo(1):hi(1),lo(2):hi(2)) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+3)
-
-            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns_hy,stencil_indices,values2d,ierr)
-            deallocate(values2d)
+            values(5,lo(1):hi(1),lo(2):hi(2),1) = ssp(lo(1):hi(1),lo(2):hi(2),1,ioff+3)
 
          else if (dm.eq.3) then
 
-            allocate(values3d(1:ns_hy,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
-            values3d(:,:,:,:) = 0.d0
-
             ! Center
-            values3d(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+0)
+            values(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+0)
 
             ! Left (lo i)
-            values3d(2,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+2)
+            values(2,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+2)
 
             ! Right (hi i)
-            values3d(3,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+1)
+            values(3,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+1)
 
             ! Down (lo j)
-            values3d(4,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+4)
+            values(4,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+4)
 
             ! Up (hi j)
-            values3d(5,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+3)
+            values(5,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+3)
 
             ! Back (lo k)
-            values3d(6,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+6)
+            values(6,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+6)
 
             ! Front (hi k)
-            values3d(7,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+5)
-
-            call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns_hy,stencil_indices,values3d,ierr)
-            deallocate(values3d)
+            values(7,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = ssp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),ioff+5)
 
          end if
+
+         call HYPRE_StructMatrixSetBoxValues(A,lo,hi,ns_hy,stencil_indices,values,ierr)
+         deallocate(values)
+
        end do
     end do
 
@@ -365,29 +362,27 @@ contains
     do n = 1,nlevs
       do i = 1, rh(n)%nboxes
          if ( multifab_remote(rh(n), i) ) cycle
-         lo =  lwb(get_box(rh(n), i))
-         hi =  upb(get_box(rh(n), i))
+         lo(1:dm) =  lwb(get_box(rh(n), i))
+         hi(1:dm) =  upb(get_box(rh(n), i))
 
          rhp => dataptr(rh(n),i)
 
+         allocate(values(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
+
          ! Set RHS
          if (dm.eq.2) then
-            allocate(values2d(1,lo(1):hi(1),lo(2):hi(2)))
-            values2d(1,lo(1):hi(1),lo(2):hi(2)) = rhp(lo(1):hi(1),lo(2):hi(2),1,1)
-
-            call HYPRE_StructVectorSetBoxValues(b, lo, hi, values2d, ierr)
-
-            deallocate(values2d)
+            values(1,lo(1):hi(1),lo(2):hi(2),1) = &
+                 rhp(lo(1):hi(1),lo(2):hi(2),1,1)
 
          else if (dm.eq.3) then
 
-            allocate(values3d(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
-            values3d(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = rhp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1)
+            values(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) = &
+                 rhp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1)
 
-            call HYPRE_StructVectorSetBoxValues(b, lo, hi, values3d, ierr)
-
-            deallocate(values3d)
          end if
+
+         call HYPRE_StructVectorSetBoxValues(b, lo, hi, values, ierr)
+         deallocate(values)
 
       end do
     end do
@@ -447,49 +442,48 @@ contains
     do n = 1,nlevs
       do i = 1, phi(n)%nboxes
          if ( multifab_remote(phi(n), i) ) cycle
-         lo =  lwb(get_box(phi(n), i))
-         hi =  upb(get_box(phi(n), i))
+         lo(1:dm) =  lwb(get_box(phi(n), i))
+         hi(1:dm) =  upb(get_box(phi(n), i))
 
          pp => dataptr(phi(n),i)
 
          ! Set RHS
          if (dm.eq.2) then
-            allocate(values2d(1,lo(1):hi(1),lo(2):hi(2)))
-            values2d(:,:,:) = 1.d20
+            allocate(values(1,lo(1):hi(1),lo(2):hi(2),1))
+            values(:,:,:,:) = 1.d20
 
-            call HYPRE_StructVectorGetBoxValues(x, lo, hi, values2d, ierr)
+            call HYPRE_StructVectorGetBoxValues(x, lo, hi, values, ierr)
 
-            pp(lo(1):hi(1),lo(2):hi(2),1,1) = values2d(1,lo(1):hi(1),lo(2):hi(2)) 
-
-            deallocate(values2d)
+            pp(lo(1):hi(1),lo(2):hi(2),1,1) = values(1,lo(1):hi(1),lo(2):hi(2),1) 
 
          else if (dm.eq.3) then
 
-            allocate(values3d(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
-            values3d(:,:,:,:) = 1.d20
+            allocate(values(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)))
+            values(:,:,:,:) = 1.d20
 
-            call HYPRE_StructVectorGetBoxValues(x, lo, hi, values3d, ierr)
+            call HYPRE_StructVectorGetBoxValues(x, lo, hi, values, ierr)
 
-            pp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1) = values3d(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) 
+            pp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1) = values(1,lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) 
 
-            deallocate(values3d)
          end if
+
+         deallocate(values)
 
       end do
     end do
 
-    call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
+!   call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
 
 !   Free memory
 !   call HYPRE_StructPCGDestroy(solver);
-    call HYPRE_StructPFMGDestroy(precond)
+!   call HYPRE_StructPFMGDestroy(precond)
 
-    call HYPRE_StructGridDestroy(grid);
-    call HYPRE_StructStencilDestroy(hypre_stencil);
+!   call HYPRE_StructGridDestroy(grid);
+!   call HYPRE_StructStencilDestroy(hypre_stencil);
 
-    call HYPRE_StructMatrixDestroy(A);
-    call HYPRE_StructVectorDestroy(b);
-    call HYPRE_StructVectorDestroy(x);
+!   call HYPRE_StructMatrixDestroy(A);
+!   call HYPRE_StructVectorDestroy(b);
+!   call HYPRE_StructVectorDestroy(x);
 
     call build(bpt, "mac_hypre")
 
