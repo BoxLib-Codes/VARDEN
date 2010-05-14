@@ -7,7 +7,7 @@ module mac_multigrid_module
   use bndry_reg_module
   use bl_constants_module
   use bl_error_module
-  use sparse_solve_module
+  use fabio_module
 
   implicit none
 
@@ -43,11 +43,8 @@ contains
     type(multifab), allocatable :: cell_coeffs(:)
     type(multifab), allocatable :: edge_coeffs(:,:)
 
-    type( multifab) :: ss
-    type(imultifab) :: mm
-    type(sparse)    :: sparse_object
     type(mg_tower)  :: mgt(mla%nlevel)
-    integer         :: dm, ns, nlevs, test
+    integer         :: dm, ns, nlevs
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
@@ -64,8 +61,6 @@ contains
 
     nlevs = mla%nlevel
     dm    = mla%dim
-
-    test           = 0
 
     max_nlevel        = mgt(nlevs)%max_nlevel
     max_iter          = mgt(nlevs)%max_iter
@@ -101,9 +96,6 @@ contains
 
     bottom_solver = 1
     bottom_solver_eps = 1.d-3
-
-    if ( test /= 0 .AND. max_iter == mgt(nlevs)%max_iter ) &
-         max_iter = 1000
 
     ns = 1 + dm*3
 
@@ -196,17 +188,12 @@ contains
 
     call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics)
 
+    call fabio_multifab_write_d(phi(1),'MG_PHI','Phi')
+    stop
+
     do n = 1,nlevs
        call multifab_fill_boundary(phi(n))
     end do
-
-    if ( test == 3 ) then
-       call sparse_destroy(sparse_object)
-    end if
-    if ( test > 0 ) then
-       call destroy(ss)
-       call destroy(mm)
-    end if
 
     do n = 1, nlevs
        call mg_tower_destroy(mgt(n))
