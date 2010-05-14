@@ -29,7 +29,7 @@ contains
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
     integer :: lo(u%dim),hi(u%dim)
-    integer :: i,ng,dm
+    integer :: i,ng,dm,n
 
     ng = u%ng
     dm = u%dim
@@ -134,7 +134,6 @@ contains
     enddo
 
     ! add a density and tracer perturbation
-    if (0.eq.1) then
     do j=lo(2),hi(2)
        y = dx(2)*(j + HALF)
        do i=lo(1),hi(1)
@@ -144,7 +143,6 @@ contains
           s(i,j,2) = s(i,j,1)
        enddo
     enddo
-    end if
 
   end subroutine initdata_2d
 
@@ -174,27 +172,18 @@ contains
     enddo
 
     ! add a density and tracer perturbation
-    if (0.eq.1) then
     do k=lo(3),hi(3)
        z = dx(3)*(k + HALF)
        do j=lo(2),hi(2)
           y = dx(2)*(j + HALF)
           do i=lo(1),hi(1)
              x = dx(1)*((i) + HALF)
-!            dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
-!            s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
-
-             if (x .ge. xblob) then
-!            if (y .ge. yblob) then
-                s(i,j,k,1) = 2.d0
-             else 
-                s(i,j,k,1) = 1.d0
-             end if
+             dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
+             s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
              s(i,j,k,2) = s(i,j,k,1)
           enddo
        enddo
     enddo
-    end if
 
   end subroutine initdata_3d
 
