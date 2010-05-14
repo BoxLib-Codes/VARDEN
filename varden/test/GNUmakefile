@@ -1,5 +1,5 @@
-NDEBUG := 
-MPI    :=
+NDEBUG := t
+MPI    := t
 OMP    :=
 
 COMP := Intel
@@ -18,6 +18,12 @@ VPATH_LOCATIONS += $(FPARALLEL)/mg
 
 include $(FPARALLEL)/varden/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/varden
+
+#LDFLAGS += -L ../../extern/hypre/lib
+
+#FINCLUDE_LOCATIONS += ../../extern/hypre/include
+
+#hypre_libraries = -lHYPRE
 
 main.$(suf).exe: $(objects)
 	$(LINK.f90) -o main.$(suf).exe $(objects) $(libraries)
