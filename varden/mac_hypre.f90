@@ -184,8 +184,7 @@ contains
       end if
     end do
 
-    call HYPRE_StructGridSetPeriodic(grid,periodic_flag)
-    stop
+    call HYPRE_StructGridSetPeriodic(grid,periodic_flag,ierr)
 
 !   ******************************************************************************************************* 
 !   Define the boxes with lo:hi
@@ -432,9 +431,6 @@ contains
 
     call HYPRE_StructPCGSolve(solver, A, b, x, ierr)
 
-!   Print the solution "x"
-!   call HYPRE_StructVectorPrint(x,0,ierr)
-
 !   ******************************************************************************************************* 
 !   Fill multifab "phi" from the vector solution "x".
 !   ******************************************************************************************************* 
@@ -472,18 +468,16 @@ contains
       end do
     end do
 
-!   call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
-
 !   Free memory
-!   call HYPRE_StructPCGDestroy(solver);
-!   call HYPRE_StructPFMGDestroy(precond)
+    call HYPRE_StructPCGDestroy(solver);
+    call HYPRE_StructPFMGDestroy(precond)
 
-!   call HYPRE_StructGridDestroy(grid);
-!   call HYPRE_StructStencilDestroy(hypre_stencil);
+    call HYPRE_StructGridDestroy(grid);
+    call HYPRE_StructStencilDestroy(hypre_stencil);
 
-!   call HYPRE_StructMatrixDestroy(A);
-!   call HYPRE_StructVectorDestroy(b);
-!   call HYPRE_StructVectorDestroy(x);
+    call HYPRE_StructMatrixDestroy(A);
+    call HYPRE_StructVectorDestroy(b);
+    call HYPRE_StructVectorDestroy(x);
 
     call build(bpt, "mac_hypre")
 
