@@ -1,4 +1,3 @@
-fsources += dcopy.f
 fsources += dgemm.f
 fsources += dgemv.f
 fsources += dger.f
@@ -36,7 +35,6 @@ fsources += dorgqr.f
 fsources += dorgtr.f
 fsources += dpotf2.f
 fsources += dpotrf.f
-fsources += dscal.f
 fsources += dsteqr.f
 fsources += dsterf.f
 fsources += dswap.f
@@ -63,9 +61,8 @@ fsources += xerbla.f
 fsources += dtrtri.f
 fsources += dtrti2.f
 
-fsources += ddot.f
-fsources += daxpy.f
 fsources += dnrm2.f
 
-fsources += idamax.f
+include $(FPARALLEL)/extern/BLAS/GPackage.mak
+VPATH_LOCATIONS += $(FPARALLEL)/extern/BLAS
 
