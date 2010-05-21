@@ -1,4 +1,3 @@
-fEXE_sources += dcopy.f
 fEXE_sources += dgemm.f
 fEXE_sources += dgemv.f
 fEXE_sources += dger.f
@@ -36,7 +35,6 @@ fEXE_sources += dorgqr.f
 fEXE_sources += dorgtr.f
 fEXE_sources += dpotf2.f
 fEXE_sources += dpotrf.f
-fEXE_sources += dscal.f
 fEXE_sources += dsteqr.f
 fEXE_sources += dsterf.f
 fEXE_sources += dswap.f
@@ -63,9 +61,4 @@ fEXE_sources += xerbla.f
 fEXE_sources += dtrtri.f
 fEXE_sources += dtrti2.f
 
-fEXE_sources += ddot.f
-fEXE_sources += daxpy.f
 fEXE_sources += dnrm2.f
-
-fEXE_sources += idamax.f
-
