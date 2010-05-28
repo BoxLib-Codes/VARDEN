@@ -18,6 +18,8 @@ program main
   !call layout_set_verbosity(1)
 
   call varden()
+
+  call layout_flush_copyassoc_cache ()
   !
   ! TODO -- add ability to specify filename via inputs file.
   !
