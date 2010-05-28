@@ -12,6 +12,7 @@ module probin_module
   integer,save    :: dim_in, nlevs, max_levs
   integer,save    :: max_step,init_iter
   integer,save    :: plot_int, chk_int, regrid_int
+  integer,save    :: amr_buf_width
   integer,save    :: verbose, mg_verbose, cg_verbose
   integer,save    :: use_hypre
   integer,save    :: do_initial_projection
@@ -24,7 +25,7 @@ module probin_module
   integer,save    :: bcx_lo,bcx_hi,bcy_lo,bcy_hi,bcz_lo,bcz_hi
   integer,save    :: ng_cell,ng_grow
   integer,save    :: n_cellx,n_celly,n_cellz
-  integer,save    :: ref_ratio, n_error_buf
+  integer,save    :: ref_ratio
   integer,save    :: max_grid_size
   integer,save    :: slope_order
   integer,save    :: diffusion_type
@@ -63,6 +64,7 @@ module probin_module
   namelist /probin/ plot_int
   namelist /probin/ chk_int
   namelist /probin/ regrid_int
+  namelist /probin/ amr_buf_width
   namelist /probin/ init_iter
   namelist /probin/ cflfac
   namelist /probin/ init_shrink
@@ -95,7 +97,6 @@ module probin_module
   namelist /probin/ n_celly
   namelist /probin/ n_cellz
   namelist /probin/ ref_ratio
-  namelist /probin/ n_error_buf
   namelist /probin/ max_grid_size
   namelist /probin/ boussinesq
   namelist /probin/ diffusion_type
@@ -142,7 +143,6 @@ contains
     stop_time = -1.d0
 
     ref_ratio = 2
-    n_error_buf = -1
     ng_cell = 3
     ng_grow = 1
 
@@ -157,9 +157,10 @@ contains
     plot_int  = 0
     chk_int  = 0
     regrid_int = -1
+    amr_buf_width = -1
 
     min_eff   = 0.7
-    min_width = 4
+    min_width = 1
 
     prob_lo_x = ZERO
     prob_lo_y = ZERO
@@ -329,6 +330,11 @@ contains
           call get_command_argument(farg, value = fname)
           read(fname, *) regrid_int
 
+       case ('--amr_buf_width')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) amr_buf_width
+
        case ('--init_iter')
           farg = farg + 1
           call get_command_argument(farg, value = fname)
@@ -438,12 +444,20 @@ contains
        end if
     end if
 
+ 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! If n_error_buf hasn't been set in the inputs file.
+    ! Make sure that the buffer width for tagging is atleast as big as
+    ! the regrid interval
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if ( max_levs > 1 .and. (n_error_buf < 0) .and. fixed_grids == '' ) then
-       n_error_buf = regrid_int
-    end if
+    if (regrid_int > 0 .and. amr_buf_width < regrid_int) then
+       if (parallel_IOProcessor()) then
+          print *,"************************************************************************"
+          print *,"WARNING: regrid_int > 0 but amr_buf_width < regrid_int"
+          print *,"         setting amr_buf_width = regrid_int"
+          print *,"************************************************************************"
+       endif
+       amr_buf_width = regrid_int
+    endif
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize prob_lo and prob_hi

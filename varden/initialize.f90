@@ -115,6 +115,7 @@ contains
      call initialize_dx(dx,mba,nlevs)
 
      call initialize_bc(the_bc_tower,nlevs,pmask)
+
      do n = 1,nlevs
         call bc_tower_level_build( the_bc_tower,n,mla%la(n))
      end do
@@ -129,8 +130,8 @@ contains
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
                                n_cellx, n_celly, n_cellz, &
-                               regrid_int, max_grid_size, ref_ratio, max_levs, &
-                                verbose
+                               regrid_int, amr_buf_width, max_grid_size, &
+                               ref_ratio, max_levs, verbose
 
      type(ml_layout),intent(inout)  :: mla
      logical       , intent(in   )  :: pmask(:)
@@ -138,7 +139,6 @@ contains
      type(multifab), pointer        :: uold(:),sold(:),gp(:),p(:)
      type(bc_tower), intent(  out)  :: the_bc_tower
 
-     integer                        :: buf_wid
      type(layout)                   :: la_array(max_levs)
      type(box)                      :: bxs
      type(ml_boxarray)              :: mba
@@ -148,8 +148,6 @@ contains
      integer :: n, nl, dm
 
      dm = dim_in
-
-     buf_wid = regrid_int
 
      ! set up hi & lo to carry indexing info
      lo = 0
@@ -208,8 +206,8 @@ contains
         do while ( (nl .lt. max_levs) .and. (new_grid) )
 
            ! Do we need finer grids?
-           call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1),buf_wid,&
-                               ref_ratio,nl,max_grid_size)
+           call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1), &
+                               amr_buf_width,ref_ratio,nl,max_grid_size)
         
            if (new_grid) then
 

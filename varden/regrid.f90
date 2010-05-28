@@ -23,8 +23,8 @@ contains
   subroutine regrid(mla,u,s,gp,p,dx,the_bc_tower)
 
      use probin_module, only : dim_in, nlevs, nscal, ng_cell, ng_grow, nodal, &
-                               pmask, regrid_int, max_grid_size, ref_ratio, max_levs, &
-                               verbose
+                               pmask, regrid_int, amr_buf_width, max_grid_size, &
+                               ref_ratio, max_levs, verbose
 
      type(ml_layout),intent(inout) :: mla
      type(multifab), pointer       :: u(:),s(:),gp(:),p(:)
@@ -32,7 +32,7 @@ contains
      type(bc_tower), intent(inout) :: the_bc_tower
 
      logical           :: new_grid
-     integer           :: n, nl, dm, buf_wid
+     integer           :: n, nl, dm
      type(layout)      :: la_array(max_levs)
      type(ml_layout)   :: mla_old
      type(ml_boxarray) :: mba
@@ -69,8 +69,6 @@ contains
      end do
 
      call destroy(mla)
-
-     buf_wid = regrid_int
 
      ! mba is big enough to hold max_levs levels
      ! even though we know we had nlevs last time, we might 
@@ -115,8 +113,8 @@ contains
 
         ! Do we need finer grids?
 
-        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),s(nl),dx(nl,1),buf_wid,&
-                            ref_ratio,nl,max_grid_size)
+        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),s(nl),dx(nl,1),&
+                            amr_buf_width,ref_ratio,nl,max_grid_size)
         
         if (new_grid) then
 
