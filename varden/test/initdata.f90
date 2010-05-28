@@ -29,7 +29,7 @@ contains
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
     integer :: lo(u%dim),hi(u%dim)
-    integer :: i,ng,dm,n
+    integer :: i,ng,dm
 
     ng = u%ng
     dm = u%dim
