@@ -138,14 +138,13 @@ contains
           fp => dataptr(f_mf,j)
           cp => dataptr(c_mf,j)
           f_lo = lwb(get_box(f_mf,j))
-          f_hi = upb(get_box(f_mf,j))
           c_lo = lwb(get_box(c_mf,j))
           c_hi = upb(get_box(c_mf,j))
           select case(dm)
           case (2)
-             call pc_edge_interp_2d(i,f_lo,f_hi,c_lo,c_hi,fp(:,:,1,1),ng_f,cp(:,:,1,1),ng_c)
+             call pc_edge_interp_2d(i,f_lo,c_lo,c_hi,fp(:,:,1,1),ng_f,cp(:,:,1,1),ng_c)
           case (3)
-             call pc_edge_interp_3d(i,f_lo,f_hi,c_lo,c_hi,fp(:,:,:,1),ng_f,cp(:,:,:,1),ng_c)
+             call pc_edge_interp_3d(i,f_lo,c_lo,c_hi,fp(:,:,:,1),ng_f,cp(:,:,:,1),ng_c)
           end select
        end do
 
@@ -156,14 +155,13 @@ contains
           if ( remote(f_mf,j) ) cycle
           fp => dataptr(f_mf,j)
           f_lo = lwb(get_box(f_mf,j))
-          f_hi = upb(get_box(f_mf,j))
           c_lo = lwb(get_box(c_mf,j))
           c_hi = upb(get_box(c_mf,j))
           select case(dm)
           case (2)
-             call lin_edge_interp_2d(i,f_lo,f_hi,c_lo,c_hi,fp(:,:,1,1),ng_f)
+             call lin_edge_interp_2d(i,f_lo,c_lo,c_hi,fp(:,:,1,1),ng_f)
           case (3)
-             call lin_edge_interp_3d(i,f_lo,f_hi,c_lo,c_hi,fp(:,:,:,1),ng_f)
+             call lin_edge_interp_3d(i,f_lo,c_lo,c_hi,fp(:,:,:,1),ng_f)
           end select
        end do
 
@@ -226,9 +224,9 @@ contains
 
   end subroutine create_umac_grown
 
-  subroutine pc_edge_interp_2d(dir,f_lo,f_hi,c_lo,c_hi,fine,ng_f,crse,ng_c)
+  subroutine pc_edge_interp_2d(dir,f_lo,c_lo,c_hi,fine,ng_f,crse,ng_c)
 
-    integer,         intent(in   ) :: dir,f_lo(:),f_hi(:),c_lo(:),c_hi(:)
+    integer,         intent(in   ) :: dir,f_lo(:),c_lo(:),c_hi(:)
     integer,         intent(in   ) :: ng_f,ng_c
     real(kind=dp_t), intent(inout) :: fine(f_lo(1)-ng_f:,f_lo(2)-ng_f:)
     real(kind=dp_t), intent(inout) :: crse(c_lo(1)-ng_c:,c_lo(2)-ng_c:)
@@ -260,9 +258,9 @@ contains
 
   end subroutine pc_edge_interp_2d
 
-  subroutine pc_edge_interp_3d(dir,f_lo,f_hi,c_lo,c_hi,fine,ng_f,crse,ng_c)
+  subroutine pc_edge_interp_3d(dir,f_lo,c_lo,c_hi,fine,ng_f,crse,ng_c)
 
-    integer,         intent(in   ) :: dir,f_lo(:),f_hi(:),c_lo(:),c_hi(:)
+    integer,         intent(in   ) :: dir,f_lo(:),c_lo(:),c_hi(:)
     integer,         intent(in   ) :: ng_f,ng_c
     real(kind=dp_t), intent(inout) :: fine(f_lo(1)-ng_f:,f_lo(2)-ng_f:,f_lo(3)-ng_f:)
     real(kind=dp_t), intent(inout) :: crse(c_lo(1)-ng_c:,c_lo(2)-ng_c:,c_lo(3)-ng_c:)
@@ -316,9 +314,9 @@ contains
 
   end subroutine pc_edge_interp_3d
 
-  subroutine lin_edge_interp_2d(dir,f_lo,f_hi,c_lo,c_hi,fine,ng_f)
+  subroutine lin_edge_interp_2d(dir,f_lo,c_lo,c_hi,fine,ng_f)
 
-    integer,         intent(in   ) :: dir,f_lo(:),f_hi(:),c_lo(:),c_hi(:),ng_f
+    integer,         intent(in   ) :: dir,f_lo(:),c_lo(:),c_hi(:),ng_f
     real(kind=dp_t), intent(inout) :: fine(f_lo(1)-ng_f:,f_lo(2)-ng_f:)
 
     ! local
@@ -348,9 +346,9 @@ contains
 
   end subroutine lin_edge_interp_2d
 
-  subroutine lin_edge_interp_3d(dir,f_lo,f_hi,c_lo,c_hi,fine,ng_f)
+  subroutine lin_edge_interp_3d(dir,f_lo,c_lo,c_hi,fine,ng_f)
 
-    integer,         intent(in   ) :: dir,f_lo(:),f_hi(:),c_lo(:),c_hi(:),ng_f
+    integer,         intent(in   ) :: dir,f_lo(:),c_lo(:),c_hi(:),ng_f
     real(kind=dp_t), intent(inout) :: fine(f_lo(1)-ng_f:,f_lo(2)-ng_f:,f_lo(3)-ng_f:)
 
     ! local
