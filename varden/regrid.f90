@@ -144,7 +144,7 @@ contains
                       1,1,1,dm)
 
             ! We interpolate p differently because it is nodal, not cell-centered
-            call ml_prolongation(p(nl+1),p(nl),mba%rr(nl,:))
+            call ml_prolongation(p(nl+1),p(nl),layout_get_pd(la_array(nl+1)),mba%rr(nl,:))
 
            ! Copy from old data at current level, if it exists
            if (mla_old%nlevel .ge. nl+1) then
@@ -221,7 +221,7 @@ contains
                        1,1,1,dm)
 
         ! We interpolate p differently because it is nodal, not cell-centered
-        call ml_prolongation(p(nl+1),p(nl),mba%rr(nl,:))
+        call ml_prolongation(p(nl+1),p(nl),layout_get_pd(mla%la(nl+1)),mba%rr(nl,:))
 
         ! Copy from old data at current level, if it exists
         if (mla_old%nlevel .ge. nl+1) then
