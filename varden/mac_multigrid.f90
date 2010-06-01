@@ -188,9 +188,6 @@ contains
 
     call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics)
 
-    call fabio_multifab_write_d(phi(1),'MG_PHI','Phi')
-    stop
-
     do n = 1,nlevs
        call multifab_fill_boundary(phi(n))
     end do
