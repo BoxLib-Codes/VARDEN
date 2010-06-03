@@ -62,3 +62,7 @@ fEXE_sources += dtrtri.f
 fEXE_sources += dtrti2.f
 
 fEXE_sources += dnrm2.f
+
+include $(FPARALLEL)/extern/BLAS/Make.package
+VPATH_LOCATIONS += $(FPARALLEL)/extern/BLAS
+
