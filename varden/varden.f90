@@ -40,7 +40,7 @@ subroutine varden()
   integer    :: n_chk_comps
   integer    :: last_plt_written, last_chk_written
   integer    :: init_step
-  integer    :: press_comp, vort_comp
+  integer    :: press_comp
 
   real(dp_t)  , pointer     :: dx(:,:)
   type(ml_layout)           :: mla
@@ -75,16 +75,17 @@ subroutine varden()
   ! Set up plot_names for writing plot files.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate(plot_names(2*dm+nscal+1))
+  allocate(plot_names(2*dm+nscal+2))
 
   plot_names(1) = "x_vel"
   plot_names(2) = "y_vel"
   if (dm > 2) plot_names(3) = "z_vel"
   plot_names(dm+1) = "density"
   if (nscal > 1) plot_names(dm+2) = "tracer"
-  plot_names(dm+nscal+1) = "vort"
-  plot_names(dm+nscal+2) = "gpx"
-  plot_names(dm+nscal+3) = "gpy"
+  plot_names(dm+nscal+1) = "magvel"
+  plot_names(dm+nscal+2) = "vort"
+  plot_names(dm+nscal+3) = "gpx"
+  plot_names(dm+nscal+4) = "gpy"
   if (dm > 2) plot_names(dm+nscal+4) = "gpz"
 
 
@@ -492,20 +493,26 @@ contains
 
     integer, intent(in   ) :: istep_to_write
     integer                :: n,n_plot_comps
+    integer                :: mvel_comp,vort_comp,gpx_comp
 
     allocate(plotdata(nlevs))
-    n_plot_comps = 2*dm + nscal + 1
+    n_plot_comps = 2*dm + nscal + 2
 
     do n = 1,nlevs
        call multifab_build(plotdata(n), mla%la(n), n_plot_comps, 0)
        call multifab_copy_c(plotdata(n),1           ,uold(n),1,dm)
        call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
 
-       vort_comp = 1+dm+nscal
+       mvel_comp = 1+dm+nscal
+       call make_magvel(plotdata(n),mvel_comp,uold(n),dx(n,:), &
+                        the_bc_tower%bc_tower_array(n))
+
+       vort_comp = mvel_comp+1
        call make_vorticity(plotdata(n),vort_comp,uold(n),dx(n,:), &
                            the_bc_tower%bc_tower_array(n))
 
-       call multifab_copy_c(plotdata(n),1+dm+nscal+1,  gp(n),1,dm)
+       gpx_comp = vort_comp+1
+       call multifab_copy_c(plotdata(n),gpx_comp,gp(n),1,dm)
     end do
     write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
     call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
