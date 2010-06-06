@@ -28,6 +28,7 @@ fsources += dlasrt.f
 fsources += dlassq.f
 fsources += dlaswp.f
 fsources += dlatrd.f
+fsources += dnrm2.f
 fsources += dorg2l.f
 fsources += dorg2r.f
 fsources += dorgql.f
@@ -60,9 +61,4 @@ fsources += xerbla.f
 
 fsources += dtrtri.f
 fsources += dtrti2.f
-
-fsources += dnrm2.f
-
-include $(FPARALLEL)/extern/BLAS/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/extern/BLAS
 

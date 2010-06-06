@@ -166,10 +166,6 @@ fobjects = $(fobjects) $(obj_dir)\lsame.obj
 fsources = $(fsources) $(lapack_dir)\xerbla.f
 fobjects = $(fobjects) $(obj_dir)\xerbla.obj
 
-
-fsources = $(fsources) $(lapack_dir)\ddot.f
-fobjects = $(fobjects) $(obj_dir)\ddot.obj
-
 fsources = $(fsources) $(lapack_dir)\daxpy.f
 fobjects = $(fobjects) $(obj_dir)\daxpy.obj
 

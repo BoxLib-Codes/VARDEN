@@ -28,6 +28,7 @@ fEXE_sources += dlasrt.f
 fEXE_sources += dlassq.f
 fEXE_sources += dlaswp.f
 fEXE_sources += dlatrd.f
+fEXE_sources += dnrm2.f
 fEXE_sources += dorg2l.f
 fEXE_sources += dorg2r.f
 fEXE_sources += dorgql.f
@@ -60,9 +61,3 @@ fEXE_sources += xerbla.f
 
 fEXE_sources += dtrtri.f
 fEXE_sources += dtrti2.f
-
-fEXE_sources += dnrm2.f
-
-include $(FBOXLIB_HOME)/extern/BLAS/Make.package
-VPATH_LOCATIONS += $(FBOXLIB_HOME)/extern/BLAS
-
