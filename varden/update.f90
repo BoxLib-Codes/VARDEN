@@ -154,7 +154,7 @@ contains
              do j = lo(2), hi(2)
                 do i = lo(1), hi(1)
                    divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
-                        + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
+                         + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
                    snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
                 enddo
              enddo
@@ -164,7 +164,7 @@ contains
                    ubar = HALF*(umac(i,j) + umac(i+1,j))
                    vbar = HALF*(vmac(i,j) + vmac(i,j+1))
                    ugrads = ubar*(sedgex(i+1,j,comp) - sedgex(i,j,comp))/dx(1) + &
-                        vbar*(sedgey(i,j+1,comp) - sedgey(i,j,comp))/dx(2)
+                            vbar*(sedgey(i,j+1,comp) - sedgey(i,j,comp))/dx(2)
                    snew(i,j,comp) = sold(i,j,comp) - dt * ugrads + dt * force(i,j,comp)
                 enddo
              enddo
