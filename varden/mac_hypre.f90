@@ -469,20 +469,19 @@ contains
     end do
 
 !   Free memory
-    call HYPRE_StructPCGDestroy(solver);
-    call HYPRE_StructPFMGDestroy(precond)
+    call HYPRE_StructPCGDestroy(solver,ierr);
+    call HYPRE_StructPFMGDestroy(precond,ierr)
 
-    call HYPRE_StructGridDestroy(grid);
-    call HYPRE_StructStencilDestroy(hypre_stencil);
+    call HYPRE_StructGridDestroy(grid,ierr);
+    call HYPRE_StructStencilDestroy(hypre_stencil,ierr);
 
-    call HYPRE_StructMatrixDestroy(A);
-    call HYPRE_StructVectorDestroy(b);
-    call HYPRE_StructVectorDestroy(x);
+    call HYPRE_StructMatrixDestroy(A,ierr);
+    call HYPRE_StructVectorDestroy(b,ierr);
+    call HYPRE_StructVectorDestroy(x,ierr);
 
     call build(bpt, "mac_hypre")
 
     call destroy(bpt)
-    stop
 
   end subroutine mac_hypre
 end module mac_hypre_module
