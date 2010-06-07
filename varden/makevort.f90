@@ -8,7 +8,7 @@ module vort_module
 
   private
 
-  public :: make_vorticity
+  public :: make_vorticity, make_magvel
 
 contains
 
@@ -43,6 +43,38 @@ contains
     end do
 
   end subroutine make_vorticity
+
+  subroutine make_magvel (magvel,comp,u,dx,bc)
+
+    integer        , intent(in   ) :: comp
+    type(multifab) , intent(in   ) :: magvel
+    type(multifab) , intent(inout) :: u
+    real(kind=dp_t), intent(in   ) :: dx(:)
+    type(bc_level) , intent(in   ) :: bc
+
+    real(kind=dp_t), pointer:: up(:,:,:,:)
+    real(kind=dp_t), pointer:: vp(:,:,:,:)
+    integer :: lo(u%dim),hi(u%dim),ng,dm,i
+
+    ng = u%ng
+    dm = u%dim
+    call multifab_fill_boundary(u)
+
+    do i = 1, u%nboxes
+       if ( multifab_remote(u, i) ) cycle
+       up => dataptr(u, i)
+       vp => dataptr(magvel, i)
+       lo =  lwb(get_box(u, i))
+       hi =  upb(get_box(u, i))
+       select case (dm)
+       case (2)
+          call makemagvel_2d(vp(:,:,1,comp),up(:,:,1,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
+       case (3)
+          call makemagvel_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
+       end select
+    end do
+
+  end subroutine make_magvel
 
   subroutine makevort_2d (vort,u,lo,hi,ng,dx,bc)
 
@@ -634,5 +666,52 @@ contains
       end function vorfun
 
   end subroutine makevort_3d
+
+  subroutine makemagvel_2d (magvel,u,lo,hi,ng,dx,bc)
+
+    use bc_module
+    use bl_constants_module
+
+    integer, intent(in) :: lo(:), hi(:), ng
+    real (kind = dp_t), intent(  out) :: magvel(lo(1):,lo(2):)  
+    real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,:)  
+    real (kind = dp_t), intent(in   ) :: dx(:)
+    integer           , intent(in   ) :: bc(:,:)
+
+    !     Local variables
+    integer :: i, j
+
+    do j = lo(2), hi(2)
+       do i = lo(1), hi(1)
+          magvel(i,j) = sqrt(u(i,j,1)**2 + u(i,j,2)**2)
+       enddo
+    enddo
+
+  end subroutine makemagvel_2d
+
+  subroutine makemagvel_3d (magvel,u,lo,hi,ng,dx,bc)
+
+    use bc_module
+    use bl_constants_module
+
+    integer, intent(in) :: lo(:), hi(:), ng
+    real (kind = dp_t), intent(  out) :: magvel(lo(1):,lo(2):,lo(3):)
+    real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)
+    real (kind = dp_t), intent(in   ) :: dx(:)
+    integer           , intent(in   ) :: bc(:,:)
+
+    !     Local variables
+    integer :: i, j, k
+
+    do k = lo(3), hi(3)
+    do j = lo(2), hi(2)
+    do i = lo(1), hi(1)
+       magvel(i,j,k) = sqrt(u(i,j,k,1)**2 + u(i,j,k,2)**2 + u(i,j,k,3)**2)
+    enddo
+    enddo
+    enddo
+
+  end subroutine makemagvel_3d
+
 
 end module vort_module
