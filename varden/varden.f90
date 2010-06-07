@@ -57,7 +57,7 @@ subroutine varden()
   type(multifab), allocatable :: ext_scal_force(:)
   type(multifab), allocatable :: plotdata(:)
 
-  character(len=7 ) :: sd_name
+  character(len=8 ) :: sd_name
   character(len=20), allocatable :: plot_names(:)
 
   type(bc_tower) ::  the_bc_tower
@@ -514,7 +514,7 @@ contains
        gpx_comp = vort_comp+1
        call multifab_copy_c(plotdata(n),gpx_comp,gp(n),1,dm)
     end do
-    write(unit=sd_name,fmt='("plt",i4.4)') istep_to_write
+    write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
     call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
                                    mla%mba%pd(1), prob_lo, prob_hi, time, dx(1,:))
 
@@ -539,7 +539,7 @@ contains
        call multifab_copy_c(chkdata(n),1+dm      ,sold(n),1,nscal)
        call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
     end do
-    write(unit=sd_name,fmt='("chk",i4.4)') istep_to_write
+    write(unit=sd_name,fmt='("chk",i5.5)') istep_to_write
 
     call checkpoint_write(nlevs, sd_name, chkdata, p, mla%mba%rr, time, dt, verbose)
 

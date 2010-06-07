@@ -23,11 +23,11 @@ contains
 
     type(multifab)   , pointer        :: chkdata(:)
     type(multifab)   , pointer        :: chk_p(:)
-    character(len=7)                  :: sd_name
+    character(len=8)                  :: sd_name
     integer                           :: n,nlevs,dm
     integer                           :: rrs(MAX_ALLOWED_LEVS)
 
-    write(unit=sd_name,fmt='("chk",i4.4)') restart_int
+    write(unit=sd_name,fmt='("chk",i5.5)') restart_int
     print *,'Reading ',sd_name,' to get state data for restart'
     call checkpoint_read(chkdata, chk_p, sd_name, rrs, time, dt, nlevs)
 
