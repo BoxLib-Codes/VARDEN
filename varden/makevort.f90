@@ -49,7 +49,6 @@ contains
     integer        , intent(in   ) :: comp
     type(multifab) , intent(in   ) :: magvel
     type(multifab) , intent(inout) :: u
-    type(bc_level) , intent(in   ) :: bc
 
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: vp(:,:,:,:)
