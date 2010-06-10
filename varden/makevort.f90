@@ -44,12 +44,11 @@ contains
 
   end subroutine make_vorticity
 
-  subroutine make_magvel (magvel,comp,u,dx,bc)
+  subroutine make_magvel (magvel,comp,u)
 
     integer        , intent(in   ) :: comp
     type(multifab) , intent(in   ) :: magvel
     type(multifab) , intent(inout) :: u
-    real(kind=dp_t), intent(in   ) :: dx(:)
     type(bc_level) , intent(in   ) :: bc
 
     real(kind=dp_t), pointer:: up(:,:,:,:)
@@ -68,9 +67,9 @@ contains
        hi =  upb(get_box(u, i))
        select case (dm)
        case (2)
-          call makemagvel_2d(vp(:,:,1,comp),up(:,:,1,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
+          call makemagvel_2d(vp(:,:,1,comp),up(:,:,1,:), lo, hi, ng)
        case (3)
-          call makemagvel_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
+          call makemagvel_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng)
        end select
     end do
 
@@ -667,7 +666,7 @@ contains
 
   end subroutine makevort_3d
 
-  subroutine makemagvel_2d (magvel,u,lo,hi,ng,dx,bc)
+  subroutine makemagvel_2d (magvel,u,lo,hi,ng)
 
     use bc_module
     use bl_constants_module
@@ -675,8 +674,6 @@ contains
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(  out) :: magvel(lo(1):,lo(2):)  
     real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,:)  
-    real (kind = dp_t), intent(in   ) :: dx(:)
-    integer           , intent(in   ) :: bc(:,:)
 
     !     Local variables
     integer :: i, j
@@ -689,7 +686,7 @@ contains
 
   end subroutine makemagvel_2d
 
-  subroutine makemagvel_3d (magvel,u,lo,hi,ng,dx,bc)
+  subroutine makemagvel_3d (magvel,u,lo,hi,ng)
 
     use bc_module
     use bl_constants_module
@@ -697,8 +694,6 @@ contains
     integer, intent(in) :: lo(:), hi(:), ng
     real (kind = dp_t), intent(  out) :: magvel(lo(1):,lo(2):,lo(3):)
     real (kind = dp_t), intent(in   ) ::    u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)
-    real (kind = dp_t), intent(in   ) :: dx(:)
-    integer           , intent(in   ) :: bc(:,:)
 
     !     Local variables
     integer :: i, j, k
