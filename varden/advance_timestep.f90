@@ -49,7 +49,6 @@ contains
     type(multifab) :: rhohalf(mla%nlevel)
 
     integer    :: i,n,comp,dm,nlevs
-    logical    :: umac_nodal_flag(mla%dim)
 
     dm    = mla%dim
     nlevs = mla%nlevel
@@ -59,9 +58,7 @@ contains
        call multifab_build(rhohalf(n), mla%la(n),    dm, 1)
 
        do i = 1,dm
-         umac_nodal_flag(:) = .false.
-         umac_nodal_flag(i) = .true.
-         call multifab_build( umac(n,i), mla%la(n),1,1,nodal=umac_nodal_flag)
+         call multifab_build_edge( umac(n,i), mla%la(n),1,1,i)
          call setval( umac(n,i),1.d20, all=.true.)
        end do
 

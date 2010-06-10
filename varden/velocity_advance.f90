@@ -42,7 +42,6 @@ contains
     type(multifab)  :: uedge(mla%nlevel,mla%dim)
     integer         :: i,n,dm,comp,nlevs
     logical         :: is_vel,is_conservative(uold(1)%dim)
-    logical         :: umac_nodal_flag(mla%dim)
     real(kind=dp_t) :: visc_fac,visc_mu
     real(kind=dp_t) :: umin,umax
 
@@ -58,10 +57,8 @@ contains
        call setval(divu(n),0.0_dp_t,all=.true.)
 
        do i = 1,dm
-         umac_nodal_flag(:) = .false.
-         umac_nodal_flag(i) = .true.
-         call multifab_build(uflux(n,i),mla%la(n),dm,0,nodal = umac_nodal_flag)
-         call multifab_build(uedge(n,i),mla%la(n),dm,0,nodal = umac_nodal_flag)
+         call multifab_build_edge(uflux(n,i),mla%la(n),dm,0,i)
+         call multifab_build_edge(uedge(n,i),mla%la(n),dm,0,i)
          call setval(uflux(n,i),ZERO,all=.true.)
          call setval(uedge(n,i),ZERO,all=.true.)
        end do

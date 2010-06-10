@@ -42,7 +42,6 @@ contains
     type(multifab) :: sedge(mla%nlevel,mla%dim)
 
     logical :: is_conservative(nscal)
-    logical :: umac_nodal_flag(mla%dim)
 
     integer         :: i,n
     integer         :: comp,bc_comp,nlevs,dm
@@ -65,10 +64,8 @@ contains
        call multifab_build( divu(n),mla%la(n),    1,1)
        call multifab_build( laps(n),mla%la(n),nscal,0)
        do i = 1,dm
-         umac_nodal_flag(:) = .false.
-         umac_nodal_flag(i) = .true.
-         call multifab_build(sflux(n,i),scal_force(n)%la,nscal,0,nodal = umac_nodal_flag)
-         call multifab_build(sedge(n,i),scal_force(n)%la,nscal,0,nodal = umac_nodal_flag)
+         call multifab_build_edge(sflux(n,i),scal_force(n)%la,nscal,0,i)
+         call multifab_build_edge(sedge(n,i),scal_force(n)%la,nscal,0,i)
          call setval(sflux(n,i),ZERO,all=.true.)
          call setval(sedge(n,i),ZERO,all=.true.)
        end do
