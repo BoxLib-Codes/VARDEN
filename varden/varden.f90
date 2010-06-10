@@ -504,8 +504,7 @@ contains
        call multifab_copy_c(plotdata(n),1+dm        ,sold(n),1,nscal)
 
        mvel_comp = 1+dm+nscal
-       call make_magvel(plotdata(n),mvel_comp,uold(n),dx(n,:), &
-                        the_bc_tower%bc_tower_array(n))
+       call make_magvel(plotdata(n),mvel_comp,uold(n))
 
        vort_comp = mvel_comp+1
        call make_vorticity(plotdata(n),vort_comp,uold(n),dx(n,:), &
