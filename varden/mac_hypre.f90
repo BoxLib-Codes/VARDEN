@@ -52,7 +52,7 @@ contains
 
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
-    real(dp_t) :: rel_eps, abs_eps
+    real(dp_t) :: rel_solver_eps, abs_solver_eps
 
     ! All the integers associated with Hypre are long.
     integer(kind=8) :: grid
@@ -84,19 +84,19 @@ contains
        call bl_error('mac_hypre: not set up for nlevs > 1')
 
     if (nlevs .eq. 1) then
-       rel_eps = 1.d-12
+       rel_solver_eps = 1.d-12
     else if (nlevs .eq. 2) then
-       rel_eps = 1.d-11
+       rel_solver_eps = 1.d-11
     else
-       rel_eps = 1.d-10
+       rel_solver_eps = 1.d-10
     endif
  
-    abs_eps = -1.0_dp_t
+    abs_solver_eps = -1.0_dp_t
     if (present(umac_norm)) then
        do n = 1,nlevs
-          abs_eps = max(abs_eps, umac_norm(n) / dx(n,1))
+          abs_solver_eps = max(abs_solver_eps, umac_norm(n) / dx(n,1))
        end do
-       abs_eps = rel_eps * abs_eps
+       abs_solver_eps = rel_solver_eps * abs_solver_eps
     end if
 
     ! We use standard cross stencils (with an extra place in each direction for boundary conditions in the mg stencil).
@@ -401,7 +401,7 @@ contains
     call HYPRE_StructPCGCreate(MPI_COMM_WORLD, solver, ierr)
 
 !   Set PCG parameters
-    tol = rel_eps
+    tol = rel_solver_eps
     call HYPRE_StructPCGSetTol(solver, tol, ierr)
     call HYPRE_StructPCGSetPrintLevel(solver, 2, ierr)
     call HYPRE_StructPCGSetMaxIter(solver, 50, ierr)

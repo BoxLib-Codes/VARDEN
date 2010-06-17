@@ -53,7 +53,7 @@ contains
     integer    :: max_nlevel
     integer    :: d, n, nu1, nu2, gamma, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
-    real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
+    real(dp_t) :: rel_solver_eps,abs_solver_eps,omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
@@ -64,8 +64,8 @@ contains
 
     max_nlevel        = mgt(nlevs)%max_nlevel
     max_iter          = mgt(nlevs)%max_iter
-    rel_eps           = mgt(nlevs)%eps
-    abs_eps           = mgt(nlevs)%abs_eps
+    rel_solver_eps    = mgt(nlevs)%eps
+    abs_solver_eps    = mgt(nlevs)%abs_eps
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
@@ -79,22 +79,22 @@ contains
 
     ! Note: put this here to minimize asymmetries - ASA
     if (nlevs .eq. 1) then
-       rel_eps = 1.d-12
+       rel_solver_eps = 1.d-12
     else if (nlevs .eq. 2) then
-       rel_eps = 1.d-11
+       rel_solver_eps = 1.d-11
     else
-       rel_eps = 1.d-10
+       rel_solver_eps = 1.d-10
     endif
 
-    abs_eps = -1.0_dp_t
+    abs_solver_eps = -1.0_dp_t
     if (present(umac_norm)) then
        do n = 1,nlevs
-          abs_eps = max(abs_eps, umac_norm(n) / dx(n,1))
+          abs_solver_eps = max(abs_solver_eps, umac_norm(n) / dx(n,1))
        end do
-       abs_eps = rel_eps * abs_eps
+       abs_solver_eps = rel_solver_eps * abs_solver_eps
     end if
 
-    bottom_solver = 1
+    bottom_solver = 4
     bottom_solver_eps = 1.d-3
 
     ns = 1 + dm*3
@@ -131,8 +131,8 @@ contains
                            max_iter = max_iter, &
                            max_nlevel = max_nlevel_in, &
                            min_width = min_width, &
-                           eps = rel_eps, &
-                           abs_eps = abs_eps, &
+                           eps = rel_solver_eps, &
+                           abs_eps = abs_solver_eps, &
                            verbose = mg_verbose, &
                            cg_verbose = cg_verbose, &
                            nodal = rh(nlevs)%nodal)
@@ -187,6 +187,8 @@ contains
     end if
 
     call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics)
+
+!   call fabio_multifab_write_d(phi(1),'MG_PHI','Phi')
 
     do n = 1,nlevs
        call multifab_fill_boundary(phi(n))
