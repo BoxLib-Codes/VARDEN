@@ -145,7 +145,7 @@ contains
     use bc_module
     use slope_module
     use bl_constants_module
-    use probin_module, only: slope_order, use_minion
+    use probin_module, only: use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -192,8 +192,8 @@ contains
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-    call slopex_2d(s,slopex,lo,ng,ncomp,adv_bc,slope_order)
-    call slopey_2d(s,slopey,lo,ng,ncomp,adv_bc,slope_order)
+    call slopex_2d(s,slopex,lo,hi,ng,ncomp,adv_bc)
+    call slopey_2d(s,slopey,lo,hi,ng,ncomp,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
@@ -690,7 +690,7 @@ contains
     use bc_module
     use slope_module
     use bl_constants_module
-    use probin_module, only: slope_order, use_minion
+    use probin_module, only: use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -739,8 +739,8 @@ contains
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-    call slopex_2d(s,slopex,lo,ng,ncomp,adv_bc,slope_order)
-    call slopey_2d(s,slopey,lo,ng,ncomp,adv_bc,slope_order)
+    call slopex_2d(s,slopex,lo,hi,ng,ncomp,adv_bc)
+    call slopey_2d(s,slopey,lo,hi,ng,ncomp,adv_bc)
 
     ! Normal predictor states.
     ! Allocated from lo:hi+1 in the normal direction
@@ -1187,7 +1187,7 @@ contains
     use bc_module
     use slope_module
     use bl_constants_module
-    use probin_module, only: slope_order, use_minion
+    use probin_module, only: use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -1256,10 +1256,10 @@ contains
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
-       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
+       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
+       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
     end do
-    call slopez_3d(s,slopez,lo,ng,ncomp,adv_bc,slope_order)
+    call slopez_3d(s,slopez,lo,hi,ng,ncomp,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
@@ -2574,7 +2574,7 @@ contains
     use bc_module
     use slope_module
     use bl_constants_module
-    use probin_module, only: slope_order, use_minion
+    use probin_module, only: use_minion
 
     integer, intent(in) :: lo(:),ng
 
@@ -2642,10 +2642,10 @@ contains
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
-       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,ng,ncomp,adv_bc,slope_order)
+       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
+       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
     end do
-    call slopez_3d(s,slopez,lo,ng,ncomp,adv_bc,slope_order)
+    call slopez_3d(s,slopez,lo,hi,ng,ncomp,adv_bc)
 
     ! Normal predictor states.
     ! Allocated from lo:hi+1 in the normal direction
