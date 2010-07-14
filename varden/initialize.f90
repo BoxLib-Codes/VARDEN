@@ -361,7 +361,7 @@ contains
      allocate(dx(num_levs,dm))
 
      do i = 1,dm
-        dx(1,i) = prob_hi(i) / float(mba%pd(1)%hi(i)-mba%pd(1)%lo(i)+1)
+        dx(1,i) = prob_hi(i) / float(upb(mba%pd(1),i)-lwb(mba%pd(1),i)+1)
      end do
      do n = 2,num_levs
         dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
