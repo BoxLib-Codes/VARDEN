@@ -5,8 +5,7 @@ module scalar_advance_module
   use ml_layout_module
   use define_bc_module
   use explicit_diffusive_module
-  use viscous_module
-  use macproject_module
+  use viscous_module, only : diff_scalar_solve
   use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose
 
