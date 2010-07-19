@@ -31,7 +31,7 @@ contains
     print *,'Reading ',sd_name,' to get state data for restart'
     call checkpoint_read(chkdata, chk_p, sd_name, rrs, time, dt, nlevs)
 
-    dm = chkdata(1)%dim
+    dm = get_dim(chkdata(1))
 
     call build(mba,nlevs,dm)
     mba%pd(1) =  bbox(get_boxarray(chkdata(1)))

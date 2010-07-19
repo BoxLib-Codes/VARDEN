@@ -32,7 +32,7 @@ contains
 
     ! local
     integer                  :: n,i,dm,ng,comp,ncomp,bccomp,nlevs
-    integer                  :: lo(sold(1)%dim),hi(sold(1)%dim)
+    integer                  :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
     real(kind=dp_t), pointer :: sop(:,:,:,:)
     real(kind=dp_t), pointer :: sepx(:,:,:,:)
     real(kind=dp_t), pointer :: sepy(:,:,:,:)
@@ -49,7 +49,7 @@ contains
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    ng = sold(1)%ng
+    ng = nghost(sold(1))
     ncomp = multifab_ncomp(sold(1))
 
     if(is_vel) then
@@ -59,7 +59,7 @@ contains
     endif
 
     do n=1,nlevs
-       do i = 1, sold(n)%nboxes
+       do i = 1, nboxes(sold(n))
           if ( multifab_remote(sold(n), i) ) cycle
           sop    => dataptr(sold(n), i)
           sepx   => dataptr(sedge(n,1), i)

@@ -31,17 +31,17 @@ contains
     real(kind=dp_t), pointer:: rhp(:,:,:,:)
     real(kind=dp_t), pointer:: rop(:,:,:,:)
     real(kind=dp_t), pointer:: rnp(:,:,:,:)
-    integer   :: lo(rhohalf(1)%dim),hi(rhohalf(1)%dim)
+    integer   :: lo(get_dim(rhohalf(1))),hi(get_dim(rhohalf(1)))
     integer   :: nlevs,ng_h,ng_o,dm,i,n
 
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    ng_h = rhohalf(1)%ng
-    ng_o = sold(1)%ng
+    ng_h = nghost(rhohalf(1))
+    ng_o = nghost(sold(1))
 
     do n = 1, nlevs
-       do i = 1, rhohalf(n)%nboxes
+       do i = 1, nboxes(rhohalf(n))
           if ( multifab_remote(rhohalf(n), i) ) cycle
           rhp => dataptr(rhohalf(n), i)
           rop => dataptr(sold(n), i)

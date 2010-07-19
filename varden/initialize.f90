@@ -33,6 +33,7 @@ contains
      type(ml_boxarray)         :: mba
      type(multifab), pointer   :: chkdata(:)
      type(multifab), pointer   :: chk_p(:)
+     type(layout)              :: la
 
      integer :: n,dm
 
@@ -61,8 +62,10 @@ contains
         ! The layouts for chkdata and chk_p are built standalone, level
         ! by level, and need to be destroy()d as such as well.
         !
-        call destroy(chkdata(n)%la)
-        call destroy(chk_p(n)%la)
+        la = get_layout(chkdata(n))
+        call destroy(la)
+        la = get_layout(chk_p(n))
+        call destroy(la)
         call multifab_destroy(chkdata(n))
         call multifab_destroy(chk_p(n))
      end do

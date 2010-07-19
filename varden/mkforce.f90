@@ -38,13 +38,13 @@ contains
     real(kind=dp_t), pointer :: gpp(:,:,:,:)
 
     nlevs = mla%nlevel
-    ng    = s(1)%ng
-    ng_f  = vel_force(1)%ng
-    dm    = s(1)%dim
+    ng    = nghost(s(1))
+    ng_f  = nghost(vel_force(1))
+    dm    = get_dim(s(1))
 
     do n=1,nlevs
        call setval(vel_force(n),ZERO,all=.true.)
-       do i = 1, vel_force(n)%nboxes
+       do i = 1, nboxes(vel_force(n))
           if ( remote(vel_force(n),i) ) cycle
           fp  => dataptr(vel_force(n),i)
           ep  => dataptr(ext_vel_force(n),i)
@@ -268,12 +268,12 @@ contains
     real(kind=dp_t), pointer :: ep(:,:,:,:)
 
     nlevs = mla%nlevel
-    dm    = scal_force(1)%dim
-    ng_f  = scal_force(1)%ng
+    dm    = get_dim(scal_force(1))
+    ng_f  = nghost(scal_force(1))
 
     do n=1,nlevs
        call setval(scal_force(n),ZERO,all=.true.)
-       do i = 1, scal_force(n)%nboxes
+       do i = 1, nboxes(scal_force(n))
           if ( remote(scal_force(n),i) ) cycle
           fp => dataptr(scal_force(n),i)
           lp => dataptr(laps(n),i)

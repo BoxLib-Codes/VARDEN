@@ -33,11 +33,11 @@ contains
     integer         :: dm,n,nlevs
     real(kind=dp_t) :: visc_fac
 
-    dm    = uold(1)%dim
+    dm    = get_dim(uold(1))
     nlevs = mla%nlevel
 
     do n = 1, nlevs
-       call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)
+       call multifab_build(vel_force(n),get_layout(ext_vel_force(n)),dm,1)
        call setval(vel_force(n),0.0_dp_t,all=.true.)
     enddo
 

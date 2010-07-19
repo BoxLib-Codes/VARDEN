@@ -24,17 +24,17 @@ contains
 
       real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
       real(kind=dp_t), pointer:: gpp(:,:,:,:),  fp(:,:,:,:)
-      integer :: lo(u%dim),hi(u%dim),ng,dm
+      integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm
       real(kind=dp_t) :: dt_proc, dt_grid, dt_start
       integer         :: i
 
-      ng = u%ng
-      dm = u%dim
+      ng = nghost(u)
+      dm = get_dim(u)
 
       dt_proc  = 1.d20
       dt_start = 1.d20
 
-      do i = 1, u%nboxes
+      do i = 1, nboxes(u)
          if ( multifab_remote(u, i) ) cycle
          uop => dataptr(u, i)
          sop => dataptr(s, i)

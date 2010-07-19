@@ -39,7 +39,7 @@ contains
 
     nlevs = mla%nlevel
     dm    = mla%dim
-    ng_cell = unew(1)%ng
+    ng_cell = nghost(unew(1))
 
     do n = 1,nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -160,11 +160,11 @@ contains
       real(kind=dp_t), pointer ::  lp(:,:,:,:)
       integer :: i,dm,ng_u,ng_rho
 
-      dm     = rh%dim
-      ng_u   = unew%ng
-      ng_rho = rho%ng
+      dm     = get_dim(rh)
+      ng_u   = nghost(unew)
+      ng_rho = nghost(rho)
 
-      do i = 1, unew%nboxes
+      do i = 1, nboxes(unew)
          if ( multifab_remote(unew, i) ) cycle
          rhp => dataptr(rh  , i)
          unp => dataptr(unew, i)
@@ -265,7 +265,7 @@ contains
 
     nlevs = mla%nlevel
     dm    = mla%dim
-    ng_cell = snew(1)%ng
+    ng_cell = nghost(snew(1))
 
     do n = 1,nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -362,10 +362,10 @@ contains
       real(kind=dp_t), pointer :: lp(:,:,:,:)
       integer :: i,dm,ng
 
-      dm   = rh%dim
-      ng   = snew%ng
+      dm   = get_dim(rh)
+      ng   = nghost(snew)
 
-      do i = 1, snew%nboxes
+      do i = 1, nboxes(snew)
          if ( multifab_remote(snew, i) ) cycle
          rp => dataptr(rh  , i)
          pp => dataptr(phi , i)

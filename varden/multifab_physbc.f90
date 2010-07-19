@@ -20,14 +20,14 @@ contains
     type(bc_level) , intent(in   ) :: the_bc_level
 
     ! Local
-    integer                  :: lo(s%dim)
+    integer                  :: lo(get_dim(s))
     integer                  :: i,ng,dm,scomp,bccomp
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     
-    ng = s%ng
-    dm = s%dim
+    ng = nghost(s)
+    dm = get_dim(s)
     
-    do i=1,s%nboxes
+    do i=1,nboxes(s)
        if ( multifab_remote(s,i) ) cycle
        sp => dataptr(s,i)
        lo = lwb(get_box(s,i))

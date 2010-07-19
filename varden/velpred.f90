@@ -29,20 +29,20 @@ contains
 
     ! local
     integer :: i,n,dm,ng,comp
-    integer :: lo(u(1)%dim)
+    integer :: lo(get_dim(u(1)))
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: ump(:,:,:,:)
     real(kind=dp_t), pointer:: vmp(:,:,:,:)
     real(kind=dp_t), pointer:: wmp(:,:,:,:)
     real(kind=dp_t), pointer:: fp(:,:,:,:)
 
-    ng = u(1)%ng
-    dm = u(1)%dim
+    ng = nghost(u(1))
+    dm = get_dim(u(1))
 
     do n=1,nlevs
 
        ! Create the edge states to be used for the MAC velocity 
-       do i = 1, u(n)%nboxes
+       do i = 1, nboxes(u(n))
           if ( multifab_remote(u(n),i) ) cycle
           up  => dataptr(u(n),i)
           ump => dataptr(umac(n,1),i)

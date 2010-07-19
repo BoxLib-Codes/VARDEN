@@ -54,7 +54,7 @@ contains
     end if
     
     nc = ncomp(mfs(1))
-    dm = mfs(1)%dim
+    dm = get_dim(mfs(1))
     allocate(lo(dm),hi(dm))
     lbbox = bbox(get_boxarray(mfs(1)))
 
@@ -135,7 +135,7 @@ contains
     
     nl = nlevs
     nc = ncomp(mfs(1))
-    dm = mfs(1)%dim
+    dm = get_dim(mfs(1))
     lbbox = bbox(get_boxarray(mfs(1)))
 
     rrs_out(1:nlevs-1) = rrs(1:nlevs-1)

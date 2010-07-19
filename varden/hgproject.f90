@@ -53,7 +53,7 @@ contains
 
     nlevs = mla%nlevel
     dm = mla%dim
-    ng = unew(nlevs)%ng
+    ng = nghost(unew(nlevs))
 
     nodal = .true.
 
@@ -198,12 +198,12 @@ contains
   
       integer :: i,n,dm,ng
   
-      dm = unew(nlevs)%dim
-      ng = unew(nlevs)%ng
+      dm = get_dim(unew(nlevs))
+      ng = nghost(unew(nlevs))
   
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, unew(n)%nboxes
+         do i = 1, nboxes(unew(n))
             if ( multifab_remote(unew(n), i) ) cycle
             unp => dataptr(unew(n)     , i) 
             uop => dataptr(uold(n)     , i) 
@@ -233,16 +233,16 @@ contains
       type(multifab), intent(in   ) :: phi(:)
       real(dp_t) :: dx(:,:)
 
-      integer :: i,dm,n,lo(phi(1)%dim),hi(phi(1)%dim)
+      integer :: i,dm,n,lo(get_dim(phi(1))),hi(get_dim(phi(1)))
 
       real(kind=dp_t), pointer :: gph(:,:,:,:) 
       real(kind=dp_t), pointer :: pp(:,:,:,:) 
 
-      dm = phi(1)%dim
+      dm = get_dim(phi(1))
 
       do n = 1, nlevs
 
-         do i = 1, phi(n)%nboxes
+         do i = 1, nboxes(phi(n))
             if ( multifab_remote(phi(n),i) ) cycle
             gph => dataptr(gphi(n),i)
             pp  => dataptr(phi(n),i)
@@ -295,7 +295,7 @@ contains
 
       do n = 1, nlevs
 
-         do i = 1, unew(n)%nboxes
+         do i = 1, nboxes(unew(n))
             if ( multifab_remote(unew(n),i) ) cycle
             upn => dataptr(unew(n),i)
             uon => dataptr(uold(n),i)
@@ -344,11 +344,11 @@ contains
       real(kind=dp_t), pointer :: divp(:,:,:,:) 
 
       nlevs = size(divu_rhs,dim=1)
-      dm = divu_rhs(1)%dim
+      dm = get_dim(divu_rhs(1))
 
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, divu_rhs(n)%nboxes
+         do i = 1, nboxes(divu_rhs(n))
             if ( multifab_remote(divu_rhs(n), i) ) cycle
             divp => dataptr(divu_rhs(n)     , i)
             select case (dm)
@@ -900,10 +900,10 @@ contains
     real(kind=dp_t), pointer :: rp(:,:,:,:)
     integer :: i,dm,ng
 
-    dm = rho%dim
-    ng = rho%ng
+    dm = get_dim(rho)
+    ng = nghost(rho)
 
-    do i = 1, rho%nboxes
+    do i = 1, nboxes(rho)
        if ( multifab_remote(rho, i) ) cycle
        rp => dataptr(rho   , i)
        cp => dataptr(coeffs, i)
@@ -980,19 +980,19 @@ contains
     ! local
     real(kind=dp_t), pointer :: ump(:,:,:,:) 
     integer :: i,ng,n,dm
-    integer :: lo(u(1)%dim),hi(u(1)%dim)
+    integer :: lo(get_dim(u(1))),hi(get_dim(u(1)))
     logical :: local_do_mult
 
     local_do_mult = .true.
     if (present(do_mult)) local_do_mult = do_mult
 
-    ng = u(1)%ng
-    dm = u(1)%dim
+    ng = nghost(u(1))
+    dm = get_dim(u(1))
 
     do n = 1, nlevs
 
        ! Multiply u by div coeff
-       do i = 1, u(n)%nboxes
+       do i = 1, nboxes(u(n))
           if ( multifab_remote(u(n),i) ) cycle
           ump => dataptr(u(n),i)
           lo =  lwb(get_box(u(n),i))
@@ -1065,13 +1065,13 @@ contains
     real(kind=dp_t), pointer ::  dp(:,:,:,:) 
     integer :: i,ngu,ngd,n,dm
 
-    ngu = u(1)%ng
-    ngd = div_coeff(1)%ng
-    dm = u(1)%dim
+    ngu = nghost(u(1))
+    ngd = nghost(div_coeff(1))
+    dm = get_dim(u(1))
 
     do n = 1, nlevs
        ! Multiply u by div coeff
-       do i = 1, u(n)%nboxes
+       do i = 1, nboxes(u(n))
           if ( multifab_remote(u(n),i) ) cycle
           ump => dataptr(u(n),i)
           dp => dataptr(div_coeff(n),i)

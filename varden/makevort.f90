@@ -22,13 +22,13 @@ contains
 
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: vp(:,:,:,:)
-    integer :: lo(u%dim),hi(u%dim),ng,dm,i
+    integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm,i
 
-    ng = u%ng
-    dm = u%dim
+    ng = nghost(u)
+    dm = get_dim(u)
     call multifab_fill_boundary(u)
 
-    do i = 1, u%nboxes
+    do i = 1, nboxes(u)
        if ( multifab_remote(u, i) ) cycle
        up => dataptr(u, i)
        vp => dataptr(vort, i)
@@ -52,13 +52,13 @@ contains
 
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: vp(:,:,:,:)
-    integer :: lo(u%dim),hi(u%dim),ng,dm,i
+    integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm,i
 
-    ng = u%ng
-    dm = u%dim
+    ng = nghost(u)
+    dm = get_dim(u)
     call multifab_fill_boundary(u)
 
-    do i = 1, u%nboxes
+    do i = 1, nboxes(u)
        if ( multifab_remote(u, i) ) cycle
        up => dataptr(u, i)
        vp => dataptr(magvel, i)

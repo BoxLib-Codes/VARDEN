@@ -28,13 +28,13 @@ contains
     type(bc_level) , intent(in   ) :: bc
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
-    integer :: lo(u%dim),hi(u%dim)
+    integer :: lo(get_dim(u)),hi(get_dim(u))
     integer :: i,ng,dm
 
-    ng = u%ng
-    dm = u%dim
+    ng = nghost(u)
+    dm = get_dim(u)
 
-    do i = 1, u%nboxes
+    do i = 1, nboxes(u)
        if ( multifab_remote(u,i) ) cycle
        uop => dataptr(u,i)
        sop => dataptr(s,i)
@@ -68,15 +68,15 @@ contains
     type(ml_layout), intent(inout) :: mla
 
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
-    integer :: lo(u(1)%dim),hi(u(1)%dim)
+    integer :: lo(get_dim(u(1))),hi(get_dim(u(1)))
     integer :: i,n,ng,dm
 
-    ng = u(1)%ng
-    dm = u(1)%dim
+    ng = nghost(u(1))
+    dm = get_dim(u(1))
 
     do n=1,nlevs
 
-       do i = 1, u(n)%nboxes
+       do i = 1, nboxes(u(n))
           if ( multifab_remote(u(n), i) ) cycle
           uop => dataptr(u(n), i)
           sop => dataptr(s(n), i)

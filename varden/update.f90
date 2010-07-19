@@ -46,18 +46,18 @@ contains
     real(kind=dp_t), pointer :: fluxpz(:,:,:,:)
     real(kind=dp_t), pointer :: fp(:,:,:,:)
 
-    integer :: lo(sold(1)%dim),hi(sold(1)%dim)
+    integer :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
     integer :: i,ng,dm,nscal,n,nlevs
 
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    ng = sold(1)%ng
+    ng = nghost(sold(1))
     nscal = multifab_ncomp(sold(1))
 
     do n=1,nlevs
 
-       do i = 1, sold(n)%nboxes
+       do i = 1, nboxes(sold(n))
           if ( multifab_remote(sold(n),i) ) cycle
           sop    => dataptr(sold(n),i)
           snp    => dataptr(snew(n),i)

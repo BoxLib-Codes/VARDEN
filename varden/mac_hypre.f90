@@ -116,7 +116,7 @@ contains
                            dh = dx(n,:), &
                            ns = ns_mg, &
                            max_nlevel = 1, &
-                           nodal = rh(nlevs)%nodal)
+                           nodal = nodal_flags(rh(nlevs)))
 
     end do
 
@@ -128,11 +128,11 @@ contains
        la = mla%la(n)
 
        call multifab_build(cell_coeffs(mgt(n)%nlevels), la, 1, 1)
-       call multifab_copy_c(cell_coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=alpha(n)%ng)
+       call multifab_copy_c(cell_coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=nghost(alpha(n)))
 
        do d = 1, dm
           call multifab_build_edge(edge_coeffs(mgt(n)%nlevels,d),la,1,1,d)
-          call multifab_copy_c(edge_coeffs(mgt(n)%nlevels,d),1,beta(n,d),1,1,ng=beta(n,d)%ng)
+          call multifab_copy_c(edge_coeffs(mgt(n)%nlevels,d),1,beta(n,d),1,1,ng=nghost(beta(n,d)))
        end do
 
        if (n > 1) then
@@ -191,7 +191,7 @@ contains
 !   ******************************************************************************************************* 
 
     do n = 1,nlevs
-      do i = 1, rh(n)%nboxes
+      do i = 1, nboxes(rh(n))
          if ( multifab_remote(rh(n), i) ) cycle
          lo(1:dm) =  lwb(get_box(rh(n), i))
          hi(1:dm) =  upb(get_box(rh(n), i))
@@ -276,7 +276,7 @@ contains
       pdlo =  lwb(pd)
       pdhi =  upb(pd)
 
-      do i = 1, mgt(n)%ss(1)%nboxes
+      do i = 1, nboxes(mgt(n)%ss(1))
          if ( multifab_remote(mgt(n)%ss(1), i) ) cycle
          lo(1:dm) =  lwb(get_box(mgt(n)%ss(1), i))
          hi(1:dm) =  upb(get_box(mgt(n)%ss(1), i))
@@ -359,7 +359,7 @@ contains
 !   ******************************************************************************************************* 
 
     do n = 1,nlevs
-      do i = 1, rh(n)%nboxes
+      do i = 1, nboxes(rh(n))
          if ( multifab_remote(rh(n), i) ) cycle
          lo(1:dm) =  lwb(get_box(rh(n), i))
          hi(1:dm) =  upb(get_box(rh(n), i))
@@ -436,7 +436,7 @@ contains
 !   ******************************************************************************************************* 
 
     do n = 1,nlevs
-      do i = 1, phi(n)%nboxes
+      do i = 1, nboxes(phi(n))
          if ( multifab_remote(phi(n), i) ) cycle
          lo(1:dm) =  lwb(get_box(phi(n), i))
          hi(1:dm) =  upb(get_box(phi(n), i))

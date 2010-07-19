@@ -135,7 +135,7 @@ contains
                            abs_eps = abs_solver_eps, &
                            verbose = mg_verbose, &
                            cg_verbose = cg_verbose, &
-                           nodal = rh(nlevs)%nodal)
+                           nodal = nodal_flags(rh(nlevs)))
 
     end do
 
@@ -149,11 +149,11 @@ contains
        la = mla%la(n)
 
        call multifab_build(cell_coeffs(mgt(n)%nlevels), la, 1, 1)
-       call multifab_copy_c(cell_coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=alpha(n)%ng)
+       call multifab_copy_c(cell_coeffs(mgt(n)%nlevels),1,alpha(n),1, 1,ng=nghost(alpha(n)))
 
        do d = 1, dm
           call multifab_build_edge(edge_coeffs(mgt(n)%nlevels,d),la,1,1,d)
-          call multifab_copy_c(edge_coeffs(mgt(n)%nlevels,d),1,beta(n,d),1,1,ng=beta(n,d)%ng)
+          call multifab_copy_c(edge_coeffs(mgt(n)%nlevels,d),1,beta(n,d),1,1,ng=nghost(beta(n,d)))
        end do
 
        if (n > 1) then

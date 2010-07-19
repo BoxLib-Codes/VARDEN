@@ -41,7 +41,7 @@ contains
     type(multifab)  :: uflux(mla%nlevel,mla%dim)
     type(multifab)  :: uedge(mla%nlevel,mla%dim)
     integer         :: i,n,dm,comp,nlevs
-    logical         :: is_vel,is_conservative(uold(1)%dim)
+    logical         :: is_vel,is_conservative(get_dim(uold(1)))
     real(kind=dp_t) :: visc_fac,visc_mu
     real(kind=dp_t) :: umin,umax
 
@@ -52,8 +52,8 @@ contains
     is_vel = .true.
 
     do n = 1, nlevs
-       call multifab_build(vel_force(n),ext_vel_force(n)%la,dm,1)
-       call multifab_build(divu(n),vel_force(n)%la,1,1)
+       call multifab_build(vel_force(n),get_layout(ext_vel_force(n)),dm,1)
+       call multifab_build(divu(n),get_layout(vel_force(n)),1,1)
        call setval(divu(n),0.0_dp_t,all=.true.)
 
        do i = 1,dm
