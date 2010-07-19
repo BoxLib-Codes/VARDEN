@@ -10,14 +10,13 @@ module advance_module
   use multifab_module
   use bc_module
   use define_bc_module
-  use pre_advance_module
-  use velocity_advance_module
-  use scalar_advance_module
-  use macproject_module
-  use hgproject_module
-  use rhohalf_module
-  use explicit_diffusive_module
-  use viscous_module
+  use pre_advance_module       , only : advance_premac
+  use velocity_advance_module  , only : velocity_advance
+  use scalar_advance_module    , only : scalar_advance
+  use macproject_module        , only : macproject
+  use hgproject_module         , only : hgproject
+  use rhohalf_module           , only : make_at_halftime
+  use explicit_diffusive_module, only : get_explicit_diffusive_term
   use probin_module, only : nscal, visc_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose
   use proj_parameters
