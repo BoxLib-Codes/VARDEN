@@ -612,7 +612,7 @@ contains
             rp => dataptr(rho(n) , i)
             bxp => dataptr(beta(n,1), i)
             byp => dataptr(beta(n,2), i)
-            bx  = mla%mba%bas(n)%bxs(i)
+            bx  = get_box(mla%mba%bas(n),i)
             lo  = lwb(bx)
             hi  = upb(bx)
             select case (dm)
