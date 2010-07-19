@@ -567,7 +567,7 @@ contains
 !      write(unit=un, fmt='(i1," levels ")') mla%mba%nlevel
        write(unit=un, fmt='(i2)') mla%mba%nlevel
        do n = 1, mla%mba%nlevel
-          nb = mla%mba%bas(n)%nboxes
+          nb = nboxes(mla%mba%bas(n))
           bx = ml_layout_get_pd(mla,n)
           write(unit=un, fmt='("   (")', advance = 'no') 
           write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
@@ -576,7 +576,7 @@ contains
           write(unit=un, fmt='("))")', advance = 'no' )
           write(unit=un, fmt='(" ",i4)', advance = 'yes') nb
           do i = 1, nb
-             bx = mla%mba%bas(n)%bxs(i)
+             bx = get_box(mla%mba%bas(n),i)
              tp = 0
              write(unit=un, fmt='("      (")', advance = 'no') 
              write(unit=un, fmt='("(", 3(I0,:,", "))', advance = 'no') bx%lo(1:bx%dim)
