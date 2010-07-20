@@ -44,6 +44,7 @@ contains
     type(bndry_reg) :: fine_flx(2:mla%nlevel)
     real(dp_t)      :: umac_norm(mla%nlevel)
     real(dp_t)      :: rel_solver_eps
+    real(dp_t)      :: abs_solver_eps
     integer         :: d,dm,i,n, nlevs
     logical         :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
 
@@ -115,16 +116,22 @@ contains
        rel_solver_eps = 1.d-10
     endif
 
+    abs_solver_eps = -1.0_dp_t
+    do n = 1,nlevs
+       abs_solver_eps = max(abs_solver_eps, umac_norm(n) / dx(n,1))
+    end do
+    abs_solver_eps = rel_solver_eps * abs_solver_eps
+
     ! HACK FOR THIS TEST
     rel_solver_eps = 1.d-10
+    abs_solver_eps = -1.d0
 
     if (use_hypre) then
-       call mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,&
-                      the_bc_tower,bc_comp,stencil_order,mla%mba%rr,&
-                      rel_solver_eps,umac_norm)
+       call mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
+                      stencil_order,mla%mba%rr,rel_solver_eps,abs_solver_eps)
     else
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                          stencil_order,mla%mba%rr,rel_solver_eps,umac_norm)
+                          stencil_order,mla%mba%rr,rel_solver_eps,abs_solver_eps)
     end if
 
     call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)

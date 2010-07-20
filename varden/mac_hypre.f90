@@ -17,7 +17,7 @@ module mac_hypre_module
 contains
 
   subroutine mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                       stencil_order,ref_ratio,rel_solver_eps,umac_norm)
+                       stencil_order,ref_ratio,rel_solver_eps,abs_solver_eps)
 
     use stencil_fill_module, only: stencil_fill_cc_all_mglevels
     use mg_module          , only: mg_tower, mg_tower_build, mg_tower_destroy
@@ -35,7 +35,7 @@ contains
     type(multifab) , intent(inout)        ::    rh(:),  phi(:)
     type(bndry_reg), intent(inout)        :: fine_flx(2:)
     real(dp_t)     , intent(in)           :: rel_solver_eps 
-    real(dp_t)     , intent(in), optional :: umac_norm(:)
+    real(dp_t)     , intent(in)           :: abs_solver_eps 
 
     type(box)       :: pd
     integer         :: lo(3),hi(3)
@@ -53,7 +53,6 @@ contains
 
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
-    real(dp_t) :: abs_solver_eps
 
     ! All the integers associated with Hypre are long.
     integer(kind=8) :: grid
@@ -84,14 +83,6 @@ contains
     if (nlevs > 1) &
        call bl_error('mac_hypre: not set up for nlevs > 1')
  
-    abs_solver_eps = -1.0_dp_t
-    if (present(umac_norm)) then
-       do n = 1,nlevs
-          abs_solver_eps = max(abs_solver_eps, umac_norm(n) / dx(n,1))
-       end do
-       abs_solver_eps = rel_solver_eps * abs_solver_eps
-    end if
-
     ! We use standard cross stencils (with an extra place in each direction for boundary conditions in the mg stencil).
     ns_mg = 3*dm + 1
     ns_hy = 2*dm + 1

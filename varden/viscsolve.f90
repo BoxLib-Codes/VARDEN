@@ -37,6 +37,7 @@ contains
     integer         :: n,d,nlevs,dm,bc_comp,ng_cell
     real(kind=dp_t) :: nrm1, nrm2, nrm3
     real(kind=dp_t) :: rel_solver_eps
+    real(kind=dp_t) :: abs_solver_eps
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -81,7 +82,8 @@ contains
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
 
-    rel_solver_eps = 1.d-12
+    rel_solver_eps =  1.d-12
+    abs_solver_eps = -1.d0
 
     do d = 1,dm
        do n = 1,nlevs
@@ -90,7 +92,7 @@ contains
        bc_comp = d
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
                           the_bc_tower,bc_comp,stencil_order,mla%mba%rr,&
-                          rel_solver_eps)
+                          rel_solver_eps,abs_solver_eps)
        do n = 1,nlevs
           call multifab_copy_c(unew(n),d,phi(n),1,1)
        end do
@@ -263,6 +265,7 @@ contains
     type(bndry_reg) :: fine_flx(2:mla%nlevel)
     integer         :: n,d,nlevs,dm,ng_cell
     real(kind=dp_t) :: rel_solver_eps
+    real(kind=dp_t) :: abs_solver_eps
     real(kind=dp_t) :: nrm1
 
     nlevs = mla%nlevel
@@ -301,11 +304,12 @@ contains
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
 
-    rel_solver_eps = 1.d-12
+    rel_solver_eps =  1.d-12
+    abs_solver_eps = -1.d0
 
     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
                        the_bc_tower,bc_comp,stencil_order,mla%mba%rr,&
-                       rel_solver_eps)
+                       rel_solver_eps,abs_solver_eps)
 
     do n = 1,nlevs
        call multifab_copy_c(snew(n),icomp,phi(n),1,1)
