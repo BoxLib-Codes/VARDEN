@@ -11,11 +11,11 @@ f90sources += initdata.f90
 f90sources += initialize.f90
 f90sources += inlet_bc.f90
 f90sources += mac_applyop.f90
-#ifdef HYPRE
+ifdef HYPRE
+f90sources += mac_hypre.f90
+else
 f90sources += mac_hypre_stub.f90
-#else
-f90sources += mac_hypre_stub.f90
-#endif
+endif
 f90sources += mac_multigrid.f90
 f90sources += macproject.f90
 f90sources += make_at_halftime.f90

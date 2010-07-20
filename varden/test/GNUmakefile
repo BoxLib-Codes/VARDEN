@@ -1,12 +1,11 @@
 NDEBUG := t
-MPI    := t
+MPI    :=
 OMP    :=
+HYPRE  :=
 
 COMP := Intel
 
 FPARALLEL := ../..
-
-USE_HYPRE = TRUE
 
 include $(FPARALLEL)/mk/GMakedefs.mak
 
@@ -24,7 +23,7 @@ VPATH_LOCATIONS += $(FPARALLEL)/mg
 include $(FPARALLEL)/extern/LAPACK/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/extern/LAPACK
 
-ifeq ($(USE_HYPRE), TRUE)
+ifdef HYPRE
   DEFINES += -DHYPRE
   LDFLAGS += -L ../../extern/hypre/lib
   FINCLUDE_LOCATIONS += ../../extern/hypre/include

@@ -126,7 +126,7 @@ contains
     rel_solver_eps = 1.d-10
     abs_solver_eps = -1.d0
 
-    if (use_hypre) then
+    if (use_hypre .eq. 1) then
        call mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
                       stencil_order,mla%mba%rr,rel_solver_eps,abs_solver_eps)
     else
