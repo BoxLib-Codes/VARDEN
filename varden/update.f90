@@ -169,8 +169,6 @@ contains
                 enddo
              enddo
           end if
-          print *,'OLD NEW 47: ',sold(47,120,comp), snew(47,120,comp)
-          print *,'OLD NEW 80: ',sold(80,120,comp), snew(80,120,comp)
        end do
 
     else if (is_vel) then 
