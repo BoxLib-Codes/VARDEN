@@ -125,24 +125,27 @@ contains
     real (kind = dp_t)  :: blobrad = 0.1d0
    
     do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-          u(i,j,1) = ZERO
-          u(i,j,2) = ZERO
-          s(i,j,1) = ONE
-          s(i,j,2) = ZERO
-       enddo
-    enddo
-
-    ! add a density and tracer perturbation
-    do j=lo(2),hi(2)
        y = dx(2)*(j + HALF)
        do i=lo(1),hi(1)
           x = dx(1)*((i) + HALF)
-          dist = SQRT((x-xblob)**2 + (y-yblob)**2)
-          s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
-          s(i,j,2) = s(i,j,1)
+          u(i,j,1) = tanh(30.*(.25-abs(y-.5)))
+          u(i,j,2) = .05*sin(two*M_PI*x)
        enddo
     enddo
+
+    s(:,:,1) = ONE
+    s(:,:,2) = ZERO
+
+    ! add a density and tracer perturbation
+!   do j=lo(2),hi(2)
+!      y = dx(2)*(j + HALF)
+!      do i=lo(1),hi(1)
+!         x = dx(1)*((i) + HALF)
+!         dist = SQRT((x-xblob)**2 + (y-yblob)**2)
+!         s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+!         s(i,j,2) = s(i,j,1)
+!      enddo
+!   enddo
 
   end subroutine initdata_2d
 
@@ -156,34 +159,36 @@ contains
     !     Local variables
     integer :: i, j, k
     real (kind = dp_t)  :: x,y,z,dist
-    real (kind = dp_t)  :: xblob = 0.5d0, yblob = 0.5d0, zblob = 0.5d0, densfact = 2.0d0
-    real (kind = dp_t)  :: blobrad = 0.1d0
 
     do k=lo(3),hi(3)
-       do j=lo(2),hi(2)
-          do i=lo(1),hi(1)
-             u(i,j,k,1) = ZERO
-             u(i,j,k,2) = ZERO
-             u(i,j,k,3) = ZERO
-             s(i,j,k,1) = ONE
-             s(i,j,k,2) = ZERO
-          enddo
+     z = dx(3)*(k + HALF)
+     do j=lo(2),hi(2)
+       y = dx(2)*(j + HALF)
+       do i=lo(1),hi(1)
+          x = dx(1)*((i) + HALF)
+          u(i,j,k,1) = tanh(30.*(.25-abs(y-.5)))
+          u(i,j,k,2) = .05*sin(two*M_PI*x)
+          u(i,j,k,3) = 0.d0
        enddo
     enddo
+    enddo
+
+    s(:,:,:,1) = ONE
+    s(:,:,:,2) = ZERO
 
     ! add a density and tracer perturbation
-    do k=lo(3),hi(3)
-       z = dx(3)*(k + HALF)
-       do j=lo(2),hi(2)
-          y = dx(2)*(j + HALF)
-          do i=lo(1),hi(1)
-             x = dx(1)*((i) + HALF)
-             dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
-             s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
-             s(i,j,k,2) = s(i,j,k,1)
-          enddo
-       enddo
-    enddo
+!   do k=lo(3),hi(3)
+!      z = dx(3)*(k + HALF)
+!      do j=lo(2),hi(2)
+!         y = dx(2)*(j + HALF)
+!         do i=lo(1),hi(1)
+!            x = dx(1)*((i) + HALF)
+!            dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
+!            s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+!            s(i,j,k,2) = s(i,j,k,1)
+!         enddo
+!      enddo
+!   enddo
 
   end subroutine initdata_3d
 
