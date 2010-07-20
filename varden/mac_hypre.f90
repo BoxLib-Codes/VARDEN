@@ -20,8 +20,8 @@ contains
                        stencil_order,ref_ratio,umac_norm)
 
     use stencil_fill_module, only: stencil_fill_cc_all_mglevels
-    use mg_module, only: mg_tower, mg_tower_build, mg_tower_destroy
-    use probin_module, only : verbose, pmask
+    use mg_module          , only: mg_tower, mg_tower_build, mg_tower_destroy
+    use probin_module      , only : verbose, pmask
 
     include 'HYPREf.h'
 
@@ -156,6 +156,8 @@ contains
           call destroy(edge_coeffs(mgt(n)%nlevels,d))
        end do
        deallocate(edge_coeffs)
+
+       call mg_tower_destroy(mgt(n))
 
     end do
 
@@ -467,6 +469,8 @@ contains
 
       end do
     end do
+
+!   call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
 
 !   Free memory
     call HYPRE_StructPCGDestroy(solver,ierr);
