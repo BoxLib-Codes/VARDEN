@@ -47,6 +47,11 @@ contains
     type(multifab) :: umac(mla%nlevel, mla%dim)
     type(multifab) :: rhohalf(mla%nlevel)
 
+    real(kind=dp_t) ::  sa_time,  sa_time_start,  sa_time_max
+    real(kind=dp_t) ::  va_time,  va_time_start,  va_time_max
+    real(kind=dp_t) :: mac_time, mac_time_start, mac_time_max
+    real(kind=dp_t) ::  hg_time,  hg_time_start,  hg_time_max
+
     integer    :: i,n,comp,dm,nlevs
 
     dm    = mla%dim
@@ -77,11 +82,19 @@ contains
     endif
 
     call advance_premac(mla,uold,sold,lapu,umac,gp,ext_vel_force,dx,dt,the_bc_tower)
-
+  
+    mac_time_start = parallel_wtime()
+ 
     call macproject(mla,umac,sold,dx,the_bc_tower,press_comp)
 
+    call parallel_barrier()
+    mac_time = parallel_wtime() - mac_time_start
+
+    sa_time_start = parallel_wtime()
     call scalar_advance(mla,sold,snew,umac,ext_scal_force, &
                         dx,dt,the_bc_tower)
+    call parallel_barrier()
+    sa_time = parallel_wtime() - sa_time_start
     
     call make_at_halftime(mla,rhohalf,sold,snew,1,1,the_bc_tower%bc_tower_array)
 
@@ -91,12 +104,18 @@ contains
        enddo
     end if
 
+    va_time_start = parallel_wtime()
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
-                              ext_vel_force,dx,dt,the_bc_tower)
+                          ext_vel_force,dx,dt,the_bc_tower)
+    call parallel_barrier()
+    va_time = parallel_wtime() - va_time_start
 
     ! Project the new velocity field.
+    hg_time_start = parallel_wtime()
     call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                    the_bc_tower,press_comp)
+    call parallel_barrier()
+    hg_time = parallel_wtime() - hg_time_start
 
     if ( verbose .ge. 1 ) call print_new(unew,proj_type,time,dt,istep)
 
@@ -107,6 +126,24 @@ contains
          call multifab_destroy(umac(n,i))
        end do
     end do
+
+    call parallel_reduce(mac_time_max, mac_time, MPI_MAX, &
+                         proc=parallel_IOProcessorNode())
+    call parallel_reduce( hg_time_max,  hg_time, MPI_MAX, &
+                         proc=parallel_IOProcessorNode())
+    call parallel_reduce( sa_time_max,  sa_time, MPI_MAX, &
+                         proc=parallel_IOProcessorNode())
+    call parallel_reduce( va_time_max,  va_time, MPI_MAX, &
+                         proc=parallel_IOProcessorNode())
+
+    if (parallel_IOProcessor()) then
+       print *, 'Timing summary:'
+       print *, 'Scalar   update: ',  sa_time_max, ' seconds'
+       print *, 'Velocity update: ',  va_time_max, ' seconds'
+       print *, ' MAC Projection: ', mac_time_max, ' seconds'
+       print *, '  HG Projection: ',  hg_time_max, ' seconds'
+       print *, ' '
+    endif
 
   end subroutine advance_timestep
 
