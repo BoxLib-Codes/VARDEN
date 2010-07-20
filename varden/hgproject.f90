@@ -736,7 +736,6 @@ contains
 
     max_nlevel        = mgt(nlevs)%max_nlevel
     max_iter          = mgt(nlevs)%max_iter
-    eps               = mgt(nlevs)%eps
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
@@ -749,12 +748,17 @@ contains
     min_width         = mgt(nlevs)%min_width
     verbose           = mgt(nlevs)%verbose
 
+    if (present(eps_in)) then
+       eps = eps_in
+    else
+       eps = 1.d-11
+    end if
+
     verbose = mg_verbose
 
     ! Note: put this here to minimize asymmetries - ASA
-    eps = 1.d-12
 
-    bottom_solver = 2
+    bottom_solver = 4
     min_width = 2
 
     ! Note: put this here for robustness
@@ -866,11 +870,7 @@ contains
        do_diagnostics = 0
     end if
 
-    if (present(eps_in)) then
-       call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics,eps_in)
-    else
-       call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics)
-    end if
+    call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics,eps)
 
     do n = nlevs,1,-1
        call multifab_fill_boundary(phi(n))
