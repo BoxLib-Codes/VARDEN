@@ -18,7 +18,7 @@ module mac_multigrid_module
 contains
 
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,&
-       the_bc_tower,bc_comp,stencil_order,ref_ratio,umac_norm)
+       the_bc_tower,bc_comp,stencil_order,ref_ratio,rel_solver_eps,umac_norm)
 
      use stencil_fill_module, only : stencil_fill_cc_all_mglevels
      use mg_module          , only : mg_tower, mg_tower_build, mg_tower_destroy
@@ -34,6 +34,7 @@ contains
     integer        , intent(in   ) :: bc_comp
     integer        , intent(in   ) :: stencil_order
     integer        , intent(in   ) :: ref_ratio(:,:)
+    real(dp_t)     , intent(in   ) :: rel_solver_eps
 
     real(dp_t), intent(in), optional :: umac_norm(:)
 
@@ -53,7 +54,7 @@ contains
     integer    :: max_nlevel
     integer    :: d, n, nu1, nu2, gamma, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
-    real(dp_t) :: rel_solver_eps,abs_solver_eps,omega,bottom_solver_eps
+    real(dp_t) :: abs_solver_eps,omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
@@ -64,7 +65,6 @@ contains
 
     max_nlevel        = mgt(nlevs)%max_nlevel
     max_iter          = mgt(nlevs)%max_iter
-    rel_solver_eps    = mgt(nlevs)%eps
     abs_solver_eps    = mgt(nlevs)%abs_eps
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
@@ -77,22 +77,13 @@ contains
     bottom_max_iter   = mgt(nlevs)%bottom_max_iter
     min_width         = mgt(nlevs)%min_width
 
-    ! Note: put this here to minimize asymmetries - ASA
-    if (nlevs .eq. 1) then
-       rel_solver_eps = 1.d-12
-    else if (nlevs .eq. 2) then
-       rel_solver_eps = 1.d-11
-    else
-       rel_solver_eps = 1.d-10
-    endif
-
     abs_solver_eps = -1.0_dp_t
-    if (present(umac_norm)) then
-       do n = 1,nlevs
-          abs_solver_eps = max(abs_solver_eps, umac_norm(n) / dx(n,1))
-       end do
-       abs_solver_eps = rel_solver_eps * abs_solver_eps
-    end if
+!   if (present(umac_norm)) then
+!      do n = 1,nlevs
+!         abs_solver_eps = max(abs_solver_eps, umac_norm(n) / dx(n,1))
+!      end do
+!      abs_solver_eps = rel_solver_eps * abs_solver_eps
+!   end if
 
     bottom_solver = 1
     bottom_solver_eps = 1.d-3
@@ -186,7 +177,7 @@ contains
        do_diagnostics = 0
     end if
 
-    call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics)
+    call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics,rel_solver_eps)
 
 !   call fabio_multifab_write_d(phi(1),'MG_PHI','Phi')
 

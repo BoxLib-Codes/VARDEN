@@ -17,7 +17,7 @@ module mac_hypre_module
 contains
 
   subroutine mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                       stencil_order,ref_ratio,umac_norm)
+                       stencil_order,ref_ratio,rel_solver_eps,umac_norm)
 
     use stencil_fill_module, only: stencil_fill_cc_all_mglevels
     use mg_module          , only: mg_tower, mg_tower_build, mg_tower_destroy
@@ -34,6 +34,7 @@ contains
     type(multifab) , intent(in   )        :: alpha(:), beta(:,:)
     type(multifab) , intent(inout)        ::    rh(:),  phi(:)
     type(bndry_reg), intent(inout)        :: fine_flx(2:)
+    real(dp_t)     , intent(in)           :: rel_solver_eps 
     real(dp_t)     , intent(in), optional :: umac_norm(:)
 
     type(box)       :: pd
@@ -52,7 +53,7 @@ contains
 
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
-    real(dp_t) :: rel_solver_eps, abs_solver_eps
+    real(dp_t) :: abs_solver_eps
 
     ! All the integers associated with Hypre are long.
     integer(kind=8) :: grid
@@ -82,14 +83,6 @@ contains
 
     if (nlevs > 1) &
        call bl_error('mac_hypre: not set up for nlevs > 1')
-
-    if (nlevs .eq. 1) then
-       rel_solver_eps = 1.d-12
-    else if (nlevs .eq. 2) then
-       rel_solver_eps = 1.d-11
-    else
-       rel_solver_eps = 1.d-10
-    endif
  
     abs_solver_eps = -1.0_dp_t
     if (present(umac_norm)) then
@@ -156,8 +149,6 @@ contains
           call destroy(edge_coeffs(mgt(n)%nlevels,d))
        end do
        deallocate(edge_coeffs)
-
-       call mg_tower_destroy(mgt(n))
 
     end do
 
@@ -468,6 +459,10 @@ contains
          deallocate(values)
 
       end do
+    end do
+
+    do n = 1,nlevs
+       call mg_tower_destroy(mgt(n))
     end do
 
 !   call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')

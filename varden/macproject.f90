@@ -43,6 +43,7 @@ contains
     type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel,mla%dim)
     type(bndry_reg) :: fine_flx(2:mla%nlevel)
     real(dp_t)      :: umac_norm(mla%nlevel)
+    real(dp_t)      :: rel_solver_eps
     integer         :: d,dm,i,n, nlevs
     logical         :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
 
@@ -106,12 +107,24 @@ contains
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
 
+    if (nlevs .eq. 1) then
+       rel_solver_eps = 1.d-12
+    else if (nlevs .eq. 2) then
+       rel_solver_eps = 1.d-11
+    else
+       rel_solver_eps = 1.d-10
+    endif
+
+    ! HACK FOR THIS TEST
+    rel_solver_eps = 1.d-10
+
     if (use_hypre) then
        call mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,&
-                      the_bc_tower,bc_comp,stencil_order,mla%mba%rr,umac_norm)
+                      the_bc_tower,bc_comp,stencil_order,mla%mba%rr,&
+                      rel_solver_eps,umac_norm)
     else
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                          stencil_order,mla%mba%rr,umac_norm)
+                          stencil_order,mla%mba%rr,rel_solver_eps,umac_norm)
     end if
 
     call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)
