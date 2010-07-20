@@ -4,11 +4,10 @@ module macproject_module
   use ml_layout_module
   use define_bc_module
   use multifab_module
-  use bndry_reg_module
   use bl_constants_module
   use bl_error_module
-  use sparse_solve_module
-  use create_umac_grown_module
+
+  use bc_module 
 
   implicit none
 
@@ -21,9 +20,11 @@ contains
   subroutine macproject(mla,umac,rho,dx,the_bc_tower,bc_comp,&
                         divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
-    use probin_module, only: stencil_order, use_hypre
-    use mac_hypre_module
-    use mac_multigrid_module
+    use probin_module            , only : stencil_order, use_hypre
+    use mac_hypre_module         , only : mac_hypre
+    use mac_multigrid_module     , only : mac_multigrid
+    use create_umac_grown_module , only : create_umac_grown
+    use bndry_reg_module
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: umac(:,:)

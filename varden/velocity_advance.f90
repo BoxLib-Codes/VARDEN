@@ -1,10 +1,10 @@
 module velocity_advance_module
 
   use bl_types
+  use bl_constants_module
   use define_bc_module
   use multifab_module
   use ml_layout_module
-  use probin_module, only : verbose, visc_coef, diffusion_type
 
   implicit none
 
@@ -17,11 +17,11 @@ contains
   subroutine velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
                               ext_vel_force,dx,dt,the_bc_tower)
 
-    use viscous_module
-    use mkflux_module
-    use mkforce_module
-    use update_module
-    use bl_constants_module
+    use viscous_module, only : visc_solve
+    use mkflux_module , only : mkflux
+    use mkforce_module, only : mkvelforce
+    use update_module , only : update
+    use probin_module , only : verbose, visc_coef, diffusion_type
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(in   ) :: uold(:)

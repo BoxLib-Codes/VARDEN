@@ -1,10 +1,13 @@
 module viscous_module
 
   use bl_types
+  use bl_constants_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
-  use mac_multigrid_module
+  use multifab_physbc_module
+  use multifab_fill_ghost_module
+  use bndry_reg_module
 
   implicit none
 
@@ -16,12 +19,9 @@ contains
 
   subroutine visc_solve(mla,unew,lapu,rho,dx,mu,the_bc_tower)
 
-    use bl_constants_module
-    use bndry_reg_module
-    use multifab_physbc_module
-    use multifab_fill_ghost_module
-    use ml_restriction_module, only: ml_cc_restriction
-    use probin_module, only: stencil_order,verbose
+    use mac_multigrid_module  , only : mac_multigrid
+    use ml_restriction_module , only : ml_cc_restriction
+    use probin_module         , only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -241,12 +241,9 @@ contains
 
   subroutine diff_scalar_solve(mla,snew,laps,dx,mu,the_bc_tower,icomp,bc_comp)
 
-    use bndry_reg_module
-    use bl_constants_module
-    use multifab_physbc_module
-    use multifab_fill_ghost_module
-    use ml_restriction_module, only: ml_cc_restriction_c
-    use probin_module, only: stencil_order, verbose
+    use mac_multigrid_module  , only : mac_multigrid
+    use ml_restriction_module , only : ml_cc_restriction_c
+    use probin_module         , only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: snew(:)

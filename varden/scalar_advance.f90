@@ -1,13 +1,10 @@
 module scalar_advance_module
 
   use bl_types
+  use bl_constants_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
-  use explicit_diffusive_module
-  use viscous_module, only : diff_scalar_solve
-  use probin_module, only : nscal, diff_coef, diffusion_type, stencil_order, &
-                            verbose, mg_verbose, cg_verbose
 
   implicit none
 
@@ -20,10 +17,13 @@ contains
   subroutine scalar_advance(mla,sold,snew,umac, &
                             ext_scal_force,dx,dt,the_bc_tower)
 
-    use mkflux_module
-    use mkforce_module
-    use update_module
-    use bl_constants_module
+    use explicit_diffusive_module, only : get_explicit_diffusive_term
+    use viscous_module           , only : diff_scalar_solve
+    use update_module            , only : update
+    use mkflux_module            , only : mkflux
+    use mkforce_module           , only : mkscalforce
+    use probin_module            , only : nscal, diff_coef, diffusion_type, &
+                                          stencil_order, verbose, mg_verbose, cg_verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(in   ) :: sold(:)

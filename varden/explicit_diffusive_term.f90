@@ -4,9 +4,6 @@ module explicit_diffusive_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
-  use viscous_module
-  use mac_applyop_module
-  use probin_module, only : stencil_order, verbose, mg_verbose, cg_verbose
 
   implicit none
 
@@ -18,6 +15,9 @@ contains
 
   subroutine get_explicit_diffusive_term(mla,lap_data,data,data_comp,bc_comp,dx,&
                                          the_bc_tower)
+
+    use mac_applyop_module, only : mac_applyop
+    use probin_module     , only : stencil_order, verbose, mg_verbose, cg_verbose
 
     use bl_constants_module
 
