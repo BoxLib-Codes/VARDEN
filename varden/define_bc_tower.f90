@@ -110,7 +110,7 @@ module define_bc_module
 
     integer :: n
 
-    do n = 1,bct%nlevels
+    do n = 1,bct%max_level_built
        deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
        deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
        deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
