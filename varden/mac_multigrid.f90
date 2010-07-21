@@ -6,8 +6,6 @@ module mac_multigrid_module
   use multifab_module
   use bndry_reg_module
   use bl_constants_module
-  use bl_error_module
-  use fabio_module
 
   implicit none
 
@@ -20,10 +18,10 @@ contains
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp,&
                            stencil_order,ref_ratio,rel_solver_eps,abs_solver_eps)
 
-     use stencil_fill_module, only : stencil_fill_cc_all_mglevels
-     use mg_module          , only : mg_tower, mg_tower_build, mg_tower_destroy
-     use ml_solve_module    , only : ml_cc_solve
-     use probin_module      , only : mg_verbose, cg_verbose
+    use stencil_fill_module, only : stencil_fill_cc_all_mglevels
+    use mg_module          , only : mg_tower, mg_tower_build, mg_tower_destroy
+    use ml_solve_module    , only : ml_cc_solve
+    use probin_module      , only : mg_verbose, cg_verbose, mg_bottom_solver, max_mg_bottom_nlevels
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: rh(:),phi(:)
@@ -51,11 +49,15 @@ contains
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: d, n, nu1, nu2, gamma, cycle_type, smoother
+    integer    :: d, n, nu1, nu2, nub, gamma, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
     real(dp_t) :: omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
+
+    type(bl_prof_timer), save :: bpt
+ 
+    call build(bpt, "mac_multigrid")
 
     !! Defaults:
 
@@ -67,6 +69,7 @@ contains
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
+    nub               = mgt(nlevs)%nub
     gamma             = mgt(nlevs)%gamma
     omega             = mgt(nlevs)%omega
     cycle_type        = mgt(nlevs)%cycle_type
@@ -77,6 +80,22 @@ contains
 
     bottom_solver = 1
     bottom_solver_eps = 1.d-3
+
+    if ( mg_bottom_solver >= 0 ) then
+        if (mg_bottom_solver == 4 .and. nboxes(phi(1)) == 1) then
+           if (parallel_IOProcessor()) then
+              print *,'Dont use mg_bottom_solver == 4 with only one grid -- '
+              print *,'  Reverting to default bottom solver ',bottom_solver
+           end if
+        else if (mg_bottom_solver == 4 .and. max_mg_bottom_nlevels < 2) then
+           if (parallel_IOProcessor()) then
+              print *,'Dont use mg_bottom_solver == 4 with max_mg_bottom_nlevels < 2'
+              print *,'  Reverting to default bottom solver ',bottom_solver
+           end if
+        else
+           bottom_solver = mg_bottom_solver
+        end if
+    end if
 
     ns = 1 + dm*3
 
@@ -103,6 +122,7 @@ contains
                            smoother = smoother, &
                            nu1 = nu1, &
                            nu2 = nu2, &
+                           nub = nub, &
                            gamma = gamma, &
                            cycle_type = cycle_type, &
                            omega = omega, &
@@ -111,6 +131,7 @@ contains
                            bottom_solver_eps = bottom_solver_eps, &
                            max_iter = max_iter, &
                            max_nlevel = max_nlevel_in, &
+                           max_bottom_nlevel = max_mg_bottom_nlevels, &
                            min_width = min_width, &
                            eps = rel_solver_eps, &
                            abs_eps = abs_solver_eps, &
