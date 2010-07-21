@@ -14,6 +14,9 @@ module probin_module
   integer,save    :: plot_int, chk_int, regrid_int
   integer,save    :: amr_buf_width
   integer,save    :: verbose, mg_verbose, cg_verbose
+  integer,save    :: mg_bottom_solver
+  integer,save    :: hg_bottom_solver
+  integer,save    :: max_mg_bottom_nlevels
   integer,save    :: use_hypre
   integer,save    :: do_initial_projection
   integer,save    :: restart
@@ -88,6 +91,9 @@ module probin_module
   namelist /probin/ use_hypre
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
+  namelist /probin/ mg_bottom_solver
+  namelist /probin/ hg_bottom_solver
+  namelist /probin/ max_mg_bottom_nlevels
   namelist /probin/ cg_verbose
   namelist /probin/ grav
   namelist /probin/ use_godunov_debug
@@ -171,6 +177,10 @@ contains
     verbose = 0
     mg_verbose = 0
     cg_verbose = 0
+
+    mg_bottom_solver = -1
+    hg_bottom_solver = -1
+    max_mg_bottom_nlevels = 1000
 
     init_shrink =  1.0
     fixed_dt    = -1.0
