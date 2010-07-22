@@ -3,18 +3,22 @@ f90sources += advance_timestep.f90
 f90sources += checkpoint.f90
 f90sources += create_umac_grown.f90
 f90sources += define_bc_tower.f90
+f90sources += enforce_outflow_on_divu_rhs.f90
 f90sources += estdt.f90
 f90sources += explicit_diffusive_term.f90
 f90sources += fillpatch.f90
 f90sources += hgproject.f90
+f90sources += hg_multigrid.f90
 f90sources += initdata.f90
 f90sources += initialize.f90
 f90sources += inlet_bc.f90
 f90sources += mac_applyop.f90
 ifdef HYPRE
+f90sources +=  hg_hypre.f90
 f90sources += mac_hypre.f90
 else
 f90sources += mac_hypre_stub.f90
+f90sources +=  hg_hypre_stub.f90
 endif
 f90sources += mac_multigrid.f90
 f90sources += macproject.f90
