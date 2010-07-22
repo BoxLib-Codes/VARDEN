@@ -19,13 +19,13 @@ contains
       type(multifab) , intent(inout) :: divu_rhs(:)
       type(bc_tower) , intent(in   ) :: the_bc_tower
 
-      integer        :: i,n,ng,ng_d,dm,nlevs
+      integer        :: i,n,ng_d,dm,nlevs
       type(bc_level) :: bc
       real(kind=dp_t), pointer :: divp(:,:,:,:) 
 
       ng_d  = nghost(divu_rhs(1))
         dm  = get_dim(divu_rhs(1))
-      nlevs = size(divu_rhs(1,dim=1))
+      nlevs = size(divu_rhs,dim=1)
 
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
