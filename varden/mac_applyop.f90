@@ -41,12 +41,7 @@ contains
     integer         :: d, dm, ns, nlevs, test
 
     ! MG solver defaults
-    integer :: bottom_solver, bottom_max_iter
-    integer    :: max_iter
-    integer    :: min_width
-    integer    :: max_nlevel
-    integer    :: n, nu1, nu2, gamma, cycle_type, smoother
-    real(dp_t) :: eps,abs_eps,omega,bottom_solver_eps
+    integer    :: n
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
@@ -56,21 +51,6 @@ contains
     dm    = mla%dim
 
     test           = 0
-
-    max_nlevel        = mgt(nlevs)%max_nlevel
-    max_iter          = mgt(nlevs)%max_iter
-    eps               = mgt(nlevs)%eps
-    abs_eps           = mgt(nlevs)%abs_eps
-    smoother          = mgt(nlevs)%smoother
-    nu1               = mgt(nlevs)%nu1
-    nu2               = mgt(nlevs)%nu2
-    gamma             = mgt(nlevs)%gamma
-    omega             = mgt(nlevs)%omega
-    cycle_type        = mgt(nlevs)%cycle_type
-    bottom_solver     = mgt(nlevs)%bottom_solver
-    bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
-    bottom_max_iter   = mgt(nlevs)%bottom_max_iter
-    min_width         = mgt(nlevs)%min_width
 
     ns = 1 + dm*3
 
@@ -82,20 +62,6 @@ contains
                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
                            dh = dx(n,:), &
                            ns = ns, &
-                           smoother = smoother, &
-                           nu1 = nu1, &
-                           nu2 = nu2, &
-                           gamma = gamma, &
-                           cycle_type = cycle_type, &
-                           omega = omega, &
-                           bottom_solver = bottom_solver, &
-                           bottom_max_iter = bottom_max_iter, &
-                           bottom_solver_eps = bottom_solver_eps, &
-                           max_iter = max_iter, &
-                           max_nlevel = 1, &
-                           min_width = min_width, &
-                           eps = eps, &
-                           abs_eps = abs_eps, &
                            verbose = 0, &
                            cg_verbose = 0, &
                            nodal = nodal_flags(res(nlevs)))
