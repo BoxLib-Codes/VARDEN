@@ -325,6 +325,11 @@ contains
           call get_command_argument(farg, value = fname)
           read(fname, *) max_step
 
+       case ('--max_grid_size')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) max_grid_size
+
        case ('--plot_int')
           farg = farg + 1
           call get_command_argument(farg, value = fname)
