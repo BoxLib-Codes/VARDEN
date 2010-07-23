@@ -14,7 +14,7 @@ module hg_hypre_module
 contains
 
   subroutine hg_hypre(mla,rh,unew,rhohalf,phi,dx,the_bc_tower, &
-                      press_comp,stencil_type,divu_rhs,rel_solver_eps,abs_solver_eps)
+                      press_comp,stencil_type,rel_solver_eps,abs_solver_eps,divu_rhs)
 
     use hg_multigrid_module , only : hg_multigrid
 
@@ -33,8 +33,8 @@ contains
     type(multifab ), intent(inout), optional :: divu_rhs(:)
 
     call hg_multigrid(mla,rh,unew,rhohalf,phi,dx,the_bc_tower, &
-                      press_comp,stencil_type,divu_rhs, &
-                      rel_solver_eps,abs_solver_eps)
+                      press_comp,stencil_type, &
+                      rel_solver_eps,abs_solver_eps,divu_rhs)
 
   end subroutine hg_hypre
 
