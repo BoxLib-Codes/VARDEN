@@ -2,7 +2,6 @@ module hgproject_module
 
   use bl_types
   use bl_error_module
-  use mg_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
@@ -10,21 +9,23 @@ module hgproject_module
   implicit none
 
   private
+
   public :: hgproject
 
 contains 
 
   subroutine hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt,the_bc_tower, &
-                       press_comp,divu_rhs,div_coeff_1d,div_coeff_3d,eps_in)
+                       press_comp,divu_rhs,div_coeff_1d,div_coeff_3d)
 
+    use bl_constants_module
     use bc_module
     use proj_parameters
-    use nodal_divu_module
-    use ml_solve_module
-    use ml_restriction_module
-    use multifab_fill_ghost_module
-
-    use probin_module, only: verbose
+    use stencil_module
+    use multifab_fill_ghost_module , only : multifab_fill_ghost_cells
+    use ml_restriction_module      , only : ml_cc_restriction
+    use hg_multigrid_module        , only : hg_multigrid
+    use hg_hypre_module            , only : hg_hypre
+    use probin_module              , only : verbose, use_hypre
 
     integer        , intent(in   ) :: proj_type
     type(ml_layout), intent(in   ) :: mla
@@ -40,13 +41,15 @@ contains
     type(multifab ), intent(inout), optional :: divu_rhs(:)
     real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:,:)
     type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
-    real(dp_t)     , intent(in   ), optional :: eps_in
 
     ! Local  
-    type(multifab) :: phi(mla%nlevel),gphi(mla%nlevel)
+    type(multifab) :: phi(mla%nlevel),gphi(mla%nlevel),rh(mla%nlevel)
     logical        :: nodal(mla%dim),use_div_coeff_1d, use_div_coeff_3d
     integer        :: n,nlevs,dm,ng,stencil_type
     real(dp_t)     :: umin,umax,vmin,vmax,wmin,wmax
+
+    real(dp_t)      :: rel_solver_eps
+    real(dp_t)      :: abs_solver_eps
 
     ! stencil_type = ST_DENSE
     stencil_type = ST_CROSS
@@ -71,8 +74,10 @@ contains
        call bl_error('CANT HAVE 1D and 3D DIV_COEFF IN HGPROJECT ')
 
     do n = 1, nlevs
+       call multifab_build(  rh(n),mla%la(n),1,1,nodal)
        call multifab_build( phi(n), mla%la(n), 1, 1, nodal)
        call multifab_build(gphi(n), mla%la(n), dm, 0) 
+       call setval( rh(n),ZERO,all=.true.)
        call setval(phi(n),ZERO,all=.true.)
     end do
 
@@ -116,16 +121,24 @@ contains
        call mult_by_3d_coeff(nlevs,rhohalf,div_coeff_3d,.false.)
     end if
 
-    if (present(divu_rhs)) then
-       call enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
+    if (nlevs .eq. 1) then
+       rel_solver_eps = 1.d-12
+    else if (nlevs .eq. 2) then
+       rel_solver_eps = 1.d-11
+    else
+       rel_solver_eps = 1.d-10
     endif
 
-    if (present(eps_in)) then
-       call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                         press_comp,stencil_type,divu_rhs,eps_in)
+    abs_solver_eps = -1.d0 
+
+    if (use_hypre .eq. 1) then
+       call hg_hypre(mla,rh,unew,rhohalf,phi,dx,the_bc_tower, &
+                     press_comp,stencil_type, &
+                     rel_solver_eps,abs_solver_eps,divu_rhs)
     else
-       call hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                         press_comp,stencil_type,divu_rhs)
+       call hg_multigrid(mla,rh,unew,rhohalf,phi,dx,the_bc_tower, &
+                         press_comp,stencil_type, &
+                         rel_solver_eps,abs_solver_eps,divu_rhs)
     end if
 
     if (use_div_coeff_1d) then
@@ -172,6 +185,7 @@ contains
 1104 format(' ')
 
     do n = 1,nlevs
+       call multifab_destroy(rh(n))
        call multifab_destroy(phi(n))
        call multifab_destroy(gphi(n))
     end do
@@ -331,75 +345,6 @@ contains
       end do
 
     end subroutine hg_update
-
-    !   ********************************************************************************** !
-
-    subroutine enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
-
-      type(multifab) , intent(inout) :: divu_rhs(:)
-      type(bc_tower) , intent(in   ) :: the_bc_tower
-
-      integer        :: i,n,dm,nlevs
-      type(bc_level) :: bc
-      real(kind=dp_t), pointer :: divp(:,:,:,:) 
-
-      nlevs = size(divu_rhs,dim=1)
-      dm = get_dim(divu_rhs(1))
-
-      do n = 1, nlevs
-         bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, nboxes(divu_rhs(n))
-            if ( multifab_remote(divu_rhs(n), i) ) cycle
-            divp => dataptr(divu_rhs(n)     , i)
-            select case (dm)
-            case (2)
-               call enforce_outflow_2d(divp(:,:,1,1), bc%phys_bc_level_array(i,:,:))
-            case (3)
-               call enforce_outflow_3d(divp(:,:,:,1), bc%phys_bc_level_array(i,:,:))
-            end select
-         end do
-      end do
-
-    end subroutine enforce_outflow_on_divu_rhs
-
-    !   ******************************************************************************** !
-
-    subroutine enforce_outflow_2d(divu_rhs,phys_bc)
-
-      real(kind=dp_t), intent(inout) :: divu_rhs(0:,0:)
-      integer        , intent(in   ) :: phys_bc(:,:)
-
-      integer :: nx,ny
-      nx = size(divu_rhs,dim=1)-1
-      ny = size(divu_rhs,dim=2)-1
-
-      if (phys_bc(1,1) .eq. OUTLET) divu_rhs(0,  :) = ZERO
-      if (phys_bc(1,2) .eq. OUTLET) divu_rhs(nx, :) = ZERO
-      if (phys_bc(2,1) .eq. OUTLET) divu_rhs(: , 0) = ZERO
-      if (phys_bc(2,2) .eq. OUTLET) divu_rhs(: ,ny) = ZERO
-
-    end subroutine enforce_outflow_2d
-
-    !   ******************************************************************************** !
-
-    subroutine enforce_outflow_3d(divu_rhs,phys_bc)
-
-      real(kind=dp_t), intent(inout) :: divu_rhs(0:,0:,0:)
-      integer        , intent(in   ) :: phys_bc(:,:)
-
-      integer :: nx,ny,nz
-      nx = size(divu_rhs,dim=1)-1
-      ny = size(divu_rhs,dim=2)-1
-      nz = size(divu_rhs,dim=3)-1
-
-      if (phys_bc(1,1) .eq. OUTLET) divu_rhs(0,  :, :) = ZERO
-      if (phys_bc(1,2) .eq. OUTLET) divu_rhs(nx, :, :) = ZERO
-      if (phys_bc(2,1) .eq. OUTLET) divu_rhs( :, 0, :) = ZERO
-      if (phys_bc(2,2) .eq. OUTLET) divu_rhs( :,ny, :) = ZERO
-      if (phys_bc(3,1) .eq. OUTLET) divu_rhs( :,: , 0) = ZERO
-      if (phys_bc(3,2) .eq. OUTLET) divu_rhs( :,: ,nz) = ZERO
-
-    end subroutine enforce_outflow_3d
 
     !   ******************************************************************************** !
 
@@ -685,290 +630,7 @@ contains
 
   end subroutine hgproject
 
-  subroutine hg_multigrid(mla,unew,rhohalf,phi,dx,the_bc_tower, &
-                          press_comp,stencil_type,divu_rhs,eps_in)
-
-    use bl_constants_module
-    use stencil_fill_module
-    use ml_solve_module
-    use nodal_divu_module, only: divu, subtract_divu_from_rh
-    use probin_module, only : mg_verbose, cg_verbose
-
-    type(ml_layout), intent(in   ) :: mla
-    type(multifab ), intent(inout) :: unew(:)
-    type(multifab ), intent(in   ) :: rhohalf(:)
-    type(multifab ), intent(inout) :: phi(:)
-    real(dp_t)     , intent(in)    :: dx(:,:)
-    type(bc_tower ), intent(in   ) :: the_bc_tower
-    integer        , intent(in   ) :: press_comp
-    integer        , intent(in   ) :: stencil_type
-
-    type(multifab ), intent(in   ), optional :: divu_rhs(:)
-    real(dp_t)     , intent(in)   , optional :: eps_in 
-
-    type(box     )  :: pd
-    type(  layout)  :: la
-
-    type(mg_tower) :: mgt(mla%nlevel)
-    type(multifab) :: one_sided_ss(2:mla%nlevel), rh(mla%nlevel)
-    type(multifab), allocatable :: coeffs(:)
-
-    real(dp_t) :: bottom_solver_eps, eps, omega
-
-    logical :: nodal(mla%dim)
-    integer :: i, dm, nlevs, ns
-    integer :: bottom_solver, bottom_max_iter
-    integer :: max_iter
-    integer :: min_width
-    integer :: max_nlevel
-    integer :: nu1, nu2, gamma, cycle_type, smoother
-    integer :: n
-    integer :: max_nlevel_in
-    integer :: verbose
-    integer :: do_diagnostics
-
-    !! Defaults:
-
-    dm    = mla%dim
-    nlevs = mla%nlevel
-
-    nodal = .true.
-
-    max_nlevel        = mgt(nlevs)%max_nlevel
-    max_iter          = mgt(nlevs)%max_iter
-    smoother          = mgt(nlevs)%smoother
-    nu1               = mgt(nlevs)%nu1
-    nu2               = mgt(nlevs)%nu2
-    gamma             = mgt(nlevs)%gamma
-    omega             = mgt(nlevs)%omega
-    cycle_type        = mgt(nlevs)%cycle_type
-    bottom_solver     = mgt(nlevs)%bottom_solver
-    bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
-    bottom_max_iter   = mgt(nlevs)%bottom_max_iter
-    min_width         = mgt(nlevs)%min_width
-    verbose           = mgt(nlevs)%verbose
-
-    if (present(eps_in)) then
-       eps = eps_in
-    else
-       eps = 1.d-11
-    end if
-
-    verbose = mg_verbose
-
-    ! Note: put this here to minimize asymmetries - ASA
-
-    bottom_solver = 4
-    min_width = 2
-
-    ! Note: put this here for robustness
-    max_iter = 100
-
-    if (stencil_type .eq. ST_DENSE) then
-       if (dm .eq. 3) then
-          i = mgt(nlevs)%nlevels
-          if ( (dx(nlevs,1) .eq. dx(nlevs,2)) .and. &
-               (dx(nlevs,1) .eq. dx(nlevs,3)) ) then
-             ns = 21
-          else
-             ns = 27
-          end if
-       else if (dm .eq. 2) then
-          ns = 9
-       end if
-    else
-       ns = 2*dm+1
-       do n = nlevs, 2, -1
-          la = mla%la(n)
-          call multifab_build(one_sided_ss(n), la, ns, 0, nodal)
-          call setval(one_sided_ss(n), ZERO,all=.true.)
-       end do
-    end if
-
-    do n = nlevs, 1, -1
-
-       if (n == 1) then
-          max_nlevel_in = max_nlevel
-       else
-          if ( all(mla%mba%rr(n-1,:) == 2) ) then
-             max_nlevel_in = 1
-          else if ( all(mla%mba%rr(n-1,:) == 4) ) then
-             max_nlevel_in = 2
-          else 
-             call bl_error("HG_MULTIGRID: confused about ref_ratio")
-          end if
-       end if
-
-       pd = layout_get_pd(mla%la(n))
-
-       call mg_tower_build(mgt(n), mla%la(n), pd, &
-                       the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
-                           dh = dx(n,:), &
-                           ns = ns, &
-                           smoother = smoother, &
-                           nu1 = nu1, &
-                           nu2 = nu2, &
-                           nub = nu2, &
-                           gamma = gamma, &
-                           cycle_type = cycle_type, &
-                           omega = omega, &
-                           bottom_solver = bottom_solver, &
-                           bottom_max_iter = bottom_max_iter, &
-                           bottom_solver_eps = bottom_solver_eps, &
-                           max_iter = max_iter, &
-                           max_nlevel = max_nlevel_in, &
-                           min_width = min_width, &
-                           eps = eps, &
-                           verbose = verbose, &
-                           cg_verbose = cg_verbose, &
-                           nodal = nodal)
-       
-    end do
-
-    do n = nlevs,1,-1
-
-       allocate(coeffs(mgt(n)%nlevels))
-
-       la = mla%la(n)
-       pd = layout_get_pd(la)
-
-       call multifab_build(coeffs(mgt(n)%nlevels), la, 1, 1)
-       call setval(coeffs(mgt(n)%nlevels), 0.0_dp_t, 1, all=.true.)
-
-       call mkcoeffs(rhohalf(n),coeffs(mgt(n)%nlevels))
-       call multifab_fill_boundary(coeffs(mgt(n)%nlevels))
-
-       call stencil_fill_nodal_all_mglevels(mgt(n), coeffs, stencil_type)
-
-       if (stencil_type .eq. ST_CROSS .and. n .gt. 1) then
-          i = mgt(n)%nlevels
-          call stencil_fill_one_sided(one_sided_ss(n), coeffs(i), &
-                                      mgt(n    )%dh(:,i), &
-                                      mgt(n)%mm(i), mgt(n)%face_type)
-       end if
-
-       call destroy(coeffs(mgt(n)%nlevels))
-       deallocate(coeffs)
-
-    end do
-
-    do n = 1, nlevs
-       call multifab_build(rh(n),mla%la(n),1,1,nodal)
-       call setval(rh(n),ZERO,all=.true.)
-    end do
-
-    call divu(nlevs,mgt,unew,rh,mla%mba%rr,nodal)
-
-    ! Do rh = rh - divu_rhs (this routine preserves rh=0 on
-    !  nodes which have bc_dirichlet = true.
-    if (present(divu_rhs)) &
-       call subtract_divu_from_rh(nlevs,mgt,rh,divu_rhs)
-
-    if ( mg_verbose >= 3 ) then
-       do_diagnostics = 1
-    else
-       do_diagnostics = 0
-    end if
-
-    call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics,eps)
-
-    do n = nlevs,1,-1
-       call multifab_fill_boundary(phi(n))
-    end do
-
-    do n = 1, nlevs
-       call mg_tower_destroy(mgt(n))
-       call multifab_destroy(rh(n))
-    end do
-
-    if (stencil_type .ne. ST_DENSE) then
-       do n = nlevs, 2, -1
-          call multifab_destroy(one_sided_ss(n))
-       end do
-    endif
-
-  end subroutine hg_multigrid
-
   !   ********************************************************************************* !
-
-  subroutine mkcoeffs(rho,coeffs)
-
-    type(multifab) , intent(in   ) :: rho
-    type(multifab) , intent(inout) :: coeffs
-
-    real(kind=dp_t), pointer :: cp(:,:,:,:)
-    real(kind=dp_t), pointer :: rp(:,:,:,:)
-    integer :: i,dm,ng
-
-    dm = get_dim(rho)
-    ng = nghost(rho)
-
-    do i = 1, nboxes(rho)
-       if ( multifab_remote(rho, i) ) cycle
-       rp => dataptr(rho   , i)
-       cp => dataptr(coeffs, i)
-       select case (dm)
-       case (2)
-          call mkcoeffs_2d(cp(:,:,1,1), rp(:,:,1,1), ng)
-       case (3)
-          call mkcoeffs_3d(cp(:,:,:,1), rp(:,:,:,1), ng)
-       end select
-    end do
-
-  end subroutine mkcoeffs
-
-  !   *********************************************************************************** !
-
-  subroutine mkcoeffs_2d(coeffs,rho,ng)
-
-      use bl_constants_module
-
-    integer :: ng
-    real(kind=dp_t), intent(inout) :: coeffs(   0:,   0:)
-    real(kind=dp_t), intent(in   ) ::  rho(1-ng:,1-ng:)
-
-    integer :: i,j
-    integer :: nx,ny
-
-    nx = size(coeffs,dim=1) - 2
-    ny = size(coeffs,dim=2) - 2
-
-    do j = 1,ny
-       do i = 1,nx
-          coeffs(i,j) = ONE / rho(i,j)
-       end do
-    end do
-
-  end subroutine mkcoeffs_2d
-
-  !   ********************************************************************************** !
-
-  subroutine mkcoeffs_3d(coeffs,rho,ng)
-
-      use bl_constants_module
-
-    integer :: ng
-    real(kind=dp_t), intent(inout) :: coeffs(   0:,   0:, 0:)
-    real(kind=dp_t), intent(in   ) ::  rho(1-ng:,1-ng:,1-ng:)
-
-    integer :: i,j,k
-    integer :: nx,ny,nz
-
-    nx = size(coeffs,dim=1) - 2
-    ny = size(coeffs,dim=2) - 2
-    nz = size(coeffs,dim=3) - 2
-
-    do k = 1,nz
-       do j = 1,ny
-          do i = 1,nx
-             coeffs(i,j,k) = ONE / rho(i,j,k)
-          end do
-       end do
-    end do
-
-  end subroutine mkcoeffs_3d
-
-  !   ********************************************************************************** !
 
   subroutine mult_by_1d_coeff(nlevs,u,div_coeff,do_mult)
 
