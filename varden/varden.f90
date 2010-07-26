@@ -86,7 +86,7 @@ subroutine varden()
   plot_names(dm+nscal+2) = "vort"
   plot_names(dm+nscal+3) = "gpx"
   plot_names(dm+nscal+4) = "gpy"
-  if (dm > 2) plot_names(dm+nscal+4) = "gpz"
+  if (dm > 2) plot_names(dm+nscal+5) = "gpz"
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
