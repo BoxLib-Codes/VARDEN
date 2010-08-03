@@ -8,6 +8,7 @@ f90sources += estdt.f90
 f90sources += explicit_diffusive_term.f90
 f90sources += fillpatch.f90
 f90sources += hgproject.f90
+f90sources += hg_multigrid.f90
 f90sources += initdata.f90
 f90sources += initialize.f90
 f90sources += inlet_bc.f90
