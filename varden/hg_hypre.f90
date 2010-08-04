@@ -19,7 +19,7 @@ contains
                       press_comp,stencil_type, &
                       rel_solver_eps, abs_solver_eps, divu_rhs)
 
-    use enforce_outflow_on_divu_rhs_module, only : enforce_outflow_on_divu_rhs
+    use enforce_outflow_on_divu_module, only : enforce_outflow_on_divu_rhs
 
     use stencil_fill_module , only : stencil_fill_nodal_all_mglevels, stencil_fill_one_sided
     use nodal_divu_module   , only : divu, subtract_divu_from_rh
@@ -54,8 +54,7 @@ contains
     type(multifab), allocatable :: coeffs(:)
 
     logical :: nodal(mla%dim)
-    integer :: i, dm, nlevs, ns_mg, ns_hy
-    integer :: n,nb
+    integer :: i,n,dm,nlevs,ns_mg,ns_hy
 
     ! All the integers associated with Hypre are long.
     integer(kind=8) :: grid, graph
@@ -64,6 +63,7 @@ contains
     integer(kind=8) :: hypre_stencil
     integer(kind=8) :: solver,precond
  
+    integer              :: vartypes(1)
     integer              :: var,nvars,part,nparts,object_type,ierr
     integer              :: periodic_flag(3)
     integer, allocatable :: stencil_indices(:)
@@ -82,6 +82,8 @@ contains
 
     dm    = mla%dim
     nlevs = mla%nlevel
+
+    call print(rhohalf(1),'RHOHALF')
 
     ! We dimension these for use in 2D
     lo(3) = 1
@@ -193,12 +195,29 @@ contains
     end do
 
 !   ******************************************************************************************************* 
-!   Define a "grid" of dimension "dm" based on nb grids
+!   Define a "grid" of dimension "dm" based on nparts parts
 !   ******************************************************************************************************* 
 
-    nb= nboxes(rh(1))
+    call HYPRE_SStructGridCreate(MPI_COMM_WORLD,dm,nparts,grid,ierr) 
 
-    call HYPRE_SStructGridCreate(MPI_COMM_WORLD,dm,nb,grid,ierr) 
+!   ******************************************************************************************************* 
+!   Define the boxes with lo:hi
+!   ******************************************************************************************************* 
+
+    do n = 1,nlevs
+      do i = 1, nboxes(rh(n))
+         if ( multifab_remote(rh(n), i) ) cycle
+         lo(1:dm) =  lwb(get_box(rh(n), i))
+         hi(1:dm) =  upb(get_box(rh(n), i))
+         print *,'CC LO ',lo(:)
+         print *,'CC HI ',hi(:)
+         call HYPRE_SStructGridSetExtents(grid,part,lo,hi,ierr)
+      end do
+    end do
+
+!   Set the variable type to be nodal on this (only) part
+    vartypes(1) = HYPRE_SSTRUCT_VARIABLE_NODE
+    call HYPRE_SStructGridSetVariables(grid,part,nvars,vartypes,ierr)
 
 !   ******************************************************************************************************* 
 !   Set the periodic flags correctly
@@ -216,22 +235,6 @@ contains
     end do
 
     call HYPRE_SStructGridSetPeriodic(grid,part,periodic_flag,ierr)
-
-!   ******************************************************************************************************* 
-!   Define the boxes with lo:hi
-!   ******************************************************************************************************* 
-
-    do n = 1,nlevs
-      do i = 1, nboxes(rh(n))
-         if ( multifab_remote(rh(n), i) ) cycle
-         lo(1:dm) =  lwb(get_box(rh(n), i))
-         hi(1:dm) =  upb(get_box(rh(n), i)) + 1               ! Add 1 because nodal
-         call HYPRE_SStructGridSetExtents  (grid,part,lo,hi,ierr)
-      end do
-    end do
-
-!   Set the variable type to be nodal on this (only) part
-    call HYPRE_SStructGridSetVariables(grid,part,nvars,HYPRE_SSTRUCT_VARIABLE_NODE,ierr)
 
 !   ******************************************************************************************************* 
 !   "Assemble" the grid.
@@ -387,8 +390,11 @@ contains
 
       do i = 1, nboxes(mgt(n)%ss(1))
          if ( multifab_remote(mgt(n)%ss(1), i) ) cycle
-         lo(1:dm) =  lwb(get_box(mgt(n)%ss(1), i))
-         hi(1:dm) =  upb(get_box(mgt(n)%ss(1), i)) + 1               ! Add 1 because nodal
+         lo(1:dm) =  lwb(get_ibox(mgt(n)%ss(1), i)) - 1  ! Subtract one because of the indexing convection
+         hi(1:dm) =  upb(get_ibox(mgt(n)%ss(1), i)) - 1  ! Subtract one because of the indexing convection
+
+         print *,'ND LO ',lo(:)
+         print *,'ND HI ',hi(:)
 
          ssp => dataptr(mgt(n)%ss(1), i)
 
@@ -488,8 +494,8 @@ contains
     do n = 1,nlevs
       do i = 1, nboxes(rh(n))
          if ( multifab_remote(rh(n), i) ) cycle
-         lo(1:dm) =  lwb(get_box(rh(n), i))
-         hi(1:dm) =  upb(get_box(rh(n), i)) + 1               ! Add 1 because nodal
+         lo(1:dm) =  lwb(get_ibox(rh(n), i))
+         hi(1:dm) =  upb(get_ibox(rh(n), i))
 
          rhp => dataptr(rh(n),i)
 
@@ -529,7 +535,7 @@ contains
     call HYPRE_SStructVectorGetObject(x, sx, ierr) 
 
 !   Print the matrix "A"
-!   call HYPRE_StructMatrixPrint(sA,0,ierr)
+    call HYPRE_StructMatrixPrint(sA,0,ierr)
 
 !   Print the right-hand-side "b"
 !   call HYPRE_StructVectorPrint(sb,0,ierr)
@@ -575,8 +581,8 @@ contains
     do n = 1,nlevs
       do i = 1, nboxes(phi(n))
          if ( multifab_remote(phi(n), i) ) cycle
-         lo(1:dm) =  lwb(get_box(phi(n), i))
-         hi(1:dm) =  upb(get_box(phi(n), i))
+         lo(1:dm) =  lwb(get_ibox(phi(n), i))
+         hi(1:dm) =  upb(get_ibox(phi(n), i))
 
          pp => dataptr(phi(n),i)
 
@@ -588,7 +594,6 @@ contains
             call HYPRE_StructVectorGetBoxValues(sx, lo, hi, values, ierr)
 
             pp(lo(1):hi(1),lo(2):hi(2),1,1) = values(1,lo(1):hi(1),lo(2):hi(2),1) 
-            print *,'PP ', values(1,lo(1):hi(1),lo(2):hi(2),1) 
 
          else if (dm.eq.3) then
 
@@ -605,8 +610,6 @@ contains
 
       end do
     end do
-
-!   call fabio_multifab_write_d(phi(1),'HYPRE_PHI','Phi')
 
 !   Free memory
     call HYPRE_StructPCGDestroy(solver,ierr);
