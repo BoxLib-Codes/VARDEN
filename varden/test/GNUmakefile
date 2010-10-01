@@ -1,6 +1,6 @@
 NDEBUG := t
 MPI    := t
-HYPRE  := t
+HYPRE  := 
 
 OMP    :=
 
