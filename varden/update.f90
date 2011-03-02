@@ -269,10 +269,9 @@ contains
                          vbar*(sedgey(i,j+1,k,1) - sedgey(i,j,k,1))/dx(2) + &
                          wbar*(sedgez(i,j,k+1,1) - sedgez(i,j,k,1))/dx(3)
 
-                ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1)
-!               ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1) + &
-!                        vbar*(sedgey(i,j+1,k,2) - sedgey(i,j,k,2))/dx(2) + &
-!                        wbar*(sedgez(i,j,k+1,2) - sedgez(i,j,k,2))/dx(3)
+                ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1) + &
+                         vbar*(sedgey(i,j+1,k,2) - sedgey(i,j,k,2))/dx(2) + &
+                         wbar*(sedgez(i,j,k+1,2) - sedgez(i,j,k,2))/dx(3)
 
                 ugradw = ubar*(sedgex(i+1,j,k,3) - sedgex(i,j,k,3))/dx(1) + &
                          vbar*(sedgey(i,j+1,k,3) - sedgey(i,j,k,3))/dx(2) + &
