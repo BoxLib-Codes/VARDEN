@@ -180,7 +180,7 @@ contains
              vbar = HALF*(vmac(i,j) + vmac(i,j+1))
 
              ugradu = ubar*(sedgex(i+1,j,1) - sedgex(i,j,1))/dx(1) + &
-                  vbar*(sedgey(i,j+1,1) - sedgey(i,j,1))/dx(2)
+                      vbar*(sedgey(i,j+1,1) - sedgey(i,j,1))/dx(2)
 
              ugradv = ubar*(sedgex(i+1,j,2) - sedgex(i,j,2))/dx(1) + &
                   vbar*(sedgey(i,j+1,2) - sedgey(i,j,2))/dx(2)
