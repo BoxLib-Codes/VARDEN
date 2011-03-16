@@ -28,7 +28,7 @@ contains
     integer                           :: rrs(MAX_ALLOWED_LEVS)
 
     write(unit=sd_name,fmt='("chk",i5.5)') restart_int
-    if ( parallel_IOProcessor() ) 
+    if ( parallel_IOProcessor() ) &
        print *,'Reading ',sd_name,' to get state data for restart'
     call checkpoint_read(chkdata, chk_p, sd_name, rrs, time, dt, nlevs)
 
