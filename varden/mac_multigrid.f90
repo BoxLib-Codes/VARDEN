@@ -51,6 +51,7 @@ contains
     integer    :: max_nlevel
     integer    :: d, n, nu1, nu2, nub, gamma, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
+    logical    :: doing_viscous_solve
     real(dp_t) :: omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
@@ -80,6 +81,13 @@ contains
 
     bottom_solver = 1
     bottom_solver_eps = 1.d-3
+
+    ! Am I doing a viscous solve or a MAC projection?
+    if (multifab_norm_inf(alpha(1)) .gt. 0.) then
+      doing_viscous_solve = .true.
+    else
+      doing_viscous_solve = .false.
+    end if
 
     if ( mg_bottom_solver >= 0 ) then
         if (mg_bottom_solver == 4 .and. nboxes(phi(1)) == 1) then
@@ -115,29 +123,56 @@ contains
 
        pd = layout_get_pd(mla%la(n))
 
-       call mg_tower_build(mgt(n), mla%la(n), pd, &
-                           the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
-                           dh = dx(n,:), &
-                           ns = ns, &
-                           smoother = smoother, &
-                           nu1 = nu1, &
-                           nu2 = nu2, &
-                           nub = nub, &
-                           gamma = gamma, &
-                           cycle_type = cycle_type, &
-                           omega = omega, &
-                           bottom_solver = bottom_solver, &
-                           bottom_max_iter = bottom_max_iter, &
-                           bottom_solver_eps = bottom_solver_eps, &
-                           max_iter = max_iter, &
-                           max_nlevel = max_nlevel_in, &
-                           max_bottom_nlevel = max_mg_bottom_nlevels, &
-                           min_width = min_width, &
-                           eps = rel_solver_eps, &
-                           abs_eps = abs_solver_eps, &
-                           verbose = mg_verbose, &
-                           cg_verbose = cg_verbose, &
-                           nodal = nodal_flags(rh(nlevs)))
+       if (doing_viscous_solve) then
+          call mg_tower_build(mgt(n), mla%la(n), pd, &
+                              the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
+                              dh = dx(n,:), &
+                              ns = ns, &
+                              smoother = smoother, &
+                              nu1 = nu1, &
+                              nu2 = nu2, &
+                              nub = nub, &
+                              gamma = gamma, &
+                              cycle_type = cycle_type, &
+                              omega = omega, &
+                              bottom_solver = bottom_solver, &
+                              bottom_max_iter = bottom_max_iter, &
+                              bottom_solver_eps = bottom_solver_eps, &
+                              max_iter = max_iter, &
+                              max_nlevel = max_nlevel_in, &
+                              max_bottom_nlevel = max_mg_bottom_nlevels, &
+                              min_width = min_width, &
+                              eps = rel_solver_eps, &
+                              abs_eps = abs_solver_eps, &
+                              verbose = mg_verbose, &
+                              cg_verbose = cg_verbose, &
+                              nodal = nodal_flags(rh(nlevs)), &
+                              is_singular = 0)
+       else
+          call mg_tower_build(mgt(n), mla%la(n), pd, &
+                              the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
+                              dh = dx(n,:), &
+                              ns = ns, &
+                              smoother = smoother, &
+                              nu1 = nu1, &
+                              nu2 = nu2, &
+                              nub = nub, &
+                              gamma = gamma, &
+                              cycle_type = cycle_type, &
+                              omega = omega, &
+                              bottom_solver = bottom_solver, &
+                              bottom_max_iter = bottom_max_iter, &
+                              bottom_solver_eps = bottom_solver_eps, &
+                              max_iter = max_iter, &
+                              max_nlevel = max_nlevel_in, &
+                              max_bottom_nlevel = max_mg_bottom_nlevels, &
+                              min_width = min_width, &
+                              eps = rel_solver_eps, &
+                              abs_eps = abs_solver_eps, &
+                              verbose = mg_verbose, &
+                              cg_verbose = cg_verbose, &
+                              nodal = nodal_flags(rh(nlevs)))
+       end if
 
     end do
 
