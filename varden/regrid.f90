@@ -172,9 +172,18 @@ contains
 
      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
-     ! check for proper nesting
-     if (nlevs .ge. 3) &
+     if (nlevs .ge. 3) then
+
+        ! check for proper nesting
         call enforce_proper_nesting(mba,la_array,max_grid_size)
+
+        ! enforce_proper_nesting can create new grids at coarser levels
+        ! this makes sure the boundary condition arrays are properly defined everywhere
+        do n = 2,nlevs
+           call bc_tower_level_build(the_bc_tower,n,la_array(n))
+        end do
+
+     end if
 
      do n = 1,nl
          call destroy(la_array(n))
