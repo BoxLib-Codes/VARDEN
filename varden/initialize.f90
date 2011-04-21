@@ -241,9 +241,18 @@ contains
 
       nlevs = nl
 
-      ! check for proper nesting
-      if (nlevs .ge. 3) &
-           call enforce_proper_nesting(mba,la_array,max_grid_size)
+      if (nlevs .ge. 3) then
+
+          ! check for proper nesting
+          call enforce_proper_nesting(mba,la_array,max_grid_size)
+
+          ! enforce_proper_nesting can create new grids at coarser levels
+          ! this makes sure the boundary conditions are properly defined everywhere
+          do n = 2,nlevs
+             call bc_tower_level_build(the_bc_tower,n,la_array(n))
+          end do
+
+      end if
 
    else
 
@@ -351,7 +360,7 @@ contains
 
   subroutine initialize_dx(dx,mba,num_levs)
 
-     use probin_module, only : dim_in, prob_hi
+     use probin_module, only : dim_in, prob_lo, prob_hi
   
      real(dp_t)       , pointer     :: dx(:,:)
      type(ml_boxarray), intent(in ) :: mba
@@ -364,13 +373,12 @@ contains
      allocate(dx(num_levs,dm))
 
      do i = 1,dm
-        dx(1,i) = prob_hi(i) / float(upb(mba%pd(1),i)-lwb(mba%pd(1),i)+1)
+        dx(1,i) = (prob_hi(i)-prob_lo(i)) / float(mba%pd(1)%hi(i)-mba%pd(1)%lo(i)+1)
      end do
      do n = 2,num_levs
         dx(n,:) = dx(n-1,:) / mba%rr(n-1,:)
      end do
 
   end subroutine initialize_dx
-
 
 end module initialize_module
