@@ -491,11 +491,28 @@ contains
 
     use probin_module, only : prob_lo, prob_hi
 
-    integer, intent(in   ) :: istep_to_write
-    integer                :: n,n_plot_comps
-    integer                :: mvel_comp,vort_comp,gpx_comp
+    integer, intent(in   )  :: istep_to_write
+    integer                 :: n,n_plot_comps
+    integer                 :: mvel_comp,vort_comp,gpx_comp
+    logical                 :: coarsen_plot_data
+ 
+    ! These are only used if you want to coarsen your plotdata before writing
+    ! Start crse
+    ! type(box)               :: pd_crse
+    ! type(boxarray)          :: ba_crse
+    ! type(layout)            :: la_crse
+    ! type(multifab)          :: mf_crse(1)
+    ! real(dp_t), allocatable :: dx_crse(:)
+    ! integer, allocatable    :: ref_ratio(:,:)
+    ! integer                 :: rr_for_write(0)
+    ! allocate(dx_crse(dm))
+    ! allocate(ref_ratio(1,dm))
+    !   End crse
+  
+    coarsen_plot_data = .false.
 
     allocate(plotdata(nlevs))
+
     n_plot_comps = 2*dm + nscal + 2
 
     do n = 1,nlevs
@@ -513,14 +530,43 @@ contains
        gpx_comp = vort_comp+1
        call multifab_copy_c(plotdata(n),gpx_comp,gp(n),1,dm)
     end do
-    write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
-    call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
-                                   mla%mba%pd(1), prob_lo, prob_hi, time, dx(1,:))
+
+!   if (coarsen_plot_data) then
+
+!      ! We have only implemented this for nlevs = 1 right now
+!      ref_ratio(1,1:dm) = 2
+!      dx_crse(:) = dx(1,:) / ref_ratio(1,1)
+
+!      pd_crse = coarsen(mla%mba%pd(1),ref_ratio(1,:))
+!      call boxarray_build_copy(ba_crse,get_boxarray(mla%la(1)))
+!      call boxarray_coarsen(ba_crse,ref_ratio(1,:))
+!      call layout_build_ba(la_crse,ba_crse)
+!      call print(la_crse,'LA CRSE')
+!      call multifab_build(mf_crse(1), la_crse, n_plot_comps, 0)
+
+!      call ml_cc_restriction(mf_crse(1),plotdata(1),ref_ratio(1,:))
+
+!      write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
+!      call fabio_ml_multifab_write_d(mf_crse, rr_for_write, sd_name, plot_names, &
+!                                     pd_crse, prob_lo, prob_hi, time, dx_crse)
+!   else
+
+       write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
+       call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
+                                      mla%mba%pd(1), prob_lo, prob_hi, time, dx(1,:))
+!   end if
 
     do n = 1,nlevs
       call multifab_destroy(plotdata(n))
     end do
     deallocate(plotdata)
+
+!   if (coarsen_plot_data) then
+!      deallocate(ref_ratio)
+!      call destroy(ba_crse)
+!      call destroy(la_crse)
+!      call destroy(mf_crse(1))
+!   end if
 
   end subroutine write_plotfile
 
