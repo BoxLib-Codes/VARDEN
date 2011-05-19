@@ -498,18 +498,22 @@ contains
  
     ! These are only used if you want to coarsen your plotdata before writing
     ! Start crse
-    ! type(box)               :: pd_crse
-    ! type(boxarray)          :: ba_crse
-    ! type(layout)            :: la_crse
-    ! type(multifab)          :: mf_crse(1)
-    ! real(dp_t), allocatable :: dx_crse(:)
-    ! integer, allocatable    :: ref_ratio(:,:)
-    ! integer                 :: rr_for_write(0)
-    ! allocate(dx_crse(dm))
-    ! allocate(ref_ratio(1,dm))
+    type(box)                   :: pd_crse
+    type(boxarray)              :: ba_crse
+    type(layout)                :: la_crse
+    type(multifab), allocatable :: mf_crse(:)
+    real(dp_t),     allocatable :: dx_crse(:)
+    integer   ,     allocatable :: ref_ratio(:)
+    integer                     :: rr_for_write(nlevs-1)
+    integer                     :: coarsening_factor
+
+    allocate(ref_ratio(dm))
+    allocate(dx_crse(dm))
+    allocate(mf_crse(nlevs))
     !   End crse
   
     coarsen_plot_data = .false.
+    coarsening_factor = 2
 
     allocate(plotdata(nlevs))
 
@@ -531,42 +535,50 @@ contains
        call multifab_copy_c(plotdata(n),gpx_comp,gp(n),1,dm)
     end do
 
-!   if (coarsen_plot_data) then
+    write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
 
-!      ! We have only implemented this for nlevs = 1 right now
-!      ref_ratio(1,1:dm) = 2
-!      dx_crse(:) = dx(1,:) / ref_ratio(1,1)
+    if (coarsen_plot_data) then
 
-!      pd_crse = coarsen(mla%mba%pd(1),ref_ratio(1,:))
-!      call boxarray_build_copy(ba_crse,get_boxarray(mla%la(1)))
-!      call boxarray_coarsen(ba_crse,ref_ratio(1,:))
-!      call layout_build_ba(la_crse,ba_crse)
-!      call print(la_crse,'LA CRSE')
-!      call multifab_build(mf_crse(1), la_crse, n_plot_comps, 0)
+       ! We have only implemented this for nlevs = 1 right now
+       ref_ratio(1:dm) = coarsening_factor
+       rr_for_write(:) = coarsening_factor
+       dx_crse(:) = dx(1,:) / ref_ratio
 
-!      call ml_cc_restriction(mf_crse(1),plotdata(1),ref_ratio(1,:))
+       pd_crse = coarsen(mla%mba%pd(1),ref_ratio)
 
-!      write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
-!      call fabio_ml_multifab_write_d(mf_crse, rr_for_write, sd_name, plot_names, &
-!                                     pd_crse, prob_lo, prob_hi, time, dx_crse)
-!   else
+       do n = 1, nlevs
+          call boxarray_build_copy(ba_crse,get_boxarray(mla%la(n)))
+          call boxarray_coarsen(ba_crse,ref_ratio)
+          call layout_build_ba(la_crse,ba_crse,coarsen(mla%mba%pd(n),ref_ratio))
+          call print(mla%la(n),'LA FINE')
+          call print(la_crse,'LA CRSE')
+          call multifab_build(mf_crse(n), la_crse, n_plot_comps, 0)
+          call destroy(ba_crse)
 
-       write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
+          call ml_cc_restriction(mf_crse(n),plotdata(n),ref_ratio)
+       end do
+
+       call fabio_ml_multifab_write_d(mf_crse, rr_for_write, sd_name, plot_names, &
+                                      pd_crse, prob_lo, prob_hi, time, dx_crse)
+    else
+
        call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
                                       mla%mba%pd(1), prob_lo, prob_hi, time, dx(1,:))
-!   end if
+    end if
 
     do n = 1,nlevs
       call multifab_destroy(plotdata(n))
     end do
     deallocate(plotdata)
 
-!   if (coarsen_plot_data) then
-!      deallocate(ref_ratio)
-!      call destroy(ba_crse)
-!      call destroy(la_crse)
-!      call destroy(mf_crse(1))
-!   end if
+    if (coarsen_plot_data) then
+       do n = 1, nlevs
+          call destroy(mf_crse(n))
+       end do
+       deallocate(mf_crse)
+       deallocate(ref_ratio)
+       deallocate(dx_crse)
+    end if
 
   end subroutine write_plotfile
 
