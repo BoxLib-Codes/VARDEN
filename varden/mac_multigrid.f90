@@ -147,7 +147,7 @@ contains
                               verbose = mg_verbose, &
                               cg_verbose = cg_verbose, &
                               nodal = nodal_flags(rh(nlevs)), &
-                              is_singular = 0)
+                              is_singular = .false.)
        else
           call mg_tower_build(mgt(n), mla%la(n), pd, &
                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
