@@ -47,6 +47,4 @@
  max_grid_size = 256
  max_grid_size = 8
 
- grids_file_name = grdlog
-
 /
