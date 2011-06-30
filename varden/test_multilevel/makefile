@@ -4,7 +4,7 @@ TOP = ..\..
 
 boxlib_dir=$(TOP)\boxlib
 !INCLUDE $(boxlib_dir)\NPackage.mak
-mg_dir=$(TOP)\mg
+mg_dir=$(TOP)\mg\source
 !INCLUDE $(mg_dir)\NPackage.mak
 sparskit_dir=$(TOP)\extern\SPARSKIT
 !INCLUDE $(sparskit_dir)\NPackage.mak

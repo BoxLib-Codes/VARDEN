@@ -13,8 +13,8 @@ f90sources += main.f90
 include $(FPARALLEL)/boxlib/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/boxlib
 
-include $(FPARALLEL)/mg/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/mg
+include $(FPARALLEL)/mg/source/GPackage.mak
+VPATH_LOCATIONS += $(FPARALLEL)/mg/source
 
 include $(FPARALLEL)/varden/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/varden
