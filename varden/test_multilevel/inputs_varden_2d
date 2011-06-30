@@ -45,6 +45,5 @@
  use_godunov_debug = T
 
  max_grid_size = 256
- max_grid_size = 8
 
 /
