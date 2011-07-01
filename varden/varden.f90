@@ -373,8 +373,6 @@ subroutine varden()
      if (last_plt_written .ne. istep .and. plot_int > 0) call write_plotfile(istep)
      if (last_chk_written .ne. istep .and. chk_int  > 0) call write_checkfile(istep)
 
-2000 continue
-
   end if
   
   call delete_state(uold,sold,gp,p)
