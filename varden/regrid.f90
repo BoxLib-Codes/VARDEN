@@ -17,8 +17,6 @@ contains
 
   subroutine regrid(mla,uold,sold,gpi,pi,dx,the_bc_tower)
 
-    use fillpatch_module
-    use ml_prolongation_module
     use multifab_physbc_module
     use multifab_fill_ghost_module
     use ml_restriction_module
