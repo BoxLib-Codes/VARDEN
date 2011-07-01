@@ -15,7 +15,7 @@ module regrid_module
 
 contains
 
-  subroutine regrid(mla,uold,sold,gpi,pi,dx,the_bc_tower)
+  subroutine regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
 
     use multifab_physbc_module
     use multifab_fill_ghost_module
@@ -27,7 +27,7 @@ contains
          ng_cell, ng_grow
 
     type(ml_layout), intent(inout) :: mla
-    type(multifab),  pointer       :: uold(:),sold(:),gpi(:),pi(:)
+    type(multifab),  pointer       :: uold(:),sold(:),gp(:),p(:)
     real(dp_t)    ,  pointer       :: dx(:,:)
     type(bc_tower),  intent(inout) :: the_bc_tower
 
@@ -39,8 +39,8 @@ contains
     type(ml_boxarray) :: mba
 
     ! These are copies to hold the old data.
-    type(multifab) :: uold_temp(max_levs), sold_temp(max_levs), gpi_temp(max_levs)
-    type(multifab) :: pi_temp(max_levs)
+    type(multifab) :: uold_temp(max_levs), sold_temp(max_levs), gp_temp(max_levs)
+    type(multifab) :: p_temp(max_levs)
 
     dm    = mla%dim
 
@@ -59,20 +59,20 @@ contains
        ! Create copies of the old data.
        call multifab_build(  uold_temp(n),mla_old%la(n),   dm, ng_cell)
        call multifab_build(  sold_temp(n),mla_old%la(n),nscal, ng_cell)
-       call multifab_build(   gpi_temp(n),mla_old%la(n),   dm, ng_grow)
-       call multifab_build(    pi_temp(n),mla_old%la(n),    1, ng_grow, nodal)
+       call multifab_build(    gp_temp(n),mla_old%la(n),   dm, ng_grow)
+       call multifab_build(     p_temp(n),mla_old%la(n),    1, ng_grow, nodal)
 
        call multifab_copy_c(  uold_temp(n),1,  uold(n),1,   dm)
        call multifab_copy_c(  sold_temp(n),1,  sold(n),1,nscal)
-       call multifab_copy_c(   gpi_temp(n),1,   gpi(n),1,   dm)
-       call multifab_copy_c(    pi_temp(n),1,    pi(n),1,    1)
+       call multifab_copy_c(    gp_temp(n),1,    gp(n),1,   dm)
+       call multifab_copy_c(     p_temp(n),1,     p(n),1,    1)
 
        ! Get rid of the old data structures so we can create new ones 
        ! with the same names.
        call multifab_destroy(  uold(n))
        call multifab_destroy(  sold(n))
-       call multifab_destroy(   gpi(n))
-       call multifab_destroy(    pi(n))
+       call multifab_destroy(    gp(n))
+       call multifab_destroy(     p(n))
 
     end do
 
@@ -88,10 +88,10 @@ contains
     enddo
 
     if (associated(uold)) then
-       deallocate(uold,sold,pi,gpi)
+       deallocate(uold,sold,p,gp)
     end if
 
-    allocate(uold(max_levs),sold(max_levs),pi(max_levs),gpi(max_levs))
+    allocate(uold(max_levs),sold(max_levs),p(max_levs),gp(max_levs))
 
     ! Copy the level 1 boxarray
     call copy(mba%bas(1),mla_old%mba%bas(1))
@@ -107,8 +107,8 @@ contains
 
     ! Build and fill the level 1 data only.
     call build_and_fill_data(1,la_array(1),mla_old, &
-                             uold     ,sold     ,gpi     ,pi     , &
-                             uold_temp,sold_temp,gpi_temp,pi_temp, &
+                             uold     ,sold     ,gp     ,p     , &
+                             uold_temp,sold_temp,gp_temp,p_temp, &
                              the_bc_tower,dm,mba%rr(1,:))
 
     nl       = 1
@@ -147,13 +147,13 @@ contains
                 ! Delete old multifabs so that we can rebuild them.
                 call destroy(  sold(n))
                 call destroy(  uold(n))
-                call destroy(   gpi(n))
-                call destroy(    pi(n))
+                call destroy(    gp(n))
+                call destroy(     p(n))
 
                 ! Rebuild the lower level data again if it changed.
                 call build_and_fill_data(n,la_array(n),mla_old, &
-                                         uold     ,sold     ,gpi     ,pi     , &
-                                         uold_temp,sold_temp,gpi_temp,pi_temp, &
+                                         uold     ,sold     ,gp     ,p     , &
+                                         uold_temp,sold_temp,gp_temp,p_temp, &
                                          the_bc_tower,dm,mba%rr(n-1,:))
              end do
 
@@ -164,8 +164,8 @@ contains
 
           ! Build the level nl+1 data only.
           call build_and_fill_data(nl+1,la_array(nl+1),mla_old, &
-                                   uold     ,sold     ,gpi     ,pi     , &
-                                   uold_temp,sold_temp,gpi_temp,pi_temp, &
+                                   uold     ,sold     ,gp     ,p     , &
+                                   uold_temp,sold_temp,gp_temp,p_temp, &
                                    the_bc_tower,dm,mba%rr(nl,:))
 
           nlevs = nl+1
@@ -190,8 +190,8 @@ contains
     do nl = 1, mla_old%nlevel
        call destroy(  uold_temp(nl))
        call destroy(  sold_temp(nl))
-       call destroy(   gpi_temp(nl))
-       call destroy(    pi_temp(nl))
+       call destroy(    gp_temp(nl))
+       call destroy(     p_temp(nl))
     end do
 
     if (nlevs .eq. 1) then
@@ -200,15 +200,15 @@ contains
        ! this includes periodic domain boundary ghost cells
        call multifab_fill_boundary(uold(nlevs))
        call multifab_fill_boundary(sold(nlevs))
-       call multifab_fill_boundary(gpi(nlevs))
-       call multifab_fill_boundary(pi(nlevs))
+       call multifab_fill_boundary(  gp(nlevs))
+       call multifab_fill_boundary(   p(nlevs))
 
        ! fill non-periodic domain boundary ghost cells
        call multifab_physbc(uold(nlevs),1,1,dm,the_bc_tower%bc_tower_array(nlevs))
        call multifab_physbc(sold(nlevs),1,dm+1,nscal, &
                             the_bc_tower%bc_tower_array(nlevs))
-       call multifab_physbc(pi(nlevs),1,1,1,the_bc_tower%bc_tower_array(nlevs))
-       call multifab_physbc(gpi(nlevs),1,1,dm,the_bc_tower%bc_tower_array(nlevs))
+       call multifab_physbc(p(nlevs),1,1,1,the_bc_tower%bc_tower_array(nlevs))
+       call multifab_physbc(gp(nlevs),1,1,dm,the_bc_tower%bc_tower_array(nlevs))
 
     else
 
@@ -218,7 +218,7 @@ contains
           ! set level n-1 data to be the average of the level n data covering it
           call ml_cc_restriction(uold(n-1),uold(n),mla%mba%rr(n-1,:))
           call ml_cc_restriction(sold(n-1),sold(n),mla%mba%rr(n-1,:))
-          call ml_cc_restriction(gpi(n-1),gpi(n),mla%mba%rr(n-1,:))
+          call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
 
           ! fill level n ghost cells using interpolation from level n-1 data
           ! note that multifab_fill_boundary and multifab_physbc are called for
@@ -231,7 +231,7 @@ contains
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n), &
                                          1,dm+1,nscal,fill_crse_input=.false.)
-          call multifab_fill_ghost_cells(gpi(n),gpi(n-1),ng_grow,mla%mba%rr(n-1,:), &
+          call multifab_fill_ghost_cells(gp(n),gp(n-1),ng_grow,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n), &
                                          1,1,dm,fill_crse_input=.false.)
@@ -247,8 +247,8 @@ contains
   end subroutine regrid
 
   subroutine build_and_fill_data(lev,la,mla_old, &
-                                 uold     ,sold     ,gpi     ,pi     , &
-                                 uold_temp,sold_temp,gpi_temp,pi_temp, &
+                                 uold     ,sold     ,gp     ,p     , &
+                                 uold_temp,sold_temp,gp_temp,p_temp, &
                                  the_bc_tower,dm,rr)
 
     use fillpatch_module
@@ -259,14 +259,14 @@ contains
     type(layout)               , intent(in   ) :: la
     type(ml_layout)            , intent(in   ) :: mla_old
     type(bc_tower)             , intent(inout) :: the_bc_tower
-    type(multifab)   ,  pointer, intent(inout) :: uold(:),sold(:),gpi(:),pi(:)
-    type(multifab)             , intent(in   ) :: uold_temp(:),sold_temp(:),gpi_temp(:),pi_temp(:)
+    type(multifab)   ,  pointer, intent(inout) :: uold(:),sold(:),gp(:),p(:)
+    type(multifab)             , intent(in   ) :: uold_temp(:),sold_temp(:),gp_temp(:),p_temp(:)
  
     ! Build the level lev data only.
     call multifab_build(  uold(lev), la,    dm, ng_cell)
     call multifab_build(  sold(lev), la, nscal, ng_cell)
-    call multifab_build(   gpi(lev), la,    dm, ng_grow)
-    call multifab_build(    pi(lev), la,     1, ng_grow, nodal)
+    call multifab_build(    gp(lev), la,    dm, ng_grow)
+    call multifab_build(     p(lev), la,     1, ng_grow, nodal)
 
     ! Fill the data in the new level lev state -- first from the coarser data if lev > 1.
 
@@ -282,13 +282,13 @@ contains
                       the_bc_tower%bc_tower_array(lev-1), &
                       the_bc_tower%bc_tower_array(lev  ), &
                       1,1,dm+1,nscal)
-       call fillpatch(gpi(lev),gpi(lev-1), &
+       call fillpatch(gp(lev),gp(lev-1), &
                       ng_grow,rr, &
                       the_bc_tower%bc_tower_array(lev-1), &
                       the_bc_tower%bc_tower_array(lev  ), &
                       1,1,1,dm)
        ! We interpolate p differently because it is nodal, not cell-centered
-       call ml_prolongation(pi(lev), pi(lev-1), rr)
+       call ml_prolongation(p(lev), p(lev-1), rr)
 
     end if
 
@@ -296,8 +296,8 @@ contains
     if (mla_old%nlevel .ge. lev) then
        call multifab_copy_c(  uold(lev),1,  uold_temp(lev),1,   dm)
        call multifab_copy_c(  sold(lev),1,  sold_temp(lev),1,nscal)
-       call multifab_copy_c(   gpi(lev),1,   gpi_temp(lev),1,   dm)
-       call multifab_copy_c(    pi(lev),1,    pi_temp(lev),1,    1)
+       call multifab_copy_c(    gp(lev),1,    gp_temp(lev),1,   dm)
+       call multifab_copy_c(     p(lev),1,     p_temp(lev),1,    1)
     end if
 
   end subroutine build_and_fill_data
