@@ -4,7 +4,7 @@ HYPRE  :=
 
 OMP    :=
 
-COMP := Intel
+COMP := gfortran
 
 FPARALLEL := ../..
 
@@ -18,8 +18,8 @@ VPATH_LOCATIONS += $(FPARALLEL)/varden
 include $(FPARALLEL)/boxlib/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/boxlib
 
-include $(FPARALLEL)/mg/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/mg
+include $(FPARALLEL)/mg/source/GPackage.mak
+VPATH_LOCATIONS += $(FPARALLEL)/mg/source
 
 include $(FPARALLEL)/extern/LAPACK/GPackage.mak
 VPATH_LOCATIONS += $(FPARALLEL)/extern/LAPACK
