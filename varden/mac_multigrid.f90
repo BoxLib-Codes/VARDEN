@@ -18,10 +18,10 @@ contains
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp,&
                            stencil_order,ref_ratio,rel_solver_eps,abs_solver_eps)
 
-    use stencil_fill_module, only : stencil_fill_cc_all_mglevels
-    use mg_module          , only : mg_tower, mg_tower_build, mg_tower_destroy
-    use ml_solve_module    , only : ml_cc_solve
-    use probin_module      , only : mg_verbose, cg_verbose, mg_bottom_solver, max_mg_bottom_nlevels
+    use cc_stencil_fill_module, only : stencil_fill_cc_all_mglevels
+    use mg_module             , only : mg_tower, mg_tower_build, mg_tower_destroy
+    use ml_solve_module       , only : ml_cc_solve
+    use probin_module         , only : mg_verbose, cg_verbose, mg_bottom_solver, max_mg_bottom_nlevels
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: rh(:),phi(:)

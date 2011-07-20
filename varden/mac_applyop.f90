@@ -18,9 +18,9 @@ contains
   subroutine mac_applyop(mla,res,phi,alpha,beta,dx,&
                          the_bc_tower,bc_comp,stencil_order,ref_ratio)
 
-     use stencil_fill_module, only: stencil_fill_cc
-     use mg_module          , only: mg_tower, mg_tower_build, mg_tower_destroy
-     use ml_cc_module       , only: ml_cc_applyop
+     use cc_stencil_fill_module, only: stencil_fill_cc
+     use cc_applyop_module     , only: ml_cc_applyop
+     use mg_module             , only: mg_tower, mg_tower_build, mg_tower_destroy
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) ::    res(:), phi(:)

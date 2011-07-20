@@ -291,7 +291,7 @@ contains
                       the_bc_tower%bc_tower_array(lev  ), &
                       1,1,1,dm)
        ! We interpolate p differently because it is nodal, not cell-centered
-       call ml_prolongation(p(lev), p(lev-1), rr)
+       call ml_nodal_prolongation(p(lev), p(lev-1), rr)
 
     end if
 

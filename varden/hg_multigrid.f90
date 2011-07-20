@@ -20,11 +20,11 @@ contains
 
     use enforce_outflow_on_divu_module, only : enforce_outflow_on_divu_rhs
 
-    use stencil_fill_module , only : stencil_fill_nodal_all_mglevels, stencil_fill_one_sided
-    use ml_solve_module     , only : ml_nd_solve    
-    use nodal_divu_module   , only : divu, subtract_divu_from_rh
+    use nodal_stencil_fill_module , only : stencil_fill_nodal_all_mglevels, stencil_fill_one_sided
+    use ml_solve_module           , only : ml_nd_solve    
+    use nodal_divu_module         , only : divu, subtract_divu_from_rh
     use mg_module           
-    use probin_module       , only : mg_verbose, cg_verbose, hg_bottom_solver, max_mg_bottom_nlevels
+    use probin_module             , only : mg_verbose, cg_verbose, hg_bottom_solver, max_mg_bottom_nlevels
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: rh(:)
