@@ -3,6 +3,7 @@ module vort_module
   use bl_types
   use multifab_module
   use define_bc_module
+  use multifab_physbc_module
 
   implicit none
 
@@ -26,7 +27,12 @@ contains
 
     ng = nghost(u)
     dm = get_dim(u)
+
+    ! Fill the ghost cells from other grids at the same level
     call multifab_fill_boundary(u)
+
+    ! Fill the ghost cells at the physical boundaries
+    call multifab_physbc(u,1,1,dm,bc)
 
     do i = 1, nboxes(u)
        if ( multifab_remote(u, i) ) cycle
