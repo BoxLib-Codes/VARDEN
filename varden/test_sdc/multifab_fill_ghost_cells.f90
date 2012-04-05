@@ -8,7 +8,6 @@ contains
 
   subroutine multifab_fill_ghost_cells(fine,crse,ng,ir,bc_crse,bc_fine,icomp,bcomp,nc,dx,t)
 
-    use setbc_module
     use layout_module
     use bl_prof_module
     use bl_constants_module

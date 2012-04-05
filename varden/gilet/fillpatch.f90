@@ -11,7 +11,6 @@ contains
                        bcomp, nc,dx,t,no_final_physbc_input, lim_slope_input, lin_limit_input)
 
     use bc_module
-    use setbc_module
     use layout_module
     use interp_module
     use bl_prof_module

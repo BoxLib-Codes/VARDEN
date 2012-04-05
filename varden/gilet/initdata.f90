@@ -4,7 +4,6 @@ module init_module
   use bl_constants_module
   use bc_module
   use inlet_bc
-  use setbc_module
   use define_bc_module
   use multifab_module
   use multifab_fill_ghost_module

@@ -36,7 +36,6 @@ f90sources += proj_parameters.f90
 f90sources += regrid.f90
 f90sources += restart.f90
 f90sources += scalar_advance.f90  
-f90sources += setbc.f90
 f90sources += slope.f90
 f90sources += tag_boxes.f90
 f90sources += update.f90  
