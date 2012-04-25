@@ -24,7 +24,6 @@ f90sources += make_new_grids.f90
 f90sources += makevort.f90
 f90sources += mkflux.f90
 f90sources += mkforce.f90
-f90sources += ml_solve.f90
 f90sources += probin.f90
 f90sources += proj_parameters.f90
 f90sources += regrid.f90
