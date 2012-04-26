@@ -166,7 +166,7 @@ contains
     amr_buf_width = -1
 
     min_eff   = 0.7
-    min_width = 1
+    min_width = 8
 
     prob_lo_x = ZERO
     prob_lo_y = ZERO

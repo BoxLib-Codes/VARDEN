@@ -59,6 +59,7 @@ contains
     integer :: n
     integer :: max_nlevel_in
     integer :: do_diagnostics
+    integer, allocatable :: lo_inflow(:),hi_inflow(:)
 
     !! Defaults:
 
@@ -202,8 +203,23 @@ contains
     ! Create the rhs
     ! ********************************************************************************
 
-    call divu(nlevs,mgt,unew,rh,mla%mba%rr,nodal)
+    ! Set the inflow array -- 1 if inflow, otherwise 0
+    allocate(lo_inflow(dm),hi_inflow(dm))
+    lo_inflow(:) = 0
+    hi_inflow(:) = 0
+    do i=1,dm
+       if (the_bc_tower%bc_tower_array(1)%phys_bc_level_array(0,i,1) == INLET) then
+          lo_inflow(i) = 1
+       end if
+       if (the_bc_tower%bc_tower_array(1)%phys_bc_level_array(0,i,2) == INLET) then
+          hi_inflow(i) = 1
+       end if
+    end do
+
+    call divu(nlevs,mgt,unew,rh,mla%mba%rr,nodal,lo_inflow,hi_inflow)
  
+    deallocate(lo_inflow,hi_inflow)
+
     ! Do rh = rh - divu_rhs (this routine preserves rh=0 on
     !  nodes which have bc_dirichlet = true.
     if (present(divu_rhs)) then
