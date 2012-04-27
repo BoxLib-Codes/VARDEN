@@ -44,8 +44,9 @@ module probin_module
   integer, save   :: boussinesq
   integer, save   :: extrap_comp
 
-  integer,save    :: min_width
-  real(dp_t),save :: min_eff
+  integer,save    :: cluster_min_width
+  integer,save    :: cluster_blocking_factor
+  real(dp_t),save :: cluster_min_eff
 
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
@@ -106,8 +107,9 @@ module probin_module
   namelist /probin/ max_grid_size
   namelist /probin/ boussinesq
   namelist /probin/ diffusion_type
-  namelist /probin/ min_eff
-  namelist /probin/ min_width
+  namelist /probin/ cluster_min_eff
+  namelist /probin/ cluster_min_width
+  namelist /probin/ cluster_blocking_factor
 
 contains
 
@@ -165,8 +167,9 @@ contains
     regrid_int = -1
     amr_buf_width = -1
 
-    min_eff   = 0.7
-    min_width = 8
+    cluster_min_eff = 0.9d0
+    cluster_min_width = 4
+    cluster_blocking_factor = 4
 
     prob_lo_x = ZERO
     prob_lo_y = ZERO
@@ -500,8 +503,9 @@ contains
     ! Initialize min_eff
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    call cluster_set_min_eff(min_eff)
-    call cluster_set_minwidth(min_width)
+    call cluster_set_min_eff(cluster_min_eff)
+    call cluster_set_blocking_factor(cluster_blocking_factor)
+    call cluster_set_minwidth(cluster_min_width)
 
   end subroutine probin_init
 

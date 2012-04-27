@@ -1,21 +1,26 @@
 &PROBIN
  dim_in = 2
 
- max_levs = 2
- n_cellx = 32
- n_celly = 32
- ref_ratio = 2
- regrid_int = 1
+ max_levs = 4
+ regrid_int = 2
+
+ n_cellx = 64
+ n_celly = 64
+ max_grid_size = 32
  
+ cluster_min_eff = 0.9d0
+ cluster_min_width = 4
+ cluster_blocking_factor = 4
+
  prob_hi_x = 1.0
  prob_hi_y = 1.0
 
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 0
- plot_int  = 1
- chk_int   = 0
+ max_step  = 100
+ plot_int  = 10
+ chk_int   = 10
 
  stop_time = 2.5
  cflfac = 0.9
@@ -35,8 +40,6 @@
  pmask_y = F
 
  verbose = 1
- mg_verbose = 0
-
-! restart = 1
+ mg_verbose = 1
 
 /
