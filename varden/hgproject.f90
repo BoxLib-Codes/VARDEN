@@ -51,8 +51,10 @@ contains
     real(dp_t)      :: rel_solver_eps
     real(dp_t)      :: abs_solver_eps
 
-    ! stencil_type = ST_DENSE
-    stencil_type = ST_CROSS
+    stencil_type = ST_DENSE
+
+    ! AJN 4/27/12 - this is broken
+!    stencil_type = ST_CROSS
 
     nlevs = mla%nlevel
     dm = mla%dim
