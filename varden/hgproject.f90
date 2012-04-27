@@ -52,8 +52,6 @@ contains
     real(dp_t)      :: abs_solver_eps
 
     stencil_type = ST_DENSE
-
-    ! AJN 4/27/12 - this is broken
 !    stencil_type = ST_CROSS
 
     nlevs = mla%nlevel
