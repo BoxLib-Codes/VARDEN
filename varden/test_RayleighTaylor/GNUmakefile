@@ -1,26 +1,29 @@
-NDEBUG := 
-MPI    :=
+
+NDEBUG := t
+HYPRE  := 
+
+MPI    := t
 OMP    :=
 
-COMP := Intel
+COMP   := gfortran
 
-FPARALLEL := ../..
+TOP    := ../..
 
-include $(FPARALLEL)/mk/GMakedefs.mak
+include $(BOXLIB_HOME)/Tools/F_mk/GMakedefs.mak
 
 f90sources += main.f90
 
-include $(FPARALLEL)/boxlib/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/boxlib
+include $(TOP)/varden/GPackage.mak
+VPATH_LOCATIONS += $(TOP)/varden
 
-include $(FPARALLEL)/mg/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/mg
+include $(BOXLIB_HOME)/Src/F_BaseLib/GPackage.mak
+VPATH_LOCATIONS += $(BOXLIB_HOME)/Src/F_BaseLib
 
-include $(FPARALLEL)/varden/GPackage.mak
-VPATH_LOCATIONS += $(FPARALLEL)/varden
+include $(BOXLIB_HOME)/Src/LinearSolvers/F_MG/GPackage.mak
+VPATH_LOCATIONS += $(BOXLIB_HOME)/Src/LinearSolvers/F_MG
 
 main.$(suf).exe: $(objects)
 	$(LINK.f90) -o main.$(suf).exe $(objects) $(libraries)
 
-include $(FPARALLEL)/mk/GMakerules.mak
+include $(BOXLIB_HOME)/Tools/F_mk/GMakerules.mak
 
