@@ -34,8 +34,7 @@ contains
       dt_proc  = 1.d20
       dt_start = 1.d20
 
-      do i = 1, nboxes(u)
-         if ( multifab_remote(u, i) ) cycle
+      do i = 1, nfabs(u)
          uop => dataptr(u, i)
          sop => dataptr(s, i)
          gpp => dataptr(gp, i)

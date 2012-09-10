@@ -41,8 +41,7 @@ contains
     ng_o = nghost(sold(1))
 
     do n = 1, nlevs
-       do i = 1, nboxes(rhohalf(n))
-          if ( multifab_remote(rhohalf(n), i) ) cycle
+       do i = 1, nfabs(rhohalf(n))
           rhp => dataptr(rhohalf(n), i)
           rop => dataptr(sold(n), i)
           rnp => dataptr(snew(n), i)

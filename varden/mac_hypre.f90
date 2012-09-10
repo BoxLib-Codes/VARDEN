@@ -175,8 +175,7 @@ contains
 !   ******************************************************************************************************* 
 
     do n = 1,nlevs
-      do i = 1, nboxes(rh(n))
-         if ( multifab_remote(rh(n), i) ) cycle
+      do i = 1, nfabs(rh(n))
          lo(1:dm) =  lwb(get_box(rh(n), i))
          hi(1:dm) =  upb(get_box(rh(n), i))
          call HYPRE_StructGridSetExtents(grid,lo,hi,ierr)
@@ -260,8 +259,7 @@ contains
       pdlo =  lwb(pd)
       pdhi =  upb(pd)
 
-      do i = 1, nboxes(mgt(n)%ss(1))
-         if ( multifab_remote(mgt(n)%ss(1), i) ) cycle
+      do i = 1, nfabs(mgt(n)%ss(1))
          lo(1:dm) =  lwb(get_box(mgt(n)%ss(1), i))
          hi(1:dm) =  upb(get_box(mgt(n)%ss(1), i))
 
@@ -343,8 +341,7 @@ contains
 !   ******************************************************************************************************* 
 
     do n = 1,nlevs
-      do i = 1, nboxes(rh(n))
-         if ( multifab_remote(rh(n), i) ) cycle
+      do i = 1, nfabs(rh(n))
          lo(1:dm) =  lwb(get_box(rh(n), i))
          hi(1:dm) =  upb(get_box(rh(n), i))
 
@@ -420,8 +417,7 @@ contains
 !   ******************************************************************************************************* 
 
     do n = 1,nlevs
-      do i = 1, nboxes(phi(n))
-         if ( multifab_remote(phi(n), i) ) cycle
+      do i = 1, nfabs(phi(n))
          lo(1:dm) =  lwb(get_box(phi(n), i))
          hi(1:dm) =  upb(get_box(phi(n), i))
 

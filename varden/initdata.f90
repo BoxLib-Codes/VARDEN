@@ -33,8 +33,7 @@ contains
     ng = u%ng
     dm = u%dim
 
-    do i = 1, u%nboxes
-       if ( multifab_remote(u,i) ) cycle
+    do i = 1, u%nfabs
        uop => dataptr(u,i)
        sop => dataptr(s,i)
        lo =  lwb(get_box(u,i))
@@ -76,8 +75,7 @@ contains
 
     do n=1,nlevs
 
-       do i = 1, u(n)%nboxes
-          if ( multifab_remote(u(n),i) ) cycle
+       do i = 1, u(n)%nfabs
           uop => dataptr(u(n),i)
           sop => dataptr(s(n),i)
           lo =  lwb(get_box(u(n),i))

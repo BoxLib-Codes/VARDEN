@@ -25,6 +25,7 @@ contains
     use nodal_divu_module         , only : divu, subtract_divu_from_rh
     use mg_module           
     use probin_module             , only : mg_verbose, cg_verbose, hg_bottom_solver, max_mg_bottom_nlevels
+    use stencil_types_module
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: rh(:)
@@ -88,7 +89,7 @@ contains
     min_width = 2
 
     if ( hg_bottom_solver >= 0 ) then
-        if (hg_bottom_solver == 4 .and. nboxes(phi(1)) == 1) then
+        if (hg_bottom_solver == 4 .and. nboxes(phi(1)%la) == 1) then
            if (parallel_IOProcessor()) then
               print *,'Dont use hg_bottom_solver == 4 with only one grid -- '
               print *,'  Reverting to default bottom solver ',bottom_solver
@@ -106,7 +107,7 @@ contains
     ! Note: put this here for robustness
     max_iter = 100
 
-    if (stencil_type .eq. ST_DENSE) then
+    if (stencil_type .eq. ND_DENSE_STENCIL) then
        if (dm .eq. 3) then
           i = mgt(nlevs)%nlevels
           if ( (dx(nlevs,1) .eq. dx(nlevs,2)) .and. &
@@ -147,7 +148,8 @@ contains
        pd = layout_get_pd(mla%la(n))
 
        call mg_tower_build(mgt(n), mla%la(n), pd, &
-                       the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
+                           the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
+                           stencil_type_in = stencil_type, &
                            dh = dx(n,:), &
                            ns = ns, &
                            smoother = smoother, &
@@ -186,7 +188,7 @@ contains
 
        call stencil_fill_nodal_all_mglevels(mgt(n), coeffs, stencil_type)
 
-       if (stencil_type .eq. ST_CROSS .and. n .gt. 1) then
+       if (stencil_type .eq. ND_CROSS_STENCIL .and. n .gt. 1) then
           i = mgt(n)%nlevels
           call stencil_fill_one_sided(one_sided_ss(n), coeffs(i), &
                                       mgt(n    )%dh(:,i), &
@@ -251,7 +253,7 @@ contains
        call mg_tower_destroy(mgt(n))
     end do
 
-    if (stencil_type .ne. ST_DENSE) then
+    if (stencil_type .ne. ND_DENSE_STENCIl) then
        do n = nlevs, 2, -1
           call destroy(one_sided_ss(n))
        end do
@@ -275,8 +277,7 @@ contains
     ng_r = nghost(rho)
     ng_c = nghost(coeffs)
 
-    do i = 1, nboxes(rho)
-       if ( multifab_remote(rho, i) ) cycle
+    do i = 1, nfabs(rho)
        rp => dataptr(rho   , i)
        cp => dataptr(coeffs, i)
        select case (dm)

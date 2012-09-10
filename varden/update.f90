@@ -57,8 +57,7 @@ contains
 
     do n=1,nlevs
 
-       do i = 1, nboxes(sold(n))
-          if ( multifab_remote(sold(n),i) ) cycle
+       do i = 1, nfabs(sold(n))
           sop    => dataptr(sold(n),i)
           snp    => dataptr(snew(n),i)
           ump    => dataptr(umac(n,1),i)

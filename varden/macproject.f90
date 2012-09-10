@@ -200,8 +200,7 @@ contains
       dm = rh(nlevs)%dim
 
       do n = 1,nlevs
-         do i = 1, rh(n)%nboxes
-            if ( multifab_remote(rh(n), i) ) cycle
+         do i = 1, rh(n)%nfabs
             ump => dataptr(umac(n,1), i)
             vmp => dataptr(umac(n,2), i)
             rhp => dataptr(rh(n)  , i)
@@ -318,8 +317,7 @@ contains
 
       do n=1,nlevs
          ! Multiply edge velocities by div coeff
-         do i = 1, edge(n,1)%nboxes
-            if ( multifab_remote(edge(n,1), i) ) cycle
+         do i = 1, edge(n,1)%nfabs
             ump => dataptr(edge(n,1), i)
             vmp => dataptr(edge(n,2), i)
             lo =  lwb(get_box(edge(n,1), i))
@@ -441,8 +439,7 @@ contains
          domhi =  upb(ml_layout_get_pd(mla,n))
 
          ! Multiply edge velocities by div coeff
-         do i = 1, uedge(n,1)%nboxes
-            if ( multifab_remote(uedge(n,1), i) ) cycle
+         do i = 1, uedge(n,1)%nfabs
             ump => dataptr(uedge(n,1), i)
             vmp => dataptr(uedge(n,2), i)
             wmp => dataptr(uedge(n,3), i)
@@ -630,8 +627,7 @@ contains
 
       do n = 1, nlevs
          call multifab_fill_boundary(rho(n))
-         do i = 1, rho(n)%nboxes
-            if ( multifab_remote(rho(n), i) ) cycle
+         do i = 1, rho(n)%nfabs
             rp => dataptr(rho(n) , i)
             bxp => dataptr(beta(n,1), i)
             byp => dataptr(beta(n,2), i)
@@ -745,8 +741,7 @@ contains
 
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, rh(n)%nboxes
-            if ( multifab_remote(rh(n), i) ) cycle
+         do i = 1, rh(n)%nfabs
             ump => dataptr(umac(n,1), i)
             vmp => dataptr(umac(n,2), i)
             php => dataptr( phi(n), i)

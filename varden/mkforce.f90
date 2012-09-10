@@ -44,8 +44,7 @@ contains
 
     do n=1,nlevs
        call setval(vel_force(n),ZERO,all=.true.)
-       do i = 1, nboxes(vel_force(n))
-          if ( remote(vel_force(n),i) ) cycle
+       do i = 1, nfabs(vel_force(n))
           fp  => dataptr(vel_force(n),i)
           ep  => dataptr(ext_vel_force(n),i)
           gpp => dataptr(gp(n),i)
@@ -273,8 +272,7 @@ contains
 
     do n=1,nlevs
        call setval(scal_force(n),ZERO,all=.true.)
-       do i = 1, nboxes(scal_force(n))
-          if ( remote(scal_force(n),i) ) cycle
+       do i = 1, nfabs(scal_force(n))
           fp => dataptr(scal_force(n),i)
           lp => dataptr(laps(n),i)
           ep => dataptr(ext_scal_force(n),i)

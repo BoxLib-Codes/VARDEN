@@ -42,8 +42,7 @@ contains
     do n=1,nlevs
 
        ! Create the edge states to be used for the MAC velocity 
-       do i = 1, nboxes(u(n))
-          if ( multifab_remote(u(n),i) ) cycle
+       do i = 1, nfabs(u(n))
           up  => dataptr(u(n),i)
           ump => dataptr(umac(n,1),i)
           vmp => dataptr(umac(n,2),i)

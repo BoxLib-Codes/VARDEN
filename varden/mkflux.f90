@@ -59,8 +59,7 @@ contains
     endif
 
     do n=1,nlevs
-       do i = 1, nboxes(sold(n))
-          if ( multifab_remote(sold(n), i) ) cycle
+       do i = 1, nfabs(sold(n))
           sop    => dataptr(sold(n), i)
           sepx   => dataptr(sedge(n,1), i)
           sepy   => dataptr(sedge(n,2), i)

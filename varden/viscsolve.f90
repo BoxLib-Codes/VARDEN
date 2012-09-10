@@ -170,8 +170,7 @@ contains
       ng_u   = nghost(unew)
       ng_rho = nghost(rho)
 
-      do i = 1, nboxes(unew)
-         if ( multifab_remote(unew, i) ) cycle
+      do i = 1, nfabs(unew)
          rhp => dataptr(rh  , i)
          unp => dataptr(unew, i)
          rp => dataptr(rho , i)
@@ -374,8 +373,7 @@ contains
       dm   = get_dim(rh)
       ng   = nghost(snew)
 
-      do i = 1, nboxes(snew)
-         if ( multifab_remote(snew, i) ) cycle
+      do i = 1, nfabs(snew)
          rp => dataptr(rh  , i)
          pp => dataptr(phi , i)
          sp => dataptr(snew, i)

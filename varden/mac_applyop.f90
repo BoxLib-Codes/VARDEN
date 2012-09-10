@@ -21,6 +21,7 @@ contains
      use cc_stencil_fill_module, only: stencil_fill_cc
      use cc_applyop_module     , only: ml_cc_applyop
      use mg_module             , only: mg_tower, mg_tower_build, mg_tower_destroy
+     use stencil_types_module
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) ::    res(:), phi(:)
@@ -50,7 +51,7 @@ contains
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    test           = 0
+    test = 0
 
     ns = 1 + dm*3
 
@@ -60,6 +61,7 @@ contains
 
        call mg_tower_build(mgt(n), mla%la(n), pd, &
                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
+                           stencil_type_in = CC_CROSS_STENCIL, &
                            dh = dx(n,:), &
                            ns = ns, &
                            verbose = 0, &

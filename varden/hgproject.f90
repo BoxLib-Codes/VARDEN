@@ -26,6 +26,7 @@ contains
     use hg_multigrid_module        , only : hg_multigrid
     use hg_hypre_module            , only : hg_hypre
     use probin_module              , only : verbose, use_hypre
+    use stencil_types_module
 
     integer        , intent(in   ) :: proj_type
     type(ml_layout), intent(in   ) :: mla
@@ -51,8 +52,8 @@ contains
     real(dp_t)      :: rel_solver_eps
     real(dp_t)      :: abs_solver_eps
 
-    stencil_type = ST_DENSE
-!    stencil_type = ST_CROSS
+    stencil_type = ND_DENSE_STENCIL
+!    stencil_type = ND_CROSS_STENCIL
 
     nlevs = mla%nlevel
     dm = mla%dim
@@ -217,8 +218,7 @@ contains
   
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, nboxes(unew(n))
-            if ( multifab_remote(unew(n), i) ) cycle
+         do i = 1, nfabs(unew(n))
             unp => dataptr(unew(n)     , i) 
             uop => dataptr(uold(n)     , i) 
             gpp => dataptr(gp(n)       , i)
@@ -256,8 +256,7 @@ contains
 
       do n = 1, nlevs
 
-         do i = 1, nboxes(phi(n))
-            if ( multifab_remote(phi(n),i) ) cycle
+         do i = 1, nfabs(phi(n))
             gph => dataptr(gphi(n),i)
             pp  => dataptr(phi(n),i)
             lo =  lwb(get_box(gphi(n),i))
@@ -309,8 +308,7 @@ contains
 
       do n = 1, nlevs
 
-         do i = 1, nboxes(unew(n))
-            if ( multifab_remote(unew(n),i) ) cycle
+         do i = 1, nfabs(unew(n))
             upn => dataptr(unew(n),i)
             uon => dataptr(uold(n),i)
             gpp => dataptr(gp(n),i)
@@ -654,8 +652,7 @@ contains
     do n = 1, nlevs
 
        ! Multiply u by div coeff
-       do i = 1, nboxes(u(n))
-          if ( multifab_remote(u(n),i) ) cycle
+       do i = 1, nfabs(u(n))
           ump => dataptr(u(n),i)
           lo =  lwb(get_box(u(n),i))
           hi =  upb(get_box(u(n),i))
@@ -733,8 +730,7 @@ contains
 
     do n = 1, nlevs
        ! Multiply u by div coeff
-       do i = 1, nboxes(u(n))
-          if ( multifab_remote(u(n),i) ) cycle
+       do i = 1, nfabs(u(n))
           ump => dataptr(u(n),i)
           dp => dataptr(div_coeff(n),i)
           select case (dm)

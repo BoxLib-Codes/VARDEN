@@ -22,6 +22,7 @@ contains
     use mg_module             , only : mg_tower, mg_tower_build, mg_tower_destroy
     use ml_solve_module       , only : ml_cc_solve
     use probin_module         , only : mg_verbose, cg_verbose, mg_bottom_solver, max_mg_bottom_nlevels
+    use stencil_types_module
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: rh(:),phi(:)
@@ -90,7 +91,7 @@ contains
     end if
 
     if ( mg_bottom_solver >= 0 ) then
-        if (mg_bottom_solver == 4 .and. nboxes(phi(1)) == 1) then
+        if (mg_bottom_solver == 4 .and. nboxes(phi(1)%la) == 1) then
            if (parallel_IOProcessor()) then
               print *,'Dont use mg_bottom_solver == 4 with only one grid -- '
               print *,'  Reverting to default bottom solver ',bottom_solver
@@ -126,6 +127,7 @@ contains
        if (doing_viscous_solve) then
           call mg_tower_build(mgt(n), mla%la(n), pd, &
                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
+                              stencil_type_in = CC_CROSS_STENCIL, &
                               dh = dx(n,:), &
                               ns = ns, &
                               smoother = smoother, &
@@ -151,6 +153,7 @@ contains
        else
           call mg_tower_build(mgt(n), mla%la(n), pd, &
                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
+                              stencil_type_in = CC_CROSS_STENCIL, &
                               dh = dx(n,:), &
                               ns = ns, &
                               smoother = smoother, &

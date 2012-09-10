@@ -34,8 +34,7 @@ contains
     ! Fill the ghost cells at the physical boundaries
     call multifab_physbc(u,1,1,dm,bc)
 
-    do i = 1, nboxes(u)
-       if ( multifab_remote(u, i) ) cycle
+    do i = 1, nfabs(u)
        up => dataptr(u, i)
        vp => dataptr(vort, i)
        lo =  lwb(get_box(u, i))
@@ -64,8 +63,7 @@ contains
     dm = get_dim(u)
     call multifab_fill_boundary(u)
 
-    do i = 1, nboxes(u)
-       if ( multifab_remote(u, i) ) cycle
+    do i = 1, nfabs(u)
        up => dataptr(u, i)
        vp => dataptr(magvel, i)
        lo =  lwb(get_box(u, i))
