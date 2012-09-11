@@ -257,14 +257,14 @@ subroutine varden()
         if (max_levs > 1 .and. regrid_int > 0 .and. &
             (mod(istep-1,regrid_int) .eq. 0) ) then
 
+           ! Delete everything defined on the old mla.
+           call delete_temps()
+
            ! Keep the state on the previous grid in unew,snew
            ! Create the state on the new grid in uold,sold
            call regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
            if (grids_file_name /= '') &
               call write_grids(grids_file_name,mla,istep)
-
-           ! Delete everything defined on the old mla.
-           call delete_temps()
 
            ! Create "new" unew,snew,ext_vel_force,ext_scal_force
            call make_temps(mla)
