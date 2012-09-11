@@ -31,7 +31,7 @@ contains
     logical        , intent(in   ) :: is_vel,is_conservative(:)
 
     ! local
-    integer                  :: n,i,dm,ng,comp,ncomp,bccomp,nlevs
+    integer                  :: n,i,dm,ng,comp,ncomp,bccomp,nlevs,gid
     integer                  :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
     real(kind=dp_t), pointer :: sop(:,:,:,:)
     real(kind=dp_t), pointer :: sepx(:,:,:,:)
@@ -60,6 +60,7 @@ contains
 
     do n=1,nlevs
        do i = 1, nfabs(sold(n))
+          gid = global_index(sold(n),i)
           sop    => dataptr(sold(n), i)
           sepx   => dataptr(sedge(n,1), i)
           sepy   => dataptr(sedge(n,2), i)
@@ -80,8 +81,8 @@ contains
                                      ump(:,:,1,1), vmp(:,:,1,1), &
                                      fp(:,:,1,:), dp(:,:,1,1), &
                                      lo, dx(n,:), dt, is_vel, &
-                                     the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                     the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
+                                     the_bc_level(n)%phys_bc_level_array(gid,:,:), &
+                                     the_bc_level(n)%adv_bc_level_array(gid,:,:,bccomp:bccomp+ncomp-1),&
                                      ng, is_conservative)
              else
                 call mkflux_2d(sop(:,:,1,:), &
@@ -90,8 +91,8 @@ contains
                                ump(:,:,1,1), vmp(:,:,1,1), &
                                fp(:,:,1,:), dp(:,:,1,1), &
                                lo, dx(n,:), dt, is_vel, &
-                               the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                               the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
+                               the_bc_level(n)%phys_bc_level_array(gid,:,:), &
+                               the_bc_level(n)%adv_bc_level_array(gid,:,:,bccomp:bccomp+ncomp-1),&
                                ng, is_conservative)
              endif
           case (3)
@@ -105,8 +106,8 @@ contains
                                      ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                      fp(:,:,:,:), dp(:,:,:,1), &
                                      lo, dx(n,:), dt, is_vel, &
-                                     the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                                     the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
+                                     the_bc_level(n)%phys_bc_level_array(gid,:,:), &
+                                     the_bc_level(n)%adv_bc_level_array(gid,:,:,bccomp:bccomp+ncomp-1),&
                                      ng, is_conservative)
              else
                 call mkflux_3d(sop(:,:,:,:), &
@@ -115,8 +116,8 @@ contains
                                ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                fp(:,:,:,:), dp(:,:,:,1), &
                                lo, dx(n,:), dt, is_vel, &
-                               the_bc_level(n)%phys_bc_level_array(i,:,:), &
-                               the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
+                               the_bc_level(n)%phys_bc_level_array(gid,:,:), &
+                               the_bc_level(n)%adv_bc_level_array(gid,:,:,bccomp:bccomp+ncomp-1),&
                                ng, is_conservative)
              endif
           end select
