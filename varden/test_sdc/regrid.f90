@@ -187,6 +187,10 @@ contains
 
      call ml_layout_restricted_build(mla,mba,nlevs,pmask)
 
+     do n=1,nl
+        call bc_tower_level_build(the_bc_tower,n,mla%la(n))
+     end do
+
      ! Build the level 1 data again.
      call make_new_state(mla%la(1),u(1),s(1),gp(1),p(1)) 
 
