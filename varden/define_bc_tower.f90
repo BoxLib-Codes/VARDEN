@@ -9,7 +9,6 @@ module define_bc_module
   type bc_level
 
      integer   :: dim    = 0
-     integer   :: ngrids = 0
      type(box) :: domain 
      integer, pointer :: phys_bc_level_array(:,:,:) => Null()
      integer, pointer ::  adv_bc_level_array(:,:,:,:) => Null()
@@ -49,10 +48,6 @@ module define_bc_module
     allocate(bct%bc_tower_array(bct%nlevels))
     allocate(bct%domain_bc(dm,2))
 
-    do n = 1, num_levs
-      bct%bc_tower_array(n)%ngrids = -1
-    end do
-
     bct%domain_bc(:,:) = phys_bc_in(:,:)
 
   end subroutine bc_tower_init
@@ -68,15 +63,17 @@ module define_bc_module
     integer :: ngrids
     integer :: default_value
 
-    if (bct%bc_tower_array(n)%ngrids > 0) then
+    if (associated(bct%bc_tower_array(n)%phys_bc_level_array)) then
       deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
       deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
       deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
+      bct%bc_tower_array(n)%phys_bc_level_array => NULL()
+      bct%bc_tower_array(n)%adv_bc_level_array => NULL()
+      bct%bc_tower_array(n)%ell_bc_level_array => NULL()
     end if
 
     ngrids = layout_nboxes(la)
     bct%bc_tower_array(n)%dim    = bct%dim
-    bct%bc_tower_array(n)%ngrids = ngrids
     bct%bc_tower_array(n)%domain = layout_get_pd(la)
 
     allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,bct%dim,2))
@@ -114,6 +111,9 @@ module define_bc_module
        deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
        deallocate(bct%bc_tower_array(n)%adv_bc_level_array)
        deallocate(bct%bc_tower_array(n)%ell_bc_level_array)
+       bct%bc_tower_array(n)%phys_bc_level_array => NULL()
+       bct%bc_tower_array(n)%adv_bc_level_array => NULL()
+       bct%bc_tower_array(n)%ell_bc_level_array => NULL()
     end do
     deallocate(bct%bc_tower_array)
 
