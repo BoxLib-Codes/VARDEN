@@ -8,8 +8,6 @@ module define_bc_module
 
   type bc_level
 
-     integer   :: dim    = 0
-     type(box) :: domain 
      integer, pointer :: phys_bc_level_array(:,:,:) => Null()
      integer, pointer ::  adv_bc_level_array(:,:,:,:) => Null()
      integer, pointer ::  ell_bc_level_array(:,:,:,:) => Null()
@@ -18,8 +16,6 @@ module define_bc_module
 
   type bc_tower
 
-     integer :: dim     = 0
-     integer :: nlevels = 0
      integer :: max_level_built = 0
      type(bc_level), pointer :: bc_tower_array(:) => Null()
      integer       , pointer :: domain_bc(:,:) => Null()
@@ -34,18 +30,12 @@ module define_bc_module
 
   subroutine bc_tower_init(bct,num_levs,dm,phys_bc_in)
 
-    implicit none
-
     type(bc_tower ), intent(  out) :: bct
     integer        , intent(in   ) :: num_levs
     integer        , intent(in   ) :: dm
     integer        , intent(in   ) :: phys_bc_in(:,:)
 
-    integer :: n
-
-    bct%nlevels = num_levs
-    bct%dim     = dm
-    allocate(bct%bc_tower_array(bct%nlevels))
+    allocate(bct%bc_tower_array(num_levs))
     allocate(bct%domain_bc(dm,2))
 
     bct%domain_bc(:,:) = phys_bc_in(:,:)
@@ -60,8 +50,7 @@ module define_bc_module
     integer        , intent(in   ) :: n
     type(layout)   , intent(in   ) :: la
 
-    integer :: ngrids
-    integer :: default_value
+    integer :: ngrids,default_value,dm
 
     if (associated(bct%bc_tower_array(n)%phys_bc_level_array)) then
       deallocate(bct%bc_tower_array(n)%phys_bc_level_array)
@@ -73,24 +62,23 @@ module define_bc_module
     end if
 
     ngrids = layout_nboxes(la)
-    bct%bc_tower_array(n)%dim    = bct%dim
-    bct%bc_tower_array(n)%domain = layout_get_pd(la)
+    dm = layout_dim(la)
 
-    allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,bct%dim,2))
+    allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,dm,2))
     default_value = INTERIOR
     call phys_bc_level_build(bct%bc_tower_array(n)%phys_bc_level_array,la, &
                              bct%domain_bc,default_value)
 
-    ! Here we allocate bct%dim components for velocity
+    ! Here we allocate dm components for velocity
     !                    nscal components for scalars
     !                        1 component  for generic extrap
     !                        1 component  for pressure
-    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+2))
+    allocate(bct%bc_tower_array(n)%adv_bc_level_array(0:ngrids,dm,2,dm+nscal+2))
     default_value = INTERIOR
     call adv_bc_level_build(bct%bc_tower_array(n)%adv_bc_level_array, &
                             bct%bc_tower_array(n)%phys_bc_level_array,default_value)
 
-    allocate(bct%bc_tower_array(n)%ell_bc_level_array(0:ngrids,bct%dim,2,bct%dim+nscal+1))
+    allocate(bct%bc_tower_array(n)%ell_bc_level_array(0:ngrids,dm,2,dm+nscal+1))
     default_value = BC_INT
     call ell_bc_level_build(bct%bc_tower_array(n)%ell_bc_level_array, &
                             bct%bc_tower_array(n)%phys_bc_level_array,default_value)
@@ -100,8 +88,6 @@ module define_bc_module
   end subroutine bc_tower_level_build
 
   subroutine bc_tower_destroy(bct)
-
-    implicit none
 
     type(bc_tower), intent(inout) :: bct
 
@@ -122,8 +108,6 @@ module define_bc_module
   end subroutine bc_tower_destroy
 
   subroutine phys_bc_level_build(phys_bc_level,la_level,domain_bc,default_value)
-
-    implicit none
 
     integer     , intent(inout) :: phys_bc_level(0:,:,:)
     integer     , intent(in   ) :: domain_bc(:,:)
@@ -155,8 +139,6 @@ module define_bc_module
   subroutine adv_bc_level_build(adv_bc_level,phys_bc_level,default_value)
 
     use probin_module, only : nscal,extrap_comp
-
-    implicit none
 
     integer  , intent(inout) ::  adv_bc_level(0:,:,:,:)
     integer  , intent(in   ) :: phys_bc_level(0:,:,:)
@@ -253,8 +235,6 @@ module define_bc_module
   subroutine ell_bc_level_build(ell_bc_level,phys_bc_level,default_value)
 
     use probin_module, only : nscal
-
-    implicit none
 
     integer  , intent(inout) ::  ell_bc_level(0:,:,:,:)
     integer  , intent(in   ) :: phys_bc_level(0:,:,:)
