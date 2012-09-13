@@ -211,7 +211,7 @@ contains
       real(kind=dp_t), pointer :: gpp(:,:,:,:) 
       real(kind=dp_t), pointer ::  rp(:,:,:,:)
   
-      integer :: i,n,dm,ng,gid
+      integer :: i,n,dm,ng
   
       dm = get_dim(unew(nlevs))
       ng = nghost(unew(nlevs))
@@ -219,7 +219,6 @@ contains
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
          do i = 1, nfabs(unew(n))
-            gid = global_index(unew(n),i)
             unp => dataptr(unew(n)     , i) 
             uop => dataptr(uold(n)     , i) 
             gpp => dataptr(gp(n)       , i)
@@ -227,10 +226,10 @@ contains
             select case (dm)
                case (2)
                  call create_uvec_2d(unp(:,:,1,:), uop(:,:,1,:), rp(:,:,1,1), gpp(:,:,1,:), dt, &
-                                     bc%phys_bc_level_array(gid,:,:), ng, proj_type)
+                                     bc%phys_bc_level_array(i,:,:), ng, proj_type)
                case (3)
                  call create_uvec_3d(unp(:,:,:,:), uop(:,:,:,:), rp(:,:,:,1), gpp(:,:,:,:), dt, &
-                                     bc%phys_bc_level_array(gid,:,:), ng, proj_type)
+                                     bc%phys_bc_level_array(i,:,:), ng, proj_type)
             end select
          end do
          call multifab_fill_boundary(unew(n))

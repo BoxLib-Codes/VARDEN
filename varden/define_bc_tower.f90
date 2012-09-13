@@ -61,7 +61,7 @@ module define_bc_module
       bct%bc_tower_array(n)%ell_bc_level_array => NULL()
     end if
 
-    ngrids = layout_nboxes(la)
+    ngrids = layout_nlocal(la)
     dm = layout_dim(la)
 
     allocate(bct%bc_tower_array(n)%phys_bc_level_array(0:ngrids,dm,2))
@@ -126,8 +126,8 @@ module define_bc_module
        phys_bc_level(i,d,2) = domain_bc(d,2)
     end do
 
-    do i = 1,layout_nboxes(la_level)
-       bx = layout_get_box(la_level,i)
+    do i = 1,layout_nlocal(la_level)
+       bx = layout_get_box(la_level,global_index(la_level,i))
        do d = 1,layout_dim(la_level)
           if (lwb(bx,d) == lwb(pd,d)) phys_bc_level(i,d,1) = domain_bc(d,1)
           if (upb(bx,d) == upb(pd,d)) phys_bc_level(i,d,2) = domain_bc(d,2)

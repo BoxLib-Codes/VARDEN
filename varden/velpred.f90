@@ -28,7 +28,7 @@ contains
     type(ml_layout), intent(in   ) :: mla
 
     ! local
-    integer :: i,n,dm,ng,comp,gid
+    integer :: i,n,dm,ng,comp
     integer :: lo(get_dim(u(1)))
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: ump(:,:,:,:)
@@ -43,7 +43,6 @@ contains
 
        ! Create the edge states to be used for the MAC velocity 
        do i = 1, nfabs(u(n))
-          gid = global_index(u(n),i)
           up  => dataptr(u(n),i)
           ump => dataptr(umac(n,1),i)
           vmp => dataptr(umac(n,2),i)
@@ -56,16 +55,16 @@ contains
                                       ump(:,:,1,1),  vmp(:,:,1,1), &
                                       fp(:,:,1,:), &
                                       lo, dx(n,:), dt, &
-                                      the_bc_level(n)%phys_bc_level_array(gid,:,:), &
-                                      the_bc_level(n)%adv_bc_level_array(gid,:,:,:), &
+                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                      the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
                                       ng)
              else
                 call velpred_2d(up(:,:,1,:), &
                                 ump(:,:,1,1),  vmp(:,:,1,1), &
                                 fp(:,:,1,:), &
                                 lo, dx(n,:), dt, &
-                                the_bc_level(n)%phys_bc_level_array(gid,:,:), &
-                                the_bc_level(n)%adv_bc_level_array(gid,:,:,:), &
+                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
                                 ng)
              endif
           case (3)
@@ -75,16 +74,16 @@ contains
                                       ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
                                       fp(:,:,:,:), &
                                       lo, dx(n,:), dt, &
-                                      the_bc_level(n)%phys_bc_level_array(gid,:,:), &
-                                      the_bc_level(n)%adv_bc_level_array(gid,:,:,:), &
+                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                      the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
                                       ng)
                 else
                 call velpred_3d(up(:,:,:,:), &
                                 ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
                                 fp(:,:,:,:), &
                                 lo, dx(n,:), dt, &
-                                the_bc_level(n)%phys_bc_level_array(gid,:,:), &
-                                the_bc_level(n)%adv_bc_level_array(gid,:,:,:), &
+                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
+                                the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
                                 ng)
              endif
           end select

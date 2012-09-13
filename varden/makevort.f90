@@ -23,7 +23,7 @@ contains
 
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: vp(:,:,:,:)
-    integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm,i,gid
+    integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm,i
 
     ng = nghost(u)
     dm = get_dim(u)
@@ -35,16 +35,15 @@ contains
     call multifab_physbc(u,1,1,dm,bc)
 
     do i = 1, nfabs(u)
-       gid = global_index(u,i)
        up => dataptr(u, i)
        vp => dataptr(vort, i)
        lo =  lwb(get_box(u, i))
        hi =  upb(get_box(u, i))
        select case (dm)
        case (2)
-          call makevort_2d(vp(:,:,1,comp),up(:,:,1,:), lo, hi, ng, dx, bc%phys_bc_level_array(gid,:,:))
+          call makevort_2d(vp(:,:,1,comp),up(:,:,1,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
        case (3)
-          call makevort_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng, dx, bc%phys_bc_level_array(gid,:,:))
+          call makevort_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng, dx, bc%phys_bc_level_array(i,:,:))
        end select
     end do
 
