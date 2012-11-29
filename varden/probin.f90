@@ -59,6 +59,9 @@ module probin_module
   character(len=128), save :: fixed_grids
   character(len=128), save :: grids_file_name
 
+  character (len=256), save, public :: plot_base_name = "plt"
+  character (len=256), save, public :: check_base_name = "chk"
+
   namelist /probin/ dim_in
   namelist /probin/ stop_time
   namelist /probin/ prob_hi_x
@@ -67,6 +70,8 @@ module probin_module
   namelist /probin/ max_step
   namelist /probin/ plot_int
   namelist /probin/ chk_int
+  namelist /probin/ plot_base_name
+  namelist /probin/ check_base_name
   namelist /probin/ regrid_int
   namelist /probin/ amr_buf_width
   namelist /probin/ init_iter
@@ -433,6 +438,14 @@ contains
           farg = farg + 1
           call get_command_argument(farg, value = fname)
           read(fname, *) do_initial_projection
+
+       case ('--plot_base_name')
+          farg = farg + 1
+          call get_command_argument(farg, value = plot_base_name)
+
+       case ('--check_base_name')
+          farg = farg + 1
+          call get_command_argument(farg, value = check_base_name)
 
        case ('--')
           farg = farg + 1
