@@ -180,29 +180,30 @@ subroutine varden()
 
   end do
 
+  if (restart < 0) then
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Compute the time step.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  dt = 1.d20
-  dtold = dt
-  do n = 1,nlevs
-     call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
-                dtold,dt_lev)
-     dt = min(dt,dt_lev)
-  end do
+     dt = 1.d20
+     dtold = dt
+     do n = 1,nlevs
+        call estdt(n,uold(n),sold(n),gp(n),ext_vel_force(n),dx(n,:), &
+                   dtold,dt_lev)
+        dt = min(dt,dt_lev)
+     end do
 
-  if (restart < 0) dt = dt * init_shrink
-  if (fixed_dt > 0.d0) dt = fixed_dt
-  if (stop_time >= 0.d0) then
-     if (time+dt > stop_time) dt = min(dt, stop_time - time)
-  end if
+     dt = dt*init_shrink
+
+     if (fixed_dt > 0.d0) dt = fixed_dt
+     if (stop_time >= 0.d0) then
+        if (time+dt > stop_time) dt = min(dt, stop_time - time)
+     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Begin the initial iterations to define an initial pressure field.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  if (restart < 0) then
 
      if (init_iter > 0) call initial_iters()
 
