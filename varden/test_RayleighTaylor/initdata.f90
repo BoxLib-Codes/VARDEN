@@ -33,8 +33,7 @@ contains
     ng = u%ng
     dm = u%dim
 
-    do i = 1, u%nboxes
-       if ( multifab_remote(u,i) ) cycle
+    do i = 1, nfabs(u)
        uop => dataptr(u,i)
        sop => dataptr(s,i)
        lo =  lwb(get_box(u,i))
@@ -76,8 +75,7 @@ contains
 
     do n=1,nlevs
 
-       do i = 1, u(n)%nboxes
-          if ( multifab_remote(u(n),i) ) cycle
+       do i = 1, nfabs(u(n))
           uop => dataptr(u(n),i)
           sop => dataptr(s(n),i)
           lo =  lwb(get_box(u(n),i))
@@ -229,7 +227,7 @@ contains
 
     do n = 1,nlevs
        pd = layout_get_pd(mla%la(n))
-       do i = 1, p(n)%nboxes; if ( remote(p(n),i) ) cycle
+       do i = 1, nfabs(p(n))
           bx = get_ibox(p(n),i)
           if (bx%lo(2) == pd%lo(2)) then
              bx%hi(2) = bx%lo(2)

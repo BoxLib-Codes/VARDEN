@@ -33,8 +33,7 @@ contains
     ng = nghost(u)
     dm = get_dim(u)
 
-    do i = 1, nboxes(u)
-       if ( multifab_remote(u,i) ) cycle
+    do i = 1, nfabs(u)
        uop => dataptr(u,i)
        sop => dataptr(s,i)
        lo =  lwb(get_box(u,i))
@@ -75,8 +74,7 @@ contains
 
     do n=1,nlevs
 
-       do i = 1, nboxes(u(n))
-          if ( multifab_remote(u(n), i) ) cycle
+       do i = 1, nfabs(u(n))
           uop => dataptr(u(n), i)
           sop => dataptr(s(n), i)
           lo =  lwb(get_box(u(n), i))
