@@ -63,11 +63,11 @@ contains
         ! by level, and need to be destroy()d as such as well.
         !
         la = get_layout(chkdata(n))
+        call multifab_destroy(chkdata(n))
         call destroy(la)
         la = get_layout(chk_p(n))
-        call destroy(la)
-        call multifab_destroy(chkdata(n))
         call multifab_destroy(chk_p(n))
+        call destroy(la)
      end do
      deallocate(chkdata,chk_p)
 
