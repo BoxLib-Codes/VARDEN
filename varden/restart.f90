@@ -15,7 +15,7 @@ contains
   subroutine fill_restart_data(restart_int,mba,chkdata,chk_p,time,dt)
 
     use checkpoint_module
-    use probin_module, only : MAX_ALLOWED_LEVS
+    use probin_module, only : MAX_ALLOWED_LEVS, check_base_name
 
     integer          , intent(in   ) :: restart_int
     real(dp_t)       , intent(  out) :: time,dt
@@ -23,14 +23,17 @@ contains
 
     type(multifab)   , pointer        :: chkdata(:)
     type(multifab)   , pointer        :: chk_p(:)
-    character(len=8)                  :: sd_name
+    character(len=5)                  :: check_index
+    character(len=256)                :: check_file_name
+
     integer                           :: n,nlevs,dm
     integer                           :: rrs(MAX_ALLOWED_LEVS)
 
-    write(unit=sd_name,fmt='("chk",i5.5)') restart_int
+    write(unit=check_index,fmt='(i5.5)') restart_int
+    check_file_name = trim(check_base_name) // check_index
     if ( parallel_IOProcessor() ) &
-       print *,'Reading ',sd_name,' to get state data for restart'
-    call checkpoint_read(chkdata, chk_p, sd_name, rrs, time, dt, nlevs)
+       print *,'Reading ',trim(check_file_name),' to get state data for restart'
+    call checkpoint_read(chkdata, chk_p, check_file_name, rrs, time, dt, nlevs)
 
     dm = get_dim(chkdata(1))
 

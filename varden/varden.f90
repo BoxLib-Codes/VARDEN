@@ -57,7 +57,8 @@ subroutine varden()
   type(multifab), allocatable :: ext_scal_force(:)
   type(multifab), allocatable :: plotdata(:)
 
-  character(len=8 ) :: sd_name
+  character(len=5)               :: plot_index, check_index
+  character(len=256)             :: plot_file_name, check_file_name
   character(len=20), allocatable :: plot_names(:)
 
   type(bc_tower) ::  the_bc_tower
@@ -487,7 +488,7 @@ contains
 
   subroutine write_plotfile(istep_to_write)
 
-    use probin_module, only : prob_lo, prob_hi
+    use probin_module, only : prob_lo, prob_hi, plot_base_name
 
     integer, intent(in   )  :: istep_to_write
     integer                 :: n,n_plot_comps
@@ -533,7 +534,8 @@ contains
        call multifab_copy_c(plotdata(n),gpx_comp,gp(n),1,dm)
     end do
 
-    write(unit=sd_name,fmt='("plt",i5.5)') istep_to_write
+    write(unit=plot_index,fmt='(i5.5)') istep_to_write
+    plot_file_name = trim(plot_base_name) // plot_index
 
     if (coarsen_plot_data) then
 
@@ -556,11 +558,11 @@ contains
           call ml_cc_restriction(mf_crse(n),plotdata(n),ref_ratio)
        end do
 
-       call fabio_ml_multifab_write_d(mf_crse, rr_for_write, sd_name, plot_names, &
+       call fabio_ml_multifab_write_d(mf_crse, rr_for_write, plot_file_name, plot_names, &
                                       pd_crse, prob_lo, prob_hi, time, dx_crse)
     else
 
-       call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), sd_name, plot_names, &
+       call fabio_ml_multifab_write_d(plotdata, mla%mba%rr(:,1), plot_file_name, plot_names, &
                                       mla%mba%pd(1), prob_lo, prob_hi, time, dx(1,:))
     end if
 
@@ -582,6 +584,8 @@ contains
 
   subroutine write_checkfile(istep_to_write)
 
+    use probin_module, only : check_base_name
+
     integer, intent(in   ) :: istep_to_write
 
     type(multifab), pointer     ::  chkdata(:)
@@ -594,9 +598,10 @@ contains
        call multifab_copy_c(chkdata(n),1+dm      ,sold(n),1,nscal)
        call multifab_copy_c(chkdata(n),1+dm+nscal,  gp(n),1,dm)
     end do
-    write(unit=sd_name,fmt='("chk",i5.5)') istep_to_write
+    write(unit=check_index,fmt='(i5.5)') istep_to_write
+    check_file_name = trim(check_base_name) // check_index
 
-    call checkpoint_write(nlevs, sd_name, chkdata, p, mla%mba%rr, time, dt, verbose)
+    call checkpoint_write(nlevs, check_file_name, chkdata, p, mla%mba%rr, time, dt, verbose)
 
     do n = 1,nlevs
        call multifab_destroy(chkdata(n))
