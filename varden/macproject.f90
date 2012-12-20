@@ -49,7 +49,7 @@ contains
     logical         :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
 
     nlevs = mla%nlevel
-    dm = umac(nlevs,1)%dim
+    dm = mla%dim
 
     use_rhs = .false.
     if (present(divu_rhs)) use_rhs = .true.
@@ -66,7 +66,7 @@ contains
     do n = 1, nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
        call multifab_build(  phi(n), mla%la(n),  1, 1)
-       call multifab_build(alpha(n), mla%la(n),  1, 1)
+       call multifab_build(alpha(n), mla%la(n),  1, 0)
        do d = 1,dm
           call multifab_build_edge( beta(n,d), mla%la(n), 1, 1, d)
        end do
@@ -195,9 +195,12 @@ contains
       real(kind=dp_t), pointer :: wmp(:,:,:,:) 
       real(kind=dp_t), pointer :: rhp(:,:,:,:) 
       real(kind=dp_t)          :: rhmax
-      integer :: i,dm,lo(rh(nlevs)%dim),hi(rh(nlevs)%dim)
+      integer :: i,dm,ng_u,ng_r,lo(rh(nlevs)%dim),hi(rh(nlevs)%dim)
 
       dm = rh(nlevs)%dim
+
+      ng_u = umac(1,1)%ng
+      ng_r = rh(1)%ng
 
       do n = 1,nlevs
          do i = 1, nfabs(rh(n))
@@ -208,11 +211,12 @@ contains
             hi =  upb(get_box(rh(n), i))
             select case (dm)
             case (2)
-               call divumac_2d(ump(:,:,1,1), vmp(:,:,1,1), rhp(:,:,1,1), dx(n,:),lo,hi)
+               call divumac_2d(ump(:,:,1,1), vmp(:,:,1,1), ng_u, rhp(:,:,1,1), ng_r, &
+                               dx(n,:),lo,hi)
             case (3)
                wmp => dataptr(umac(n,3), i)
-               call divumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                               rhp(:,:,:,1), dx(n,:),lo,hi)
+               call divumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), ng_u, &
+                               rhp(:,:,:,1), ng_r, dx(n,:),lo,hi)
             end select
          end do
       end do
@@ -254,12 +258,12 @@ contains
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,vmac,rh,dx,lo,hi)
+    subroutine divumac_2d(umac,vmac,ng_u,rh,ng_r,dx,lo,hi)
 
-      integer        , intent(in   ) :: lo(:),hi(:)
-      real(kind=dp_t), intent(in   ) :: umac(lo(1)-1:,lo(2)-1:)
-      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-1:,lo(2)-1:)
-      real(kind=dp_t), intent(inout) ::   rh(lo(1)  :,lo(2)  :)
+      integer        , intent(in   ) :: lo(:),hi(:),ng_u,ng_r
+      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_u:,lo(2)-ng_u:)
+      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_u:,lo(2)-ng_u:)
+      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_r:,lo(2)-ng_r:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
       integer :: i,j
@@ -273,13 +277,13 @@ contains
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,vmac,wmac,rh,dx,lo,hi)
+    subroutine divumac_3d(umac,vmac,wmac,ng_u,rh,ng_r,dx,lo,hi)
 
-      integer        , intent(in   ) :: lo(:),hi(:)
-      real(kind=dp_t), intent(in   ) :: umac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(in   ) :: wmac(lo(1)-1:,lo(2)-1:,lo(3)-1:)
-      real(kind=dp_t), intent(inout) ::   rh(lo(1)  :,lo(2)  :,lo(3)  :)
+      integer        , intent(in   ) :: lo(:),hi(:),ng_u,ng_r
+      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+      real(kind=dp_t), intent(in   ) :: wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_r:,lo(2)-ng_r:,lo(3)-ng_r:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j,k
