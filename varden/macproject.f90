@@ -134,7 +134,7 @@ contains
                           stencil_order,mla%mba%rr,rel_solver_eps,abs_solver_eps)
     end if
 
-    call mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)
+    call mkumac(umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)
 
     if (use_rhs) then
        call divumac(nlevs,umac,rh,dx,mla%mba%rr,.false.,divu_rhs)
@@ -316,6 +316,10 @@ contains
       integer                  :: lo(edge(1,1)%dim)
       integer                  :: i,dm,n,nlevs
 
+      if (edge(1,1)%ng .ne. 1) then
+         call bl_error("mult_edge_by_1d_coeff assumes edge has 1 ghost cell")
+      end if
+
       dm    = mla%dim
       nlevs = mla%nlevel
 
@@ -435,6 +439,13 @@ contains
       integer :: i,n,nlevs
       integer :: lo(uedge(1,1)%dim),hi(uedge(1,1)%dim)
       integer :: domlo(uedge(1,1)%dim),domhi(uedge(1,1)%dim)
+
+      if (uedge(1,1)%ng .ne. 1) then
+         call bl_error("mult_edge_by_1d_coeff assumes uedge has 1 ghost cell")
+      end if
+      if (div_coeff(1)%ng .ne. 1) then
+         call bl_error("mult_edge_by_1d_coeff assumes div_coeff has 1 ghost cell")
+      end if
 
       nlevs = mla%nlevel
 
@@ -709,12 +720,11 @@ contains
 
     end subroutine mk_mac_coeffs_3d
 
-    subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio)
+    subroutine mkumac(umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio)
 
       use ml_restriction_module, only: ml_edge_restriction
 
       type(multifab), intent(inout) :: umac(:,:)
-      type(multifab), intent(inout) ::   rh(:)
       type(multifab), intent(in   ) ::  phi(:)
       type(multifab), intent(in   ) :: beta(:,:)
       type(bndry_reg),intent(in   ) :: fine_flx(2:)
@@ -738,14 +748,24 @@ contains
       real(kind=dp_t), pointer :: lyp(:,:,:,:) 
       real(kind=dp_t), pointer :: hyp(:,:,:,:) 
       real(kind=dp_t), pointer :: lzp(:,:,:,:) 
-      real(kind=dp_t), pointer :: hzp(:,:,:,:) 
+      real(kind=dp_t), pointer :: hzp(:,:,:,:)
 
-      nlevs = size(rh,dim=1)
-      dm = rh(nlevs)%dim
+      if (umac(1,1)%ng .ne. 1) then
+         call bl_error("mkumac assumes umac has 1 ghost cell")
+      end if
+      if (phi(1)%ng .ne. 1) then
+         call bl_error("mkphi assumes phi has 1 ghost cell")
+      end if
+      if (beta(1,1)%ng .ne. 1) then
+         call bl_error("mkbeta assumes beta has 1 ghost cell")
+      end if
+
+      nlevs = size(phi,dim=1)
+      dm = phi(nlevs)%dim
 
       do n = 1, nlevs
          bc = the_bc_tower%bc_tower_array(n)
-         do i = 1, nfabs(rh(n))
+         do i = 1, nfabs(phi(n))
             ump => dataptr(umac(n,1), i)
             vmp => dataptr(umac(n,2), i)
             php => dataptr( phi(n), i)
