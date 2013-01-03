@@ -64,7 +64,7 @@ contains
      enddo
 
      call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
-                      bc_comp,stencil_order,mla%mba%rr)
+                      bc_comp,stencil_order)
 
      do n = 1, nlevs
         call multifab_copy_c(lap_data(n),data_comp,Lphi(n),1)
