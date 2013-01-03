@@ -87,7 +87,7 @@ contains
      enddo
 
      call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
-                      bc_comp,stencil_order,mla%mba%rr,mg_verbose,cg_verbose)
+                      bc_comp,stencil_order)
 
      if (ladj_index) then
         comp = data_comp-1
