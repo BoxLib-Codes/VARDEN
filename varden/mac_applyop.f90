@@ -5,7 +5,6 @@ module mac_applyop_module
   use define_bc_module
   use multifab_module
   use bl_constants_module
-  use bl_error_module
 
   implicit none
 
@@ -15,16 +14,16 @@ module mac_applyop_module
 
 contains
 
-  subroutine mac_applyop(mla,res,phi,alpha,beta,dx,&
+  subroutine mac_applyop(mla,res,phi,alpha,beta,dx, &
                          the_bc_tower,bc_comp,stencil_order,ref_ratio)
 
-     use cc_stencil_fill_module, only: stencil_fill_cc
-     use cc_applyop_module     , only: ml_cc_applyop
-     use mg_module             , only: mg_tower, mg_tower_build, mg_tower_destroy
-     use stencil_types_module
+    use mg_module             , only: mg_tower, mg_tower_build, mg_tower_destroy
+    use cc_stencil_fill_module, only: stencil_fill_cc
+    use cc_applyop_module     , only: ml_cc_applyop
+    use stencil_types_module
 
     type(ml_layout), intent(in   ) :: mla
-    type(multifab) , intent(inout) ::    res(:), phi(:)
+    type(multifab) , intent(inout) :: res(:), phi(:)
     type(multifab) , intent(in   ) :: alpha(:), beta(:,:)
     real(dp_t)     , intent(in   ) :: dx(:,:)
     type(bc_tower) , intent(in   ) :: the_bc_tower
@@ -39,19 +38,19 @@ contains
     type(multifab) :: edge_coeffs(mla%dim)
 
     type(mg_tower)  :: mgt(mla%nlevel)
-    integer         :: d, dm, ns, nlevs, test
+    integer         :: d, dm, nlevs
 
     ! MG solver defaults
-    integer    :: n
+    integer    :: n, ns
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
-    !! Defaults:
+    type(bl_prof_timer), save :: bpt
 
+    call build(bpt, "mac_applyop")
+
+    dm = mla%dim
     nlevs = mla%nlevel
-    dm    = mla%dim
-
-    test = 0
 
     ns = 1 + dm*3
 
@@ -64,8 +63,6 @@ contains
                            stencil_type_in = CC_CROSS_STENCIL, &
                            dh = dx(n,:), &
                            ns = ns, &
-                           verbose = 0, &
-                           cg_verbose = 0, &
                            nodal = nodal_flags(res(nlevs)))
 
     end do
@@ -76,11 +73,11 @@ contains
 
        la = mla%la(n)
 
-       call multifab_build(cell_coeffs, la, nc=1, ng=nghost(alpha(n)))
-       call multifab_copy_c(cell_coeffs,1,alpha(n),1,1,ng=nghost(alpha(n)))
+       call multifab_build(cell_coeffs, la,          nc=1,ng=nghost(alpha(n)))
+       call multifab_copy_c(cell_coeffs,1,alpha(n),1,nc=1,ng=nghost(alpha(n)))
 
        do d = 1,dm
-          call multifab_build_edge(edge_coeffs(d), la, nc=1, ng=nghost(beta(n,d)), dir=d)
+          call multifab_build_edge(edge_coeffs(d), la,      nc=1,ng=nghost(beta(n,d)),dir=d)
           call multifab_copy_c(edge_coeffs(d),1,beta(n,d),1,nc=1,ng=nghost(beta(n,d)))
        end do
 
@@ -109,13 +106,11 @@ contains
 
     call ml_cc_applyop(mla, mgt, res, phi, ref_ratio)
 
-    do n = 1,nlevs
-       call multifab_fill_boundary(phi(n))
-    end do
-
     do n = 1, nlevs
        call mg_tower_destroy(mgt(n))
     end do
+
+    call destroy(bpt)
 
   end subroutine mac_applyop
 
