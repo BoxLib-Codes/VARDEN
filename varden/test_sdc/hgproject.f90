@@ -726,7 +726,7 @@ contains
     integer :: max_iter
     integer :: min_width
     integer :: max_nlevel
-    integer :: nu1, nu2, gamma, cycle, smoother
+    integer :: nu1, nu2, cycle, smoother
     integer :: n
     integer :: max_nlevel_in
     integer :: verbose
@@ -746,7 +746,6 @@ contains
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
-    gamma             = mgt(nlevs)%gamma
     omega             = mgt(nlevs)%omega
     cycle             = mgt(nlevs)%cycle
     bottom_solver     = mgt(nlevs)%bottom_solver
@@ -811,7 +810,6 @@ contains
                            nu1 = nu1, &
                            nu2 = nu2, &
                            nub = nu2, &
-                           gamma = gamma, &
                            cycle = cycle, &
                            omega = omega, &
                            bottom_solver = bottom_solver, &

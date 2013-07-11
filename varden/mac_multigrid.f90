@@ -50,7 +50,7 @@ contains
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: d, n, nu1, nu2, nub, gamma, cycle_type, smoother
+    integer    :: d, n, nu1, nu2, nub, cycle_type, smoother
     integer    :: max_nlevel_in,do_diagnostics
     logical    :: doing_viscous_solve
     real(dp_t) :: omega,bottom_solver_eps
@@ -72,7 +72,6 @@ contains
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
     nub               = mgt(nlevs)%nub
-    gamma             = mgt(nlevs)%gamma
     omega             = mgt(nlevs)%omega
     cycle_type        = mgt(nlevs)%cycle_type
     bottom_solver     = mgt(nlevs)%bottom_solver
@@ -134,7 +133,6 @@ contains
                               nu1 = nu1, &
                               nu2 = nu2, &
                               nub = nub, &
-                              gamma = gamma, &
                               cycle_type = cycle_type, &
                               omega = omega, &
                               bottom_solver = bottom_solver, &
@@ -160,7 +158,6 @@ contains
                               nu1 = nu1, &
                               nu2 = nu2, &
                               nub = nub, &
-                              gamma = gamma, &
                               cycle_type = cycle_type, &
                               omega = omega, &
                               bottom_solver = bottom_solver, &

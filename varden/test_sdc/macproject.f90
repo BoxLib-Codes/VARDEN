@@ -1380,7 +1380,7 @@ contains
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: n, nu1, nu2, gamma, cycle, smoother
+    integer    :: n, nu1, nu2, cycle, smoother
     integer    :: max_nlevel_in,do_diagnostics
     real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
@@ -1400,7 +1400,6 @@ contains
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
-    gamma             = mgt(nlevs)%gamma
     omega             = mgt(nlevs)%omega
     cycle             = mgt(nlevs)%cycle
     bottom_solver     = mgt(nlevs)%bottom_solver
@@ -1456,7 +1455,6 @@ contains
                            smoother = smoother, &
                            nu1 = nu1, &
                            nu2 = nu2, &
-                           gamma = gamma, &
                            cycle = cycle, &
                            omega = omega, &
                            bottom_solver = bottom_solver, &
@@ -1584,7 +1582,7 @@ contains
     integer    :: max_iter
     integer    :: min_width
     integer    :: max_nlevel
-    integer    :: n, nu1, nu2, gamma, ncycle, smoother
+    integer    :: n, nu1, nu2, ncycle, smoother
     integer    :: max_nlevel_in,do_diagnostics
     real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
@@ -1607,7 +1605,6 @@ contains
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
-    gamma             = mgt(nlevs)%gamma
     omega             = mgt(nlevs)%omega
     ncycle            = mgt(nlevs)%cycle
     bottom_solver     = mgt(nlevs)%bottom_solver
@@ -1663,7 +1660,6 @@ contains
                            smoother = smoother, &
                            nu1 = nu1, &
                            nu2 = nu2, &
-                           gamma = gamma, &
                            cycle = ncycle, &
                            omega = omega, &
                            bottom_solver = bottom_solver, &
