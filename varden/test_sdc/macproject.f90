@@ -1382,7 +1382,7 @@ contains
     integer    :: max_nlevel
     integer    :: n, nu1, nu2, cycle, smoother
     integer    :: max_nlevel_in,do_diagnostics
-    real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
+    real(dp_t) :: rel_eps,abs_eps,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
@@ -1400,7 +1400,6 @@ contains
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
-    omega             = mgt(nlevs)%omega
     cycle             = mgt(nlevs)%cycle
     bottom_solver     = mgt(nlevs)%bottom_solver
     bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
@@ -1456,7 +1455,6 @@ contains
                            nu1 = nu1, &
                            nu2 = nu2, &
                            cycle = cycle, &
-                           omega = omega, &
                            bottom_solver = bottom_solver, &
                            bottom_max_iter = bottom_max_iter, &
                            bottom_solver_eps = bottom_solver_eps, &
@@ -1584,7 +1582,7 @@ contains
     integer    :: max_nlevel
     integer    :: n, nu1, nu2, ncycle, smoother
     integer    :: max_nlevel_in,do_diagnostics
-    real(dp_t) :: rel_eps,abs_eps,omega,bottom_solver_eps
+    real(dp_t) :: rel_eps,abs_eps,bottom_solver_eps
     real(dp_t) ::  xa(mla%dim),  xb(mla%dim)
     real(dp_t) :: pxa(mla%dim), pxb(mla%dim)
 
@@ -1605,7 +1603,6 @@ contains
     smoother          = mgt(nlevs)%smoother
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
-    omega             = mgt(nlevs)%omega
     ncycle            = mgt(nlevs)%cycle
     bottom_solver     = mgt(nlevs)%bottom_solver
     bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
@@ -1661,7 +1658,6 @@ contains
                            nu1 = nu1, &
                            nu2 = nu2, &
                            cycle = ncycle, &
-                           omega = omega, &
                            bottom_solver = bottom_solver, &
                            bottom_max_iter = bottom_max_iter, &
                            bottom_solver_eps = bottom_solver_eps, &

@@ -48,7 +48,7 @@ contains
     type(multifab) :: one_sided_ss(2:mla%nlevel)
     type(multifab), allocatable :: coeffs(:)
 
-    real(dp_t) :: bottom_solver_eps, omega
+    real(dp_t) :: bottom_solver_eps
 
     logical :: nodal(mla%dim)
     integer :: i, dm, nlevs, ns
@@ -75,7 +75,6 @@ contains
     nu1               = mgt(nlevs)%nu1
     nu2               = mgt(nlevs)%nu2
     nub               = mgt(nlevs)%nub
-    omega             = mgt(nlevs)%omega
     cycle_type        = mgt(nlevs)%cycle_type
     bottom_solver     = mgt(nlevs)%bottom_solver
     bottom_solver_eps = mgt(nlevs)%bottom_solver_eps
@@ -156,7 +155,6 @@ contains
                            nu2 = nu2, &
                            nub = nub, &
                            cycle_type = cycle_type, &
-                           omega = omega, &
                            bottom_solver = bottom_solver, &
                            bottom_max_iter = bottom_max_iter, &
                            bottom_solver_eps = bottom_solver_eps, &
