@@ -51,13 +51,13 @@ contains
     real(dp_t) :: bottom_solver_eps
 
     logical :: nodal(mla%dim)
-    integer :: i, dm, nlevs, ns
+    integer :: i, dm, nlevs
     integer :: bottom_solver, bottom_max_iter
     integer :: max_iter
     integer :: min_width
     integer :: max_nlevel
     integer :: nu1, nu2, nub, cycle_type, smoother
-    integer :: n
+    integer :: n, ns
     integer :: max_nlevel_in
     integer :: do_diagnostics
     integer, allocatable :: lo_inflow(:),hi_inflow(:)
@@ -106,17 +106,6 @@ contains
     max_iter = 100
 
     if (stencil_type .eq. ND_DENSE_STENCIL) then
-       if (dm .eq. 3) then
-          i = mgt(nlevs)%nlevels
-          if ( (dx(nlevs,1) .eq. dx(nlevs,2)) .and. &
-               (dx(nlevs,1) .eq. dx(nlevs,3)) ) then
-             ns = 21
-          else
-             ns = 27
-          end if
-       else if (dm .eq. 2) then
-          ns = 9
-       end if
     else
        ns = 2*dm+1
        do n = nlevs, 2, -1
@@ -149,7 +138,6 @@ contains
                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
                            stencil_type_in = stencil_type, &
                            dh = dx(n,:), &
-                           ns = ns, &
                            smoother = smoother, &
                            nu1 = nu1, &
                            nu2 = nu2, &

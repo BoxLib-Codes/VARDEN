@@ -43,7 +43,7 @@ contains
     type(multifab), allocatable :: edge_coeffs(:,:)
 
     type(mg_tower)  :: mgt(mla%nlevel)
-    integer         :: dm, ns, nlevs
+    integer         :: dm, nlevs
 
     ! MG solver defaults
     integer :: bottom_solver, bottom_max_iter
@@ -104,8 +104,6 @@ contains
         end if
     end if
 
-    ns = 1 + dm*3
-
     do n = nlevs, 1, -1
 
        if (n == 1) then
@@ -127,7 +125,6 @@ contains
                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
                               stencil_type_in = CC_CROSS_STENCIL, &
                               dh = dx(n,:), &
-                              ns = ns, &
                               smoother = smoother, &
                               nu1 = nu1, &
                               nu2 = nu2, &
@@ -151,7 +148,6 @@ contains
                               the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,bc_comp),&
                               stencil_type_in = CC_CROSS_STENCIL, &
                               dh = dx(n,:), &
-                              ns = ns, &
                               smoother = smoother, &
                               nu1 = nu1, &
                               nu2 = nu2, &
