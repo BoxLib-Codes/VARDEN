@@ -20,7 +20,7 @@ contains
 
     use enforce_outflow_on_divu_module, only : enforce_outflow_on_divu_rhs
 
-    use nodal_stencil_fill_module , only : stencil_fill_nodal_all_mglevels, stencil_fill_one_sided
+    use nodal_stencil_fill_module , only : stencil_fill_nodal_all_mglevels
     use ml_solve_module           , only : ml_nd_solve    
     use nodal_divu_module         , only : divu, subtract_divu_from_rh
     use mg_module           
@@ -45,7 +45,6 @@ contains
     type(  layout)  :: la
 
     type(mg_tower) :: mgt(mla%nlevel)
-    type(multifab) :: one_sided_ss(2:mla%nlevel)
     type(multifab), allocatable :: coeffs(:)
 
     real(dp_t) :: bottom_solver_eps
@@ -57,7 +56,7 @@ contains
     integer :: min_width
     integer :: max_nlevel
     integer :: nu1, nu2, nub, cycle_type, smoother
-    integer :: n, ns
+    integer :: n
     integer :: max_nlevel_in
     integer :: do_diagnostics
     integer, allocatable :: lo_inflow(:),hi_inflow(:)
@@ -104,15 +103,6 @@ contains
 
     ! Note: put this here for robustness
     max_iter = 100
-
-    if (stencil_type .eq. ND_DENSE_STENCIL) then
-    else
-       ns = 2*dm+1
-       do n = nlevs, 2, -1
-          la = mla%la(n)
-          call multifab_build(one_sided_ss(n), la, ns, 0, nodal, stencil=.true.)
-       end do
-    end if
 
     ! ********************************************************************************
     ! Create the mg_tower
@@ -170,14 +160,7 @@ contains
        call mkcoeffs(rhohalf(n),coeffs(mgt(n)%nlevels))
        call multifab_fill_boundary(coeffs(mgt(n)%nlevels))
 
-       call stencil_fill_nodal_all_mglevels(mgt(n), coeffs, stencil_type)
-
-       if (stencil_type .eq. ND_CROSS_STENCIL .and. n .gt. 1) then
-          i = mgt(n)%nlevels
-          call stencil_fill_one_sided(one_sided_ss(n), coeffs(i), &
-                                      mgt(n    )%dh(:,i), &
-                                      mgt(n)%mm(i), mgt(n)%face_type)
-       end if
+       call stencil_fill_nodal_all_mglevels(mgt(n), coeffs)
 
        call destroy(coeffs(mgt(n)%nlevels))
        deallocate(coeffs)
@@ -222,7 +205,7 @@ contains
        do_diagnostics = 0
     end if
 
-    call ml_nd_solve(mla,mgt,rh,phi,one_sided_ss,mla%mba%rr,do_diagnostics,&
+    call ml_nd_solve(mla,mgt,rh,phi,mla%mba%rr,do_diagnostics,&
                      rel_solver_eps, abs_solver_eps)
 
     ! ********************************************************************************
@@ -236,12 +219,6 @@ contains
     do n = 1, nlevs
        call mg_tower_destroy(mgt(n))
     end do
-
-    if (stencil_type .ne. ND_DENSE_STENCIl) then
-       do n = nlevs, 2, -1
-          call destroy(one_sided_ss(n))
-       end do
-    endif
 
   end subroutine hg_multigrid
 
