@@ -115,6 +115,12 @@ contains
         call multifab_build(      p(n), mla%la(n),     1, ng_grow, nodal)
      end do
 
+     ! Set initial pressure to zero just in case ... to make sure ghost cell
+     !     values are initialized
+     do n = 1,nlevs
+        call setval(p(n), 0.d0, all=.true.)
+     end do
+
      call initialize_dx(dx,mba,nlevs)
 
      call initialize_bc(the_bc_tower,nlevs,pmask)
@@ -270,8 +276,8 @@ contains
 
    do n = 1,nlevs
       call make_new_state(mla%la(n),uold(n),sold(n),gp(n),p(n)) 
-      call setval(gp(n),0.d0)
-      call setval( p(n),0.d0)
+      call setval(gp(n),0.d0,all=.true.)
+      call setval( p(n),0.d0,all=.true.)
    end do
 
    call initdata(nlevs,uold,sold,dx,the_bc_tower%bc_tower_array,mla)

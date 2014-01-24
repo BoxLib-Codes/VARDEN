@@ -62,6 +62,9 @@ contains
        call multifab_build(    gp_temp(n),mla_old%la(n),   dm, ng_grow)
        call multifab_build(     p_temp(n),mla_old%la(n),    1, ng_grow, nodal)
 
+       ! This is to take care of the ghost cells.
+       call setval(p_temp(n),0.d0,all=.true.)
+
        call multifab_copy_c(  uold_temp(n),1,  uold(n),1,   dm)
        call multifab_copy_c(  sold_temp(n),1,  sold(n),1,nscal)
        call multifab_copy_c(    gp_temp(n),1,    gp(n),1,   dm)
@@ -275,6 +278,9 @@ contains
     call multifab_build(  sold(lev), la, nscal, ng_cell)
     call multifab_build(    gp(lev), la,    dm, ng_grow)
     call multifab_build(     p(lev), la,     1, ng_grow, nodal)
+
+    ! We need this to take care of the ghost cells.
+    call setval(p(lev),0.d0,all=.true.)
 
     ! Fill the data in the new level lev state -- first from the coarser data if lev > 1.
 
