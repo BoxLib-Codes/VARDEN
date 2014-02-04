@@ -154,7 +154,7 @@ contains
 
      logical :: new_grid
      integer :: lo(dim_in), hi(dim_in)
-     integer :: n, nl, dm
+     integer :: n, nl, dm, ng_buffer
 
      dm = dim_in
 
@@ -196,9 +196,6 @@ contains
      ! Build the level 1 layout.
      call layout_build_ba(la_array(1),mba%bas(1),mba%pd(1),pmask)
 
-     ! Build the level 1 data only.
-     call make_new_state(la_array(1),uold(1),sold(1),gp(1),p(1)) 
-
      ! Define bc_tower at level 1.
      call bc_tower_level_build(the_bc_tower,1,la_array(1))
 
@@ -206,11 +203,18 @@ contains
 
      if (max_levs > 1) then
 
-        ! Initialize the level 1 data only.
+        ! Build and initialize the level 1 data only.  
+        ! We're going to use it to tag and refine boxes.
+        ! Note: fill_boundary() and physbc() are called in initdata_on_level
+        call make_new_state(la_array(1),uold(1),sold(1),gp(1),p(1)) 
         call initdata_on_level(uold(1),sold(1),dx(1,:),the_bc_tower%bc_tower_array(1))
 
         new_grid = .true.
         nl = 1
+
+        ! Choose 4 because it can accommodate the 
+        ! largest stencil currently used in VARDEN
+        ng_buffer = 4
 
         do while ( (nl .lt. max_levs) .and. (new_grid) )
 
@@ -222,13 +226,44 @@ contains
 
               call copy(mba%bas(nl+1),get_boxarray(la_array(nl+1)))
 
-              ! Build the level nl+1 data only.
-              call make_new_state(la_array(nl+1),uold(nl+1),sold(nl+1),gp(nl+1),p(nl+1)) 
+              ! Need to enforce proper nesting within the grid creation procedure 
+              ! so that we can fillpatch the new levels.
+              if (nl .ge. 2) then
+
+                 ! Test on whether grids are already properly nested
+                 if (.not. ml_boxarray_properly_nested(mba, ng_buffer, pmask, 2, nl+1)) then
+
+                    do n = 2,nl
+                       ! Delete old multifabs so that we can rebuild them.
+                       call destroy(  sold(n))
+                       call destroy(  uold(n))
+                       call destroy(    gp(n))
+                       call destroy(     p(n))
+                    end do
+
+                    call enforce_proper_nesting(mba,la_array,max_grid_size)
+
+                    ! Loop over all the lower levels which we might have changed when we enforced proper nesting.
+                    do n = 2,nl
+   
+                       ! This makes sure the boundary conditions are properly defined everywhere
+                       call bc_tower_level_build(the_bc_tower,n,la_array(n))
+   
+                       ! Rebuild the lower level data again if it changed.
+                       call make_new_state(la_array(n),uold(n),sold(n),gp(n),p(n)) 
+                       call initdata_on_level(uold(n),sold(n),dx(n,:),the_bc_tower%bc_tower_array(n))
+                       
+                    end do
+                 end if
+              end if
 
               ! Define bc_tower at level nl+1.
               call bc_tower_level_build(the_bc_tower,nl+1,la_array(nl+1))
+
+              ! Build the level nl+1 data only.
+              call make_new_state(la_array(nl+1),uold(nl+1),sold(nl+1),gp(nl+1),p(nl+1)) 
             
-             ! fills the physical region of each level with problem data (blob now)
+             ! fills the physical region of nl+1 with problem data
               call initdata_on_level(uold(nl+1),sold(nl+1),dx(nl+1,:),the_bc_tower%bc_tower_array(nl+1))
 
               nlevs = nl+1
@@ -236,7 +271,7 @@ contains
 
            endif ! if (new_grid) 
 
-      enddo          
+        enddo          
 
       do n = 1,nlevs
          call destroy(sold(n))
@@ -251,13 +286,6 @@ contains
           ! check for proper nesting
           call enforce_proper_nesting(mba,la_array,max_grid_size)
       end if
-
-   else
-
-      call destroy(sold(1))
-      call destroy(uold(1))
-      call destroy(gp(1))
-      call destroy(p(1))
 
    end if ! end if (maxlev > 1)
 
