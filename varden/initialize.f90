@@ -263,7 +263,7 @@ contains
               ! Build the level nl+1 data only.
               call make_new_state(la_array(nl+1),uold(nl+1),sold(nl+1),gp(nl+1),p(nl+1)) 
             
-             ! fills the physical region of nl+1 with problem data
+              ! fills the physical region of nl+1 with problem data
               call initdata_on_level(uold(nl+1),sold(nl+1),dx(nl+1,:),the_bc_tower%bc_tower_array(nl+1))
 
               nlevs = nl+1
