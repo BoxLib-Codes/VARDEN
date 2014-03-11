@@ -216,7 +216,7 @@ contains
        do_diagnostics = 0
     end if
 
-    call ml_cc_solve(mla, mgt, rh, phi, fine_flx, ref_ratio,do_diagnostics,rel_solver_eps)
+    call ml_cc_solve(mla, mgt, rh, phi, fine_flx, do_diagnostics)
 
 !   call fabio_multifab_write_d(phi(1),'MG_PHI','Phi')
 
