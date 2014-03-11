@@ -126,7 +126,7 @@ contains
 
        call mg_tower_build(mgt(n), mla%la(n), pd, &
                            the_bc_tower%bc_tower_array(n)%ell_bc_level_array(0,:,:,press_comp), &
-                           stencil_type_in = stencil_type, &
+                           stencil_type = stencil_type, &
                            dh = dx(n,:), &
                            smoother = smoother, &
                            nu1 = nu1, &
