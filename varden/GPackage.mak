@@ -1,7 +1,6 @@
 f90sources += advance_premac.f90  
 f90sources += advance_timestep.f90  
 f90sources += checkpoint.f90
-f90sources += enforce_outflow_on_divu_rhs.f90
 f90sources += estdt.f90
 f90sources += explicit_diffusive_term.f90
 f90sources += hgproject.f90
