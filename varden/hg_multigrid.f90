@@ -113,7 +113,7 @@ contains
     ! ********************************************************************************
 
     call ml_nd_solve(mla,rh,phi,coeffs,dx,the_bc_tower,press_comp, &
-                     subtract_divu=.true.,u=unew, &
+                     add_divu=.true.,u=unew, &
                      eps = rel_solver_eps, &
                      abs_eps = abs_solver_eps, &
                      bottom_solver = bottom_solver, &
