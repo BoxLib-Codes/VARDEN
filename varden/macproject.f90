@@ -128,10 +128,10 @@ contains
 
     if (use_hypre .eq. 1) then
        call mac_hypre(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                      stencil_order,mla%mba%rr,rel_solver_eps,abs_solver_eps)
+                      stencil_order,rel_solver_eps,abs_solver_eps)
     else
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp, &
-                          stencil_order,mla%mba%rr,rel_solver_eps,abs_solver_eps)
+                          stencil_order,rel_solver_eps,abs_solver_eps)
     end if
 
     call mkumac(umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp,mla%mba%rr)

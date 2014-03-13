@@ -91,7 +91,7 @@ contains
        end do
        bc_comp = d
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                          the_bc_tower,bc_comp,stencil_order,mla%mba%rr,&
+                          the_bc_tower,bc_comp,stencil_order, &
                           rel_solver_eps,abs_solver_eps)
        do n = 1,nlevs
           call multifab_copy_c(unew(n),d,phi(n),1,1)
@@ -307,7 +307,7 @@ contains
     abs_solver_eps = -1.d0
 
     call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
-                       the_bc_tower,bc_comp,stencil_order,mla%mba%rr,&
+                       the_bc_tower,bc_comp,stencil_order, &
                        rel_solver_eps,abs_solver_eps)
 
     do n = 1,nlevs
