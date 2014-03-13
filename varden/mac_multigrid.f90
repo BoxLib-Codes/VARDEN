@@ -83,10 +83,6 @@ contains
                      cg_verbose = cg_verbose, &
                      stencil_order = stencil_order)
 
-    do n = 1,nlevs
-       call multifab_fill_boundary(phi(n))
-    end do
-
     call destroy(bpt)
 
   end subroutine mac_multigrid
