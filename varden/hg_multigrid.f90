@@ -51,7 +51,7 @@ contains
 
     logical :: nodal(mla%dim)
     integer :: i, dm, nlevs
-    integer :: bottom_solver, bottom_max_iter
+    integer :: bottom_max_iter
     integer :: max_iter
     integer :: min_width
     integer :: max_nlevel
@@ -76,24 +76,6 @@ contains
 
     max_iter = 100
 
-    bottom_solver = 1
-
-    if ( hg_bottom_solver >= 0 ) then
-        if (hg_bottom_solver == 4 .and. nboxes(phi(1)%la) == 1) then
-           if (parallel_IOProcessor()) then
-              print *,'Dont use hg_bottom_solver == 4 with only one grid -- '
-              print *,'  Reverting to default bottom solver ',bottom_solver
-           end if
-        else if (hg_bottom_solver == 4 .and. max_mg_bottom_nlevels < 2) then
-           if (parallel_IOProcessor()) then
-              print *,'Dont use hg_bottom_solver == 4 with max_mg_bottom_nlevels < 2'
-              print *,'  Reverting to default bottom solver ',bottom_solver
-           end if
-        else
-           bottom_solver = hg_bottom_solver
-        end if
-    end if
-
     do n = 1,nlevs
        call multifab_build(coeffs(n), mla%la(n), 1, 1)
        call mkcoeffs(rhohalf(n),coeffs(n))
@@ -117,7 +99,7 @@ contains
                      add_divu=.true.,u=unew, &
                      eps = rel_solver_eps, &
                      abs_eps = abs_solver_eps, &
-                     bottom_solver = bottom_solver, &
+                     bottom_solver = hg_bottom_solver, &
                      max_bottom_nlevel = max_mg_bottom_nlevels, &
                      do_diagnostics = do_diagnostics, &
                      verbose = mg_verbose, &

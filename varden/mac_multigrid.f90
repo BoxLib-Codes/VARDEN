@@ -39,7 +39,6 @@ contains
     integer         :: n,nlevs
 
     ! MG solver defaults
-    integer :: bottom_solver
     integer :: do_diagnostics
 
     type(bl_prof_timer), save :: bpt
@@ -47,24 +46,6 @@ contains
     call build(bpt, "mac_multigrid")
 
     nlevs = mla%nlevel
-
-    bottom_solver = mgt(nlevs)%bottom_solver
-
-    if ( mg_bottom_solver >= 0 ) then
-        if (mg_bottom_solver == 4 .and. nboxes(phi(1)%la) == 1) then
-           if (parallel_IOProcessor()) then
-              print *,'Dont use mg_bottom_solver == 4 with only one grid -- '
-              print *,'  Reverting to default bottom solver ',bottom_solver
-           end if
-        else if (mg_bottom_solver == 4 .and. max_mg_bottom_nlevels < 2) then
-           if (parallel_IOProcessor()) then
-              print *,'Dont use mg_bottom_solver == 4 with max_mg_bottom_nlevels < 2'
-              print *,'  Reverting to default bottom solver ',bottom_solver
-           end if
-        else
-           bottom_solver = mg_bottom_solver
-        end if
-    end if
 
     if (mg_verbose >= 3) then
        do_diagnostics = 1
@@ -76,7 +57,7 @@ contains
                      eps = rel_solver_eps, &
                      abs_eps = abs_solver_eps, &
                      bottom_solver_eps = 1.d-3, &
-                     bottom_solver = bottom_solver, &
+                     bottom_solver = mg_bottom_solver, &
                      max_bottom_nlevel = max_mg_bottom_nlevels, &
                      do_diagnostics = do_diagnostics, &
                      verbose = mg_verbose, &
