@@ -100,11 +100,12 @@ contains
        call multifab_fill_boundary(coeffs(n))
     end do
 
-    ! Do rh = rh - divu_rhs (this routine preserves rh=0 on
-    !  nodes which have bc_dirichlet = true.
+    ! Set rh = -divu_rhs here. 
+    ! inside ml_nd_solve we will add div(u) to result in rh = div(unew) -divu_rhs. 
     if (present(divu_rhs)) then
        do n=1,nlevs
           call multifab_copy_c(rh(n),1,divu_rhs(n),1,1,1)
+          call multifab_mult_mult_s(rh(n),-ONE)
        end do
     end if
 
