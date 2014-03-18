@@ -155,7 +155,10 @@ contains
        call multifab_build(coeffs(mgt(n)%nlevels), la, 1, 1)
        call setval(coeffs(mgt(n)%nlevels), 0.0_dp_t, 1, all=.true.)
 
-       call mkcoeffs(rhohalf(n),coeffs(mgt(n)%nlevels))
+       ! coeffs = 1/rho
+       call multifab_setval(coeffs(mgt(n)%nlevels),1.d0)
+       call multifab_div_div_c(coeffs(mgt(n)%nlevels),1,rhohalf(n),1,1,0)
+
        call multifab_fill_boundary(coeffs(mgt(n)%nlevels))
 
        call stencil_fill_nodal_all_mglevels(mgt(n), coeffs, stencil_type)
@@ -634,81 +637,5 @@ contains
   end subroutine hg_hypre
 
   !   ********************************************************************************** !
-
-  subroutine mkcoeffs(rho,coeffs)
-
-    type(multifab) , intent(in   ) :: rho
-    type(multifab) , intent(inout) :: coeffs
-
-    real(kind=dp_t), pointer :: cp(:,:,:,:)
-    real(kind=dp_t), pointer :: rp(:,:,:,:)
-    integer :: i,dm,ng
-
-    dm = get_dim(rho)
-    ng = nghost(rho)
-
-    do i = 1, nfabs(rho)
-       rp => dataptr(rho   , i)
-       cp => dataptr(coeffs, i)
-       select case (dm)
-       case (2)
-          call mkcoeffs_2d(cp(:,:,1,1), rp(:,:,1,1), ng)
-       case (3)
-          call mkcoeffs_3d(cp(:,:,:,1), rp(:,:,:,1), ng)
-       end select
-    end do
-
-  end subroutine mkcoeffs
-
-  !   *********************************************************************************** !
-
-  subroutine mkcoeffs_2d(coeffs,rho,ng)
-
-      use bl_constants_module
-
-    integer :: ng
-    real(kind=dp_t), intent(inout) :: coeffs(   0:,   0:)
-    real(kind=dp_t), intent(in   ) ::  rho(1-ng:,1-ng:)
-
-    integer :: i,j
-    integer :: nx,ny
-
-    nx = size(coeffs,dim=1) - 2
-    ny = size(coeffs,dim=2) - 2
-
-    do j = 1,ny
-       do i = 1,nx
-          coeffs(i,j) = ONE / rho(i,j)
-       end do
-    end do
-
-  end subroutine mkcoeffs_2d
-
-  !   ********************************************************************************** !
-
-  subroutine mkcoeffs_3d(coeffs,rho,ng)
-
-      use bl_constants_module
-
-    integer :: ng
-    real(kind=dp_t), intent(inout) :: coeffs(   0:,   0:, 0:)
-    real(kind=dp_t), intent(in   ) ::  rho(1-ng:,1-ng:,1-ng:)
-
-    integer :: i,j,k
-    integer :: nx,ny,nz
-
-    nx = size(coeffs,dim=1) - 2
-    ny = size(coeffs,dim=2) - 2
-    nz = size(coeffs,dim=3) - 2
-
-    do k = 1,nz
-       do j = 1,ny
-          do i = 1,nx
-             coeffs(i,j,k) = ONE / rho(i,j,k)
-          end do
-       end do
-    end do
-
-  end subroutine mkcoeffs_3d
 
 end module hg_hypre_module

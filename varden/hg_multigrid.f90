@@ -78,7 +78,11 @@ contains
 
     do n = 1,nlevs
        call multifab_build(coeffs(n), mla%la(n), 1, 1)
-       call mkcoeffs(rhohalf(n),coeffs(n))
+
+       ! coeffs = 1/rho
+       call multifab_setval(coeffs(n),1.d0)
+       call multifab_div_div_c(coeffs(n),1,rhohalf(n),1,1,0)
+
        call multifab_fill_boundary(coeffs(n))
     end do
 
@@ -120,107 +124,5 @@ contains
   end subroutine hg_multigrid
 
   !   ********************************************************************************** !
-
-
-  subroutine mkcoeffs(rho,coeffs)
-
-    type(multifab) , intent(in   ) :: rho
-    type(multifab) , intent(inout) :: coeffs
-
-    real(kind=dp_t), pointer :: cp(:,:,:,:)
-    real(kind=dp_t), pointer :: rp(:,:,:,:)
-    integer :: i,dm,ng_r,ng_c
-
-      dm = get_dim(rho)
-    ng_r = nghost(rho)
-    ng_c = nghost(coeffs)
-
-    do i = 1, nfabs(rho)
-       rp => dataptr(rho   , i)
-       cp => dataptr(coeffs, i)
-       select case (dm)
-       case (1)
-          call mkcoeffs_1d(cp(:,1,1,1), ng_c, rp(:,1,1,1), ng_r)
-       case (2)
-          call mkcoeffs_2d(cp(:,:,1,1), ng_c, rp(:,:,1,1), ng_r)
-       case (3)
-          call mkcoeffs_3d(cp(:,:,:,1), ng_c, rp(:,:,:,1), ng_r)
-       end select
-    end do
-
-  end subroutine mkcoeffs
-
-  !   *********************************************************************************** !
-
-  subroutine mkcoeffs_1d(coeffs,ng_c,rho,ng_r)
-
-    use bl_constants_module
-
-    integer                        :: ng_c,ng_r
-    real(kind=dp_t), intent(inout) :: coeffs(1-ng_c:)
-    real(kind=dp_t), intent(in   ) ::    rho(1-ng_r:)
-
-    integer :: i,nx
-
-    nx = size(coeffs,dim=1) - 2
-
-    do i = 1,nx
-       coeffs(i) = ONE / rho(i)
-    end do
-
-  end subroutine mkcoeffs_1d
-
-  !   *********************************************************************************** !
-
-  subroutine mkcoeffs_2d(coeffs,ng_c,rho,ng_r)
-
-    use bl_constants_module
-
-    integer                        :: ng_c,ng_r
-    real(kind=dp_t), intent(inout) :: coeffs(1-ng_c:,1-ng_c:)
-    real(kind=dp_t), intent(in   ) ::    rho(1-ng_r:,1-ng_r:)
-
-    integer :: i,j
-    integer :: nx,ny
-
-    nx = size(coeffs,dim=1) - 2
-    ny = size(coeffs,dim=2) - 2
-
-    do j = 1,ny
-       do i = 1,nx
-          coeffs(i,j) = ONE / rho(i,j)
-       end do
-    end do
-
-  end subroutine mkcoeffs_2d
-
-  !   ********************************************************************************** !
-
-  subroutine mkcoeffs_3d(coeffs,ng_c,rho,ng_r)
-
-      use bl_constants_module
-
-    integer                        :: ng_c,ng_r
-    real(kind=dp_t), intent(inout) :: coeffs(1-ng_c:,1-ng_c:,1-ng_c:)
-    real(kind=dp_t), intent(in   ) ::    rho(1-ng_r:,1-ng_r:,1-ng_r:)
-
-    integer :: i,j,k
-    integer :: nx,ny,nz
-
-    nx = size(coeffs,dim=1) - 2
-    ny = size(coeffs,dim=2) - 2
-    nz = size(coeffs,dim=3) - 2
-
-!$omp parallel do private(i,j,k)
-    do k = 1,nz
-       do j = 1,ny
-          do i = 1,nx
-             coeffs(i,j,k) = ONE / rho(i,j,k)
-          end do
-       end do
-    end do
-!$omp end parallel do
-
-  end subroutine mkcoeffs_3d
 
 end module hg_multigrid_module
