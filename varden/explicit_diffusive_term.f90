@@ -16,7 +16,7 @@ contains
   subroutine get_explicit_diffusive_term(mla,lap_data,data,data_comp,bc_comp,dx,&
                                          the_bc_tower)
 
-    use mac_applyop_module, only : mac_applyop
+    use cc_applyop_module
     use probin_module     , only : stencil_order, verbose, mg_verbose, cg_verbose
 
     use bl_constants_module
@@ -63,8 +63,8 @@ contains
         call multifab_copy_c(phi(n),1,data(n),data_comp,1,1)
      enddo
 
-     call mac_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
-                      bc_comp,stencil_order)
+     call cc_applyop(mla,Lphi,phi,alpha,beta,dx,the_bc_tower,&
+                     bc_comp,stencil_order)
 
      do n = 1, nlevs
         call multifab_copy_c(lap_data(n),data_comp,Lphi(n),1)
