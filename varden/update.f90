@@ -47,13 +47,19 @@ contains
     real(kind=dp_t), pointer :: fp(:,:,:,:)
 
     integer :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
-    integer :: i,ng,dm,nscal,n,nlevs
+    integer :: i,dm,nscal,n,nlevs
+    integer :: ng_s,ng_u,ng_e,ng_f,ng_o
 
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    ng = nghost(sold(1))
     nscal = multifab_ncomp(sold(1))
+
+    ng_s = sold(1)%ng
+    ng_u = umac(1,1)%ng
+    ng_e = sedge(1,1)%ng
+    ng_f = flux(1,1)%ng
+    ng_o = force(1)%ng
 
     do n=1,nlevs
 
@@ -72,19 +78,21 @@ contains
           select case (dm)
           case (2)
              call update_2d(sop(:,:,1,:), ump(:,:,1,1), vmp(:,:,1,1), &
-                  sepx(:,:,1,:), sepy(:,:,1,:), &
-                  fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
-                  fp(:,:,1,:) , snp(:,:,1,:), &
-                  lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
+                            sepx(:,:,1,:), sepy(:,:,1,:), &
+                            fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
+                            fp(:,:,1,:) , snp(:,:,1,:), &
+                            lo, hi, ng_s, ng_u, ng_e, ng_f, ng_o, &
+                            dx(n,:), dt, is_vel, is_cons)
           case (3)
              wmp    => dataptr( umac(n,3),i)
              sepz   => dataptr(sedge(n,3),i)
              fluxpz => dataptr( flux(n,3),i)
              call update_3d(sop(:,:,:,:), ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                  sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
-                  fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
-                  fp(:,:,:,:) , snp(:,:,:,:), &
-                  lo, hi, ng, dx(n,:), dt, is_vel, is_cons)
+                            sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
+                            fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
+                            fp(:,:,:,:) , snp(:,:,:,:), &
+                            lo, hi, ng_s, ng_u, ng_e, ng_f, ng_o, &
+                            dx(n,:), dt, is_vel, is_cons)
           end select
        end do
 
@@ -103,39 +111,34 @@ contains
     end do
 
     do n = 2,nlevs
-       if (.not. is_vel) then
-
-          call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
-                                         the_bc_level(n-1),the_bc_level(n), &
-                                         1,dm+1,nscal)
-
-       else if (is_vel) then
-
-          call multifab_fill_ghost_cells(snew(n),snew(n-1),ng,mla%mba%rr(n-1,:), &
+       if (is_vel) then
+          call multifab_fill_ghost_cells(snew(n),snew(n-1),ng_s,mla%mba%rr(n-1,:), &
                                          the_bc_level(n-1),the_bc_level(n), &
                                          1,1,dm)
-
+       else
+          call multifab_fill_ghost_cells(snew(n),snew(n-1),ng_s,mla%mba%rr(n-1,:), &
+                                         the_bc_level(n-1),the_bc_level(n), &
+                                         1,dm+1,nscal)
        end if
-
     enddo ! end loop over levels
 
   end subroutine update
 
   subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,&
-                       lo,hi,ng,dx,dt,is_vel,is_cons)
+                       lo,hi,ng_s,ng_u, ng_e, ng_f, ng_o, dx,dt,is_vel,is_cons)
 
     use bl_constants_module
 
-    integer           , intent(in   ) :: lo(:), hi(:), ng
-    real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,:)  
-    real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,:)  
-    real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:)  
-    real (kind = dp_t), intent(in   ) ::    vmac(lo(1)- 1:,lo(2)- 1:)  
-    real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)   :,lo(2)   :,:)  
-    real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)   :,lo(2)   :,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)   :,lo(2)   :,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)   :,lo(2)   :,:) 
-    real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,:)  
+    integer           , intent(in   ) :: lo(:), hi(:), ng_s, ng_u, ng_e, ng_f, ng_o
+    real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng_s:,lo(2)-ng_s:,:)  
+    real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng_s:,lo(2)-ng_s:,:)  
+    real (kind = dp_t), intent(in   ) ::    umac(lo(1)-ng_u:,lo(2)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::    vmac(lo(1)-ng_u:,lo(2)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)-ng_e:,lo(2)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)-ng_f:,lo(2)-ng_f:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)-ng_f:,lo(2)-ng_f:,:) 
+    real (kind = dp_t), intent(in   ) ::   force(lo(1)-ng_o:,lo(2)-ng_o:,:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
@@ -146,7 +149,27 @@ contains
     real (kind = dp_t) ugradu,ugradv,ugrads
     real (kind = dp_t) :: divsu
 
-    if (.not. is_vel) then
+    if (is_vel) then
+
+       do j = lo(2), hi(2)
+          do i = lo(1), hi(1)
+
+             ubar = HALF*(umac(i,j) + umac(i+1,j))
+             vbar = HALF*(vmac(i,j) + vmac(i,j+1))
+
+             ugradu = ubar*(sedgex(i+1,j,1) - sedgex(i,j,1))/dx(1) + &
+                      vbar*(sedgey(i,j+1,1) - sedgey(i,j,1))/dx(2)
+
+             ugradv = ubar*(sedgex(i+1,j,2) - sedgex(i,j,2))/dx(1) + &
+                      vbar*(sedgey(i,j+1,2) - sedgey(i,j,2))/dx(2)
+
+             snew(i,j,1) = sold(i,j,1) - dt * ugradu + dt * force(i,j,1)
+             snew(i,j,2) = sold(i,j,2) - dt * ugradv + dt * force(i,j,2)
+
+          enddo
+       enddo
+
+    else
 
        do comp = 1,size(sold,dim=3)
           if (is_cons(comp)) then
@@ -170,47 +193,28 @@ contains
           end if
        end do
 
-    else if (is_vel) then 
-
-       do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
-
-             ubar = HALF*(umac(i,j) + umac(i+1,j))
-             vbar = HALF*(vmac(i,j) + vmac(i,j+1))
-
-             ugradu = ubar*(sedgex(i+1,j,1) - sedgex(i,j,1))/dx(1) + &
-                      vbar*(sedgey(i,j+1,1) - sedgey(i,j,1))/dx(2)
-
-             ugradv = ubar*(sedgex(i+1,j,2) - sedgex(i,j,2))/dx(1) + &
-                  vbar*(sedgey(i,j+1,2) - sedgey(i,j,2))/dx(2)
-
-             snew(i,j,1) = sold(i,j,1) - dt * ugradu + dt * force(i,j,1)
-             snew(i,j,2) = sold(i,j,2) - dt * ugradv + dt * force(i,j,2)
-
-          enddo
-       enddo
     end if
 
   end subroutine update_2d
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
-                       force,snew,lo,hi,ng,dx,dt,is_vel,is_cons)
+                       force,snew,lo,hi,ng_s,ng_u,ng_e,ng_f,ng_o,dx,dt,is_vel,is_cons)
 
     use bl_constants_module
 
-    integer           , intent(in   ) :: lo(:), hi(:), ng
-    real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-    real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-    real (kind = dp_t), intent(in   ) ::    umac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
-    real (kind = dp_t), intent(in   ) ::    vmac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
-    real (kind = dp_t), intent(in   ) ::    wmac(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:)  
-    real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)  
-    real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)  
-    real (kind = dp_t), intent(in   ) ::  sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)   :,lo(2)   :,lo(3)   :,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:) 
-    real (kind = dp_t), intent(in   ) ::   force(lo(1)- 1:,lo(2)- 1:,lo(3)- 1:,:)  
+    integer           , intent(in   ) :: lo(:), hi(:), ng_s, ng_u, ng_e, ng_f, ng_o
+    real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:,:)  
+    real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:,:)  
+    real (kind = dp_t), intent(in   ) ::    umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::    vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::    wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::  sedgez(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxz(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:) 
+    real (kind = dp_t), intent(in   ) ::   force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
@@ -222,7 +226,35 @@ contains
     real (kind = dp_t) :: ugradu,ugradv,ugradw,ugrads
     real (kind = dp_t) :: divsu
 
-    if (.not. is_vel) then
+    if (is_vel) then
+
+       do k = lo(3), hi(3)
+          do j = lo(2), hi(2)
+             do i = lo(1), hi(1)
+                ubar = half*(umac(i,j,k) + umac(i+1,j,k))
+                vbar = half*(vmac(i,j,k) + vmac(i,j+1,k))
+                wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
+
+                ugradu = ubar*(sedgex(i+1,j,k,1) - sedgex(i,j,k,1))/dx(1) + &
+                         vbar*(sedgey(i,j+1,k,1) - sedgey(i,j,k,1))/dx(2) + &
+                         wbar*(sedgez(i,j,k+1,1) - sedgez(i,j,k,1))/dx(3)
+
+                ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1) + &
+                         vbar*(sedgey(i,j+1,k,2) - sedgey(i,j,k,2))/dx(2) + &
+                         wbar*(sedgez(i,j,k+1,2) - sedgez(i,j,k,2))/dx(3)
+
+                ugradw = ubar*(sedgex(i+1,j,k,3) - sedgex(i,j,k,3))/dx(1) + &
+                         vbar*(sedgey(i,j+1,k,3) - sedgey(i,j,k,3))/dx(2) + &
+                         wbar*(sedgez(i,j,k+1,3) - sedgez(i,j,k,3))/dx(3)
+
+                snew(i,j,k,1) = sold(i,j,k,1) - dt * ugradu + dt * force(i,j,k,1)
+                snew(i,j,k,2) = sold(i,j,k,2) - dt * ugradv + dt * force(i,j,k,2)
+                snew(i,j,k,3) = sold(i,j,k,3) - dt * ugradw + dt * force(i,j,k,3)
+             enddo
+          enddo
+       enddo
+
+    else
 
        do comp = 1,size(sold,dim=4)
           if (is_cons(comp)) then
@@ -253,34 +285,6 @@ contains
                 enddo
              enddo
           end if
-       enddo
-
-    else if (is_vel) then
-
-       do k = lo(3), hi(3)
-          do j = lo(2), hi(2)
-             do i = lo(1), hi(1)
-                ubar = half*(umac(i,j,k) + umac(i+1,j,k))
-                vbar = half*(vmac(i,j,k) + vmac(i,j+1,k))
-                wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
-
-                ugradu = ubar*(sedgex(i+1,j,k,1) - sedgex(i,j,k,1))/dx(1) + &
-                         vbar*(sedgey(i,j+1,k,1) - sedgey(i,j,k,1))/dx(2) + &
-                         wbar*(sedgez(i,j,k+1,1) - sedgez(i,j,k,1))/dx(3)
-
-                ugradv = ubar*(sedgex(i+1,j,k,2) - sedgex(i,j,k,2))/dx(1) + &
-                         vbar*(sedgey(i,j+1,k,2) - sedgey(i,j,k,2))/dx(2) + &
-                         wbar*(sedgez(i,j,k+1,2) - sedgez(i,j,k,2))/dx(3)
-
-                ugradw = ubar*(sedgex(i+1,j,k,3) - sedgex(i,j,k,3))/dx(1) + &
-                         vbar*(sedgey(i,j+1,k,3) - sedgey(i,j,k,3))/dx(2) + &
-                         wbar*(sedgez(i,j,k+1,3) - sedgez(i,j,k,3))/dx(3)
-
-                snew(i,j,k,1) = sold(i,j,k,1) - dt * ugradu + dt * force(i,j,k,1)
-                snew(i,j,k,2) = sold(i,j,k,2) - dt * ugradv + dt * force(i,j,k,2)
-                snew(i,j,k,3) = sold(i,j,k,3) - dt * ugradw + dt * force(i,j,k,3)
-             enddo
-          enddo
        enddo
 
     end if
