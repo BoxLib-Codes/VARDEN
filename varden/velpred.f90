@@ -28,16 +28,19 @@ contains
     type(ml_layout), intent(in   ) :: mla
 
     ! local
-    integer :: i,n,dm,ng,comp
-    integer :: lo(get_dim(u(1)))
+    integer :: i,n,dm,ng_u,ng_m,ng_f,comp
+    integer :: lo(get_dim(u(1))),hi(get_dim(u(1)))
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: ump(:,:,:,:)
     real(kind=dp_t), pointer:: vmp(:,:,:,:)
     real(kind=dp_t), pointer:: wmp(:,:,:,:)
     real(kind=dp_t), pointer:: fp(:,:,:,:)
 
-    ng = nghost(u(1))
     dm = get_dim(u(1))
+
+    ng_u = u(1)%ng
+    ng_m = umac(1,1)%ng
+    ng_f = force(1)%ng
 
     do n=1,nlevs
 
@@ -47,25 +50,26 @@ contains
           ump => dataptr(umac(n,1),i)
           vmp => dataptr(umac(n,2),i)
           fp  => dataptr(force(n),i)
-          lo =  lwb(get_box(u(n),i))
+          lo = lwb(get_box(u(n),i))
+          hi = upb(get_box(u(n),i))
           select case (dm)
           case (2)
              if(use_godunov_debug) then
                 call velpred_debug_2d(up(:,:,1,:), &
                                       ump(:,:,1,1),  vmp(:,:,1,1), &
                                       fp(:,:,1,:), &
-                                      lo, dx(n,:), dt, &
+                                      lo, hi, dx(n,:), dt, &
                                       the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                       the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                      ng)
+                                      ng_u, ng_m, ng_f)
              else
                 call velpred_2d(up(:,:,1,:), &
                                 ump(:,:,1,1),  vmp(:,:,1,1), &
                                 fp(:,:,1,:), &
-                                lo, dx(n,:), dt, &
+                                lo, hi, dx(n,:), dt, &
                                 the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                 the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                ng)
+                                ng_u, ng_m, ng_f)
              endif
           case (3)
              wmp  => dataptr(umac(n,3), i)
@@ -73,18 +77,18 @@ contains
                 call velpred_debug_3d(up(:,:,:,:), &
                                       ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
                                       fp(:,:,:,:), &
-                                      lo, dx(n,:), dt, &
+                                      lo, hi, dx(n,:), dt, &
                                       the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                       the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                      ng)
+                                      ng_u, ng_m, ng_f)
                 else
                 call velpred_3d(up(:,:,:,:), &
                                 ump(:,:,:,1),  vmp(:,:,:,1), wmp(:,:,:,1), &
                                 fp(:,:,:,:), &
-                                lo, dx(n,:), dt, &
+                                lo, hi, dx(n,:), dt, &
                                 the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                 the_bc_level(n)%adv_bc_level_array(i,:,:,:), &
-                                ng)
+                                ng_u, ng_m, ng_f)
              endif
           end select
        end do
@@ -112,21 +116,20 @@ contains
     
   end subroutine velpred
 
-
-  subroutine velpred_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
+  subroutine velpred_2d(u,umac,vmac,force,lo,hi,dx,dt,phys_bc,adv_bc,ng_u,ng_m,ng_f)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer         ,intent(in) :: lo(2)
-    integer         ,intent(in) :: ng
+    integer         ,intent(in) :: lo(2),hi(2)
+    integer         ,intent(in) :: ng_u,ng_m,ng_f
 
-    real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
-    real(kind=dp_t), intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,:)
+    real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng_u:,lo(2)-ng_u:,:)
+    real(kind=dp_t), intent(inout) ::   umac(lo(1)-ng_m:,lo(2)-ng_m:)
+    real(kind=dp_t), intent(inout) ::   vmac(lo(1)-ng_m:,lo(2)-ng_m:)
+    real(kind=dp_t), intent(inout) ::  force(lo(1)-ng_f:,lo(2)-ng_f:,:)
 
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
@@ -138,7 +141,6 @@ contains
 
     real(kind=dp_t) hx, hy, dt2, dt4, uavg
 
-    integer :: hi(2)
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -153,14 +155,11 @@ contains
     real(kind=dp_t), allocatable:: umacl(:),umacr(:)
     real(kind=dp_t), allocatable:: vmacl(:),vmacr(:)
 
-    hi(1) = lo(1) + size(u,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(u,dim=2) - (2*ng+1)
-
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
 
-    call slopex_2d(u,slopex,lo,hi,ng,2,adv_bc)
-    call slopey_2d(u,slopey,lo,hi,ng,2,adv_bc)
+    call slopex_2d(u,slopex,lo,hi,ng_u,2,adv_bc)
+    call slopey_2d(u,slopey,lo,hi,ng_u,2,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute MAC velocities on
@@ -518,21 +517,20 @@ contains
 
   end subroutine velpred_2d
 
-
-  subroutine velpred_debug_2d(u,umac,vmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
+  subroutine velpred_debug_2d(u,umac,vmac,force,lo,hi,dx,dt,phys_bc,adv_bc,ng_u,ng_m,ng_f)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer         ,intent(in) :: lo(2)
-    integer         ,intent(in) :: ng
+    integer         ,intent(in) :: lo(2),hi(2)
+    integer         ,intent(in) :: ng_u,ng_m,ng_f
 
-    real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,:)
-    real(kind=dp_t), intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,:)
+    real(kind=dp_t), intent(in   ) ::      u(lo(1)-ng_u:,lo(2)-ng_u:,:)
+    real(kind=dp_t), intent(inout) ::   umac(lo(1)-ng_m:,lo(2)-ng_m:)
+    real(kind=dp_t), intent(inout) ::   vmac(lo(1)-ng_m:,lo(2)-ng_m:)
+    real(kind=dp_t), intent(inout) ::  force(lo(1)-ng_f:,lo(2)-ng_f:,:)
 
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
@@ -544,7 +542,6 @@ contains
 
     real(kind=dp_t) hx, hy, dt2, dt4, uavg
 
-    integer :: hi(2)
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -557,9 +554,6 @@ contains
     ! these correspond to umac_L, etc.
     real(kind=dp_t), allocatable:: umacl(:,:),umacr(:,:)
     real(kind=dp_t), allocatable:: vmacl(:,:),vmacr(:,:)
-
-    hi(1) = lo(1) + size(u,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(u,dim=2) - (2*ng+1)
 
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
@@ -584,8 +578,8 @@ contains
     allocate(vmacl(lo(1):hi(1),lo(2):hi(2)+1))
     allocate(vmacr(lo(1):hi(1),lo(2):hi(2)+1))
 
-    call slopex_2d(u,slopex,lo,hi,ng,2,adv_bc)
-    call slopey_2d(u,slopey,lo,hi,ng,2,adv_bc)
+    call slopex_2d(u,slopex,lo,hi,ng_u,2,adv_bc)
+    call slopey_2d(u,slopey,lo,hi,ng_u,2,adv_bc)
 
     abs_eps = 1.0d-8
 
@@ -877,22 +871,21 @@ contains
 
   end subroutine velpred_debug_2d
 
-
-  subroutine velpred_debug_3d(u, umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
+  subroutine velpred_debug_3d(u,umac,vmac,wmac,force,lo,hi,dx,dt,phys_bc,adv_bc,ng_u,ng_m,ng_f)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer         ,intent(in) :: lo(3)
-    integer         ,intent(in) :: ng
+    integer         ,intent(in) :: lo(3),hi(3)
+    integer         ,intent(in) :: ng_u,ng_m,ng_f
 
-    real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-    real(kind=dp_t),intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(inout) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
+    real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:,:)
+    real(kind=dp_t),intent(inout) ::   umac(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
+    real(kind=dp_t),intent(inout) ::   vmac(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
+    real(kind=dp_t),intent(inout) ::   wmac(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
+    real(kind=dp_t),intent(inout) ::  force(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
 
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
@@ -905,7 +898,6 @@ contains
 
     real(kind=dp_t) hx, hy, hz, dt2, dt4, dt6, uavg
 
-    integer :: hi(3)
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -945,10 +937,6 @@ contains
     real(kind=dp_t), allocatable:: umacl(:,:,:),umacr(:,:,:)
     real(kind=dp_t), allocatable:: vmacl(:,:,:),vmacr(:,:,:)
     real(kind=dp_t), allocatable:: wmacl(:,:,:),wmacr(:,:,:)
-
-    hi(1) = lo(1) + size(u,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(u,dim=2) - (2*ng+1)
-    hi(3) = lo(3) + size(u,dim=3) - (2*ng+1)
 
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
@@ -1008,10 +996,10 @@ contains
     allocate(wmacr(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng,3,adv_bc)
-       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng,3,adv_bc)
+       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_u,3,adv_bc)
+       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_u,3,adv_bc)
     end do
-    call slopez_3d(u,slopez,lo,hi,ng,3,adv_bc)
+    call slopez_3d(u,slopez,lo,hi,ng_u,3,adv_bc)
 
     abs_eps = 1.0d-8
 
@@ -1779,21 +1767,21 @@ contains
 
   end subroutine velpred_debug_3d
 
-  subroutine velpred_3d(u,umac,vmac,wmac,force,lo,dx,dt,phys_bc,adv_bc,ng)
+  subroutine velpred_3d(u,umac,vmac,wmac,force,lo,hi,dx,dt,phys_bc,adv_bc,ng_u,ng_m,ng_f)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer         ,intent(in) :: lo(3)
-    integer         ,intent(in) :: ng
+    integer         ,intent(in) :: lo(3),hi(3)
+    integer         ,intent(in) :: ng_u,ng_m,ng_f
 
-    real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-    real(kind=dp_t),intent(inout) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(inout) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(inout) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(inout) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
+    real(kind=dp_t),intent(in   ) ::      u(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:,:)
+    real(kind=dp_t),intent(inout) ::   umac(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
+    real(kind=dp_t),intent(inout) ::   vmac(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
+    real(kind=dp_t),intent(inout) ::   wmac(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
+    real(kind=dp_t),intent(inout) ::  force(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
 
     real(kind=dp_t) ,intent(in) :: dx(:),dt
     integer         ,intent(in) :: phys_bc(:,:)
@@ -1806,7 +1794,6 @@ contains
 
     real(kind=dp_t) hx, hy, hz, dt2, dt4, dt6, uavg
 
-    integer :: hi(3)
     logical :: test
 
     real(kind=dp_t) :: abs_eps, eps, umax
@@ -1848,19 +1835,15 @@ contains
     real(kind=dp_t), allocatable:: vmacl(:,:),vmacr(:,:)
     real(kind=dp_t), allocatable:: wmacl(:,:),wmacr(:,:)
 
-    hi(1) = lo(1) + size(u,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(u,dim=2) - (2*ng+1)
-    hi(3) = lo(3) + size(u,dim=3) - (2*ng+1)
-
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng,3,adv_bc)
-       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng,3,adv_bc)
+       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_u,3,adv_bc)
+       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_u,3,adv_bc)
     end do
-    call slopez_3d(u,slopez,lo,hi,ng,3,adv_bc)
+    call slopez_3d(u,slopez,lo,hi,ng_u,3,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
