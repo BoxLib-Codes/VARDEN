@@ -158,8 +158,8 @@ contains
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2))
 
-    call slopex_2d(u,slopex,lo,hi,ng_u,2,adv_bc)
-    call slopey_2d(u,slopey,lo,hi,ng_u,2,adv_bc)
+    call slopex_2d(u,slopex,lo,hi,ng_u,1,2,adv_bc)
+    call slopey_2d(u,slopey,lo,hi,ng_u,1,2,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute MAC velocities on
@@ -578,8 +578,8 @@ contains
     allocate(vmacl(lo(1):hi(1),lo(2):hi(2)+1))
     allocate(vmacr(lo(1):hi(1),lo(2):hi(2)+1))
 
-    call slopex_2d(u,slopex,lo,hi,ng_u,2,adv_bc)
-    call slopey_2d(u,slopey,lo,hi,ng_u,2,adv_bc)
+    call slopex_2d(u,slopex,lo,hi,ng_u,1,2,adv_bc)
+    call slopey_2d(u,slopey,lo,hi,ng_u,1,2,adv_bc)
 
     abs_eps = 1.0d-8
 
@@ -996,10 +996,10 @@ contains
     allocate(wmacr(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_u,3,adv_bc)
-       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_u,3,adv_bc)
+       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_u,1,3,adv_bc)
+       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_u,1,3,adv_bc)
     end do
-    call slopez_3d(u,slopez,lo,hi,ng_u,3,adv_bc)
+    call slopez_3d(u,slopez,lo,hi,ng_u,1,3,adv_bc)
 
     abs_eps = 1.0d-8
 
@@ -1840,10 +1840,10 @@ contains
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,3))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_u,3,adv_bc)
-       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_u,3,adv_bc)
+       call slopex_2d(u(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_u,1,3,adv_bc)
+       call slopey_2d(u(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_u,1,3,adv_bc)
     end do
-    call slopez_3d(u,slopez,lo,hi,ng_u,3,adv_bc)
+    call slopez_3d(u,slopez,lo,hi,ng_u,1,3,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 

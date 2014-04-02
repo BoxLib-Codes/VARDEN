@@ -193,8 +193,8 @@ contains
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-    call slopex_2d(s,slopex,lo,hi,ng_s,ncomp,adv_bc)
-    call slopey_2d(s,slopey,lo,hi,ng_s,ncomp,adv_bc)
+    call slopex_2d(s,slopex,lo,hi,ng_s,1,ncomp,adv_bc)
+    call slopey_2d(s,slopey,lo,hi,ng_s,1,ncomp,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
@@ -736,8 +736,8 @@ contains
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-    call slopex_2d(s,slopex,lo,hi,ng_s,ncomp,adv_bc)
-    call slopey_2d(s,slopey,lo,hi,ng_s,ncomp,adv_bc)
+    call slopex_2d(s,slopex,lo,hi,ng_s,1,ncomp,adv_bc)
+    call slopey_2d(s,slopey,lo,hi,ng_s,1,ncomp,adv_bc)
 
     ! Normal predictor states.
     ! Allocated from lo:hi+1 in the normal direction
@@ -1249,10 +1249,10 @@ contains
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
-       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
+       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_s,1,ncomp,adv_bc)
+       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_s,1,ncomp,adv_bc)
     end do
-    call slopez_3d(s,slopez,lo,hi,ng_s,ncomp,adv_bc)
+    call slopez_3d(s,slopez,lo,hi,ng_s,1,ncomp,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
@@ -2630,10 +2630,10 @@ contains
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
-       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
+       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_s,1,ncomp,adv_bc)
+       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_s,1,ncomp,adv_bc)
     end do
-    call slopez_3d(s,slopez,lo,hi,ng_s,ncomp,adv_bc)
+    call slopez_3d(s,slopez,lo,hi,ng_s,1,ncomp,adv_bc)
 
     ! Normal predictor states.
     ! Allocated from lo:hi+1 in the normal direction
