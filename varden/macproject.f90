@@ -134,7 +134,7 @@ contains
                           stencil_order,rel_solver_eps,abs_solver_eps)
     end if
 
-    call mkumac(umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp)
+    call mkumac(mla,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp)
 
     if (use_rhs) then
        call divumac(nlevs,umac,rh,dx,mla%mba%rr,.false.,divu_rhs)
@@ -717,8 +717,11 @@ contains
 
     end subroutine mk_mac_coeffs_3d
 
-    subroutine mkumac(umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp)
+    subroutine mkumac(mla,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp)
 
+      use ml_restriction_module, only: ml_edge_restriction
+
+      type(ml_layout),intent(in   ) :: mla
       type(multifab), intent(inout) :: umac(:,:)
       type(multifab), intent(in   ) ::  phi(:)
       type(multifab), intent(in   ) :: beta(:,:)
@@ -808,6 +811,17 @@ contains
                                          lzp(:,:,:,1),hzp(:,:,:,1),lo,hi,dx(n,:))
                end if
             end select
+         end do
+
+         do d=1,dm
+            call multifab_fill_boundary(umac(n,d))
+         enddo
+
+      end do
+      
+      do n = nlevs,2,-1
+         do i = 1,dm
+            call ml_edge_restriction(umac(n-1,i),umac(n,i),mla%mba%rr(n-1,:),i)
          end do
       end do
 
