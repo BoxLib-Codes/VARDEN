@@ -31,7 +31,8 @@ contains
     logical        , intent(in   ) :: is_vel,is_conservative(:)
 
     ! local
-    integer                  :: n,i,dm,ng,comp,ncomp,bccomp,nlevs
+    integer                  :: n,i,dm,comp,ncomp,bccomp,nlevs
+    integer                  :: ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
     integer                  :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
     real(kind=dp_t), pointer :: sop(:,:,:,:)
     real(kind=dp_t), pointer :: sepx(:,:,:,:)
@@ -49,7 +50,13 @@ contains
     nlevs = mla%nlevel
     dm    = mla%dim
 
-    ng = nghost(sold(1))
+    ng_s = sold(1)%ng
+    ng_e = sedge(1,1)%ng
+    ng_f = flux(1,1)%ng
+    ng_u = umac(1,1)%ng
+    ng_o = force(1)%ng
+    ng_d = divu(1)%ng    
+
     ncomp = multifab_ncomp(sold(1))
 
     if(is_vel) then
@@ -79,20 +86,20 @@ contains
                                      fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                      ump(:,:,1,1), vmp(:,:,1,1), &
                                      fp(:,:,1,:), dp(:,:,1,1), &
-                                     lo, dx(n,:), dt, is_vel, &
+                                     lo, hi, dx(n,:), dt, is_vel, &
                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                                     ng, is_conservative)
+                                     ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
              else
                 call mkflux_2d(sop(:,:,1,:), &
                                sepx(:,:,1,:), sepy(:,:,1,:), &
                                fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                                ump(:,:,1,1), vmp(:,:,1,1), &
                                fp(:,:,1,:), dp(:,:,1,1), &
-                               lo, dx(n,:), dt, is_vel, &
+                               lo, hi, dx(n,:), dt, is_vel, &
                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                               ng, is_conservative)
+                               ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
              endif
           case (3)
              sepz   => dataptr(sedge(n,3), i)
@@ -104,20 +111,20 @@ contains
                                      fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                      ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                      fp(:,:,:,:), dp(:,:,:,1), &
-                                     lo, dx(n,:), dt, is_vel, &
+                                     lo, hi, dx(n,:), dt, is_vel, &
                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                                     ng, is_conservative)
+                                     ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
              else
                 call mkflux_3d(sop(:,:,:,:), &
                                sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
                                fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                                ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
                                fp(:,:,:,:), dp(:,:,:,1), &
-                               lo, dx(n,:), dt, is_vel, &
+                               lo, hi, dx(n,:), dt, is_vel, &
                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                               ng, is_conservative)
+                               ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
              endif
           end select
        end do
@@ -137,26 +144,25 @@ contains
     
   end subroutine mkflux
 
-
-  subroutine mkflux_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt,is_vel, &
-                       phys_bc,adv_bc,ng,is_conservative)
+  subroutine mkflux_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,hi,dx,dt,is_vel, &
+                       phys_bc,adv_bc,ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),ng
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
 
-    real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
-    real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
-    real(kind=dp_t), intent(in   ) ::   divu(lo(1)- 1:,lo(2)- 1:)
+    real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,:)
+    real(kind=dp_t), intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)
+    real(kind=dp_t), intent(inout) :: sedgey(lo(1)-ng_e:,lo(2)-ng_e:,:)
+    real(kind=dp_t), intent(inout) ::  fluxx(lo(1)-ng_f:,lo(2)-ng_f:,:)
+    real(kind=dp_t), intent(inout) ::  fluxy(lo(1)-ng_f:,lo(2)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:)
+    real(kind=dp_t), intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:)
+    real(kind=dp_t), intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,:)
+    real(kind=dp_t), intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -170,7 +176,6 @@ contains
     real(kind=dp_t) hx, hy, dt2, dt4, savg
     real(kind=dp_t) :: abs_eps, eps, umax
 
-    integer :: hi(2)
     integer :: i,j,is,js,ie,je
     integer :: jc,jp
     integer :: comp,ncomp
@@ -185,14 +190,11 @@ contains
 
     ncomp = size(s,dim=3)
 
-    hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-    call slopex_2d(s,slopex,lo,hi,ng,ncomp,adv_bc)
-    call slopey_2d(s,slopey,lo,hi,ng,ncomp,adv_bc)
+    call slopex_2d(s,slopex,lo,hi,ng_s,ncomp,adv_bc)
+    call slopey_2d(s,slopey,lo,hi,ng_s,ncomp,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
@@ -683,25 +685,25 @@ contains
 
   end subroutine mkflux_2d
 
-  subroutine mkflux_debug_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,dx,dt, &
-                             is_vel,phys_bc,adv_bc,ng,is_conservative)
+  subroutine mkflux_debug_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,hi,dx,dt, &
+                             is_vel,phys_bc,adv_bc,ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),ng
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
 
-    real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,:)
-    real(kind=dp_t), intent(inout) :: sedgex(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(inout) :: sedgey(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,:)
-    real(kind=dp_t), intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:)
-    real(kind=dp_t), intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,:)
-    real(kind=dp_t), intent(in   ) ::   divu(lo(1)- 1:,lo(2)- 1:)
+    real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,:)
+    real(kind=dp_t), intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)
+    real(kind=dp_t), intent(inout) :: sedgey(lo(1)-ng_e:,lo(2)-ng_e:,:)
+    real(kind=dp_t), intent(inout) ::  fluxx(lo(1)-ng_f:,lo(2)-ng_f:,:)
+    real(kind=dp_t), intent(inout) ::  fluxy(lo(1)-ng_f:,lo(2)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:)
+    real(kind=dp_t), intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:)
+    real(kind=dp_t), intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,:)
+    real(kind=dp_t), intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -715,7 +717,6 @@ contains
     real(kind=dp_t) hx, hy, dt2, dt4, savg
     real(kind=dp_t) :: abs_eps, eps, umax
 
-    integer :: hi(2)
     integer :: i,j,is,js,ie,je
     integer :: comp,ncomp
 
@@ -732,14 +733,11 @@ contains
 
     ncomp = size(s,dim=3)
 
-    hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,ncomp))
 
-    call slopex_2d(s,slopex,lo,hi,ng,ncomp,adv_bc)
-    call slopey_2d(s,slopey,lo,hi,ng,ncomp,adv_bc)
+    call slopex_2d(s,slopex,lo,hi,ng_s,ncomp,adv_bc)
+    call slopey_2d(s,slopey,lo,hi,ng_s,ncomp,adv_bc)
 
     ! Normal predictor states.
     ! Allocated from lo:hi+1 in the normal direction
@@ -1181,27 +1179,28 @@ contains
   end subroutine mkflux_debug_2d
 
   subroutine mkflux_3d(s,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac,force, &
-                       divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,is_conservative)
+                       divu,lo,hi,dx,dt,is_vel,phys_bc,adv_bc, &
+                       ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),ng
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
 
-    real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-    real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) ::  fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(in   ) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
-    real(kind=dp_t),intent(in   ) ::   divu(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+    real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:, :)
+    real(kind=dp_t),intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) :: sedgey(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) :: sedgez(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) ::  fluxx(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(inout) ::  fluxy(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(inout) ::  fluxz(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::   wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)
+    real(kind=dp_t),intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:,lo(3)-ng_d:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -1216,7 +1215,6 @@ contains
     real(kind=dp_t) hx, hy, hz, dt2, dt3, dt4, dt6, savg
     real(kind=dp_t) :: abs_eps, eps, umax
 
-    integer :: hi(3)
     integer :: i,j,k,is,js,ks,ie,je,ke
     integer :: kc,kp
     integer :: comp,ncomp
@@ -1246,19 +1244,15 @@ contains
 
     ncomp = size(s,dim=4)
 
-    hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-    hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
-
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
-       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
+       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
+       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
     end do
-    call slopez_3d(s,slopez,lo,hi,ng,ncomp,adv_bc)
+    call slopez_3d(s,slopez,lo,hi,ng_s,ncomp,adv_bc)
 
     ! Note: All of these arrays are allocated to exactly the 
     ! size they need to be in order to compute edge states on 
@@ -2568,27 +2562,27 @@ contains
   end subroutine mkflux_3d
 
   subroutine mkflux_debug_3d(s,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac, &
-                             force,divu,lo,dx,dt,is_vel,phys_bc,adv_bc,ng,&
-                             is_conservative)
+                             force,divu,lo,hi,dx,dt,is_vel,phys_bc,adv_bc, &
+                             ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),ng
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
 
-    real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:, :)
-    real(kind=dp_t),intent(inout) :: sedgex(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) :: sedgey(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) :: sedgez(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) ::  fluxx(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) ::  fluxy(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(inout) ::  fluxz(lo(1)   :,lo(2)   :,lo(3)   :,:)
-    real(kind=dp_t),intent(in   ) ::   umac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(in   ) ::   vmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(in   ) ::   wmac(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
-    real(kind=dp_t),intent(in   ) ::  force(lo(1)- 1:,lo(2)- 1:,lo(3) -1:,:)
-    real(kind=dp_t),intent(in   ) ::   divu(lo(1)- 1:,lo(2)- 1:,lo(3) -1:)
+    real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:, :)
+    real(kind=dp_t),intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) :: sedgey(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) :: sedgez(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) ::  fluxx(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(inout) ::  fluxy(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(inout) ::  fluxz(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::   wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)
+    real(kind=dp_t),intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:,lo(3)-ng_d:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -2603,7 +2597,6 @@ contains
     real(kind=dp_t) hx, hy, hz, dt2, dt3, dt4, dt6, savg
     real(kind=dp_t) :: abs_eps, eps, umax
 
-    integer :: hi(3)
     integer :: i,j,k,is,js,ks,ie,je,ke
     integer :: comp,ncomp
 
@@ -2632,19 +2625,15 @@ contains
 
     ncomp = size(s,dim=4)
 
-    hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-    hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
-
     allocate(slopex(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
     allocate(slopey(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
     allocate(slopez(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,ncomp))
 
     do k = lo(3)-1,hi(3)+1
-       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
-       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng,ncomp,adv_bc)
+       call slopex_2d(s(:,:,k,:),slopex(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
+       call slopey_2d(s(:,:,k,:),slopey(:,:,k,:),lo,hi,ng_s,ncomp,adv_bc)
     end do
-    call slopez_3d(s,slopez,lo,hi,ng,ncomp,adv_bc)
+    call slopez_3d(s,slopez,lo,hi,ng_s,ncomp,adv_bc)
 
     ! Normal predictor states.
     ! Allocated from lo:hi+1 in the normal direction
