@@ -295,6 +295,11 @@ subroutine varden()
            call multifab_fill_boundary(uold(n))
            call multifab_fill_boundary(sold(n))
            call multifab_fill_boundary(gp(n))
+
+           bc = the_bc_tower%bc_tower_array(n)
+           call multifab_physbc(uold(n),1,1,   dm,   bc)
+           call multifab_physbc(sold(n),1,dm+1,nscal,bc)
+
         end do
 
         if (istep > 1) then
