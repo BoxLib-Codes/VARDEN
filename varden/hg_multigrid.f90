@@ -18,8 +18,6 @@ contains
   subroutine hg_multigrid(mla,rh,unew,rhohalf,phi,dx,the_bc_tower, &
                           press_comp,stencil_type,rel_solver_eps,abs_solver_eps,divu_rhs)
 
-    use nodal_divu_module         , only : enforce_outflow_on_divu_rhs
-
     use nodal_stencil_fill_module , only : stencil_fill_nodal_all_mglevels
     use ml_solve_module           , only : ml_nd_solve    
     use nodal_divu_module         , only : divu, subtract_divu_from_rh

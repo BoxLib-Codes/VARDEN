@@ -19,8 +19,6 @@ contains
                       press_comp,stencil_type, &
                       rel_solver_eps, abs_solver_eps, divu_rhs)
 
-    use nodal_divu_module   , only : enforce_outflow_on_divu_rhs
-
     use stencil_fill_module , only : stencil_fill_nodal_all_mglevels, stencil_fill_one_sided
     use nodal_divu_module   , only : divu, subtract_divu_from_rh
     use probin_module       , only : pmask
@@ -181,10 +179,14 @@ contains
 
     call divu(nlevs,mgt,unew,rh,mla%mba%rr,nodal)
  
-    ! Do rh = rh - divu_rhs (this routine preserves rh=0 on
-    !  nodes which have bc_dirichlet = true.
+    ! Do rh = rh - divu_rhs 
     if (present(divu_rhs)) then
-       call enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
+
+       ! NOTE NOTE NOTE: WE NEED TO ENFORCE THAT DIVU_RHS = 0 ON ALL OUTFLOW NODES AND 
+       ! ON ALL FINE NODES AT THE COARSE-FINE INTERFACE -- NEED TO DO THAT HERE 
+       ! call enforce_outflow_on_divu_rhs(divu_rhs,the_bc_tower)
+
+       ! Do rh = rh - divu_rhs 
        call subtract_divu_from_rh(nlevs,mgt,rh,divu_rhs)
     end if
  
