@@ -13,7 +13,7 @@ module mkflux_module
 
 contains
 
-  subroutine mkflux(mla,sold,sedge,flux,umac,force,divu,dx,dt,the_bc_level, &
+  subroutine mkflux(mla,sold,sedge,flux,umac,force,mac_rhs,dx,dt,the_bc_level, &
                     is_vel,is_conservative)
 
     use ml_restriction_module, only: ml_edge_restriction_c
@@ -25,14 +25,14 @@ contains
     type(multifab) , intent(inout) :: flux(:,:)
     type(multifab) , intent(in   ) :: umac(:,:)
     type(multifab) , intent(in   ) :: force(:)
-    type(multifab) , intent(in   ) :: divu(:)
+    type(multifab) , intent(in   ) :: mac_rhs(:)
     real(kind=dp_t), intent(in   ) :: dx(:,:),dt
     type(bc_level) , intent(in   ) :: the_bc_level(:)
     logical        , intent(in   ) :: is_vel,is_conservative(:)
 
     ! local
     integer                  :: n,i,dm,comp,ncomp,bccomp,nlevs
-    integer                  :: ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
+    integer                  :: ng_s,ng_e,ng_f,ng_u,ng_o,ng_m
     integer                  :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
     real(kind=dp_t), pointer :: sop(:,:,:,:)
     real(kind=dp_t), pointer :: sepx(:,:,:,:)
@@ -55,7 +55,7 @@ contains
     ng_f = flux(1,1)%ng
     ng_u = umac(1,1)%ng
     ng_o = force(1)%ng
-    ng_d = divu(1)%ng    
+    ng_m = mac_rhs(1)%ng    
 
     ncomp = multifab_ncomp(sold(1))
 
@@ -75,7 +75,7 @@ contains
           ump    => dataptr(umac(n,1), i)
           vmp    => dataptr(umac(n,2), i)
           fp     => dataptr(force(n) , i)
-          dp     => dataptr(divu(n), i)
+          dp     => dataptr(mac_rhs(n), i)
           lo = lwb(get_box(sold(n), i))
           hi = upb(get_box(sold(n), i))
           select case (dm)
@@ -89,7 +89,7 @@ contains
                                      lo, hi, dx(n,:), dt, is_vel, &
                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                                     ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
+                                     ng_s, ng_e, ng_f, ng_u, ng_o, ng_m, is_conservative)
              else
                 call mkflux_2d(sop(:,:,1,:), &
                                sepx(:,:,1,:), sepy(:,:,1,:), &
@@ -99,7 +99,7 @@ contains
                                lo, hi, dx(n,:), dt, is_vel, &
                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                               ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
+                               ng_s, ng_e, ng_f, ng_u, ng_o, ng_m, is_conservative)
              endif
           case (3)
              sepz   => dataptr(sedge(n,3), i)
@@ -114,7 +114,7 @@ contains
                                      lo, hi, dx(n,:), dt, is_vel, &
                                      the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                      the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                                     ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
+                                     ng_s, ng_e, ng_f, ng_u, ng_o, ng_m, is_conservative)
              else
                 call mkflux_3d(sop(:,:,:,:), &
                                sepx(:,:,:,:), sepy(:,:,:,:), sepz(:,:,:,:), &
@@ -124,7 +124,7 @@ contains
                                lo, hi, dx(n,:), dt, is_vel, &
                                the_bc_level(n)%phys_bc_level_array(i,:,:), &
                                the_bc_level(n)%adv_bc_level_array(i,:,:,bccomp:bccomp+ncomp-1),&
-                               ng_s, ng_e, ng_f, ng_u, ng_o, ng_d, is_conservative)
+                               ng_s, ng_e, ng_f, ng_u, ng_o, ng_m, is_conservative)
              endif
           end select
        end do
@@ -144,15 +144,15 @@ contains
     
   end subroutine mkflux
 
-  subroutine mkflux_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,hi,dx,dt,is_vel, &
-                       phys_bc,adv_bc,ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
+  subroutine mkflux_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,mac_rhs,lo,hi,dx,dt,is_vel, &
+                       phys_bc,adv_bc,ng_s,ng_e,ng_f,ng_u,ng_o,ng_m,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_m
 
     real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,:)
     real(kind=dp_t), intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)
@@ -162,7 +162,7 @@ contains
     real(kind=dp_t), intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:)
     real(kind=dp_t), intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:)
     real(kind=dp_t), intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,:)
-    real(kind=dp_t), intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:)
+    real(kind=dp_t), intent(in   ) ::mac_rhs(lo(1)-ng_m:,lo(2)-ng_m:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -302,10 +302,10 @@ contains
                 srx(i,jc) = srx(i,jc) + dt2*force(i  ,j,comp)
              endif
 
-             ! add divu contribution
+             ! add div(u) contribution
              if(use_minion .and. is_conservative(comp)) then
-                slx(i,jc) = slx(i,jc) - dt2*s(i-1,j,comp)*divu(i-1,j)
-                srx(i,jc) = srx(i,jc) - dt2*s(i  ,j,comp)*divu(i  ,j)
+                slx(i,jc) = slx(i,jc) - dt2*s(i-1,j,comp)*mac_rhs(i-1,j)
+                srx(i,jc) = srx(i,jc) - dt2*s(i  ,j,comp)*mac_rhs(i  ,j)
              endif
           end do
           
@@ -387,10 +387,10 @@ contains
                    sry(i,jc) = sry(i,jc) + dt2*force(i,j  ,comp)
                 endif
 
-                ! add divu contribution
+                ! add div(u) contribution
                 if(use_minion .and. is_conservative(comp)) then
-                   sly(i,jc) = sly(i,jc) - dt2*s(i,j-1,comp)*divu(i,j-1)
-                   sry(i,jc) = sry(i,jc) - dt2*s(i,j  ,comp)*divu(i,j  )
+                   sly(i,jc) = sly(i,jc) - dt2*s(i,j-1,comp)*mac_rhs(i,j-1)
+                   sry(i,jc) = sry(i,jc) - dt2*s(i,j  ,comp)*mac_rhs(i,j  )
                 endif
              end do
              
@@ -486,11 +486,11 @@ contains
                    sedgery(i) = sedgery(i) + dt2*force(i,j  ,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for divu
+                ! if use_minion .and. is_conservative, we have already accounted for div(u)
                 ! in slx and srx; otherwise, we account for it here
                 if(.not.(use_minion .and. is_conservative(comp))) then
-                   sedgely(i) = sedgely(i) - dt2*s(i,j-1,comp)*divu(i,j-1)
-                   sedgery(i) = sedgery(i) - dt2*s(i,j  ,comp)*divu(i,j  )
+                   sedgely(i) = sedgely(i) - dt2*s(i,j-1,comp)*mac_rhs(i,j-1)
+                   sedgery(i) = sedgery(i) - dt2*s(i,j  ,comp)*mac_rhs(i,j  )
                 endif
 
                 ! make sedgey by solving Riemann problem
@@ -588,11 +588,11 @@ contains
                    sedgerx(i) = sedgerx(i) + dt2*force(i  ,j-1,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for divu
+                ! if use_minion .and. is_conservative, we have already accounted for div(u)
                 ! in slx and srx; otherwise, we account for it here
                 if(.not.(use_minion .and. is_conservative(comp))) then
-                   sedgelx(i) = sedgelx(i) - dt2*s(i-1,j-1,comp)*divu(i-1,j-1)
-                   sedgerx(i) = sedgerx(i) - dt2*s(i  ,j-1,comp)*divu(i  ,j-1)
+                   sedgelx(i) = sedgelx(i) - dt2*s(i-1,j-1,comp)*mac_rhs(i-1,j-1)
+                   sedgerx(i) = sedgerx(i) - dt2*s(i  ,j-1,comp)*mac_rhs(i  ,j-1)
                 endif
 
                 ! make sedgex by solving Riemann problem
@@ -685,25 +685,25 @@ contains
 
   end subroutine mkflux_2d
 
-  subroutine mkflux_debug_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,divu,lo,hi,dx,dt, &
-                             is_vel,phys_bc,adv_bc,ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
+  subroutine mkflux_debug_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,mac_rhs,lo,hi,dx,dt, &
+                             is_vel,phys_bc,adv_bc,ng_s,ng_e,ng_f,ng_u,ng_o,ng_m,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_m
 
-    real(kind=dp_t), intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,:)
-    real(kind=dp_t), intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)
-    real(kind=dp_t), intent(inout) :: sedgey(lo(1)-ng_e:,lo(2)-ng_e:,:)
-    real(kind=dp_t), intent(inout) ::  fluxx(lo(1)-ng_f:,lo(2)-ng_f:,:)
-    real(kind=dp_t), intent(inout) ::  fluxy(lo(1)-ng_f:,lo(2)-ng_f:,:)
-    real(kind=dp_t), intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:)
-    real(kind=dp_t), intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:)
-    real(kind=dp_t), intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,:)
-    real(kind=dp_t), intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:)
+    real(kind=dp_t), intent(in   ) ::       s(lo(1)-ng_s:,lo(2)-ng_s:,:)
+    real(kind=dp_t), intent(inout) ::  sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)
+    real(kind=dp_t), intent(inout) ::  sedgey(lo(1)-ng_e:,lo(2)-ng_e:,:)
+    real(kind=dp_t), intent(inout) ::   fluxx(lo(1)-ng_f:,lo(2)-ng_f:,:)
+    real(kind=dp_t), intent(inout) ::   fluxy(lo(1)-ng_f:,lo(2)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) ::    umac(lo(1)-ng_u:,lo(2)-ng_u:)
+    real(kind=dp_t), intent(in   ) ::    vmac(lo(1)-ng_u:,lo(2)-ng_u:)
+    real(kind=dp_t), intent(in   ) ::   force(lo(1)-ng_o:,lo(2)-ng_o:,:)
+    real(kind=dp_t), intent(in   ) :: mac_rhs(lo(1)-ng_m:,lo(2)-ng_m:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -809,10 +809,10 @@ contains
                 srx(i,j) = srx(i,j) + dt2*force(i  ,j,comp)
              endif
 
-             ! add divu contribution
+             ! add div(u) contribution
              if(use_minion .and. is_conservative(comp)) then
-                slx(i,j) = slx(i,j) - dt2*s(i-1,j,comp)*divu(i-1,j)
-                srx(i,j) = srx(i,j) - dt2*s(i  ,j,comp)*divu(i  ,j)
+                slx(i,j) = slx(i,j) - dt2*s(i-1,j,comp)*mac_rhs(i-1,j)
+                srx(i,j) = srx(i,j) - dt2*s(i  ,j,comp)*mac_rhs(i  ,j)
              endif
           end do
        end do
@@ -893,10 +893,10 @@ contains
                 sry(i,j) = sry(i,j) + dt2*force(i,j  ,comp)
              endif
 
-             ! add divu contribution
+             ! add div(u) contribution
              if(use_minion .and. is_conservative(comp)) then
-                sly(i,j) = sly(i,j) - dt2*s(i,j-1,comp)*divu(i,j-1)
-                sry(i,j) = sry(i,j) - dt2*s(i,j  ,comp)*divu(i,j  )
+                sly(i,j) = sly(i,j) - dt2*s(i,j-1,comp)*mac_rhs(i,j-1)
+                sry(i,j) = sry(i,j) - dt2*s(i,j  ,comp)*mac_rhs(i,j  )
              endif
           end do
        end do
@@ -993,11 +993,11 @@ contains
                 sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,comp)
              endif
 
-             ! if use_minion .and. is_conservative, we have already accounted for divu
+             ! if use_minion .and. is_conservative, we have already accounted for div(u)
              ! in slx and srx; otherwise, we account for it here
              if(.not.(use_minion .and. is_conservative(comp))) then
-                sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,comp)*divu(i-1,j)
-                sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,comp)*divu(i  ,j)
+                sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,comp)*mac_rhs(i-1,j)
+                sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,comp)*mac_rhs(i  ,j)
              endif
 
              ! make sedgex by solving Riemann problem
@@ -1088,11 +1088,11 @@ contains
                 sedgery(i,j) = sedgery(i,j) + dt2*force(i,j  ,comp)
              endif
 
-             ! if use_minion .and. is_conservative, we have already accounted for divu
+             ! if use_minion .and. is_conservative, we have already accounted for div(u)
              ! in sly and sry; otherwise, we account for it here
              if(.not.(use_minion .and. is_conservative(comp))) then
-                sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,comp)*divu(i,j-1)
-                sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,comp)*divu(i,j  )
+                sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,comp)*mac_rhs(i,j-1)
+                sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,comp)*mac_rhs(i,j  )
              endif
 
              ! make sedgey by solving Riemann problem
@@ -1179,28 +1179,28 @@ contains
   end subroutine mkflux_debug_2d
 
   subroutine mkflux_3d(s,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac,force, &
-                       divu,lo,hi,dx,dt,is_vel,phys_bc,adv_bc, &
-                       ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
+                       mac_rhs,lo,hi,dx,dt,is_vel,phys_bc,adv_bc, &
+                       ng_s,ng_e,ng_f,ng_u,ng_o,ng_m,is_conservative)
 
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_m
 
-    real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:, :)
-    real(kind=dp_t),intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
-    real(kind=dp_t),intent(inout) :: sedgey(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
-    real(kind=dp_t),intent(inout) :: sedgez(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
-    real(kind=dp_t),intent(inout) ::  fluxx(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
-    real(kind=dp_t),intent(inout) ::  fluxy(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
-    real(kind=dp_t),intent(inout) ::  fluxz(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
-    real(kind=dp_t),intent(in   ) ::   umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-    real(kind=dp_t),intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-    real(kind=dp_t),intent(in   ) ::   wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-    real(kind=dp_t),intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)
-    real(kind=dp_t),intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:,lo(3)-ng_d:)
+    real(kind=dp_t),intent(in   ) ::       s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:, :)
+    real(kind=dp_t),intent(inout) ::  sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) ::  sedgey(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) ::  sedgez(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
+    real(kind=dp_t),intent(inout) ::   fluxx(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(inout) ::   fluxy(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(inout) ::   fluxz(lo(1)-ng_f:,lo(2)-ng_e:,lo(3)-ng_f:,:)
+    real(kind=dp_t),intent(in   ) ::    umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::    vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::    wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
+    real(kind=dp_t),intent(in   ) ::   force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)
+    real(kind=dp_t),intent(in   ) :: mac_rhs(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -1447,10 +1447,10 @@ contains
                    srx(i,j,kc) = srx(i,j,kc) + dt2*force(i  ,j,k,comp)
                 endif
 
-                ! add divu contribution
+                ! add div(u) contribution
                 if(use_minion .and. is_conservative(comp)) then
-                   slx(i,j,kc) = slx(i,j,kc) - dt2*s(i-1,j,k,comp)*divu(i-1,j,k)
-                   srx(i,j,kc) = srx(i,j,kc) - dt2*s(i  ,j,k,comp)*divu(i  ,j,k)
+                   slx(i,j,kc) = slx(i,j,kc) - dt2*s(i-1,j,k,comp)*mac_rhs(i-1,j,k)
+                   srx(i,j,kc) = srx(i,j,kc) - dt2*s(i  ,j,k,comp)*mac_rhs(i  ,j,k)
                 endif
              end do
           end do
@@ -1534,10 +1534,10 @@ contains
                    sry(i,j,kc) = sry(i,j,kc) + dt2*force(i,j  ,k,comp)
                 endif
 
-                ! add divu contribution
+                ! add div(u) contribution
                 if(use_minion .and. is_conservative(comp)) then
-                   sly(i,j,kc) = sly(i,j,kc) - dt2*s(i,j-1,k,comp)*divu(i,j-1,k)
-                   sry(i,j,kc) = sry(i,j,kc) - dt2*s(i,j  ,k,comp)*divu(i,j  ,k)
+                   sly(i,j,kc) = sly(i,j,kc) - dt2*s(i,j-1,k,comp)*mac_rhs(i,j-1,k)
+                   sry(i,j,kc) = sry(i,j,kc) - dt2*s(i,j  ,k,comp)*mac_rhs(i,j  ,k)
                 endif
              end do
           end do
@@ -1783,10 +1783,10 @@ contains
                       srz(i,j,kc) = srz(i,j,kc) + dt2*force(i,j,k  ,comp)
                    endif
 
-                   ! add divu contribution
+                   ! add div(u) contribution
                    if(use_minion .and. is_conservative(comp)) then
-                      slz(i,j,kc) = slz(i,j,kc) - dt2*s(i,j,k-1,comp)*divu(i,j,k-1)
-                      srz(i,j,kc) = srz(i,j,kc) - dt2*s(i,j,k  ,comp)*divu(i,j,k  )
+                      slz(i,j,kc) = slz(i,j,kc) - dt2*s(i,j,k-1,comp)*mac_rhs(i,j,k-1)
+                      srz(i,j,kc) = srz(i,j,kc) - dt2*s(i,j,k  ,comp)*mac_rhs(i,j,k  )
                    endif
                 end do
              end do
@@ -1892,11 +1892,11 @@ contains
                       sedgerz(i,j) = sedgerz(i,j) + dt2*force(i,j,k  ,comp)
                    endif
 
-                   ! if use_minion .and. is_conservative, we have already accounted for divu
+                   ! if use_minion .and. is_conservative, we have already accounted for div(u)
                    ! in slz and srz; otherwise, we account for it here
                    if(.not.(use_minion .and. is_conservative(comp))) then
-                      sedgelz(i,j) = sedgelz(i,j) - dt2*s(i,j,k-1,comp)*divu(i,j,k-1)
-                      sedgerz(i,j) = sedgerz(i,j) - dt2*s(i,j,k  ,comp)*divu(i,j,k  )
+                      sedgelz(i,j) = sedgelz(i,j) - dt2*s(i,j,k-1,comp)*mac_rhs(i,j,k-1)
+                      sedgerz(i,j) = sedgerz(i,j) - dt2*s(i,j,k  ,comp)*mac_rhs(i,j,k  )
                    endif
 
                    ! make sedgez by solving Riemann problem
@@ -2332,11 +2332,11 @@ contains
                       sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,k-1,comp)
                    endif
 
-                   ! if use_minion .and. is_conservative, we have already accounted for divu
+                   ! if use_minion .and. is_conservative, we have already accounted for div(u)
                    ! in slx and srx; otherwise, we account for it here
                    if(.not.(use_minion .and. is_conservative(comp))) then
-                      sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,k-1,comp)*divu(i-1,j,k-1)
-                      sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,k-1,comp)*divu(i  ,j,k-1)
+                      sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,k-1,comp)*mac_rhs(i-1,j,k-1)
+                      sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,k-1,comp)*mac_rhs(i  ,j,k-1)
                    endif
 
                    ! make sedgex by solving Riemann problem
@@ -2436,11 +2436,11 @@ contains
                       sedgery(i,j) = sedgery(i,j) + dt2*force(i,j  ,k-1,comp)
                    endif
 
-                   ! if use_minion .and. is_conservative, we have already accounted for divu
+                   ! if use_minion .and. is_conservative, we have already accounted for div(u)
                    ! in sly and sry; otherwise, we account for it here
                    if(.not.(use_minion .and. is_conservative(comp))) then
-                      sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,k-1,comp)*divu(i,j-1,k-1)
-                      sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,k-1,comp)*divu(i,j  ,k-1)
+                      sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,k-1,comp)*mac_rhs(i,j-1,k-1)
+                      sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,k-1,comp)*mac_rhs(i,j  ,k-1)
                    endif
                    ! make sedgey by solving Riemann problem
                    ! boundary conditions enforced outside of i,j,k loop
@@ -2562,14 +2562,14 @@ contains
   end subroutine mkflux_3d
 
   subroutine mkflux_debug_3d(s,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz,umac,vmac,wmac, &
-                             force,divu,lo,hi,dx,dt,is_vel,phys_bc,adv_bc, &
-                             ng_s,ng_e,ng_f,ng_u,ng_o,ng_d,is_conservative)
+                             force,mac_rhs,lo,hi,dx,dt,is_vel,phys_bc,adv_bc, &
+                             ng_s,ng_e,ng_f,ng_u,ng_o,ng_m,is_conservative)
     use bc_module
     use slope_module
     use bl_constants_module
     use probin_module, only: use_minion
 
-    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_d
+    integer, intent(in) :: lo(:),hi(:),ng_s,ng_e,ng_f,ng_u,ng_o,ng_m
 
     real(kind=dp_t),intent(in   ) ::      s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:, :)
     real(kind=dp_t),intent(inout) :: sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
@@ -2582,7 +2582,7 @@ contains
     real(kind=dp_t),intent(in   ) ::   vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
     real(kind=dp_t),intent(in   ) ::   wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
     real(kind=dp_t),intent(in   ) ::  force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)
-    real(kind=dp_t),intent(in   ) ::   divu(lo(1)-ng_d:,lo(2)-ng_d:,lo(3)-ng_d:)
+    real(kind=dp_t),intent(in   ) ::   mac_rhs(lo(1)-ng_m:,lo(2)-ng_m:,lo(3)-ng_m:)
 
     real(kind=dp_t),intent(in) :: dt,dx(:)
     integer        ,intent(in) :: phys_bc(:,:)
@@ -2756,10 +2756,10 @@ contains
                    srx(i,j,k) = srx(i,j,k) + dt2*force(i  ,j,k,comp)
                 endif
 
-                ! add divu contribution
+                ! add mac_rhs contribution
                 if(use_minion .and. is_conservative(comp)) then
-                   slx(i,j,k) = slx(i,j,k) - dt2*s(i-1,j,k,comp)*divu(i-1,j,k)
-                   srx(i,j,k) = srx(i,j,k) - dt2*s(i  ,j,k,comp)*divu(i  ,j,k)
+                   slx(i,j,k) = slx(i,j,k) - dt2*s(i-1,j,k,comp)*mac_rhs(i-1,j,k)
+                   srx(i,j,k) = srx(i,j,k) - dt2*s(i  ,j,k,comp)*mac_rhs(i  ,j,k)
                 endif
              end do
           end do
@@ -2844,10 +2844,10 @@ contains
                    sry(i,j,k) = sry(i,j,k) + dt2*force(i,j  ,k,comp)
                 endif
 
-                ! add divu contribution
+                ! add mac_rhs contribution
                 if(use_minion .and. is_conservative(comp)) then
-                   sly(i,j,k) = sly(i,j,k) - dt2*s(i,j-1,k,comp)*divu(i,j-1,k)
-                   sry(i,j,k) = sry(i,j,k) - dt2*s(i,j  ,k,comp)*divu(i,j  ,k)
+                   sly(i,j,k) = sly(i,j,k) - dt2*s(i,j-1,k,comp)*mac_rhs(i,j-1,k)
+                   sry(i,j,k) = sry(i,j,k) - dt2*s(i,j  ,k,comp)*mac_rhs(i,j  ,k)
                 endif
              end do
           end do
@@ -2932,10 +2932,10 @@ contains
                    srz(i,j,k) = srz(i,j,k) + dt2*force(i,j,k  ,comp)
                 endif
 
-                ! add divu contribution
+                ! add mac_rhs contribution
                 if(use_minion .and. is_conservative(comp)) then
-                   slz(i,j,k) = slz(i,j,k) - dt2*s(i,j,k-1,comp)*divu(i,j,k-1)
-                   srz(i,j,k) = srz(i,j,k) - dt2*s(i,j,k  ,comp)*divu(i,j,k  )
+                   slz(i,j,k) = slz(i,j,k) - dt2*s(i,j,k-1,comp)*mac_rhs(i,j,k-1)
+                   srz(i,j,k) = srz(i,j,k) - dt2*s(i,j,k  ,comp)*mac_rhs(i,j,k  )
                 endif
              enddo
           enddo
@@ -3556,11 +3556,11 @@ contains
                    sedgerx(i,j,k) = sedgerx(i,j,k) + dt2*force(i  ,j,k,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for divu
+                ! if use_minion .and. is_conservative, we have already accounted for div(u)
                 ! in slx and srx; otherwise, we account for it here
                 if(.not.(use_minion .and. is_conservative(comp))) then
-                   sedgelx(i,j,k) = sedgelx(i,j,k) - dt2*s(i-1,j,k,comp)*divu(i-1,j,k)
-                   sedgerx(i,j,k) = sedgerx(i,j,k) - dt2*s(i  ,j,k,comp)*divu(i  ,j,k)
+                   sedgelx(i,j,k) = sedgelx(i,j,k) - dt2*s(i-1,j,k,comp)*mac_rhs(i-1,j,k)
+                   sedgerx(i,j,k) = sedgerx(i,j,k) - dt2*s(i  ,j,k,comp)*mac_rhs(i  ,j,k)
                 endif
 
                 ! make sedgex by solving Riemann problem
@@ -3658,11 +3658,11 @@ contains
                    sedgery(i,j,k) = sedgery(i,j,k) + dt2*force(i,j  ,k,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for divu
+                ! if use_minion .and. is_conservative, we have already accounted for div(u)
                 ! in sly and sry; otherwise, we account for it here
                 if(.not.(use_minion .and. is_conservative(comp))) then
-                   sedgely(i,j,k) = sedgely(i,j,k) - dt2*s(i,j-1,k,comp)*divu(i,j-1,k)
-                   sedgery(i,j,k) = sedgery(i,j,k) - dt2*s(i,j  ,k,comp)*divu(i,j  ,k)
+                   sedgely(i,j,k) = sedgely(i,j,k) - dt2*s(i,j-1,k,comp)*mac_rhs(i,j-1,k)
+                   sedgery(i,j,k) = sedgery(i,j,k) - dt2*s(i,j  ,k,comp)*mac_rhs(i,j  ,k)
                 endif
 
                 ! make sedgey by solving Riemann problem
@@ -3760,11 +3760,11 @@ contains
                    sedgerz(i,j,k) = sedgerz(i,j,k) + dt2*force(i,j,k  ,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for divu
+                ! if use_minion .and. is_conservative, we have already accounted for div(u)
                 ! in slz and srz; otherwise, we account for it here
                 if(.not.(use_minion .and. is_conservative(comp))) then
-                   sedgelz(i,j,k) = sedgelz(i,j,k) - dt2*s(i,j,k-1,comp)*divu(i,j,k-1)
-                   sedgerz(i,j,k) = sedgerz(i,j,k) - dt2*s(i,j,k  ,comp)*divu(i,j,k  )
+                   sedgelz(i,j,k) = sedgelz(i,j,k) - dt2*s(i,j,k-1,comp)*mac_rhs(i,j,k-1)
+                   sedgerz(i,j,k) = sedgerz(i,j,k) - dt2*s(i,j,k  ,comp)*mac_rhs(i,j,k  )
                 endif
 
                 ! make sedgez by solving Riemann problem

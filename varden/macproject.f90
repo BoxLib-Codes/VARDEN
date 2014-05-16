@@ -17,8 +17,8 @@ module macproject_module
 
 contains 
 
-  subroutine macproject(mla,umac,rho,dx,the_bc_tower,bc_comp,&
-                        divu_rhs,div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
+  subroutine macproject(mla,umac,rho,mac_rhs,dx,the_bc_tower,bc_comp,&
+                        div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
 
     use probin_module            , only : stencil_order, use_hypre
     use mac_hypre_module         , only : mac_hypre
@@ -29,11 +29,11 @@ contains
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: umac(:,:)
     type(multifab ), intent(inout) :: rho(:)
+    type(multifab ), intent(inout) :: mac_rhs(:)
     real(dp_t)     , intent(in   ) :: dx(:,:)
     type(bc_tower ), intent(in   ) :: the_bc_tower
     integer        , intent(in   ) :: bc_comp
 
-    type(multifab ), intent(inout), optional :: divu_rhs(:)
     real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:,:)
     real(dp_t)     , intent(in   ), optional :: div_coeff_half_1d(:,:)
     type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
@@ -46,13 +46,10 @@ contains
     real(dp_t)      :: rel_solver_eps
     real(dp_t)      :: abs_solver_eps
     integer         :: d,dm,i,n, nlevs
-    logical         :: use_rhs, use_div_coeff_1d, use_div_coeff_3d
+    logical         :: use_div_coeff_1d, use_div_coeff_3d
 
     nlevs = mla%nlevel
     dm = mla%dim
-
-    use_rhs = .false.
-    if (present(divu_rhs)) use_rhs = .true.
 
     use_div_coeff_1d = .false.
     if (present(div_coeff_1d)) use_div_coeff_1d = .true.
@@ -90,11 +87,7 @@ contains
        end do
     end do
 
-    if (use_rhs) then
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.true.,divu_rhs)
-    else
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.true.)
-    end if
+    call divumac(nlevs,umac,mac_rhs,rh,dx,mla%mba%rr,.true.)
 
     call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
@@ -136,11 +129,7 @@ contains
 
     call mkumac(mla,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp)
 
-    if (use_rhs) then
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.false.,divu_rhs)
-    else
-       call divumac(nlevs,umac,rh,dx,mla%mba%rr,.false.)
-    end if
+    call divumac(nlevs,umac,mac_rhs,rh,dx,mla%mba%rr,.false.)
 
     if (use_div_coeff_1d) then
        call mult_edge_by_1d_coeff(mla,umac,div_coeff_1d,div_coeff_half_1d,.false.)
@@ -177,18 +166,18 @@ contains
 
   contains
 
-    subroutine divumac(nlevs,umac,rh,dx,ref_ratio,before,divu_rhs)
+    subroutine divumac(nlevs,umac,mac_rhs,rh,dx,ref_ratio,before)
 
       use ml_restriction_module, only: ml_cc_restriction
       use probin_module, only: verbose
 
       integer        , intent(in   ) :: nlevs
       type(multifab) , intent(in   ) :: umac(:,:)
+      type(multifab ), intent(in   ) :: mac_rhs(:)
       type(multifab) , intent(inout) :: rh(:)
       real(kind=dp_t), intent(in   ) :: dx(:,:)
       integer        , intent(in   ) :: ref_ratio(:,:)
       logical        , intent(in   ) :: before
-      type(multifab ), intent(inout), optional :: divu_rhs(:)
 
       real(kind=dp_t), pointer :: ump(:,:,:,:) 
       real(kind=dp_t), pointer :: vmp(:,:,:,:) 
@@ -225,16 +214,19 @@ contains
       !            (alpha MINUS del dot beta grad) phi = RHS
       !            Here alpha is zero.
 
-      !     Do rh = divu_rhs - rh
-      if (present(divu_rhs)) then
-         do n = 1, nlevs
-            call multifab_sub_sub(rh(n),divu_rhs(n))
-         end do
-      end if
-      !     ... or rh = -rh
+      !     Set rh = divu_rhs - rh
       do n = 1, nlevs
          call multifab_mult_mult_s(rh(n),-ONE)
       end do
+
+      do n = 1, nlevs
+         call multifab_plus_plus(rh(n),mac_rhs(n),0)
+      end do
+
+!     do n = 1, nlevs
+!        call multifab_sub_sub(rh(n),mac_rhs(n))
+!        call multifab_mult_mult_s(rh(n),-ONE)
+!     end do
 
       rhmax = norm_inf(rh(nlevs))
       do n = nlevs,2,-1
@@ -292,8 +284,8 @@ contains
          do j = lo(2),hi(2)
             do i = lo(1),hi(1)
                rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) / dx(1) + &
-                    (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
-                    (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
+                           (vmac(i,j+1,k) - vmac(i,j,k)) / dx(2) + &
+                           (wmac(i,j,k+1) - wmac(i,j,k)) / dx(3)
             end do
          end do
       end do

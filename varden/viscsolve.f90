@@ -17,7 +17,7 @@ module viscous_module
 
 contains 
 
-  subroutine visc_solve(mla,unew,lapu,rho,dx,mu,the_bc_tower)
+  subroutine visc_solve(mla,unew,lapu,rho,mac_rhs,dx,mu,the_bc_tower)
 
     use mac_multigrid_module  , only : mac_multigrid
     use ml_restriction_module , only : ml_cc_restriction
@@ -29,6 +29,7 @@ contains
     type(multifab ), intent(in   ) :: rho(:)
     real(dp_t)     , intent(in   ) :: dx(:,:),mu
     type(bc_tower ), intent(in   ) :: the_bc_tower
+    type(multifab ), intent(in   ) :: mac_rhs(:)
 
     ! Local  
     type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
@@ -85,9 +86,12 @@ contains
     rel_solver_eps =  1.d-12
     abs_solver_eps = -1.d0
 
+    ! Note that "mu" here is actually (1/2 dt mu) if Crank-Nicolson -- 
+    !                              or (    dt mu) if backward Euler
+    !      this is set in velocity_advance
     do d = 1,dm
        do n = 1,nlevs
-          call mkrhs(rh(n),unew(n),lapu(n),rho(n),phi(n),mu,d)
+          call mkrhs(rh(n),unew(n),lapu(n),rho(n),phi(n),mac_rhs(n),mu,dx(n,:),d)
        end do
        bc_comp = d
        call mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx, &
@@ -152,23 +156,26 @@ contains
 
   contains
 
-    subroutine mkrhs(rh,unew,lapu,rho,phi,mu,comp)
+    subroutine mkrhs(rh,unew,lapu,rho,phi,mac_rhs,mu,dx,comp)
 
       type(multifab) , intent(in   ) :: unew,lapu,rho
       type(multifab) , intent(inout) :: rh,phi
+      type(multifab ), intent(in   ) :: mac_rhs
       integer        , intent(in   ) :: comp
-      real(dp_t)     , intent(in   ) :: mu
+      real(dp_t)     , intent(in   ) :: mu, dx(:)
 
       real(kind=dp_t), pointer :: unp(:,:,:,:)
       real(kind=dp_t), pointer :: rhp(:,:,:,:)
       real(kind=dp_t), pointer ::  rp(:,:,:,:)
       real(kind=dp_t), pointer ::  pp(:,:,:,:)
       real(kind=dp_t), pointer ::  lp(:,:,:,:)
-      integer :: i,dm,ng_u,ng_rho
+      real(kind=dp_t), pointer ::  mp(:,:,:,:)
+      integer :: i,dm,ng_u,ng_r,ng_m
 
       dm     = get_dim(rh)
-      ng_u   = nghost(unew)
-      ng_rho = nghost(rho)
+      ng_u = nghost(unew)
+      ng_r = nghost(rho)
+      ng_m = nghost(mac_rhs)
 
       do i = 1, nfabs(unew)
          rhp => dataptr(rh  , i)
@@ -176,57 +183,83 @@ contains
          rp => dataptr(rho , i)
          pp => dataptr(phi , i)
          lp => dataptr(lapu, i)
+         mp => dataptr(mac_rhs, i)
          select case (dm)
          case (2)
             call mkrhs_2d(rhp(:,:,1,1), unp(:,:,1,comp), lp(:,:,1,comp), rp(:,:,1,1), &
-                          pp(:,:,1,1), mu, ng_u, ng_rho)
+                           pp(:,:,1,1),  mp(:,:,1,1), mu, dx, ng_u, ng_r, ng_m, comp)
          case (3)
             call mkrhs_3d(rhp(:,:,:,1), unp(:,:,:,comp), lp(:,:,:,comp), rp(:,:,:,1), &
-                          pp(:,:,:,1), mu, ng_u, ng_rho)
+                           pp(:,:,:,1),  mp(:,:,:,1), mu, dx, ng_u, ng_r, ng_m, comp)
          end select
       end do
 
     end subroutine mkrhs
 
-    subroutine mkrhs_2d(rh,unew,lapu,rho,phi,mu,ng_u,ng_rho)
+    subroutine mkrhs_2d(rh,unew,lapu,rho,phi,mac_rhs,mu,dx,ng_u,ng_r,ng_m,comp)
 
       use probin_module, only: diffusion_type
 
-      integer        , intent(in   ) :: ng_u,ng_rho
-      real(kind=dp_t), intent(inout) ::   rh(        :,        :)
-      real(kind=dp_t), intent(in   ) :: unew(1-ng_u  :,1-ng_u  :)
-      real(kind=dp_t), intent(in   ) :: lapu(       1:,       1:)
-      real(kind=dp_t), intent(in   ) ::  rho(1-ng_rho:,1-ng_rho:)
-      real(kind=dp_t), intent(inout) ::  phi(       0:,       0:)
-      real(dp_t)     , intent(in   ) :: mu
+      integer        , intent(in   ) :: ng_u,ng_r,ng_m,comp
+      real(kind=dp_t), intent(inout) ::      rh(      :,      :)
+      real(kind=dp_t), intent(in   ) ::    unew(1-ng_u:,1-ng_u  :)
+      real(kind=dp_t), intent(in   ) ::    lapu(     1:,     1:)
+      real(kind=dp_t), intent(in   ) ::     rho(1-ng_r:,1-ng_r:)
+      real(kind=dp_t), intent(inout) ::     phi(     0:,     0:)
+      real(kind=dp_t), intent(in   ) :: mac_rhs(1-ng_m:,1-ng_m:)
+      real(dp_t)     , intent(in   ) :: mu,dx(:)
 
-      integer :: nx,ny
+      integer    :: nx,ny,i,j
+      real(dp_t) :: visc_mu_dt
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
 
-      rh(1:nx  ,1:ny  ) = unew(1:nx  ,1:ny  ) * rho(1:nx,1:ny)
+       rh(1:nx  ,1:ny  ) = unew(1:nx  ,1:ny  ) * rho(1:nx,1:ny)
       phi(0:nx+1,0:ny+1) = unew(0:nx+1,0:ny+1)
 
+      ! Note that "mu" here is actually (1/2 dt mu) if Crank-Nicolson -- 
+      !                              or (    dt mu) if backward Euler
+      !      this is set in velocity_advance
       if (diffusion_type .eq. 1) then
          rh(1:nx,1:ny) = rh(1:nx,1:ny) + mu*lapu(1:nx,1:ny)
+         visc_mu_dt = TWO *mu
+      else if (diffusion_type .eq. 2) then
+         visc_mu_dt = mu
+      end if
+
+      ! Add (1/3) * mu * dt * grad (divu) to the RHS of the viscous solve
+      if (comp.eq.1) then
+         do j = 1,ny
+         do i = 1,nx
+             rh(i,j) = rh(i,j) + THIRD*visc_mu_dt*(mac_rhs(i+1,j) - mac_rhs(i-1,j)) / dx(1)
+         end do
+         end do
+      else
+         do j = 1,ny
+         do i = 1,nx
+             rh(i,j) = rh(i,j) + THIRD*visc_mu_dt*(mac_rhs(i,j+1) - mac_rhs(i,j-1)) / dx(2)
+         end do
+         end do
       end if
 
     end subroutine mkrhs_2d
 
-    subroutine mkrhs_3d(rh,unew,lapu,rho,phi,mu,ng_u,ng_rho)
+    subroutine mkrhs_3d(rh,unew,lapu,rho,phi,mac_rhs,mu,dx,ng_u,ng_r,ng_m,comp)
 
       use probin_module, only: diffusion_type
 
-      integer        , intent(in   ) :: ng_u,ng_rho
-      real(kind=dp_t), intent(inout) ::   rh(        :,        :,        :)
-      real(kind=dp_t), intent(in   ) :: unew(1-ng_u  :,1-ng_u  :,1-ng_u  :)
-      real(kind=dp_t), intent(inout) :: lapu(       1:,       1:,       1:)
-      real(kind=dp_t), intent(in   ) ::  rho(1-ng_rho:,1-ng_rho:,1-ng_rho:)
-      real(kind=dp_t), intent(inout) ::  phi(       0:,       0:,       0:)
-      real(dp_t)     , intent(in   ) :: mu
+      integer        , intent(in   ) :: ng_u,ng_r,ng_m,comp
+      real(kind=dp_t), intent(inout)    ::   rh(      :,      :,      :)
+      real(kind=dp_t), intent(in   ) ::    unew(1-ng_u:,1-ng_u:,1-ng_u:)
+      real(kind=dp_t), intent(inout) ::    lapu(     1:,     1:,     1:)
+      real(kind=dp_t), intent(in   ) ::     rho(1-ng_r:,1-ng_r:,1-ng_r:)
+      real(kind=dp_t), intent(inout) ::     phi(     0:,     0:,     0:)
+      real(kind=dp_t), intent(in   ) :: mac_rhs(1-ng_m:,1-ng_m:,1-ng_m:)
+      real(dp_t)     , intent(in   ) :: mu,dx(:)
 
-      integer :: nx,ny,nz
+      integer    :: nx,ny,nz,i,j,k
+      real(dp_t) :: visc_mu_dt
 
       nx = size(rh,dim=1)
       ny = size(rh,dim=2)
@@ -234,10 +267,43 @@ contains
 
       phi(0:nx+1,0:ny+1,0:nz+1) = unew(0:nx+1,0:ny+1,0:nz+1)
       rh(1:nx  ,1:ny  ,1:nz  ) = unew(1:nx  ,1:ny  ,1:nz  ) * &
-           rho(1:nx  ,1:ny  ,1:nz  )
+                                  rho(1:nx  ,1:ny  ,1:nz  )
 
+      ! Note that "mu" here is actually (1/2 dt mu) if Crank-Nicolson -- 
+      !                              or (    dt mu) if backward Euler
+      !      this is set in velocity_advance
       if (diffusion_type .eq. 1) then
-         rh(1:nx,1:ny,1:nz) = rh(1:nx,1:ny,1:nz) + mu*lapu(1:nx,1:ny,1:nz)
+         rh(1:nx,1:ny,1:nz) = rh(1:nx,1:ny,1:nz) + mu*lapu(1:nx,1:ny,1:nz) 
+         visc_mu_dt = TWO *mu
+      else if (diffusion_type .eq. 2) then
+         visc_mu_dt = mu
+      end if
+
+      ! Add (1/3) * mu * dt * grad (divu) to the RHS of the viscous solve
+      if (comp.eq.1) then
+         do k = 1,nz
+         do j = 1,ny
+         do i = 1,nx
+             rh(i,j,k) = rh(i,j,k) + THIRD*visc_mu_dt*(mac_rhs(i+1,j,k) - mac_rhs(i-1,j,k)) / dx(1)
+         end do
+         end do
+         end do
+      else if (comp.eq.2) then
+         do k = 1,nz
+         do j = 1,ny
+         do i = 1,nx
+             rh(i,j,k) = rh(i,j,k) + THIRD*visc_mu_dt*(mac_rhs(i,j+1,k) - mac_rhs(i,j-1,k)) / dx(2)
+         end do
+         end do
+         end do
+      else 
+         do k = 1,nz
+         do j = 1,ny
+         do i = 1,nx
+             rh(i,j,k) = rh(i,j,k) + THIRD*visc_mu_dt*(mac_rhs(i,j,k+1) - mac_rhs(i,j,k-1)) / dx(3)
+         end do
+         end do
+         end do
       end if
 
     end subroutine mkrhs_3d
