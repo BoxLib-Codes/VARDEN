@@ -8,6 +8,11 @@ module define_bc_module
 
   type bc_level
 
+     ! 1st index is the grid number (grid "0" corresponds to the entire problem domain)
+     ! 2nd index is the direction (1=x, 2=y, 3=z)
+     ! 3rd index is the side (1=lo, 2=hi)
+     ! 4th index is the variable 
+
      integer, pointer :: phys_bc_level_array(:,:,:) => Null()
      integer, pointer ::  adv_bc_level_array(:,:,:,:) => Null()
      integer, pointer ::  ell_bc_level_array(:,:,:,:) => Null()
@@ -17,10 +22,26 @@ module define_bc_module
   type bc_tower
 
      integer :: max_level_built = 0
+
+     ! an array of bc_levels, one for each level of refinement
      type(bc_level), pointer :: bc_tower_array(:) => Null()
+
+     ! 1st index is the direction (1=x, 2=y, 3=z)
+     ! 2nd index is the side (1=lo, 2=hi)
      integer       , pointer :: domain_bc(:,:) => Null()
 
   end type bc_tower
+
+  private
+
+  interface build
+     module procedure bc_tower_init
+     module procedure bc_tower_level_build
+  end interface build
+
+  interface destroy
+     module procedure bc_tower_destroy
+  end interface destroy
 
   private
 
