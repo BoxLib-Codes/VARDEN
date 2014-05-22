@@ -32,8 +32,6 @@ module define_bc_module
 
   end type bc_tower
 
-  private
-
   interface build
      module procedure bc_tower_init
      module procedure bc_tower_level_build
