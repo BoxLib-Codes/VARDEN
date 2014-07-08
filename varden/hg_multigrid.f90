@@ -39,25 +39,13 @@ contains
 
     type(multifab ), intent(inout), optional :: divu_rhs(:)
 
-    type(box     )  :: pd
-    type(  layout)  :: la
-
-    type(mg_tower) :: mgt(mla%nlevel)
     type(multifab), allocatable :: coeffs(:)
 
-    real(dp_t) :: bottom_solver_eps
-
-    logical :: nodal(mla%dim)
     integer :: i, dm, nlevs
     integer :: bottom_max_iter
     integer :: max_iter
-    integer :: min_width
-    integer :: max_nlevel
-    integer :: nu1, nu2, nub, cycle_type, smoother
     integer :: n
-    integer :: max_nlevel_in
     integer :: do_diagnostics
-    integer, allocatable :: lo_inflow(:),hi_inflow(:)
 
     !! Defaults:
 
