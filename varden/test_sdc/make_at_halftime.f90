@@ -19,7 +19,7 @@ contains
                               the_bc_level,dx,t)
 
     use multifab_physbc_module
-    use ml_restriction_module, only : ml_cc_restriction
+    use ml_cc_restriction_module, only : ml_cc_restriction
     use multifab_fill_ghost_module
 
     type(multifab) , intent(inout) :: rhohalf(:)

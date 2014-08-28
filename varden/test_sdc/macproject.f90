@@ -142,7 +142,7 @@ contains
 
     subroutine divumac(nlevs,umac,rh,dx,ref_ratio,before,divu_rhs)
 
-      use ml_restriction_module, only: ml_cc_restriction
+      use ml_cc_restriction_module, only: ml_cc_restriction
       use probin_module, only: verbose
 
       integer        , intent(in   ) :: nlevs
@@ -262,7 +262,7 @@ contains
 
     subroutine mult_umac_by_1d_coeff(mla,nlevs,umac,div_coeff,div_coeff_half,do_mult)
 
-      use ml_restriction_module, only: ml_edge_restriction
+      use ml_cc_restriction_module, only: ml_edge_restriction
 
       type(ml_layout), intent(in   ) :: mla
       integer        , intent(in   ) :: nlevs
@@ -415,7 +415,7 @@ contains
 
     subroutine mult_umac_by_3d_coeff(mla,nlevs,umac,div_coeff,do_mult)
 
-      use ml_restriction_module, only: ml_edge_restriction
+      use ml_cc_restriction_module, only: ml_edge_restriction
 
       type(ml_layout), intent(in   ) :: mla
       integer        , intent(in   ) :: nlevs
@@ -734,7 +734,7 @@ contains
 
     subroutine mkumac(rh,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp,ref_ratio)
 
-      use ml_restriction_module, only: ml_edge_restriction
+      use ml_cc_restriction_module, only: ml_edge_restriction
 
       type(multifab), intent(inout) :: umac(:,:)
       type(multifab), intent(inout) ::   rh(:)

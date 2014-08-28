@@ -3,7 +3,7 @@ module rxns_integrator
   use bl_types
   use bl_constants_module
   use define_bc_module
-  use ml_restriction_module
+  use ml_cc_restriction_module
   use ml_layout_module
   use multifab_module
   use multifab_fill_ghost_module

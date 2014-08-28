@@ -19,9 +19,9 @@ contains
 
   subroutine visc_solve(mla,unew,lapu,rho,mac_rhs,dx,mu,the_bc_tower)
 
-    use mac_multigrid_module  , only : mac_multigrid
-    use ml_restriction_module , only : ml_cc_restriction
-    use probin_module         , only: stencil_order,verbose
+    use mac_multigrid_module    , only : mac_multigrid
+    use ml_cc_restriction_module, only : ml_cc_restriction
+    use probin_module           , only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: unew(:)
@@ -312,9 +312,9 @@ contains
 
   subroutine diff_scalar_solve(mla,snew,laps,dx,mu,the_bc_tower,icomp,bc_comp)
 
-    use mac_multigrid_module  , only : mac_multigrid
-    use ml_restriction_module , only : ml_cc_restriction_c
-    use probin_module         , only: stencil_order,verbose
+    use mac_multigrid_module    , only : mac_multigrid
+    use ml_cc_restriction_module, only : ml_cc_restriction_c
+    use probin_module           , only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab ), intent(inout) :: snew(:)

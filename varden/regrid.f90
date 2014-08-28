@@ -19,7 +19,7 @@ contains
 
     use multifab_physbc_module
     use multifab_fill_ghost_module
-    use ml_restriction_module
+    use ml_cc_restriction_module
     use make_new_grids_module
 
     use probin_module, only : verbose, nodal, pmask, &

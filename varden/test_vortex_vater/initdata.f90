@@ -42,7 +42,7 @@ contains
        case (2)
           call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx)
        case (3)
-          call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx)
+          call bl_error('Three-D not coded yet')
        end select
     end do
 
@@ -84,7 +84,7 @@ contains
           case (2)
              call initdata_2d(uop(:,:,1,:), sop(:,:,1,:), lo, hi, ng, dx(n,:))
           case (3)
-             call initdata_3d(uop(:,:,:,:), sop(:,:,:,:), lo, hi, ng, dx(n,:))
+             call bl_error('Three-D not coded yet')
           end select
        end do
 
@@ -117,102 +117,49 @@ contains
 
     !     Local variables
     integer :: i, j
+    real (kind = dp_t) :: x, y, r, rsq, cos_theta, sin_theta
+    real (kind = dp_t) :: x_c, y_c, rho_c, u_c, v_c, bigrsq
 
-    do j=lo(2),(hi(2)+1)/2-1
-       do i=lo(1),hi(1)
+    rho_c = HALF
+      x_c = HALF
+      y_c = HALF
 
-          u(i,j,1) = ZERO
-          u(i,j,2) = ZERO
-          s(i,j,1) = ONE
-          s(i,j,2) = ZERO
+    ! u_c = ONE
+    ! v_c = ONE
 
-       enddo
-    enddo
+      u_c = ZERO
+      v_c = ZERO
 
-    do j=(hi(2)+1)/2,hi(2)
-       do i=lo(1),hi(1)
-
-          u(i,j,1) = ZERO
-          u(i,j,2) = ZERO
-          s(i,j,1) = TWO
-          s(i,j,2) = ZERO
-
-       enddo
-    enddo
-
-    ! add a velocity perturbation
-    !      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = -0.1d0
-    !      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) =  0.1d0
-    !      u((hi(1)+1)/2-1,(hi(2)+1)/2-1,2) = -0.1d0
-    !      u((hi(1)+1)/2  ,(hi(2)+1)/2-1,2) = -0.1d0
-
-    ! add a density perturbation
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,1) = TWO
-
-  end subroutine initdata_2d
-
-  subroutine initdata_3d(u,s,lo,hi,ng,dx)
-
-    integer, intent(in) :: lo(:), hi(:), ng
-    real (kind = dp_t), intent(out) :: u(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-    real (kind = dp_t), intent(out) :: s(lo(1)-ng:,lo(2)-ng:,lo(3)-ng:,:)  
-    real (kind = dp_t), intent(in ) :: dx(:)
-
-    !     Local variables
-    integer :: i, j, k
-
-    do k=lo(3),(hi(3)+1)/2-1
-       do j=lo(2),hi(2)
-          do i=lo(1),hi(1)
-
-             u(i,j,k,1) = ZERO
-             u(i,j,k,2) = ZERO
-             u(i,j,k,3) = ZERO
-             s(i,j,k,1) = ONE
-             s(i,j,k,2) = ZERO
-
-          enddo
-       enddo
-    enddo
-
-    do k=(hi(3)+1)/2,hi(3)
-       do j=lo(2),hi(2)
-          do i=lo(1),hi(1)
-
-             u(i,j,k,1) = ZERO
-             u(i,j,k,2) = ZERO
-             u(i,j,k,3) = ZERO
-             s(i,j,k,1) = TWO
-             s(i,j,k,2) = ZERO
-
-          enddo
-       enddo
-    enddo
+    bigrsq = 0.4**2
 
     do j=lo(2),hi(2)
-       ! add a velocity perturbation
-       !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,3) = -0.1d0
-       !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,3) = -0.1d0
-       !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = 0.1d0
-       !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = -0.1d0
+       do i=lo(1),hi(1)
 
-       ! add a density perturbation
-       !         s((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,1) = TWO
-       !         s((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,1) = TWO
+          x   = (dble(i)+HALF)*dx(1)
+          y   = (dble(j)+HALF)*dx(2)
+          rsq = ( (x-x_c)**2 + (y-y_c)**2 ) / bigrsq
+          r   = dsqrt(rsq)
 
-       ! add a transverse velocity perturbation
-       !         u((hi(1)+1)/2-1,j,(hi(3)+1)/2-1,2) = 0.1d0
-       !         u((hi(1)+1)/2  ,j,(hi(3)+1)/2-1,2) = 0.1d0
+          sin_theta = (y-y_c) / r
+          cos_theta = (x-x_c) / r
+
+          if (rsq < 1) then
+              u(i,j,1) =   u_c - 1024.d0 * sin_theta * (ONE - r)**6 * rsq**3
+              u(i,j,2) =   v_c + 1024.d0 * cos_theta * (ONE - r)**6 * rsq**3
+              s(i,j,1) = rho_c + 0.5d0 * (ONE - rsq)**6
+          else
+              u(i,j,1) = u_c 
+              u(i,j,2) = v_c
+              s(i,j,1) = rho_c 
+          end if
+
+          s(i,j,2) = ZERO
+
+       enddo
     enddo
 
-    ! add a density perturbation
-    s((hi(1)+1)/2-1,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2-1,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2-1,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
-    s((hi(1)+1)/2  ,(hi(2)+1)/2  ,(hi(3)+1)/2-1,1) = TWO
 
-  end subroutine initdata_3d
+  end subroutine initdata_2d
 
   subroutine impose_pressure_bcs(p,mla,mult)
 

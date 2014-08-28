@@ -16,7 +16,7 @@ contains
   subroutine mkflux(mla,sold,sedge,flux,umac,force,mac_rhs,dx,dt,the_bc_level, &
                     is_vel,is_conservative)
 
-    use ml_restriction_module, only: ml_edge_restriction_c
+    use ml_cc_restriction_module, only: ml_edge_restriction_c
     use probin_module, only: use_godunov_debug
 
     type(ml_layout), intent(in   ) :: mla

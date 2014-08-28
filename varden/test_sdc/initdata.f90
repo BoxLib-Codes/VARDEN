@@ -7,7 +7,7 @@ module init_module
   use define_bc_module
   use multifab_module
   use multifab_fill_ghost_module
-  use ml_restriction_module
+  use ml_cc_restriction_module
   use ml_layout_module
   use probin_module,  only : nscal, prob_hi_y
 

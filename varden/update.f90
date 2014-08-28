@@ -18,7 +18,7 @@ contains
 
     use bl_constants_module
     use multifab_physbc_module
-    use ml_restriction_module, only: ml_cc_restriction
+    use ml_cc_restriction_module, only: ml_cc_restriction
     use multifab_fill_ghost_module
 
     type(ml_layout)   , intent(in   ) :: mla

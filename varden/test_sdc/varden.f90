@@ -11,7 +11,7 @@ subroutine varden()
   use estdt_module
   use vort_module
   use proj_parameters
-  use ml_restriction_module
+  use ml_cc_restriction_module
   use multifab_physbc_module
   use define_bc_module
   use bl_mem_stat_module

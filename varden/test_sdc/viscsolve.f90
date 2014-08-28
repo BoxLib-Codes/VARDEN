@@ -20,7 +20,7 @@ contains
     use multifab_physbc_module
     use multifab_fill_ghost_module
     use macproject_module,     only: mac_multigrid
-    use ml_restriction_module, only: ml_cc_restriction
+    use ml_cc_restriction_module, only: ml_cc_restriction
     use probin_module, only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
@@ -226,7 +226,7 @@ contains
     use multifab_physbc_module
     use multifab_fill_ghost_module
     use macproject_module,     only: mac_multigrid
-    use ml_restriction_module, only: ml_cc_restriction_c
+    use ml_cc_restriction_module, only: ml_cc_restriction_c
     use probin_module, only: stencil_order, verbose, mass_fractions, nscal
 
     type(ml_layout), intent(in   ) :: mla

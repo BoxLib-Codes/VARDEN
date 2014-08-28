@@ -22,7 +22,7 @@ contains
     use proj_parameters
     use nodal_stencil_module
     use multifab_fill_ghost_module , only : multifab_fill_ghost_cells
-    use ml_restriction_module      , only : ml_cc_restriction
+    use ml_cc_restriction_module   , only : ml_cc_restriction
     use hg_multigrid_module        , only : hg_multigrid
     use hg_hypre_module            , only : hg_hypre
     use probin_module              , only : verbose, use_hypre
