@@ -237,15 +237,15 @@ contains
           call multifab_fill_ghost_cells(uold(n),uold(n-1),ng_cell,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n), &
-                                         1,1,dm,fill_crse_input=.false.)
+                                         1,1,dm)
           call multifab_fill_ghost_cells(sold(n),sold(n-1),ng_cell,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n), &
-                                         1,dm+1,nscal,fill_crse_input=.false.)
+                                         1,dm+1,nscal)
           call multifab_fill_ghost_cells(gp(n),gp(n-1),ng_grow,mla%mba%rr(n-1,:), &
                                          the_bc_tower%bc_tower_array(n-1), &
                                          the_bc_tower%bc_tower_array(n), &
-                                         1,1,dm,fill_crse_input=.false.)
+                                         1,1,dm)
 
        enddo
 
