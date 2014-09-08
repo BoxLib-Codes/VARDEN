@@ -4,8 +4,7 @@ module mkforce_module
   use bl_constants_module
   use multifab_module
   use ml_layout_module
-  use ml_cc_restriction_module
-  use multifab_fill_ghost_module
+  use ml_restrict_fill_module
   use define_bc_module
 
   implicit none
@@ -70,25 +69,8 @@ contains
        end do
     enddo
 
-    do n = nlevs, 2, -1
-       call ml_cc_restriction(vel_force(n-1),vel_force(n),mla%mba%rr(n-1,:))
-    end do
-
-    do n = 2, nlevs
-       ! Note we have to call each component separately because we use extrap_comp
-       do d = 1, dm
-          call multifab_fill_ghost_cells(vel_force(n),vel_force(n-1), &
-                                         ng_f,mla%mba%rr(n-1,:), &
-                                         the_bc_tower%bc_tower_array(n-1), &
-                                         the_bc_tower%bc_tower_array(n  ), &
-                                         d,extrap_comp,1)
-       end do
-    end do
-
-    do n = 1, nlevs
-       call multifab_fill_boundary(vel_force(n))
-    end do
-
+    call ml_restrict_and_fill(nlevs, vel_force, mla%mba%rr, the_bc_tower%bc_tower_array, &
+         icomp=1,bcomp=extrap_comp,nc=dm,same_boundary=.true.)
 
   end subroutine mkvelforce
 
@@ -287,24 +269,8 @@ contains
        end do
     enddo
 
-    do n = nlevs, 2, -1
-       call ml_cc_restriction(scal_force(n-1),scal_force(n),mla%mba%rr(n-1,:))
-    end do
-
-    do n = 2, nlevs
-       ! Note we have to call each component separately because we use extrap_comp
-       do d = 1, nscal
-          call multifab_fill_ghost_cells(scal_force(n),scal_force(n-1), &
-                                         ng_f,mla%mba%rr(n-1,:), &
-                                         the_bc_tower%bc_tower_array(n-1), &
-                                         the_bc_tower%bc_tower_array(n  ), &
-                                         d,extrap_comp,1)
-       end do
-    end do
-
-    do n = 1, nlevs
-       call multifab_fill_boundary(scal_force(n))
-    end do
+    call ml_restrict_and_fill(nlevs, scal_force, mla%mba%rr, the_bc_tower%bc_tower_array, &
+         icomp=1,bcomp=extrap_comp,nc=nscal,same_boundary=.true.)
 
   end subroutine mkscalforce
 

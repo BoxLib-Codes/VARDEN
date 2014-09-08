@@ -17,9 +17,7 @@ contains
 
   subroutine regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
 
-    use multifab_physbc_module
-    use multifab_fill_ghost_module
-    use ml_cc_restriction_module
+    use ml_restrict_fill_module
     use make_new_grids_module
 
     use probin_module, only : verbose, nodal, pmask, &
@@ -205,50 +203,17 @@ contains
        call destroy(     p_temp(nl))
     end do
 
+    call ml_restrict_and_fill(nlevs,uold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
+    call ml_restrict_and_fill(nlevs,sold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=dm+1)
+    call ml_restrict_and_fill(nlevs,sold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
+    
     if (nlevs .eq. 1) then
-
        ! fill ghost cells for two adjacent grids at the same level
        ! this includes periodic domain boundary ghost cells
-       call multifab_fill_boundary(uold(nlevs))
-       call multifab_fill_boundary(sold(nlevs))
-       call multifab_fill_boundary(  gp(nlevs))
        call multifab_fill_boundary(   p(nlevs))
 
        ! fill non-periodic domain boundary ghost cells
-       call multifab_physbc(uold(nlevs),1,1,dm,the_bc_tower%bc_tower_array(nlevs))
-       call multifab_physbc(sold(nlevs),1,dm+1,nscal, &
-                            the_bc_tower%bc_tower_array(nlevs))
        call multifab_physbc(p(nlevs),1,1,1,the_bc_tower%bc_tower_array(nlevs))
-       call multifab_physbc(gp(nlevs),1,1,dm,the_bc_tower%bc_tower_array(nlevs))
-
-    else
-
-       ! the loop over nlevs must count backwards to make sure the finer grids are done first
-       do n=nlevs,2,-1
-
-          ! set level n-1 data to be the average of the level n data covering it
-          call ml_cc_restriction(uold(n-1),uold(n),mla%mba%rr(n-1,:))
-          call ml_cc_restriction(sold(n-1),sold(n),mla%mba%rr(n-1,:))
-          call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
-
-          ! fill level n ghost cells using interpolation from level n-1 data
-          ! note that multifab_fill_boundary and multifab_physbc are called for
-          ! both levels n-1 and n
-          call multifab_fill_ghost_cells(uold(n),uold(n-1),ng_cell,mla%mba%rr(n-1,:), &
-                                         the_bc_tower%bc_tower_array(n-1), &
-                                         the_bc_tower%bc_tower_array(n), &
-                                         1,1,dm)
-          call multifab_fill_ghost_cells(sold(n),sold(n-1),ng_cell,mla%mba%rr(n-1,:), &
-                                         the_bc_tower%bc_tower_array(n-1), &
-                                         the_bc_tower%bc_tower_array(n), &
-                                         1,dm+1,nscal)
-          call multifab_fill_ghost_cells(gp(n),gp(n-1),ng_grow,mla%mba%rr(n-1,:), &
-                                         the_bc_tower%bc_tower_array(n-1), &
-                                         the_bc_tower%bc_tower_array(n), &
-                                         1,1,dm)
-
-       enddo
-
     end if
 
     call destroy(mba)

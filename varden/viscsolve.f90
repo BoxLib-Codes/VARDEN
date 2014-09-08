@@ -5,8 +5,7 @@ module viscous_module
   use multifab_module
   use ml_layout_module
   use define_bc_module
-  use multifab_physbc_module
-  use multifab_fill_ghost_module
+  use ml_restrict_fill_module
   use bndry_reg_module
 
   implicit none
@@ -20,7 +19,6 @@ contains
   subroutine visc_solve(mla,unew,lapu,rho,mac_rhs,dx,mu,the_bc_tower)
 
     use mac_multigrid_module    , only : mac_multigrid
-    use ml_cc_restriction_module, only : ml_cc_restriction
     use probin_module           , only: stencil_order,verbose
 
     type(ml_layout), intent(in   ) :: mla
@@ -102,22 +100,7 @@ contains
        end do
     end do
 
-    do n = 1, nlevs
-       call multifab_fill_boundary(unew(n))
-       call multifab_physbc(unew(n),1,1,dm,the_bc_tower%bc_tower_array(n))
-    enddo
-
-    do n = nlevs, 2, -1
-       call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:))
-    end do
-
-    do n = 2, nlevs
-       call multifab_fill_ghost_cells(unew(n),unew(n-1), &
-                                      ng_cell,mla%mba%rr(n-1,:), &
-                                      the_bc_tower%bc_tower_array(n-1), &
-                                      the_bc_tower%bc_tower_array(n  ), &
-                                      1,1,dm)
-    end do
+    call ml_restrict_and_fill(nlevs, unew, mla%mba%rr, the_bc_tower%bc_tower_array)
 
     if ( verbose .ge. 1 ) then
        do n = 1,nlevs

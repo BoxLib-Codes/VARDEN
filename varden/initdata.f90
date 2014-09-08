@@ -88,8 +88,8 @@ contains
 
     enddo
 
-    call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc)
-    call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc)
+    call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc, bcomp=1)
+    call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc, bcomp=dm+1)
 
   end subroutine initdata
 

@@ -630,7 +630,6 @@ contains
       end do
 
       do n = 1, nlevs
-         call multifab_fill_boundary(rho(n))
          do i = 1, nfabs(rho(n))
             rp => dataptr(rho(n) , i)
             bxp => dataptr(beta(n,1), i)

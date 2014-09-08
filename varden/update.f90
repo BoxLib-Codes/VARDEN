@@ -17,9 +17,7 @@ contains
                     the_bc_level)
 
     use bl_constants_module
-    use multifab_physbc_module
-    use ml_cc_restriction_module, only: ml_cc_restriction
-    use multifab_fill_ghost_module
+    use ml_restrict_fill_module
 
     type(ml_layout)   , intent(in   ) :: mla
     type(multifab)    , intent(in   ) :: sold(:)
@@ -49,6 +47,7 @@ contains
     integer :: lo(get_dim(sold(1))),hi(get_dim(sold(1)))
     integer :: i,dm,nscal,n,nlevs
     integer :: ng_s,ng_u,ng_e,ng_f,ng_o
+    
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -96,31 +95,13 @@ contains
           end select
        end do
 
-       call multifab_fill_boundary(snew(n))
-
-       if (is_vel) then
-          call multifab_physbc(snew(n),1,   1,   dm,the_bc_level(n))
-       else
-          call multifab_physbc(snew(n),1,dm+1,nscal,the_bc_level(n))
-       end if
-
     enddo ! end loop over levels
 
-    do n = nlevs,2,-1
-       call ml_cc_restriction(snew(n-1),snew(n),mla%mba%rr(n-1,:))
-    end do
-
-    do n = 2,nlevs
-       if (is_vel) then
-          call multifab_fill_ghost_cells(snew(n),snew(n-1),ng_s,mla%mba%rr(n-1,:), &
-                                         the_bc_level(n-1),the_bc_level(n), &
-                                         1,1,dm)
-       else
-          call multifab_fill_ghost_cells(snew(n),snew(n-1),ng_s,mla%mba%rr(n-1,:), &
-                                         the_bc_level(n-1),the_bc_level(n), &
-                                         1,dm+1,nscal)
-       end if
-    enddo ! end loop over levels
+    if (is_vel) then
+       call ml_restrict_and_fill(nlevs, snew, mla%mba%rr, the_bc_level, bcomp=1)
+    else
+       call ml_restrict_and_fill(nlevs, snew, mla%mba%rr, the_bc_level, bcomp=dm+1)
+    end if
 
   end subroutine update
 
