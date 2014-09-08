@@ -21,8 +21,7 @@ contains
     use bc_module
     use proj_parameters
     use nodal_stencil_module
-    use multifab_fill_ghost_module , only : multifab_fill_ghost_cells
-    use ml_cc_restriction_module   , only : ml_cc_restriction
+    use ml_restrict_fill_module
     use hg_multigrid_module        , only : hg_multigrid
     use hg_hypre_module            , only : hg_hypre
     use probin_module              , only : verbose, use_hypre
@@ -349,21 +348,20 @@ contains
             end select
          end do
 
-         call multifab_fill_boundary(unew(n))
-         call multifab_fill_boundary(gp(n))
-         call multifab_fill_boundary(p(n))
-
       end do
 
       do n = nlevs, 2, -1
-         call ml_cc_restriction(unew(n-1),unew(n),mla%mba%rr(n-1,:)) 
          call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
       end do
 
-      do n = 2, nlevs
-         call multifab_fill_ghost_cells(unew(n),unew(n-1),ng,mla%mba%rr(n-1,:), &
-                                        the_bc_level(n-1),the_bc_level(n),1,1,dm)
+      do n = 1, nlevs
+         call multifab_fill_boundary(gp(n))
+         call multifab_fill_boundary(p(n))
       end do
+
+      if (nlevs > 1) then
+         call ml_restrict_and_fill(nlevs, unew, mla%mba%rr, the_bc_level)
+      end if
 
     end subroutine hg_update
 

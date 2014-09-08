@@ -6,8 +6,7 @@ module init_module
   use inlet_bc
   use define_bc_module
   use multifab_module
-  use multifab_fill_ghost_module
-  use ml_cc_restriction_module
+  use ml_restrict_fill_module
   use ml_layout_module
 
   implicit none
@@ -19,7 +18,6 @@ contains
 
   subroutine initdata_on_level(u,s,dx,bc)
 
-    use multifab_physbc_module
     use probin_module, only : nscal
 
     type(multifab) , intent(inout) :: u,s
@@ -88,23 +86,10 @@ contains
           end select
        end do
 
-       call multifab_fill_boundary(u(n))
-       call multifab_fill_boundary(s(n))
-
-       call multifab_physbc(u(n),1,1,   dm,   bc(n))
-       call multifab_physbc(s(n),1,dm+1,nscal,bc(n))
-
     enddo
 
-    do n=nlevs,2,-1
-       call ml_cc_restriction(u(n-1),u(n),mla%mba%rr(n-1,:))
-       call ml_cc_restriction(s(n-1),s(n),mla%mba%rr(n-1,:))
-
-       call multifab_fill_ghost_cells(u(n),u(n-1),ng,mla%mba%rr(n-1,:), &
-                                      bc(n-1),bc(n),1,1,dm)
-       call multifab_fill_ghost_cells(s(n),s(n-1),ng,mla%mba%rr(n-1,:), &
-                                      bc(n-1),bc(n),1,dm+1,nscal)
-    enddo
+    call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc)
+    call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc)
 
   end subroutine initdata
 
