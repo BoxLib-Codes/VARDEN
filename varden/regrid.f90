@@ -205,7 +205,7 @@ contains
 
     call ml_restrict_and_fill(nlevs,uold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
     call ml_restrict_and_fill(nlevs,sold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=dm+1)
-    call ml_restrict_and_fill(nlevs,sold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
+    call ml_restrict_and_fill(nlevs,gp  ,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
     
     if (nlevs .eq. 1) then
        ! fill ghost cells for two adjacent grids at the same level
