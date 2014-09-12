@@ -592,15 +592,17 @@ contains
 
          !  phi held                 (change in pressure)
          ! gphi held the gradient of (change in pressure)
-         gp(lo(1):hi(1),lo(2):hi(2),:) = gp(lo(1):hi(1),lo(2):hi(2),:) + gphi(lo(1):hi(1),lo(2):hi(2),:)
-          p(lo(1):hi(1),lo(2):hi(2)+1) =  p(lo(1):hi(1),lo(2):hi(2)+1) +  phi(lo(1):hi(1),lo(2):hi(2)+1)
+         gp(lo(1):hi(1)  ,lo(2):hi(2),:) = gp(lo(1):hi(1)  ,lo(2):hi(2),:) + &
+                                         gphi(lo(1):hi(1),lo(2):hi(2),:)
+          p(lo(1):hi(1)+1,lo(2):hi(2)+1) =  p(lo(1):hi(1)+1,lo(2):hi(2)+1) + &
+                                          phi(lo(1):hi(1)+1,lo(2):hi(2)+1)
 
       else if (proj_type .eq. regular_timestep) then
 
          !  phi held                 dt * (pressure)
          ! gphi held the gradient of dt * (pressure)
-         gp(lo(1):hi(1),lo(2):hi(2),:) = (ONE/dt) * gphi(lo(1):hi(1),lo(2):hi(2),:)
-          p(lo(1):hi(1),lo(2):hi(2)+1) = (ONE/dt) *  phi(lo(1):hi(1),lo(2):hi(2)+1)
+         gp(lo(1):hi(1)  ,lo(2):hi(2),:) = (ONE/dt) * gphi(lo(1):hi(1)  ,lo(2):hi(2),:)
+          p(lo(1):hi(1)+1,lo(2):hi(2)+1) = (ONE/dt) *  phi(lo(1):hi(1)+1,lo(2):hi(2)+1)
 
       end if
 
@@ -650,15 +652,17 @@ contains
          ! gphi held the gradient of (change in pressure)
          gp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) = gp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) &
               + gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
-          p(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1) =  p(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1) &
-              + phi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1)
+          p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) =  p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) &
+                                                      + phi(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1)
 
       else if (proj_type .eq. regular_timestep) then
 
          !  phi held                 dt * (pressure)
          ! gphi held the gradient of dt * (pressure)
-         gp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) = (ONE/dt) * gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
-          p(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1) = (ONE/dt) *  phi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)+1)
+         gp(lo(1):hi(1)  ,lo(2):hi(2)  ,lo(3):hi(3),:) = (ONE/dt) * &
+             gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
+          p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) = (ONE/dt) * &
+             phi(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1)
 
       end if
 
