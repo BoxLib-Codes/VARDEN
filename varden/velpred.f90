@@ -352,8 +352,8 @@ contains
                    ury(i,jc,1:2) = ZERO
                 else if (phys_bc(2,1) .eq. OUTLET) then
                    uly(i,jc,1) = ury(i,jc,1)
-                   uly(i,jc,2) = min(ury(i,jc,1),ZERO)
-                   ury(i,jc,2) = min(ury(i,jc,1),ZERO)
+                   uly(i,jc,2) = min(ury(i,jc,2),ZERO)
+                   ury(i,jc,2) = min(ury(i,jc,2),ZERO)
                 end if
              end if
              
@@ -371,8 +371,8 @@ contains
                    ury(i,jc,1:2) = ZERO
                 else if (phys_bc(2,2) .eq. OUTLET) then
                    ury(i,jc,1) = uly(i,jc,1)
-                   uly(i,jc,2) = max(uly(i,jc,1),ZERO)
-                   ury(i,jc,2) = max(uly(i,jc,1),ZERO)
+                   uly(i,jc,2) = max(uly(i,jc,2),ZERO)
+                   ury(i,jc,2) = max(uly(i,jc,2),ZERO)
                 end if
              end if
 
