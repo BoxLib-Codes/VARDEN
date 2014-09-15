@@ -279,8 +279,8 @@ contains
           ulx(is,jc,1:2) = ZERO
           urx(is,jc,1:2) = ZERO          
        else if (phys_bc(1,1) .eq. OUTLET) then
-          ulx(is,jc,1) = min(urx(is,jc,1),ZERO)
           urx(is,jc,1) = min(urx(is,jc,1),ZERO)
+          ulx(is,jc,1) = urx(is,jc,1)
           ulx(is,jc,2) = urx(is,jc,2)
        end if
 
@@ -297,7 +297,7 @@ contains
           urx(ie+1,jc,1:2) = ZERO
        else if (phys_bc(1,2) .eq. OUTLET) then
           ulx(ie+1,jc,1) = max(ulx(ie+1,jc,1),ZERO)
-          urx(ie+1,jc,1) = max(ulx(ie+1,jc,1),ZERO)
+          urx(ie+1,jc,1) = ulx(ie+1,jc,1)
           urx(ie+1,jc,2) = ulx(ie+1,jc,2)
        end if
 
@@ -351,9 +351,9 @@ contains
                    uly(i,jc,1:2) = ZERO
                    ury(i,jc,1:2) = ZERO
                 else if (phys_bc(2,1) .eq. OUTLET) then
-                   uly(i,jc,1) = ury(i,jc,1)
-                   uly(i,jc,2) = min(ury(i,jc,2),ZERO)
                    ury(i,jc,2) = min(ury(i,jc,2),ZERO)
+                   uly(i,jc,2) = ury(i,jc,2)
+                   uly(i,jc,1) = ury(i,jc,1)
                 end if
              end if
              
@@ -370,9 +370,9 @@ contains
                    uly(i,jc,1:2) = ZERO
                    ury(i,jc,1:2) = ZERO
                 else if (phys_bc(2,2) .eq. OUTLET) then
-                   ury(i,jc,1) = uly(i,jc,1)
                    uly(i,jc,2) = max(uly(i,jc,2),ZERO)
-                   ury(i,jc,2) = max(uly(i,jc,2),ZERO)
+                   ury(i,jc,2) = uly(i,jc,2)
+                   ury(i,jc,1) = uly(i,jc,1)
                 end if
              end if
 
@@ -644,8 +644,8 @@ contains
        ulx(is,js-1:je+1,1:2) = ZERO
        urx(is,js-1:je+1,1:2) = ZERO
     else if (phys_bc(1,1) .eq. OUTLET) then
-       ulx(is,js-1:je+1,1) = min(urx(is,js-1:je+1,1),ZERO)
        urx(is,js-1:je+1,1) = min(urx(is,js-1:je+1,1),ZERO)
+       ulx(is,js-1:je+1,1) = urx(is,js-1:je+1,1)
        ulx(is,js-1:je+1,2) = urx(is,js-1:je+1,2)
     end if
 
@@ -662,7 +662,7 @@ contains
        urx(ie+1,js-1:je+1,1:2) = ZERO
     else if (phys_bc(1,2) .eq. OUTLET) then
        ulx(ie+1,js-1:je+1,1) = max(ulx(ie+1,js-1:je+1,1),ZERO)
-       urx(ie+1,js-1:je+1,1) = max(ulx(ie+1,js-1:je+1,1),ZERO)
+       urx(ie+1,js-1:je+1,1) = ulx(ie+1,js-1:je+1,1)
        urx(ie+1,js-1:je+1,2) = ulx(ie+1,js-1:je+1,2)
     end if
 
@@ -720,9 +720,9 @@ contains
        uly(is-1:ie+1,js,1:2) = ZERO
        ury(is-1:ie+1,js,1:2) = ZERO
     else if (phys_bc(2,1) .eq. OUTLET) then
-       uly(is-1:ie+1,js,1) = ury(is-1:ie+1,js,1)
-       uly(is-1:ie+1,js,2) = min(ury(is-1:ie+1,js,2),ZERO)
        ury(is-1:ie+1,js,2) = min(ury(is-1:ie+1,js,2),ZERO)
+       uly(is-1:ie+1,js,2) = ury(is-1:ie+1,js,2)
+       uly(is-1:ie+1,js,1) = ury(is-1:ie+1,js,1)
     end if
 
     ! impose hi side bc's
@@ -737,9 +737,9 @@ contains
        uly(is-1:ie+1,je+1,1:2) = ZERO
        ury(is-1:ie+1,je+1,1:2) = ZERO
     else if (phys_bc(2,2) .eq. OUTLET) then
-       ury(is-1:ie+1,je+1,1) = uly(is-1:ie+1,je+1,1)
        uly(is-1:ie+1,je+1,2) = max(uly(is-1:ie+1,je+1,2),ZERO)
-       ury(is-1:ie+1,je+1,2) = max(uly(is-1:ie+1,je+1,2),ZERO)
+       ury(is-1:ie+1,je+1,2) = uly(is-1:ie+1,je+1,2)
+       ury(is-1:ie+1,je+1,1) = uly(is-1:ie+1,je+1,1)
     end if
 
     do j=js,je+1
@@ -1078,8 +1078,8 @@ contains
        ulx(is,js-1:je+1,ks-1:ke+1,1:3) = ZERO
        urx(is,js-1:je+1,ks-1:ke+1,1:3) = ZERO
     else if (phys_bc(1,1) .eq. OUTLET) then
-       ulx(is,js-1:je+1,ks-1:ke+1,1) = min(urx(is,js-1:je+1,ks-1:ke+1,1),ZERO)
        urx(is,js-1:je+1,ks-1:ke+1,1) = min(urx(is,js-1:je+1,ks-1:ke+1,1),ZERO)
+       ulx(is,js-1:je+1,ks-1:ke+1,1) = urx(is,js-1:je+1,ks-1:ke+1,1)
        ulx(is,js-1:je+1,ks-1:ke+1,2) = urx(is,js-1:je+1,ks-1:ke+1,2)
        ulx(is,js-1:je+1,ks-1:ke+1,3) = urx(is,js-1:je+1,ks-1:ke+1,3)
     end if
@@ -1098,7 +1098,7 @@ contains
        urx(ie+1,js-1:je+1,ks-1:ke+1,1:3) = ZERO
     else if (phys_bc(1,2) .eq. OUTLET) then
        ulx(ie+1,js-1:je+1,ks-1:ke+1,1) = max(ulx(ie+1,js-1:je+1,ks-1:ke+1,1),ZERO)
-       urx(ie+1,js-1:je+1,ks-1:ke+1,1) = max(ulx(ie+1,js-1:je+1,ks-1:ke+1,1),ZERO)
+       urx(ie+1,js-1:je+1,ks-1:ke+1,1) = ulx(ie+1,js-1:je+1,ks-1:ke+1,1)
        urx(ie+1,js-1:je+1,ks-1:ke+1,2) = ulx(ie+1,js-1:je+1,ks-1:ke+1,2)
        urx(ie+1,js-1:je+1,ks-1:ke+1,3) = ulx(ie+1,js-1:je+1,ks-1:ke+1,3)
     end if
@@ -1164,9 +1164,9 @@ contains
        uly(is-1:ie+1,js,ks-1:ke+1,1:3) = ZERO
        ury(is-1:ie+1,js,ks-1:ke+1,1:3) = ZERO
     else if (phys_bc(2,1) .eq. OUTLET) then
-       uly(is-1:ie+1,js,ks-1:ke+1,1) = ury(is-1:ie+1,js,ks-1:ke+1,1)
-       uly(is-1:ie+1,js,ks-1:ke+1,2) = min(ury(is-1:ie+1,js,ks-1:ke+1,2),ZERO)
        ury(is-1:ie+1,js,ks-1:ke+1,2) = min(ury(is-1:ie+1,js,ks-1:ke+1,2),ZERO)
+       uly(is-1:ie+1,js,ks-1:ke+1,2) = ury(is-1:ie+1,js,ks-1:ke+1,2)
+       uly(is-1:ie+1,js,ks-1:ke+1,1) = ury(is-1:ie+1,js,ks-1:ke+1,1)
        uly(is-1:ie+1,js,ks-1:ke+1,3) = ury(is-1:ie+1,js,ks-1:ke+1,3) 
     end if
 
@@ -1183,9 +1183,9 @@ contains
        uly(is-1:ie+1,je+1,ks-1:ke+1,1:3) = ZERO
        ury(is-1:ie+1,je+1,ks-1:ke+1,1:3) = ZERO
     else if (phys_bc(2,2) .eq. OUTLET) then
-       ury(is-1:ie+1,je+1,ks-1:ke+1,1) = uly(is-1:ie+1,je+1,ks-1:ke+1,1)
        uly(is-1:ie+1,je+1,ks-1:ke+1,2) = max(uly(is-1:ie+1,je+1,ks-1:ke+1,2),ZERO)
-       ury(is-1:ie+1,je+1,ks-1:ke+1,2) = max(uly(is-1:ie+1,je+1,ks-1:ke+1,2),ZERO)
+       ury(is-1:ie+1,je+1,ks-1:ke+1,2) = uly(is-1:ie+1,je+1,ks-1:ke+1,2)
+       ury(is-1:ie+1,je+1,ks-1:ke+1,1) = uly(is-1:ie+1,je+1,ks-1:ke+1,1)
        ury(is-1:ie+1,je+1,ks-1:ke+1,3) = uly(is-1:ie+1,je+1,ks-1:ke+1,3)
     end if
 
@@ -1250,10 +1250,10 @@ contains
        ulz(is-1:ie+1,js-1:je+1,ks,1:3) = ZERO
        urz(is-1:ie+1,js-1:je+1,ks,1:3) = ZERO
     else if (phys_bc(3,1) .eq. OUTLET) then
+       urz(is-1:ie+1,js-1:je+1,ks,3) = min(urz(is-1:ie+1,js-1:je+1,ks,3),ZERO)
+       ulz(is-1:ie+1,js-1:je+1,ks,3) = urz(is-1:ie+1,js-1:je+1,ks,3)
        ulz(is-1:ie+1,js-1:je+1,ks,1) = urz(is-1:ie+1,js-1:je+1,ks,1)
        ulz(is-1:ie+1,js-1:je+1,ks,2) = urz(is-1:ie+1,js-1:je+1,ks,2)
-       ulz(is-1:ie+1,js-1:je+1,ks,3) = min(urz(is-1:ie+1,js-1:je+1,ks,3),ZERO)
-       urz(is-1:ie+1,js-1:je+1,ks,3) = min(urz(is-1:ie+1,js-1:je+1,ks,3),ZERO)
     end if
 
     ! impose hi side bc's
@@ -1269,10 +1269,10 @@ contains
        ulz(is-1:ie+1,js-1:je+1,ke+1,1:3) = ZERO
        urz(is-1:ie+1,js-1:je+1,ke+1,1:3) = ZERO
     else if (phys_bc(3,2) .eq. OUTLET) then
+       ulz(is-1:ie+1,js-1:je+1,ke+1,3) = max(ulz(is-1:ie+1,js-1:je+1,ke+1,3),ZERO)
+       urz(is-1:ie+1,js-1:je+1,ke+1,3) = ulz(is-1:ie+1,js-1:je+1,ke+1,3)
        urz(is-1:ie+1,js-1:je+1,ke+1,1) = ulz(is-1:ie+1,js-1:je+1,ke+1,1)
        urz(is-1:ie+1,js-1:je+1,ke+1,2) = ulz(is-1:ie+1,js-1:je+1,ke+1,2)
-       ulz(is-1:ie+1,js-1:je+1,ke+1,3) = max(ulz(is-1:ie+1,js-1:je+1,ke+1,3),ZERO)
-       urz(is-1:ie+1,js-1:je+1,ke+1,3) = max(ulz(is-1:ie+1,js-1:je+1,ke+1,3),ZERO)
     end if
 
     do k=ks,ke+1
@@ -2047,8 +2047,8 @@ contains
           ulx(is,js-1:je+1,kc,1:3) = ZERO
           urx(is,js-1:je+1,kc,1:3) = ZERO
        else if (phys_bc(1,1) .eq. OUTLET) then
-          ulx(is,js-1:je+1,kc,1) = min(urx(is,js-1:je+1,kc,1),ZERO)
-          ulx(is,js-1:je+1,kc,1) = min(urx(is,js-1:je+1,kc,1),ZERO)
+          urx(is,js-1:je+1,kc,1) = min(urx(is,js-1:je+1,kc,1),ZERO)
+          ulx(is,js-1:je+1,kc,1) = urx(is,js-1:je+1,kc,1)
           ulx(is,js-1:je+1,kc,2) = urx(is,js-1:je+1,kc,2)
           ulx(is,js-1:je+1,kc,3) = urx(is,js-1:je+1,kc,3)
        end if
@@ -2067,7 +2067,7 @@ contains
           urx(ie+1,js-1:je+1,kc,1:3) = ZERO
        else if (phys_bc(1,2) .eq. OUTLET) then
           ulx(ie+1,js-1:je+1,kc,1) = min(ulx(ie+1,js-1:je+1,kc,1),ZERO)
-          urx(ie+1,js-1:je+1,kc,1) = min(ulx(ie+1,js-1:je+1,kc,1),ZERO)
+          urx(ie+1,js-1:je+1,kc,1) = ulx(ie+1,js-1:je+1,kc,1)
           urx(ie+1,js-1:je+1,kc,2) = ulx(ie+1,js-1:je+1,kc,2)
           urx(ie+1,js-1:je+1,kc,3) = ulx(ie+1,js-1:je+1,kc,3)
        end if
@@ -2133,9 +2133,9 @@ contains
           uly(is-1:ie+1,js,kc,1:3) = ZERO
           ury(is-1:ie+1,js,kc,1:3) = ZERO
        else if (phys_bc(2,1) .eq. OUTLET) then
-          uly(is-1:ie+1,js,kc,1) = ury(is-1:ie+1,js,kc,1)
-          uly(is-1:ie+1,js,kc,2) = min(ury(is-1:ie+1,js,kc,2),ZERO)
           ury(is-1:ie+1,js,kc,2) = min(ury(is-1:ie+1,js,kc,2),ZERO)
+          uly(is-1:ie+1,js,kc,2) = ury(is-1:ie+1,js,kc,2)
+          uly(is-1:ie+1,js,kc,1) = ury(is-1:ie+1,js,kc,1)
           uly(is-1:ie+1,js,kc,3) = ury(is-1:ie+1,js,kc,3) 
        end if
 
@@ -2152,9 +2152,9 @@ contains
           uly(is-1:ie+1,je+1,kc,1:3) = ZERO
           ury(is-1:ie+1,je+1,kc,1:3) = ZERO
        else if (phys_bc(2,2) .eq. OUTLET) then
-          ury(is-1:ie+1,je+1,kc,1) = uly(is-1:ie+1,je+1,kc,1)
           uly(is-1:ie+1,je+1,kc,2) = max(uly(is-1:ie+1,je+1,kc,2),ZERO)
-          ury(is-1:ie+1,je+1,kc,2) = max(uly(is-1:ie+1,je+1,kc,2),ZERO)
+          ury(is-1:ie+1,je+1,kc,2) = uly(is-1:ie+1,je+1,kc,2)
+          ury(is-1:ie+1,je+1,kc,1) = uly(is-1:ie+1,je+1,kc,1)
           ury(is-1:ie+1,je+1,kc,3) = uly(is-1:ie+1,je+1,kc,3)
        end if
 
@@ -2312,10 +2312,10 @@ contains
                 ulz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
                 urz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
              else if (phys_bc(3,1) .eq. OUTLET) then
+                urz(is-1:ie+1,js-1:je+1,kc,3) = min(urz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
+                ulz(is-1:ie+1,js-1:je+1,kc,3) = urz(is-1:ie+1,js-1:je+1,kc,3)
                 ulz(is-1:ie+1,js-1:je+1,kc,1) = urz(is-1:ie+1,js-1:je+1,kc,1)
                 ulz(is-1:ie+1,js-1:je+1,kc,2) = urz(is-1:ie+1,js-1:je+1,kc,2)
-                ulz(is-1:ie+1,js-1:je+1,kc,3) = min(urz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
-                urz(is-1:ie+1,js-1:je+1,kc,3) = min(urz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
              end if
           end if
 
@@ -2333,10 +2333,10 @@ contains
                 ulz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
                 urz(is-1:ie+1,js-1:je+1,kc,1:3) = ZERO
              else if (phys_bc(3,2) .eq. OUTLET) then
+                ulz(is-1:ie+1,js-1:je+1,kc,3) = max(ulz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
+                urz(is-1:ie+1,js-1:je+1,kc,3) = ulz(is-1:ie+1,js-1:je+1,kc,3)
                 urz(is-1:ie+1,js-1:je+1,kc,1) = ulz(is-1:ie+1,js-1:je+1,kc,1)
                 urz(is-1:ie+1,js-1:je+1,kc,2) = ulz(is-1:ie+1,js-1:je+1,kc,2)
-                ulz(is-1:ie+1,js-1:je+1,kc,3) = max(ulz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
-                urz(is-1:ie+1,js-1:je+1,kc,3) = max(ulz(is-1:ie+1,js-1:je+1,kc,3),ZERO)
              end if
           end if
 
