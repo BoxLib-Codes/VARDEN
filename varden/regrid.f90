@@ -31,9 +31,8 @@ contains
 
     ! local
     logical           :: new_grid
-    integer           :: n, nl, dm, ng_buffer
+    integer           :: n, nl, dm, ng_buffer, nlevs_old
     type(layout)      :: la_array(max_levs)
-    type(ml_layout)   :: mla_old
     type(ml_boxarray) :: mba
 
     ! These are copies to hold the old data.
@@ -50,15 +49,20 @@ contains
        call bl_error('Dont call regrid with max_levs < 2')
     end if
 
-    call ml_layout_build(mla_old,mla%mba,mla%pmask)
+    la_array(1) = mla%la(1)
 
-    do n = 1,nlevs
+    uold_temp(1) = uold(1)
+    sold_temp(1) = sold(1)
+      gp_temp(1) =   gp(1)
+       p_temp(1) =    p(1)
+
+    do n = 2,nlevs
 
        ! Create copies of the old data.
-       call multifab_build(  uold_temp(n),mla_old%la(n),   dm, ng_cell)
-       call multifab_build(  sold_temp(n),mla_old%la(n),nscal, ng_cell)
-       call multifab_build(    gp_temp(n),mla_old%la(n),   dm, ng_grow)
-       call multifab_build(     p_temp(n),mla_old%la(n),    1, ng_grow, nodal)
+       call multifab_build(  uold_temp(n),mla%la(n),   dm, ng_cell)
+       call multifab_build(  sold_temp(n),mla%la(n),nscal, ng_cell)
+       call multifab_build(    gp_temp(n),mla%la(n),   dm, ng_grow)
+       call multifab_build(     p_temp(n),mla%la(n),    1, ng_grow, nodal)
 
        ! This is to take care of the ghost cells.
        call setval(p_temp(n),0.d0,all=.true.)
@@ -77,8 +81,6 @@ contains
 
     end do
 
-    call destroy(mla)
-
     ! mba is big enough to hold max_levs levels
     ! even though we know we had nlevs last time, we might 
     ! want more or fewer levels after regrid (if nlevs < max_levs)
@@ -95,25 +97,22 @@ contains
     allocate(uold(max_levs),sold(max_levs),p(max_levs),gp(max_levs))
 
     ! Copy the level 1 boxarray
-    call copy(mba%bas(1),mla_old%mba%bas(1))
+    call copy(mba%bas(1),mla%mba%bas(1))
 
     ! Copy the pd(:)
-    mba%pd(1) = mla_old%mba%pd(1)
+    mba%pd(1) = mla%mba%pd(1)
     do n = 2, max_levs
        mba%pd(n) = refine(mba%pd(n-1),mba%rr((n-1),:))
     enddo
-
-    ! Build the level 1 layout.
-    call layout_build_ba(la_array(1),mba%bas(1),mba%pd(1),pmask)
 
     ! This makes sure the boundary conditions are properly defined everywhere
     call bc_tower_level_build(the_bc_tower,1,la_array(1))
 
     ! Build and fill the level 1 data only.
-    call build_and_fill_data(1,la_array(1),mla_old, &
-                             uold     ,sold     ,gp     ,p     , &
-                             uold_temp,sold_temp,gp_temp,p_temp, &
-                             the_bc_tower,dm,mba%rr(1,:))
+    uold(1) = uold_temp(1)
+    sold(1) = sold_temp(1)
+      gp(1) =   gp_temp(1)
+       p(1) =    p_temp(1)
 
     nl       = 1
     new_grid = .true.
@@ -160,7 +159,7 @@ contains
                    call bc_tower_level_build(the_bc_tower,n,la_array(n))
    
                    ! Rebuild the lower level data again if it changed.
-                   call build_and_fill_data(n,la_array(n),mla_old, &
+                   call build_and_fill_data(n,la_array(n),mla, &
                                             uold     ,sold     ,gp     ,p     , &
                                             uold_temp,sold_temp,gp_temp,p_temp, &
                                             the_bc_tower,dm,mba%rr(n-1,:))
@@ -172,7 +171,7 @@ contains
           call bc_tower_level_build(the_bc_tower,nl+1,la_array(nl+1))
 
           ! Build the level nl+1 data only.
-          call build_and_fill_data(nl+1,la_array(nl+1),mla_old, &
+          call build_and_fill_data(nl+1,la_array(nl+1),mla, &
                                    uold     ,sold     ,gp     ,p     , &
                                    uold_temp,sold_temp,gp_temp,p_temp, &
                                    the_bc_tower,dm,mba%rr(nl,:))
@@ -184,23 +183,25 @@ contains
 
     enddo
 
+    nlevs_old = nlevs
     nlevs = nl
+
+    do nl = 2, nlevs_old
+       call destroy(  uold_temp(nl))
+       call destroy(  sold_temp(nl))
+       call destroy(    gp_temp(nl))
+       call destroy(     p_temp(nl))
+    end do
 
     ! Note: This build actually sets mla%la(n) = la_array(n) so we mustn't delete la_array(n).
     !       Doing the build this way means we don't have to re-create all the multifabs because
     !       we have kept the same layouts.
+    call destroy(mla, keep_coarse_layout=.true.)  
     call build(mla,mba,la_array,pmask,nlevs)
 
     ! This makes sure the boundary conditions are properly defined everywhere
     do n = 1, nlevs
        call bc_tower_level_build(the_bc_tower,n,la_array(n))
-    end do
-
-    do nl = 1, mla_old%nlevel
-       call destroy(  uold_temp(nl))
-       call destroy(  sold_temp(nl))
-       call destroy(    gp_temp(nl))
-       call destroy(     p_temp(nl))
     end do
 
     call ml_restrict_and_fill(nlevs,uold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
@@ -217,8 +218,6 @@ contains
     end if
 
     call destroy(mba)
-
-    call destroy(mla_old)
 
   end subroutine regrid
 
