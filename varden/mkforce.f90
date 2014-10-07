@@ -29,7 +29,7 @@ contains
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
-    integer :: i,d,n,dm,nlevs,lo(mla%dim),hi(mla%dim)
+    integer :: i,n,dm,nlevs,lo(mla%dim),hi(mla%dim)
     integer :: ng_f,ng_e,ng_g,ng_s,ng_l
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
@@ -240,7 +240,7 @@ contains
     type(bc_tower) , intent(in   ) :: the_bc_tower
 
     ! local
-    integer :: i,d,n,ng_f,ng_e,ng_l,dm,nlevs,lo(mla%dim),hi(mla%dim)
+    integer :: i,n,ng_f,ng_e,ng_l,dm,nlevs,lo(mla%dim),hi(mla%dim)
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)

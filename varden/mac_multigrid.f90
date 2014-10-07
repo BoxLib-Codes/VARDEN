@@ -35,8 +35,7 @@ contains
     real(dp_t)     , intent(in   ) :: rel_solver_eps
     real(dp_t)     , intent(in   ) :: abs_solver_eps
 
-    type(mg_tower)  :: mgt(mla%nlevel)
-    integer         :: n,nlevs
+    integer         :: nlevs
 
     ! MG solver defaults
     integer :: do_diagnostics

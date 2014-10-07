@@ -41,8 +41,7 @@ contains
 
     type(multifab), allocatable :: coeffs(:)
 
-    integer :: i, dm, nlevs
-    integer :: bottom_max_iter
+    integer :: dm, nlevs
     integer :: max_iter
     integer :: n
     integer :: do_diagnostics
@@ -64,6 +63,10 @@ contains
 
     do n = 1,nlevs
        call multifab_build(coeffs(n), mla%la(n), 1, 1)
+
+       ! Initialize ghost cells of coeffs to zero so we don't get uninitialized errors
+       !   when using coeffs in the calculation of Anorm
+       call multifab_setval(coeffs(n),0.d0,all=.true.)
 
        ! coeffs = 1/rho
        call multifab_setval(coeffs(n),1.d0)
