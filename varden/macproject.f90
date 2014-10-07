@@ -250,12 +250,12 @@ contains
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,vmac,ng_u,rh,ng_r,dx,lo,hi)
+    subroutine divumac_2d(umac,vmac,ng_um,rh,ng_rh,dx,lo,hi)
 
-      integer        , intent(in   ) :: lo(:),hi(:),ng_u,ng_r
-      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_u:,lo(2)-ng_u:)
-      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_u:,lo(2)-ng_u:)
-      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_r:,lo(2)-ng_r:)
+      integer        , intent(in   ) :: lo(:),hi(:),ng_um,ng_rh
+      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_um:,lo(2)-ng_um:)
+      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_um:,lo(2)-ng_um:)
+      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_rh:,lo(2)-ng_rh:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
       integer :: i,j
@@ -269,17 +269,18 @@ contains
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,vmac,wmac,ng_u,rh,ng_r,dx,lo,hi)
+    subroutine divumac_3d(umac,vmac,wmac,ng_um,rh,ng_rh,dx,lo,hi)
 
-      integer        , intent(in   ) :: lo(:),hi(:),ng_u,ng_r
-      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-      real(kind=dp_t), intent(in   ) :: wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_r:,lo(2)-ng_r:,lo(3)-ng_r:)
+      integer        , intent(in   ) :: lo(:),hi(:),ng_um,ng_rh
+      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
+      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
+      real(kind=dp_t), intent(in   ) :: wmac(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
+      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_rh:,lo(2)-ng_rh:,lo(3)-ng_rh:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j,k
 
+      !$OMP PARALLEL DO PRIVATE(i,j,k)
       do k = lo(3),hi(3)
          do j = lo(2),hi(2)
             do i = lo(1),hi(1)
@@ -289,6 +290,7 @@ contains
             end do
          end do
       end do
+      !$OMP END PARALLEL DO 
 
     end subroutine divumac_3d
 
@@ -379,12 +381,14 @@ contains
 
     end subroutine mult_edge_by_1d_coeff_2d
 
-    subroutine mult_edge_by_1d_coeff_3d(uedge,vedge,wedge,ng_e,div_coeff,div_coeff_half,lo,hi,do_mult)
+    subroutine mult_edge_by_1d_coeff_3d(uedge,vedge,wedge,ng_um,div_coeff,div_coeff_half,lo,hi, &
+                                        do_mult)
 
-      integer        , intent(in   ) :: ng_e,lo(:),hi(:)
-      real(kind=dp_t), intent(inout) :: uedge(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:)
-      real(kind=dp_t), intent(inout) :: vedge(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:)
-      real(kind=dp_t), intent(inout) :: wedge(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:)
+      integer        , intent(in   ) :: lo(:),hi(:)
+      integer        , intent(in   ) :: ng_um
+      real(kind=dp_t), intent(inout) :: uedge(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
+      real(kind=dp_t), intent(inout) :: vedge(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
+      real(kind=dp_t), intent(inout) :: wedge(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
       real(dp_t)     , intent(in   ) :: div_coeff(0:)
       real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
       logical        , intent(in   ) :: do_mult
@@ -394,8 +398,6 @@ contains
       if (do_mult) then
          do k = lo(3),hi(3)
             uedge(:,:,k) = uedge(:,:,k) * div_coeff(k)
-         end do
-         do k = lo(3),hi(3)
             vedge(:,:,k) = vedge(:,:,k) * div_coeff(k)
          end do
          do k = lo(3),hi(3)+1
@@ -404,8 +406,6 @@ contains
       else
          do k = lo(3),hi(3)
             uedge(:,:,k) = uedge(:,:,k) / div_coeff(k)
-         end do
-         do k = lo(3),hi(3)
             vedge(:,:,k) = vedge(:,:,k) / div_coeff(k)
          end do
          do k = lo(3),hi(3)+1
@@ -599,6 +599,7 @@ contains
 
     subroutine mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
+      use ml_cc_restriction_module, only: ml_edge_restriction
       use multifab_fill_ghost_module
 
       integer        , intent(in   ) :: nlevs
@@ -607,7 +608,6 @@ contains
       type(multifab ), intent(inout) :: beta(:,:)
       type(bc_tower ), intent(in   ) :: the_bc_tower
 
-      type(box)                :: bx
       real(kind=dp_t), pointer :: bxp(:,:,:,:) 
       real(kind=dp_t), pointer :: byp(:,:,:,:) 
       real(kind=dp_t), pointer :: bzp(:,:,:,:) 
@@ -617,8 +617,8 @@ contains
       integer :: i,dm,ng_r,ng_b,ng_fill 
 
       dm   = mla%dim
-      ng_r = rho(nlevs)%ng
-      ng_b = beta(nlevs,1)%ng
+      ng_r = nghost(rho(nlevs))
+      ng_b = nghost(beta(nlevs,1))
 
       ng_fill = 1
       do n = 2, nlevs
@@ -634,9 +634,8 @@ contains
             rp => dataptr(rho(n) , i)
             bxp => dataptr(beta(n,1), i)
             byp => dataptr(beta(n,2), i)
-            bx  = get_box(rho(n),i)
-            lo  = lwb(bx)
-            hi  = upb(bx)
+            lo  = lwb(get_box(rho(n),i))
+            hi  = upb(get_box(rho(n),i))
             select case (dm)
             case (2)
                call mk_mac_coeffs_2d(bxp(:,:,1,1),byp(:,:,1,1),ng_b,rp(:,:,1,1),ng_r,lo,hi)
@@ -647,11 +646,18 @@ contains
          end do
       end do
 
+      ! Make sure that the fine edges average down onto the coarse edges.
+      do n = nlevs,2,-1
+         do i = 1,dm
+            call ml_edge_restriction(beta(n-1,i),beta(n,i),mla%mba%rr(n-1,:),i)
+         end do
+      end do
+
     end subroutine mk_mac_coeffs
 
     subroutine mk_mac_coeffs_2d(betax,betay,ng_b,rho,ng_r,lo,hi)
 
-      integer        , intent(in   ) :: lo(2),hi(2),ng_b,ng_r
+      integer        , intent(in   ) :: ng_b,ng_r,lo(:),hi(:)
       real(kind=dp_t), intent(inout) :: betax(lo(1)-ng_b:,lo(2)-ng_b:)
       real(kind=dp_t), intent(inout) :: betay(lo(1)-ng_b:,lo(2)-ng_b:)
       real(kind=dp_t), intent(in   ) ::   rho(lo(1)-ng_r:,lo(2)-ng_r:)
@@ -674,7 +680,7 @@ contains
 
     subroutine mk_mac_coeffs_3d(betax,betay,betaz,ng_b,rho,ng_r,lo,hi)
 
-      integer        , intent(in   ) :: lo(3),hi(3),ng_b,ng_r
+      integer        , intent(in   ) :: ng_b,ng_r,lo(:),hi(:)
       real(kind=dp_t), intent(inout) :: betax(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
       real(kind=dp_t), intent(inout) :: betay(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
       real(kind=dp_t), intent(inout) :: betaz(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
@@ -682,6 +688,8 @@ contains
 
       integer :: i,j,k
 
+      !$OMP PARALLEL PRIVATE(i,j,k)
+      !$OMP DO
       do k = lo(3),hi(3)
          do j = lo(2),hi(2)
             do i = lo(1),hi(1)+1
@@ -689,7 +697,8 @@ contains
             end do
          end do
       end do
-
+      !$OMP END DO NOWAIT
+      !$OMP DO
       do k = lo(3),hi(3)
          do j = lo(2),hi(2)+1
             do i = lo(1),hi(1)
@@ -697,7 +706,8 @@ contains
             end do
          end do
       end do
-
+      !$OMP END DO NOWAIT
+      !$OMP DO
       do k = lo(3),hi(3)+1
          do j = lo(2),hi(2)
             do i = lo(1),hi(1)
@@ -705,6 +715,8 @@ contains
             end do
          end do
       end do
+      !$OMP END DO
+      !$OMP END PARALLEL
 
     end subroutine mk_mac_coeffs_3d
 
