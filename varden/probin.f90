@@ -131,7 +131,6 @@ contains
     use bl_error_module
     use bl_constants_module
     use cluster_module
-    use regrid_module
     
     integer    :: narg, farg
 
@@ -525,8 +524,6 @@ contains
     call cluster_set_min_eff(cluster_min_eff)
     call cluster_set_blocking_factor(cluster_blocking_factor)
     call cluster_set_minwidth(cluster_min_width)
-
-    call ignore_fine_in_layout_mapping_set(ignore_fine_in_layout_mapping)
 
   end subroutine probin_init
 

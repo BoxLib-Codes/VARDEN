@@ -10,18 +10,11 @@ module regrid_module
 
   implicit none
 
-  logical, save :: ignore_fine_in_layout_mapping = .true.
-
   private
 
-  public :: regrid, ignore_fine_in_layout_mapping_set
+  public :: regrid
 
 contains
-
-  subroutine ignore_fine_in_layout_mapping_set(flag)
-    logical, intent(in) :: flag
-    ignore_fine_in_layout_mapping = flag
-  end subroutine ignore_fine_in_layout_mapping_set
 
   subroutine regrid(mla,uold,sold,gp,p,dx,the_bc_tower)
 
@@ -30,7 +23,7 @@ contains
 
     use probin_module, only : verbose, nodal, pmask, &
          amr_buf_width, ref_ratio, max_levs, nscal, nlevs, max_grid_size, &
-         ng_cell, ng_grow
+         ng_cell, ng_grow, ignore_fine_in_layout_mapping
 
     type(ml_layout), intent(inout) :: mla
     type(multifab),  pointer       :: uold(:),sold(:),gp(:),p(:)
