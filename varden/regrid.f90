@@ -6,6 +6,7 @@ module regrid_module
   use define_bc_module
   use restart_module
   use box_util_module
+  use tag_boxes_module, only : tagging_needs_ghost_cells
 
   implicit none
 
@@ -123,10 +124,11 @@ contains
 
        ! Do we need finer grids?
 
-       ! Need to fill ghost cells here in case we use them in tagging
-       call multifab_fill_boundary(sold(nl))
-       call multifab_physbc(sold(nl),1,dm+1,nscal, &
-                            the_bc_tower%bc_tower_array(nl))
+       if (tagging_needs_ghost_cells) then
+          ! Need to fill ghost cells here in case we use them in tagging
+          call multifab_fill_boundary(sold(nl))
+          call multifab_physbc(sold(nl),1,dm+1,nscal,the_bc_tower%bc_tower_array(nl))
+       end if
 
        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1), &
                            amr_buf_width,ref_ratio,nl,max_grid_size)
@@ -236,6 +238,8 @@ contains
     type(bc_tower)             , intent(inout) :: the_bc_tower
     type(multifab)   ,  pointer, intent(inout) :: uold(:),sold(:),gp(:),p(:)
     type(multifab)             , intent(in   ) :: uold_temp(:),sold_temp(:),gp_temp(:),p_temp(:)
+
+    logical :: same_boxarray
  
     ! Build the level lev data only.
     call multifab_build(  uold(lev), la,    dm, ng_cell)
@@ -246,25 +250,33 @@ contains
     ! We need this to take care of the ghost cells.
     call setval(p(lev),0.d0,all=.true.)
 
+    if (mla_old%nlevel .ge. lev) then
+       same_boxarray = boxarray_same_q(get_boxarray(la), &
+            &                          get_boxarray(mla_old%la(lev)))
+    else
+       same_boxarray = .false.
+    end if
+    
     ! Fill the data in the new level lev state -- first from the coarser data if lev > 1.
+    ! No need to fill ghost cells
 
-    if (lev .gt. 1) then
+    if (lev .gt. 1 .and. .not.same_boxarray) then
 
        call fillpatch(uold(lev),uold(lev-1), &
-                      ng_cell,rr, &
+                      0,rr, &
                       the_bc_tower%bc_tower_array(lev-1), &
                       the_bc_tower%bc_tower_array(lev  ), &
-                      1,1,1,dm)
+                      1,1,1,dm,no_final_physbc_input=.true.)
        call fillpatch(sold(lev),sold(lev-1), &
-                      ng_cell,rr, &
+                      0,rr, &
                       the_bc_tower%bc_tower_array(lev-1), &
                       the_bc_tower%bc_tower_array(lev  ), &
-                      1,1,dm+1,nscal)
+                      1,1,dm+1,nscal,no_final_physbc_input=.true.)
        call fillpatch(gp(lev),gp(lev-1), &
-                      ng_grow,rr, &
+                      0,rr, &
                       the_bc_tower%bc_tower_array(lev-1), &
                       the_bc_tower%bc_tower_array(lev  ), &
-                      1,1,1,dm)
+                      1,1,1,dm,no_final_physbc_input=.true.)
        ! We interpolate p differently because it is nodal, not cell-centered
        call ml_nodal_prolongation(p(lev), p(lev-1), rr)
 
