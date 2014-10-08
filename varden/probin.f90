@@ -48,6 +48,8 @@ module probin_module
   integer,save    :: cluster_blocking_factor
   real(dp_t),save :: cluster_min_eff
 
+  logical,save    :: ignore_fine_in_layout_mapping
+
   ! This will be allocated and defined below
   logical   , allocatable, save :: nodal(:)
   logical   , allocatable, save :: pmask(:)
@@ -115,6 +117,7 @@ module probin_module
   namelist /probin/ cluster_min_eff
   namelist /probin/ cluster_min_width
   namelist /probin/ cluster_blocking_factor
+  namelist /probin/ ignore_fine_in_layout_mapping
 
 contains
 
@@ -128,6 +131,7 @@ contains
     use bl_error_module
     use bl_constants_module
     use cluster_module
+    use regrid_module
     
     integer    :: narg, farg
 
@@ -175,6 +179,8 @@ contains
     cluster_min_eff = 0.9d0
     cluster_min_width = 4
     cluster_blocking_factor = 4
+
+    ignore_fine_in_layout_mapping = .true.
 
     prob_lo_x = ZERO
     prob_lo_y = ZERO
@@ -519,6 +525,8 @@ contains
     call cluster_set_min_eff(cluster_min_eff)
     call cluster_set_blocking_factor(cluster_blocking_factor)
     call cluster_set_minwidth(cluster_min_width)
+
+    call ignore_fine_in_layout_mapping_set(ignore_fine_in_layout_mapping)
 
   end subroutine probin_init
 
