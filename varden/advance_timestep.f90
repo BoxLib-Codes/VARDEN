@@ -20,6 +20,7 @@ module advance_module
   use probin_module, only : nscal, visc_coef, diffusion_type, stencil_order, &
                             verbose, mg_verbose, cg_verbose
   use proj_parameters
+  use bl_prof_module
 
 contains
 
@@ -54,6 +55,10 @@ contains
     real(kind=dp_t) ::  hg_time,  hg_time_start,  hg_time_max
 
     integer    :: i,n,comp,dm,nlevs
+
+    type(bl_prof_timer), save :: bpt, bpt_s, bpt_v, bpt_mac, bpt_hg
+
+    call build(bpt, "advance")
 
     dm    = mla%dim
     nlevs = mla%nlevel
@@ -91,14 +96,18 @@ contains
   
     mac_time_start = parallel_wtime()
  
+    call build(bpt_mac, "MAC_Project")
     call macproject(mla,umac,sold,mac_rhs,dx,the_bc_tower,press_comp)
+    call destroy(bpt_mac)
 
     call parallel_barrier()
     mac_time = parallel_wtime() - mac_time_start
 
     sa_time_start = parallel_wtime()
+    call build(bpt_s, "Scalar_update")
     call scalar_advance(mla,sold,snew,umac,ext_scal_force, &
                         dx,dt,the_bc_tower)
+    call destroy(bpt_s)
     call parallel_barrier()
     sa_time = parallel_wtime() - sa_time_start
     
@@ -111,15 +120,19 @@ contains
     end if
 
     va_time_start = parallel_wtime()
+    call build(bpt_v, "Velocity_update")
     call velocity_advance(mla,uold,unew,sold,lapu,rhohalf,umac,gp, &
                           ext_vel_force,mac_rhs,dx,dt,the_bc_tower)
+    call destroy(bpt_v)
     call parallel_barrier()
     va_time = parallel_wtime() - va_time_start
 
     ! Project the new velocity field.
     hg_time_start = parallel_wtime()
+    call build(bpt_hg, "HG_Project")
     call hgproject(proj_type,mla,unew,uold,rhohalf,p,gp,dx,dt, &
                    the_bc_tower,press_comp)
+    call destroy(bpt_hg)
     call parallel_barrier()
     hg_time = parallel_wtime() - hg_time_start
 
@@ -151,6 +164,8 @@ contains
        print *, '  HG Projection: ',  hg_time_max, ' seconds'
        print *, ' '
     endif
+
+    call destroy(bpt)
 
   end subroutine advance_timestep
 
