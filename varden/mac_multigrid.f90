@@ -6,6 +6,7 @@ module mac_multigrid_module
   use multifab_module
   use bndry_reg_module
   use bl_constants_module
+  use bl_prof_module
 
   implicit none
 
@@ -18,11 +19,8 @@ contains
   subroutine mac_multigrid(mla,rh,phi,fine_flx,alpha,beta,dx,the_bc_tower,bc_comp,&
                            stencil_order,rel_solver_eps,abs_solver_eps)
 
-    use cc_stencil_fill_module, only : stencil_fill_cc_all_mglevels
-    use mg_module             , only : mg_tower, mg_tower_build, mg_tower_destroy
     use ml_solve_module       , only : ml_cc_solve
     use probin_module         , only : mg_verbose, cg_verbose, mg_bottom_solver, max_mg_bottom_nlevels
-    use stencil_types_module
 
     type(ml_layout), intent(in   ) :: mla
     type(multifab) , intent(inout) :: rh(:),phi(:)
