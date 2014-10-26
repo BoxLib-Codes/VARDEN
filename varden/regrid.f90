@@ -23,7 +23,7 @@ contains
 
     use probin_module, only : verbose, nodal, pmask, &
          amr_buf_width, ref_ratio, max_levs, nscal, nlevs, max_grid_size, &
-         ng_cell, ng_grow, ignore_fine_in_layout_mapping
+         ng_cell, ng_grow
 
     type(ml_layout), intent(inout) :: mla
     type(multifab),  pointer       :: uold(:),sold(:),gp(:),p(:)
@@ -39,18 +39,7 @@ contains
     ! These are copies to hold the old data.
     type(multifab) :: uold_temp(max_levs), sold_temp(max_levs), gp_temp(max_levs)
     type(multifab) :: p_temp(max_levs)
-
-    logical :: mc_flag, order_flag    
-    integer(kind=ll_t), allocatable :: lucvol(:)
-
-    if (ignore_fine_in_layout_mapping) then
-       mc_flag = get_manual_control_least_used_cpus_flag()
-       order_flag = get_luc_keep_cpu_order_flag()
-       call manual_control_least_used_cpus_set(.true.)
-       call luc_keep_cpu_order_set(.true.)
-       allocate(lucvol(max_levs))
-       lucvol = 0_ll_t
-    end if
+    type(multifab), allocatable :: uold_opt(:), sold_opt(:), gp_opt(:), p_opt(:)
 
     dm = mla%dim
 
@@ -142,11 +131,6 @@ contains
           call multifab_physbc(sold(nl),1,dm+1,nscal,the_bc_tower%bc_tower_array(nl))
        end if
 
-       if (ignore_fine_in_layout_mapping) then
-          lucvol(nl) = layout_local_volume(la_array(nl))
-          call luc_vol_set(sum(lucvol(1:nl)))
-       end if
-
        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1), &
                            amr_buf_width,ref_ratio,nl,max_grid_size)
 
@@ -174,14 +158,6 @@ contains
                 ! Loop over all the lower levels which we might have changed when we enforced proper nesting.
                 do n = 2,nl
    
-                   if (ignore_fine_in_layout_mapping) then
-                      call luc_vol_set(sum(lucvol(1:n-1)))
-                      ! Destroy the old layout and build a new one.
-                      call destroy(la_array(n))
-                      call layout_build_ba(la_array(n),mba%bas(n),mba%pd(n),pmask)
-                      lucvol(n) = layout_local_volume(la_array(n))
-                   end if
-
                    ! This makes sure the boundary conditions are properly defined everywhere
                    call bc_tower_level_build(the_bc_tower,n,la_array(n))
    
@@ -192,14 +168,6 @@ contains
                                             the_bc_tower,dm,mba%rr(n-1,:))
                 end do
                 
-                if (ignore_fine_in_layout_mapping) then
-                   call luc_vol_set(sum(lucvol(1:nl)))
-                   ! Destroy the old layout and build a new one.
-                   call destroy(la_array(nl+1))
-                   call layout_build_ba(la_array(nl+1),mba%bas(nl+1),mba%pd(nl+1),pmask)
-                   lucvol(nl+1) = layout_local_volume(la_array(nl+1))
-                end if
-
              end if
           end if
 
@@ -229,15 +197,47 @@ contains
        call destroy(     p_temp(nl))
     end do
 
-    ! Note: This build actually sets mla%la(n) = la_array(n) so we mustn't delete la_array(n).
-    !       Doing the build this way means we don't have to re-create all the multifabs because
-    !       we have kept the same layouts.
+    ! this destroys everything in mla except the coarsest layout
     call destroy(mla, keep_coarse_layout=.true.)  
-    call build(mla,mba,la_array,pmask,nlevs)
+
+    call ml_layout_build_la_array(mla,la_array,mba,pmask,nlevs)
+    call destroy(mba)
+
+    ! We need to move data if a layout in la_array is not used in mla.
+    ! We also need to destroy any unused layouts.
+    allocate(uold_opt(nlevs),sold_opt(nlevs),gp_opt(nlevs),p_opt(nlevs))
+    do n=1,nlevs
+       if (mla%la(n) .ne. la_array(n)) then
+          call multifab_build(uold_opt(n), mla%la(n),    dm, ng_cell)       
+          call multifab_build(sold_opt(n), mla%la(n), nscal, ng_cell)       
+          call multifab_build(  gp_opt(n), mla%la(n),    dm, ng_grow)       
+          call multifab_build(   p_opt(n), mla%la(n),     1, ng_grow, nodal)
+
+          ! This is to take care of the ghost cells.
+          call setval(p_opt(n),0.d0,all=.true.)
+
+          call multifab_copy_c(uold_opt(n), 1,  uold(n), 1,    dm)
+          call multifab_copy_c(sold_opt(n), 1,  sold(n), 1, nscal)
+          call multifab_copy_c(  gp_opt(n), 1,    gp(n), 1,    dm)
+          call multifab_copy_c(   p_opt(n), 1,     p(n), 1,     1)
+
+          call destroy(uold(n))
+          call destroy(sold(n))
+          call destroy( gp(n))
+          call destroy(  p(n))
+          call destroy(la_array(n))
+
+          uold(n) = uold_opt(n)
+          sold(n) = sold_opt(n)
+          gp  (n) =   gp_opt(n)
+          p   (n) =    p_opt(n)
+       end if
+    end do
+    deallocate(uold_opt,sold_opt,gp_opt,p_opt)
 
     ! This makes sure the boundary conditions are properly defined everywhere
     do n = 1, nlevs
-       call bc_tower_level_build(the_bc_tower,n,la_array(n))
+       call bc_tower_level_build(the_bc_tower,n,mla%la(n))
     end do
 
     call ml_restrict_and_fill(nlevs,uold,mla%mba%rr,the_bc_tower%bc_tower_array,bcomp=1)
@@ -251,14 +251,6 @@ contains
 
        ! fill non-periodic domain boundary ghost cells
        call multifab_physbc(p(nlevs),1,1,1,the_bc_tower%bc_tower_array(nlevs))
-    end if
-
-    call destroy(mba)
-
-    if (ignore_fine_in_layout_mapping) then
-       call manual_control_least_used_cpus_set(mc_flag)
-       call luc_keep_cpu_order_set(order_flag)
-       deallocate(lucvol)
     end if
 
   end subroutine regrid
