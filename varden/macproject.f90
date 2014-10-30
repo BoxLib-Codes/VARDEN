@@ -141,7 +141,8 @@ contains
        do n=2,nlevs
           call create_umac_grown(umac(n,:),umac(n-1,:), &
                                  the_bc_tower%bc_tower_array(n-1), &
-                                 the_bc_tower%bc_tower_array(n))
+                                 the_bc_tower%bc_tower_array(n), &
+                                 n.eq.nlevs)
        end do
     else
        do n=1,nlevs
