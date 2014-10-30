@@ -1,6 +1,7 @@
 module regrid_module
 
   use BoxLib
+  use bl_prof_module
   use ml_boxarray_module
   use ml_layout_module
   use define_bc_module
@@ -40,6 +41,10 @@ contains
     type(multifab) :: uold_temp(max_levs), sold_temp(max_levs), gp_temp(max_levs)
     type(multifab) :: p_temp(max_levs)
     type(multifab), allocatable :: uold_opt(:), sold_opt(:), gp_opt(:), p_opt(:)
+
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt, "regrid")
 
     dm = mla%dim
 
@@ -225,6 +230,7 @@ contains
           call destroy(sold(n))
           call destroy( gp(n))
           call destroy(  p(n))
+
           call destroy(la_array(n))
 
           uold(n) = uold_opt(n)
@@ -252,6 +258,8 @@ contains
        ! fill non-periodic domain boundary ghost cells
        call multifab_physbc(p(nlevs),1,1,1,the_bc_tower%bc_tower_array(nlevs))
     end if
+
+    call destroy(bpt)
 
   end subroutine regrid
 
