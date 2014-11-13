@@ -46,6 +46,8 @@ contains
 
     call build(bpt, "regrid")
 
+    nlevs_old = nlevs
+
     dm = mla%dim
 
     if (verbose .ge. 1) then
@@ -192,7 +194,6 @@ contains
 
     enddo
 
-    nlevs_old = nlevs
     nlevs = nl
 
     do nl = 2, nlevs_old
