@@ -45,9 +45,9 @@ contains
     do n = 1,nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
        call multifab_build(  phi(n), mla%la(n),  1, 1)
-       call multifab_build(alpha(n), mla%la(n),  1, 1)
+       call multifab_build(alpha(n), mla%la(n),  1, 0)
        do d = 1,dm
-          call multifab_build_edge(beta(n,d), mla%la(n), 1, 1, d)
+          call multifab_build_edge(beta(n,d), mla%la(n), 1, 0, d)
        end do
 
        call multifab_copy_c(alpha(n),1,rho(n),1,1)

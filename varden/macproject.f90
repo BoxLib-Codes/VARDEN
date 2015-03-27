@@ -65,7 +65,7 @@ contains
        call multifab_build(  phi(n), mla%la(n),  1, 1)
        call multifab_build(alpha(n), mla%la(n),  1, 0)
        do d = 1,dm
-          call multifab_build_edge( beta(n,d), mla%la(n), 1, 1, d)
+          call multifab_build_edge( beta(n,d), mla%la(n), 1, 0, d)
        end do
 
        call setval(alpha(n),ZERO,all=.true.)
