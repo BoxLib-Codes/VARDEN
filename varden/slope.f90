@@ -236,8 +236,8 @@ contains
 
              do i = is-1,ie+1 
                 ds = two * two3rd * dxscr(i,cen) - &
-                     sixth * (dxscr(i+1,cen) + dxscr(i-1,cen)) 
-                slx(i,j,comp) = ds!dxscr(i,flag)*min(abs(ds),dxscr(i,lim))
+                     sixth * (dxscr(i+1,fromm) + dxscr(i-1,fromm)) 
+                slx(i,j,comp) = dxscr(i,flag)*min(abs(ds),dxscr(i,lim))
              enddo
 
              if (bc(1,1,comp) .eq. EXT_DIR  .or. bc(1,1,comp) .eq. HOEXTRAP) then
@@ -383,8 +383,8 @@ contains
 
              do j = js-1,je+1 
                 ds = two * two3rd * dyscr(j,cen) -  &
-                     sixth * (dyscr(j+1,cen) + dyscr(j-1,cen))
-                sly(i,j,comp) = ds!dyscr(j,flag)*min(abs(ds),dyscr(j,lim))
+                     sixth * (dyscr(j+1,fromm) + dyscr(j-1,fromm))
+                sly(i,j,comp) = dyscr(j,flag)*min(abs(ds),dyscr(j,lim))
              enddo
 
              if (bc(2,1,comp) .eq. EXT_DIR .or. bc(2,1,comp) .eq. HOEXTRAP) then
