@@ -8,6 +8,8 @@ module initialize_module
   use init_module
   use box_util_module
   use make_new_grids_module
+  use tag_boxes_module
+  use multifab_fill_ghost_module
 
   implicit none
 
@@ -217,6 +219,13 @@ contains
         ng_buffer = 4
 
         do while ( (nl .lt. max_levs) .and. (new_grid) )
+
+           if (tagging_needs_ghost_cells .and. nl.ge.2) then
+              call multifab_fill_ghost_cells(sold(nl),sold(nl-1),sold(nl)%ng,mba%rr((nl-1),:), &
+                   the_bc_tower%bc_tower_array(nl-1), &
+                   the_bc_tower%bc_tower_array(nl), &
+                   1,dm+1,nscal)
+           end if
 
            ! Do we need finer grids?
            call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1), &

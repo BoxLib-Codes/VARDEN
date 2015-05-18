@@ -132,10 +132,18 @@ contains
 
        ! Do we need finer grids?
 
-       if (tagging_needs_ghost_cells) then
-          ! Need to fill ghost cells here in case we use them in tagging
+       if (nl .eq. 1) then
           call multifab_fill_boundary(sold(nl))
           call multifab_physbc(sold(nl),1,dm+1,nscal,the_bc_tower%bc_tower_array(nl))
+       else 
+          call multifab_fill_ghost_cells(sold(nl),sold(nl-1),sold(nl)%ng,mba%rr((nl-1),:), &
+                                         the_bc_tower%bc_tower_array(nl-1), &
+                                         the_bc_tower%bc_tower_array(nl), &
+                                         1,dm+1,nscal)
+       end if
+
+       if (tagging_needs_ghost_cells) then
+          ! Need to fill ghost cells here in case we use them in tagging
        end if
 
        call make_new_grids(new_grid,la_array(nl),la_array(nl+1),sold(nl),dx(nl,1), &
