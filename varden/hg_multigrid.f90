@@ -46,6 +46,10 @@ contains
     integer :: n
     integer :: do_diagnostics
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"hg_multigrid")
+
     !! Defaults:
 
     dm    = mla%dim
@@ -109,6 +113,8 @@ contains
     end do
 
     deallocate(coeffs)
+
+    call destroy(bpt)
 
   end subroutine hg_multigrid
 

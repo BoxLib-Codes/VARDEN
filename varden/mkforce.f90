@@ -37,6 +37,9 @@ contains
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     real(kind=dp_t), pointer :: gpp(:,:,:,:)
 
+    type(bl_prof_timer), save :: bpt
+    call build(bpt,"mkvelforce")
+
     nlevs = mla%nlevel
     dm = mla%dim
 
@@ -71,6 +74,8 @@ contains
 
     call ml_restrict_and_fill(nlevs, vel_force, mla%mba%rr, the_bc_tower%bc_tower_array, &
          icomp=1,bcomp=extrap_comp,nc=dm,same_boundary=.true.)
+
+    call destroy(bpt)
 
   end subroutine mkvelforce
 
@@ -245,6 +250,10 @@ contains
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"mkscalforce")
+
     nlevs = mla%nlevel
     dm = mla%dim
 
@@ -271,6 +280,8 @@ contains
 
     call ml_restrict_and_fill(nlevs, scal_force, mla%mba%rr, the_bc_tower%bc_tower_array, &
          icomp=1,bcomp=extrap_comp,nc=nscal,same_boundary=.true.)
+
+    call destroy(bpt)
 
   end subroutine mkscalforce
 

@@ -36,6 +36,10 @@ contains
     real(kind=dp_t), pointer:: wmp(:,:,:,:)
     real(kind=dp_t), pointer:: fp(:,:,:,:)
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"velpred")
+
     dm = get_dim(u(1))
 
     ng_u = u(1)%ng
@@ -114,6 +118,8 @@ contains
        end do
     end do
     
+    call destroy(bpt)
+
   end subroutine velpred
 
   subroutine velpred_2d(u,umac,vmac,force,lo,hi,dx,dt,phys_bc,adv_bc,ng_u,ng_m,ng_f)

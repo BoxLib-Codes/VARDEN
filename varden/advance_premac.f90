@@ -33,6 +33,10 @@ contains
     integer         :: dm,n,nlevs
     real(kind=dp_t) :: visc_fac
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt, "advance_premac")
+
     dm    = get_dim(uold(1))
     nlevs = mla%nlevel
 
@@ -49,6 +53,8 @@ contains
     do n = 1, nlevs
        call multifab_destroy(vel_force(n))
     enddo
+
+    call destroy(bpt)
 
   end subroutine advance_premac
 

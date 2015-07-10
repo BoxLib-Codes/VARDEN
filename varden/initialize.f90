@@ -39,6 +39,10 @@ contains
 
      integer :: n,dm
 
+     type(bl_prof_timer), save :: bpt
+
+     call build(bpt,"initialize_from_restart")
+
      dm = dim_in
 
      call fill_restart_data(restart,mba,chkdata,chk_p,time,dt)
@@ -82,6 +86,8 @@ contains
 
      call destroy(mba)
 
+     call destroy(bpt)
+
   end subroutine initialize_from_restart
 
   subroutine initialize_with_fixed_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
@@ -97,6 +103,10 @@ contains
      type(ml_boxarray)         :: mba
 
      integer :: n,dm
+
+     type(bl_prof_timer), save :: bpt
+
+     call build(bpt,"initialize_with_fixed_grids")
 
      dm = dim_in
 
@@ -135,6 +145,8 @@ contains
 
      call destroy(mba)
 
+     call destroy(bpt)
+
   end subroutine initialize_with_fixed_grids
 
   subroutine initialize_with_adaptive_grids(mla,pmask,dx,uold,sold,gp,p,the_bc_tower)
@@ -157,6 +169,10 @@ contains
      logical :: new_grid
      integer :: lo(dim_in), hi(dim_in)
      integer :: n, nl, dm, ng_buffer
+
+     type(bl_prof_timer), save :: bpt
+
+     call build(bpt,"initialize_with_adaptive_grids")
 
      dm = dim_in
 
@@ -320,6 +336,8 @@ contains
    call initdata(nlevs,uold,sold,dx,the_bc_tower%bc_tower_array,mla)
 
    call destroy(mba)
+
+   call destroy(bpt)
 
   end subroutine initialize_with_adaptive_grids
 

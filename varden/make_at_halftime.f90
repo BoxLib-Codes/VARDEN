@@ -33,6 +33,10 @@ contains
     integer   :: lo(get_dim(rhohalf(1))),hi(get_dim(rhohalf(1)))
     integer   :: nlevs,ng_h,ng_o,dm,i,n
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"make_at_halftime")
+
     nlevs = mla%nlevel
     dm    = mla%dim
 
@@ -59,6 +63,8 @@ contains
 
     call ml_restrict_and_fill(nlevs, rhohalf, mla%mba%rr, the_bc_level, &
          icomp=out_comp, bcomp=dm+in_comp, nc=1, ng=ng_h)
+
+    call destroy(bpt)
 
   end subroutine make_at_halftime
 

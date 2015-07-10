@@ -213,6 +213,10 @@ contains
       integer :: i,n,dm,ng_u,ng_g,ng_r
       integer :: lo(get_dim(uold(1))),hi(get_dim(uold(1)))
   
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"create_uvec_for_projection")
+
       dm = get_dim(unew(nlevs))
       ng_u = nghost(unew(nlevs))
       ng_g = nghost(gp(nlevs))
@@ -241,6 +245,8 @@ contains
          call multifab_fill_boundary(unew(n))
       end do 
 
+      call destroy(bpt)
+
     end subroutine create_uvec_for_projection
 
 
@@ -258,6 +264,10 @@ contains
 
       real(kind=dp_t), pointer :: gph(:,:,:,:) 
       real(kind=dp_t), pointer :: pp(:,:,:,:) 
+
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"mkgphi")
 
       dm = get_dim(phi(1))
 
@@ -282,6 +292,8 @@ contains
          call multifab_fill_boundary(gphi(n))
 
       end do
+
+      call destroy(bpt)
 
     end subroutine mkgphi
 
@@ -312,6 +324,10 @@ contains
       real(kind=dp_t), pointer ::  rp(:,:,:,:) 
       real(kind=dp_t), pointer ::  ph(:,:,:,:) 
       real(kind=dp_t), pointer ::  pp(:,:,:,:) 
+
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"hg_update")
 
       nlevs = mla%nlevel
       dm    = mla%dim
@@ -361,6 +377,8 @@ contains
       if (nlevs > 1) then
          call ml_restrict_and_fill(nlevs, unew, mla%mba%rr, the_bc_level)
       end if
+
+      call destroy(bpt)
 
     end subroutine hg_update
 

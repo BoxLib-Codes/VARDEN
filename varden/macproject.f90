@@ -187,6 +187,10 @@ contains
       real(kind=dp_t)          :: rhmax
       integer :: i,dm,ng_u,ng_r,lo(rh(nlevs)%dim),hi(rh(nlevs)%dim)
 
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"divumac")
+
       dm = rh(nlevs)%dim
 
       ng_u = umac(1,1)%ng
@@ -248,6 +252,8 @@ contains
 1000  format(' ')
 1001  format('... before mac_projection: max of [div (coeff * UMAC) - RHS)]',e15.8)
 1002  format('...  after mac_projection: max of [div (coeff * UMAC) - RHS)]',e15.8)
+
+      call destroy(bpt)
 
     end subroutine divumac
 
@@ -311,6 +317,9 @@ contains
       integer                  :: lo(mla%dim),hi(mla%dim)
       integer                  :: i,dm,n,nlevs,ng_e
 
+      type(bl_prof_timer), save :: bpt
+      call build(bpt,"mult_edge_by_1d_coeff")
+
       if (edge(1,1)%ng .ne. 1) then
          call bl_error("mult_edge_by_1d_coeff assumes edge has 1 ghost cell")
       end if
@@ -351,6 +360,8 @@ contains
          end do
       end do
       
+      call destroy(bpt)
+
     end subroutine mult_edge_by_1d_coeff
 
     subroutine mult_edge_by_1d_coeff_2d(uedge,vedge,ng_e,div_coeff,div_coeff_half,lo,hi,do_mult)
@@ -434,6 +445,10 @@ contains
       integer :: lo(uedge(1,1)%dim),hi(uedge(1,1)%dim)
       integer :: domlo(uedge(1,1)%dim),domhi(uedge(1,1)%dim)
 
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"mult_edge_by_3d_coeff")
+
       nlevs = mla%nlevel
 
       ng_u = uedge(1,1)%ng
@@ -468,6 +483,8 @@ contains
             call ml_edge_restriction(uedge(n-1,i),uedge(n,i),mla%mba%rr(n-1,:),i)
          end do
       end do
+
+      call destroy(bpt)
 
     end subroutine mult_edge_by_3d_coeff
 
@@ -751,6 +768,10 @@ contains
       real(kind=dp_t), pointer :: lzp(:,:,:,:) 
       real(kind=dp_t), pointer :: hzp(:,:,:,:) 
 
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"mkumac")
+
       dm = get_dim(phi(1))
       nlevs = size(phi)
 
@@ -828,6 +849,8 @@ contains
             call ml_edge_restriction(umac(n-1,i),umac(n,i),mla%mba%rr(n-1,:),i)
          end do
       end do
+
+      call destroy(bpt)
 
     end subroutine mkumac
 

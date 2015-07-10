@@ -48,6 +48,9 @@ contains
     integer :: i,dm,nscal,n,nlevs
     integer :: ng_s,ng_u,ng_e,ng_f,ng_o
     
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"update")
 
     nlevs = mla%nlevel
     dm    = mla%dim
@@ -102,6 +105,8 @@ contains
     else
        call ml_restrict_and_fill(nlevs, snew, mla%mba%rr, the_bc_level, bcomp=dm+1)
     end if
+
+    call destroy(bpt)
 
   end subroutine update
 

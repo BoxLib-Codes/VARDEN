@@ -28,6 +28,10 @@ contains
     integer :: lo(u%dim),hi(u%dim)
     integer :: i,ng,dm
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"initdata_on_level")
+
     ng = u%ng
     dm = u%dim
 
@@ -50,6 +54,8 @@ contains
     call multifab_physbc(u,1,1,   dm,   bc)
     call multifab_physbc(s,1,dm+1,nscal,bc)
 
+    call destroy(bpt)
+
   end subroutine initdata_on_level
 
   subroutine initdata(nlevs,u,s,dx,bc,mla)
@@ -67,6 +73,10 @@ contains
     real(kind=dp_t), pointer:: uop(:,:,:,:), sop(:,:,:,:)
     integer :: lo(u(1)%dim),hi(u(1)%dim)
     integer :: ng,dm,i,n
+
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"initdata")
 
     ng = u(1)%ng
     dm = u(1)%dim
@@ -90,6 +100,8 @@ contains
 
     call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc, bcomp=1)
     call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc, bcomp=dm+1)
+
+    call destroy(bpt)
 
   end subroutine initdata
 

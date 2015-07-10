@@ -34,6 +34,10 @@ contains
     type(multifab) :: alpha(mla%nlevel), beta(mla%nlevel,mla%dim)
     type(multifab) :: phi(mla%nlevel), Lphi(mla%nlevel)
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"get_explicit_diffusive_term")
+
     nlevs = mla%nlevel
     dm    = mla%dim
 
@@ -78,6 +82,8 @@ contains
         call multifab_destroy(  phi(n))
         call multifab_destroy( Lphi(n))
      enddo
+
+     call destroy(bpt)
 
   end subroutine get_explicit_diffusive_term
 

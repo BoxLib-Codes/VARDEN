@@ -47,6 +47,10 @@ contains
     real(kind=dp_t), pointer :: fp(:,:,:,:)
     real(kind=dp_t), pointer :: dp(:,:,:,:)
 
+    type(bl_prof_timer), save :: bpt
+    
+    call build(bpt,"mkflux")
+
     nlevs = mla%nlevel
     dm    = mla%dim
 
@@ -142,6 +146,8 @@ contains
 
     enddo
     
+    call destroy(bpt)
+
   end subroutine mkflux
 
   subroutine mkflux_2d(s,sedgex,sedgey,fluxx,fluxy,umac,vmac,force,mac_rhs,lo,hi,dx,dt,is_vel, &

@@ -25,6 +25,10 @@ contains
     real(kind=dp_t), pointer:: vp(:,:,:,:)
     integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm,i
 
+    type(bl_prof_timer), save :: bpt
+    
+    call build(bpt,"make_vorticity")
+
     ng = nghost(u)
     dm = get_dim(u)
 
@@ -47,6 +51,8 @@ contains
        end select
     end do
 
+    call destroy(bpt)
+
   end subroutine make_vorticity
 
   subroutine make_magvel (magvel,comp,u)
@@ -58,6 +64,10 @@ contains
     real(kind=dp_t), pointer:: up(:,:,:,:)
     real(kind=dp_t), pointer:: vp(:,:,:,:)
     integer :: lo(get_dim(u)),hi(get_dim(u)),ng,dm,i
+
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"make_magvel")
 
     ng = nghost(u)
     dm = get_dim(u)
@@ -75,6 +85,8 @@ contains
           call makemagvel_3d(vp(:,:,:,comp),up(:,:,:,:), lo, hi, ng)
        end select
     end do
+
+    call destroy(bpt)
 
   end subroutine make_magvel
 

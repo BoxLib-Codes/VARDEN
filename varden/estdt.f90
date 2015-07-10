@@ -29,6 +29,10 @@ contains
     real(kind=dp_t) :: dt_proc, dt_grid, dt_start
     integer         :: i
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"estdt")
+
     ng_u = u%ng
     ng_s = s%ng
     ng_g = gp%ng
@@ -77,6 +81,8 @@ contains
        write(6,1000) lev,dt
     end if
 1000 format("Computing dt at level ",i2," to be ... ",e15.8)
+
+    call destroy(bpt)
 
   end subroutine estdt
 

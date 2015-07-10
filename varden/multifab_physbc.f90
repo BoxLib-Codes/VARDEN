@@ -26,6 +26,10 @@ contains
     integer                  :: i,ng,dm,scomp,bccomp
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     
+    type(bl_prof_timer), save :: bpt
+    
+    call build(bpt,"multifab_physbc")
+
     ng = nghost(s)
     dm = get_dim(s)
     
@@ -48,6 +52,8 @@ contains
        end select
     end do
  
+    call destroy(bpt)
+
   end subroutine multifab_physbc
 
   subroutine physbc_2d(s,lo,ng,bc,icomp)

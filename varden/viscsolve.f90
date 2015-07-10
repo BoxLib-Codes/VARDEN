@@ -38,6 +38,10 @@ contains
     real(kind=dp_t) :: rel_solver_eps
     real(kind=dp_t) :: abs_solver_eps
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"visc_solve")
+
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = nghost(unew(1))
@@ -137,6 +141,8 @@ contains
        call bndry_reg_destroy(fine_flx(n))
     end do
 
+    call destroy(bpt)
+
   contains
 
     subroutine mkrhs(rh,unew,lapu,rho,phi,mac_rhs,mu,dx,comp)
@@ -154,6 +160,10 @@ contains
       real(kind=dp_t), pointer ::  lp(:,:,:,:)
       real(kind=dp_t), pointer ::  mp(:,:,:,:)
       integer :: i,dm,ng_u,ng_r,ng_m
+
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"mkrhs")
 
       dm     = get_dim(rh)
       ng_u = nghost(unew)
@@ -176,6 +186,8 @@ contains
                            pp(:,:,:,1),  mp(:,:,:,1), mu, dx, ng_u, ng_r, ng_m, comp)
          end select
       end do
+
+      call destroy(bpt)
 
     end subroutine mkrhs
 
@@ -316,6 +328,10 @@ contains
     real(kind=dp_t) :: abs_solver_eps
     real(kind=dp_t) :: nrm1
 
+    type(bl_prof_timer), save :: bpt
+
+    call build(bpt,"diff_scalar_solve")
+
     nlevs = mla%nlevel
     dm    = mla%dim
     ng_cell = nghost(snew(1))
@@ -404,6 +420,8 @@ contains
        call bndry_reg_destroy(fine_flx(n))
     end do
 
+    call destroy(bpt)
+
   contains
 
     subroutine mkrhs(rh,snew,laps,phi,mu,comp)
@@ -418,6 +436,10 @@ contains
       real(kind=dp_t), pointer :: pp(:,:,:,:)
       real(kind=dp_t), pointer :: lp(:,:,:,:)
       integer :: i,dm,ng
+
+      type(bl_prof_timer), save :: bpt
+
+      call build(bpt,"diff_scalar_solve/mkrhs")
 
       dm   = get_dim(rh)
       ng   = nghost(snew)
@@ -434,6 +456,8 @@ contains
             call mkrhs_3d(rp(:,:,:,1), sp(:,:,:,comp), lp(:,:,:,comp), pp(:,:,:,1), mu, ng)
          end select
       end do
+
+      call destroy(bpt)
 
     end subroutine mkrhs
 
