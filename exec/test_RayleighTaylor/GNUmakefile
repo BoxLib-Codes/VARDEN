@@ -7,11 +7,17 @@ OMP    :=
 
 COMP   := gfortran
 
+TILING := 
+
 TOP    := ../..
 
 include $(BOXLIB_HOME)/Tools/F_mk/GMakedefs.mak
 
 f90sources += main.f90
+
+ifdef TILING
+VPATH_LOCATIONS += $(TOP)/src_tiled
+endif
 
 include $(TOP)/src/GPackage.mak
 VPATH_LOCATIONS += $(TOP)/src
