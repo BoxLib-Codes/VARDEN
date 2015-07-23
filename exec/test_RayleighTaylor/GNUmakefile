@@ -13,8 +13,8 @@ include $(BOXLIB_HOME)/Tools/F_mk/GMakedefs.mak
 
 f90sources += main.f90
 
-include $(TOP)/varden/GPackage.mak
-VPATH_LOCATIONS += $(TOP)/varden
+include $(TOP)/src/GPackage.mak
+VPATH_LOCATIONS += $(TOP)/src
 
 include $(BOXLIB_HOME)/Src/F_BaseLib/GPackage.mak
 VPATH_LOCATIONS += $(BOXLIB_HOME)/Src/F_BaseLib
