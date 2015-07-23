@@ -29,12 +29,8 @@ contains
     real(kind=dp_t) :: dt_proc, dt_grid, dt_start
     integer         :: i
 
-    type(mfiter) :: mfi
-    type(box) :: tilebox
-    integer :: tlo(get_dim(u)), thi(get_dim(u))
-
     type(bl_prof_timer), save :: bpt
-    
+
     call build(bpt,"estdt")
 
     ng_u = u%ng
@@ -46,17 +42,7 @@ contains
     dt_proc  = 1.d20
     dt_start = 1.d20
 
-    !$omp parallel private(mfi,i,tilebox,tlo,thi) &
-    !$omp private(uop,sop,gpp,fp,lo,hi,dt_grid) &
-    !$omp reduction(MIN:dt_proc)
-    call mfiter_build(mfi,u,tiling=.true.)
-    do while(more_tile(mfi))
-       i = get_fab_index(mfi)
-
-       tilebox = get_tilebox(mfi)
-       tlo = lwb(tilebox)
-       thi = upb(tilebox)
-
+    do i = 1, nfabs(u)
        uop => dataptr(u, i)
        sop => dataptr(s, i)
        gpp => dataptr(gp, i)
@@ -69,15 +55,15 @@ contains
        case (2)
           call estdt_2d(uop(:,:,1,:), ng_u, sop(:,:,1,1), ng_s, &
                         gpp(:,:,1,:), ng_g, fp(:,:,1,:), ng_f, &
-                        lo, hi, dx, dt_grid,tlo,thi)
+                        lo, hi, dx, dt_grid)
        case (3)
           call estdt_3d(uop(:,:,:,:), ng_u, sop(:,:,:,1), ng_s, &
                         gpp(:,:,:,:), ng_g, fp(:,:,:,:), ng_f, &
-                        lo, hi, dx, dt_grid,tlo,thi)
+                        lo, hi, dx, dt_grid)
        end select
+
        dt_proc = min(dt_grid, dt_proc)
     end do
-    !$omp end parallel
 
     ! This sets dt to be the min of dt_proc over all processors.
     call parallel_reduce(dt ,dt_proc ,MPI_MIN)
@@ -100,13 +86,13 @@ contains
 
   end subroutine estdt
 
-  subroutine estdt_2d(vel,ng_u,s,ng_s,gp,ng_g,ext_vel_force,ng_f,glo,ghi,dx,dt,tlo,thi)
+  subroutine estdt_2d(vel,ng_u,s,ng_s,gp,ng_g,ext_vel_force,ng_f,lo,hi,dx,dt)
 
-    integer, intent(in) :: glo(:), ghi(:), ng_u, ng_s, ng_g, ng_f,tlo(:),thi(:)
-    real (kind = dp_t), intent(in   ) ::           vel(glo(1)-ng_u:,glo(2)-ng_u:,:)  
-    real (kind = dp_t), intent(in   ) ::             s(glo(1)-ng_s:,glo(2)-ng_s:)  
-    real (kind = dp_t), intent(in   ) ::            gp(glo(1)-ng_g:,glo(2)-ng_g:,:)  
-    real (kind = dp_t), intent(in   ) :: ext_vel_force(glo(1)-ng_f:,glo(2)-ng_f:,:)  
+    integer, intent(in) :: lo(:), hi(:), ng_u, ng_s, ng_g, ng_f
+    real (kind = dp_t), intent(in   ) ::           vel(lo(1)-ng_u:,lo(2)-ng_u:,:)  
+    real (kind = dp_t), intent(in   ) ::             s(lo(1)-ng_s:,lo(2)-ng_s:)  
+    real (kind = dp_t), intent(in   ) ::            gp(lo(1)-ng_g:,lo(2)-ng_g:,:)  
+    real (kind = dp_t), intent(in   ) :: ext_vel_force(lo(1)-ng_f:,lo(2)-ng_f:,:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(inout) :: dt
 
@@ -122,8 +108,8 @@ contains
     fx = 0.0D0 
     fy = 0.0D0 
 
-    do j = tlo(2), thi(2)
-       do i = tlo(1), thi(1)
+    do j = lo(2), hi(2)
+       do i = lo(1), hi(1)
           u  = max(u ,abs(vel(i,j,1)))
           v  = max(v ,abs(vel(i,j,2)))
           fx = max(fx,abs(gp(i,j,1)/s(i,j)-ext_vel_force(i,j,1)))
@@ -142,13 +128,13 @@ contains
 
   end subroutine estdt_2d
 
-  subroutine estdt_3d(vel,ng_u,s,ng_s,gp,ng_g,ext_vel_force,ng_f,glo,ghi,dx,dt,tlo,thi)
+  subroutine estdt_3d(vel,ng_u,s,ng_s,gp,ng_g,ext_vel_force,ng_f,lo,hi,dx,dt)
 
-    integer, intent(in) :: glo(:), ghi(:), ng_u, ng_s, ng_g, ng_f,tlo(:),thi(:)
-    real (kind = dp_t), intent(in   ) ::           vel(glo(1)-ng_u:,glo(2)-ng_u:,glo(3)-ng_u:,:)  
-    real (kind = dp_t), intent(in   ) ::             s(glo(1)-ng_s:,glo(2)-ng_s:,glo(3)-ng_s:)  
-    real (kind = dp_t), intent(in   ) ::            gp(glo(1)-ng_g:,glo(2)-ng_g:,glo(3)-ng_g:,:)  
-    real (kind = dp_t), intent(in   ) :: ext_vel_force(glo(1)-ng_f:,glo(2)-ng_f:,glo(3)-ng_f:,:)  
+    integer, intent(in) :: lo(:), hi(:), ng_u, ng_s, ng_g, ng_f
+    real (kind = dp_t), intent(in   ) ::           vel(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:,:)  
+    real (kind = dp_t), intent(in   ) ::             s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:)  
+    real (kind = dp_t), intent(in   ) ::            gp(lo(1)-ng_g:,lo(2)-ng_g:,lo(3)-ng_g:,:)  
+    real (kind = dp_t), intent(in   ) :: ext_vel_force(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(inout) :: dt
 
@@ -166,9 +152,9 @@ contains
     fy = 0.0D0 
     fz = 0.0D0 
 
-    do k = tlo(3), thi(3)
-       do j = tlo(2), thi(2)
-          do i = tlo(1), thi(1)
+    do k = lo(3), hi(3)
+       do j = lo(2), hi(2)
+          do i = lo(1), hi(1)
              u  = max(u ,abs(vel(i,j,k,1)))
              v  = max(v ,abs(vel(i,j,k,2)))
              w  = max(w ,abs(vel(i,j,k,3)))
