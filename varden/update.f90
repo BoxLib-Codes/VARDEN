@@ -48,6 +48,10 @@ contains
     integer :: i,dm,nscal,n,nlevs
     integer :: ng_s,ng_u,ng_e,ng_f,ng_o
     
+    type(mfiter) :: mfi
+    type(box) :: tilebox
+    integer :: tlo(mla%dim), thi(mla%dim)
+
     type(bl_prof_timer), save :: bpt
 
     call build(bpt,"update")
@@ -63,9 +67,21 @@ contains
     ng_f = flux(1,1)%ng
     ng_o = force(1)%ng
 
-    do n=1,nlevs
+    !$omp parallel private(n,i,mfi,tilebox,tlo,thi) &
+    !$omp private(sop,snp,ump,vmp,wmp,sepx,sepy,sepz) &
+    !$omp private(fluxpx,fluxpy,fluxpz,fp,lo,hi)
 
-       do i = 1, nfabs(sold(n))
+    do n=1,nlevs
+       call mfiter_build(mfi, sold(n), tiling=.true.)
+
+          do while (more_tile(mfi))
+             i = get_fab_index(mfi)
+
+             tilebox = get_tilebox(mfi)
+             tlo = lwb(tilebox)
+             thi = upb(tilebox)
+
+!       do i = 1, nfabs(sold(n))
           sop    => dataptr(sold(n),i)
           snp    => dataptr(snew(n),i)
           ump    => dataptr(umac(n,1),i)
@@ -84,7 +100,7 @@ contains
                             fluxpx(:,:,1,:), fluxpy(:,:,1,:), &
                             fp(:,:,1,:) , snp(:,:,1,:), &
                             lo, hi, ng_s, ng_u, ng_e, ng_f, ng_o, &
-                            dx(n,:), dt, is_vel, is_cons)
+                            dx(n,:), dt, is_vel, is_cons,tlo,thi)
           case (3)
              wmp    => dataptr( umac(n,3),i)
              sepz   => dataptr(sedge(n,3),i)
@@ -94,11 +110,12 @@ contains
                             fluxpx(:,:,:,:), fluxpy(:,:,:,:), fluxpz(:,:,:,:), &
                             fp(:,:,:,:) , snp(:,:,:,:), &
                             lo, hi, ng_s, ng_u, ng_e, ng_f, ng_o, &
-                            dx(n,:), dt, is_vel, is_cons)
+                            dx(n,:), dt, is_vel, is_cons,tlo,thi)
           end select
        end do
 
     enddo ! end loop over levels
+    !$omp end parallel
 
     if (is_vel) then
        call ml_restrict_and_fill(nlevs, snew, mla%mba%rr, the_bc_level, bcomp=1)
@@ -111,20 +128,21 @@ contains
   end subroutine update
 
   subroutine update_2d(sold,umac,vmac,sedgex,sedgey,fluxx,fluxy,force,snew,&
-                       lo,hi,ng_s,ng_u, ng_e, ng_f, ng_o, dx,dt,is_vel,is_cons)
+                       glo,ghi,ng_s,ng_u, ng_e, ng_f, ng_o, dx,dt,is_vel,is_cons,tlo,thi)
 
     use bl_constants_module
 
-    integer           , intent(in   ) :: lo(:), hi(:), ng_s, ng_u, ng_e, ng_f, ng_o
-    real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng_s:,lo(2)-ng_s:,:)  
-    real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng_s:,lo(2)-ng_s:,:)  
-    real (kind = dp_t), intent(in   ) ::    umac(lo(1)-ng_u:,lo(2)-ng_u:)  
-    real (kind = dp_t), intent(in   ) ::    vmac(lo(1)-ng_u:,lo(2)-ng_u:)  
-    real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)-ng_e:,lo(2)-ng_e:,:)  
-    real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)-ng_e:,lo(2)-ng_e:,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)-ng_f:,lo(2)-ng_f:,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)-ng_f:,lo(2)-ng_f:,:) 
-    real (kind = dp_t), intent(in   ) ::   force(lo(1)-ng_o:,lo(2)-ng_o:,:)  
+    integer           , intent(in   ) :: glo(:), ghi(:), ng_s, ng_u, ng_e, ng_f, ng_o
+    integer           , intent(in   ) :: tlo(:), thi(:)
+    real (kind = dp_t), intent(in   ) ::    sold(glo(1)-ng_s:,glo(2)-ng_s:,:)  
+    real (kind = dp_t), intent(  out) ::    snew(glo(1)-ng_s:,glo(2)-ng_s:,:)  
+    real (kind = dp_t), intent(in   ) ::    umac(glo(1)-ng_u:,glo(2)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::    vmac(glo(1)-ng_u:,glo(2)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::  sedgex(glo(1)-ng_e:,glo(2)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::  sedgey(glo(1)-ng_e:,glo(2)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxx(glo(1)-ng_f:,glo(2)-ng_f:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxy(glo(1)-ng_f:,glo(2)-ng_f:,:) 
+    real (kind = dp_t), intent(in   ) ::   force(glo(1)-ng_o:,glo(2)-ng_o:,:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
@@ -137,8 +155,8 @@ contains
 
     if (is_vel) then
 
-       do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
+       do j = tlo(2), thi(2)
+          do i = tlo(1), thi(1)
 
              ubar = HALF*(umac(i,j) + umac(i+1,j))
              vbar = HALF*(vmac(i,j) + vmac(i,j+1))
@@ -159,16 +177,16 @@ contains
 
        do comp = 1,size(sold,dim=3)
           if (is_cons(comp)) then
-             do j = lo(2), hi(2)
-                do i = lo(1), hi(1)
+             do j = tlo(2), thi(2)
+                do i = tlo(1), thi(1)
                    divsu = (fluxx(i+1,j,comp)-fluxx(i,j,comp))/dx(1) &
                          + (fluxy(i,j+1,comp)-fluxy(i,j,comp))/dx(2)
                    snew(i,j,comp) = sold(i,j,comp) - dt * divsu + dt * force(i,j,comp)
                 enddo
              enddo
           else
-             do j = lo(2), hi(2)
-                do i = lo(1), hi(1)
+             do j = tlo(2), thi(2)
+                do i = tlo(1), thi(1)
                    ubar = HALF*(umac(i,j) + umac(i+1,j))
                    vbar = HALF*(vmac(i,j) + vmac(i,j+1))
                    ugrads = ubar*(sedgex(i+1,j,comp) - sedgex(i,j,comp))/dx(1) + &
@@ -184,23 +202,24 @@ contains
   end subroutine update_2d
 
   subroutine update_3d(sold,umac,vmac,wmac,sedgex,sedgey,sedgez,fluxx,fluxy,fluxz, &
-                       force,snew,lo,hi,ng_s,ng_u,ng_e,ng_f,ng_o,dx,dt,is_vel,is_cons)
+                       force,snew,glo,ghi,ng_s,ng_u,ng_e,ng_f,ng_o,dx,dt,is_vel,is_cons,tlo,thi)
 
     use bl_constants_module
 
-    integer           , intent(in   ) :: lo(:), hi(:), ng_s, ng_u, ng_e, ng_f, ng_o
-    real (kind = dp_t), intent(in   ) ::    sold(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:,:)  
-    real (kind = dp_t), intent(  out) ::    snew(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:,:)  
-    real (kind = dp_t), intent(in   ) ::    umac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)  
-    real (kind = dp_t), intent(in   ) ::    vmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)  
-    real (kind = dp_t), intent(in   ) ::    wmac(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)  
-    real (kind = dp_t), intent(in   ) ::  sedgex(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)  
-    real (kind = dp_t), intent(in   ) ::  sedgey(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)  
-    real (kind = dp_t), intent(in   ) ::  sedgez(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxx(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxy(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)  
-    real (kind = dp_t), intent(in   ) ::   fluxz(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:) 
-    real (kind = dp_t), intent(in   ) ::   force(lo(1)-ng_o:,lo(2)-ng_o:,lo(3)-ng_o:,:)  
+    integer           , intent(in   ) :: glo(:), ghi(:), ng_s, ng_u, ng_e, ng_f, ng_o
+    integer           , intent(in   ) :: tlo(:), thi(:)
+    real (kind = dp_t), intent(in   ) ::    sold(glo(1)-ng_s:,glo(2)-ng_s:,glo(3)-ng_s:,:)  
+    real (kind = dp_t), intent(  out) ::    snew(glo(1)-ng_s:,glo(2)-ng_s:,glo(3)-ng_s:,:)  
+    real (kind = dp_t), intent(in   ) ::    umac(glo(1)-ng_u:,glo(2)-ng_u:,glo(3)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::    vmac(glo(1)-ng_u:,glo(2)-ng_u:,glo(3)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::    wmac(glo(1)-ng_u:,glo(2)-ng_u:,glo(3)-ng_u:)  
+    real (kind = dp_t), intent(in   ) ::  sedgex(glo(1)-ng_e:,glo(2)-ng_e:,glo(3)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::  sedgey(glo(1)-ng_e:,glo(2)-ng_e:,glo(3)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::  sedgez(glo(1)-ng_e:,glo(2)-ng_e:,glo(3)-ng_e:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxx(glo(1)-ng_f:,glo(2)-ng_f:,glo(3)-ng_f:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxy(glo(1)-ng_f:,glo(2)-ng_f:,glo(3)-ng_f:,:)  
+    real (kind = dp_t), intent(in   ) ::   fluxz(glo(1)-ng_f:,glo(2)-ng_f:,glo(3)-ng_f:,:) 
+    real (kind = dp_t), intent(in   ) ::   force(glo(1)-ng_o:,glo(2)-ng_o:,glo(3)-ng_o:,:)  
     real (kind = dp_t), intent(in   ) :: dx(:)
     real (kind = dp_t), intent(in   ) :: dt
     logical           , intent(in   ) :: is_vel
@@ -214,9 +233,9 @@ contains
 
     if (is_vel) then
 
-       do k = lo(3), hi(3)
-          do j = lo(2), hi(2)
-             do i = lo(1), hi(1)
+       do k = tlo(3), thi(3)
+          do j = tlo(2), thi(2)
+             do i = tlo(1), thi(1)
                 ubar = half*(umac(i,j,k) + umac(i+1,j,k))
                 vbar = half*(vmac(i,j,k) + vmac(i,j+1,k))
                 wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
@@ -244,9 +263,9 @@ contains
 
        do comp = 1,size(sold,dim=4)
           if (is_cons(comp)) then
-             do k = lo(3), hi(3)
-                do j = lo(2), hi(2)
-                   do i = lo(1), hi(1)
+             do k = tlo(3), thi(3)
+                do j = tlo(2), thi(2)
+                   do i = tlo(1), thi(1)
                       divsu = (fluxx(i+1,j,k,comp)-fluxx(i,j,k,comp))/dx(1) &
                             + (fluxy(i,j+1,k,comp)-fluxy(i,j,k,comp))/dx(2) &
                             + (fluxz(i,j,k+1,comp)-fluxz(i,j,k,comp))/dx(3)
@@ -257,9 +276,9 @@ contains
 
           else 
 
-             do k = lo(3), hi(3)
-                do j = lo(2), hi(2)
-                   do i = lo(1), hi(1)
+             do k = tlo(3), thi(3)
+                do j = tlo(2), thi(2)
+                   do i = tlo(1), thi(1)
                       ubar = half*(umac(i,j,k) + umac(i+1,j,k))
                       vbar = half*(vmac(i,j,k) + vmac(i,j+1,k))
                       wbar = half*(wmac(i,j,k) + wmac(i,j,k+1))
