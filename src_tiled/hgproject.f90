@@ -226,7 +226,7 @@ contains
       ng_g = nghost(gp(nlevs))
       ng_r = nghost(rhohalf(nlevs))
   
-      !$omp parallel private(mfi,i,growntilebox,gtlo,gthi) &
+      !$omp parallel private(mfi,n,i,growntilebox,gtlo,gthi) &
       !$omp private(bc,unp,uop,gpp,rp,lo,hi)
 
       do n = 1, nlevs
@@ -282,6 +282,10 @@ contains
       real(kind=dp_t), pointer :: gph(:,:,:,:) 
       real(kind=dp_t), pointer :: pp(:,:,:,:) 
 
+      type(mfiter) :: mfi
+      type(box) :: tilebox
+      integer :: tlo(get_dim(phi(1))), thi(get_dim(phi(1)))
+
       type(bl_prof_timer), save :: bpt
 
       call build(bpt,"mkgphi")
@@ -291,24 +295,34 @@ contains
       ng_g = gphi(1)%ng
       ng_p = phi(1)%ng
 
-      do n = 1, nlevs
+      !$omp parallel private(mfi,n,i,tilebox,tlo,thi) &
+      !$omp private(gph, pp, lo, hi)
 
-         do i = 1, nfabs(phi(n))
+      do n = 1, nlevs
+         call mfiter_build(mfi,gphi(n),tiling=.true.)
+
+         do while(more_tile(mfi))
+            i = get_fab_index(mfi)
+            tilebox = get_tilebox(mfi)
+            tlo = lwb(tilebox)
+            thi = upb(tilebox)
+
             gph => dataptr(gphi(n),i)
             pp  => dataptr(phi(n),i)
             lo =  lwb(get_box(gphi(n),i))
             hi =  upb(get_box(gphi(n),i))
             select case (dm)
             case (2)
-               call mkgphi_2d(lo, hi, gph(:,:,1,:), ng_g, pp(:,:,1,1), ng_p, dx(n,:))
+               call mkgphi_2d(lo, hi, gph(:,:,1,:), ng_g, pp(:,:,1,1), ng_p, dx(n,:), tlo, thi)
             case (3)
-               call mkgphi_3d(lo, hi, gph(:,:,:,:), ng_g, pp(:,:,:,1), ng_p, dx(n,:))
+               call mkgphi_3d(lo, hi, gph(:,:,:,:), ng_g, pp(:,:,:,1), ng_p, dx(n,:), tlo, thi)
             end select
          end do
 
          call multifab_fill_boundary(gphi(n))
 
       end do
+      !$omp end parallel
 
       call destroy(bpt)
 
@@ -342,6 +356,11 @@ contains
       real(kind=dp_t), pointer ::  ph(:,:,:,:) 
       real(kind=dp_t), pointer ::  pp(:,:,:,:) 
 
+      type(mfiter) :: mfi
+      type(box) :: tilebox,nodaltilebox
+      integer :: tlo(mla%dim), thi(mla%dim)
+      integer :: ntlo(mla%dim), nthi(mla%dim)
+
       type(bl_prof_timer), save :: bpt
 
       call build(bpt,"hg_update")
@@ -356,9 +375,23 @@ contains
       ng_p = p(1)%ng
       ng_i = phi(1)%ng
 
-      do n = 1, nlevs
+      !$omp parallel private(mfi,n,i,tilebox,tlo,thi) &
+      !$omp private(nodaltilebox,ntlo,nthi) &
+      !$omp private(upn,uon,gpp,gph,rp,pp,ph,lo,hi)
 
-         do i = 1, nfabs(unew(n))
+      do n = 1, nlevs
+         call mfiter_build(mfi,unew(n),tiling=.true.)
+
+         do while(more_tile(mfi))
+            i = get_fab_index(mfi)
+            tilebox = get_tilebox(mfi)
+            tlo = lwb(tilebox)
+            thi = upb(tilebox)
+         
+            nodaltilebox = get_allnodaltilebox(mfi)
+            ntlo = lwb(nodaltilebox)
+            nthi = upb(nodaltilebox)
+            
             upn => dataptr(unew(n),i)
             uon => dataptr(uold(n),i)
             gpp => dataptr(gp(n),i)
@@ -372,15 +405,19 @@ contains
             case (2)
                call hg_update_2d(proj_type, upn(:,:,1,:), uon(:,:,1,:), ng_u, &
                                  gpp(:,:,1,:), ng_g, gph(:,:,1,:), ng_h, rp(:,:,1,1), ng_r, &
-                                 pp(:,:,1,1), ng_p, ph(:,:,1,1), ng_i, dt, lo, hi)
+                                 pp(:,:,1,1), ng_p, ph(:,:,1,1), ng_i, dt, lo, hi, &
+                                 tlo, thi, ntlo, nthi)
             case (3)
                call hg_update_3d(proj_type, upn(:,:,:,:), uon(:,:,:,:), ng_u, &
                                  gpp(:,:,:,:), ng_g, gph(:,:,:,:), ng_h, rp(:,:,:,1), ng_r, &
-                                 pp(:,:,:,1), ng_p, ph(:,:,:,1), ng_i, dt, lo, hi)
+                                 pp(:,:,:,1), ng_p, ph(:,:,:,1), ng_i, dt, lo, hi, &
+                                 tlo, thi, ntlo, nthi)
             end select
          end do
 
       end do
+      !$omp end parallel
+
 
       do n = nlevs, 2, -1
          call ml_cc_restriction(  gp(n-1),  gp(n),mla%mba%rr(n-1,:))
@@ -538,7 +575,7 @@ contains
 
          unew(gtlo(1):gthi(1),gtlo(2):gthi(2),gtlo(3):gthi(3),1:3) = ( &
              unew(gtlo(1):gthi(1),gtlo(2):gthi(2),gtlo(3):gthi(3),1:3) &
-         - uold(gtlo(1):gthi(1),gtlo(2):gthi(2),gtlo(3):gthi(3),1:3) ) / dt
+         - uold(gtlo(1):gthi(1),gtlo(2):gthi(2),gtlo(3):gthi(3),1:3) ) * dtinv
 
       ! quantity projected is Ustar + dt * (1/rho) Gp
       else if (proj_type .eq. regular_timestep) then
@@ -592,21 +629,25 @@ contains
 
     !   ********************************************************************************* !
 
-    subroutine mkgphi_2d(lo,hi,gp,ng_g,phi,ng_p,dx)
+    subroutine mkgphi_2d(glo,ghi,gp,ng_g,phi,ng_p,dx,tlo,thi)
 
-      integer        , intent(in   ) :: lo(:),hi(:),ng_g,ng_p
-      real(kind=dp_t), intent(inout) ::  gp(lo(1)-ng_g:,lo(2)-ng_g:,:)
-      real(kind=dp_t), intent(inout) :: phi(lo(1)-ng_p:,lo(2)-ng_p:)
+      integer        , intent(in   ) :: glo(:),ghi(:),ng_g,ng_p,tlo(:),thi(:)
+      real(kind=dp_t), intent(inout) ::  gp(glo(1)-ng_g:,glo(2)-ng_g:,:)
+      real(kind=dp_t), intent(inout) :: phi(glo(1)-ng_p:,glo(2)-ng_p:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j
+      real(kind=dp_t) :: dxinv1, dxinv2
 
-      do j = lo(2),hi(2)
-         do i = lo(1),hi(1)
+      dxinv1 = 1.d0 / dx(1)
+      dxinv2 = 1.d0 / dx(2)
+
+      do j = tlo(2),thi(2)
+         do i = tlo(1),thi(1)
             gp(i,j,1) = HALF*(phi(i+1,j) + phi(i+1,j+1) - &
-                              phi(i  ,j) - phi(i  ,j+1) ) /dx(1)
+                              phi(i  ,j) - phi(i  ,j+1) ) * dxinv1
             gp(i,j,2) = HALF*(phi(i,j+1) + phi(i+1,j+1) - &
-                              phi(i,j  ) - phi(i+1,j  ) ) /dx(2)
+                              phi(i,j  ) - phi(i+1,j  ) ) * dxinv2
          end do
       end do
 
@@ -614,30 +655,36 @@ contains
 
     !   ******************************************************************************** !
 
-    subroutine mkgphi_3d(lo,hi,gp,ng_g,phi,ng_p,dx)
+    subroutine mkgphi_3d(glo,ghi,gp,ng_g,phi,ng_p,dx,tlo,thi)
 
-      integer        , intent(in   ) :: lo(:),hi(:),ng_g,ng_p
-      real(kind=dp_t), intent(inout) ::  gp(lo(1)-ng_g:,lo(2)-ng_g:,lo(3)-ng_g:,:)
-      real(kind=dp_t), intent(inout) :: phi(lo(1)-ng_p:,lo(2)-ng_p:,lo(3)-ng_p:)
+      integer        , intent(in   ) :: glo(:),ghi(:),ng_g,ng_p,tlo(:),thi(:)
+      real(kind=dp_t), intent(inout) ::  gp(glo(1)-ng_g:,glo(2)-ng_g:,glo(3)-ng_g:,:)
+      real(kind=dp_t), intent(inout) :: phi(glo(1)-ng_p:,glo(2)-ng_p:,glo(3)-ng_p:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j,k
 
-      do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
-            do i = lo(1),hi(1)
+      real(kind=dp_t) :: dxinv1, dxinv2, dxinv3
+
+      dxinv1 = 1.d0 / dx(1)
+      dxinv2 = 1.d0 / dx(2)
+      dxinv3 = 1.d0 / dx(3)
+
+      do k = tlo(3),thi(3)
+         do j = tlo(2),thi(2)
+            do i = tlo(1),thi(1)
                gp(i,j,k,1) = FOURTH*(phi(i+1,j,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i+1,j,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i  ,j,k  ) - phi(i  ,j+1,k  ) &
-                    -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) /dx(1)
+                    -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) * dxinv1
                gp(i,j,k,2) = FOURTH*(phi(i,j+1,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                    -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) /dx(2)
+                    -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) * dxinv2
                gp(i,j,k,3) = FOURTH*(phi(i,j  ,k+1) + phi(i+1,j  ,k+1) &
                     +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                    -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) /dx(3)
+                    -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) * dxinv3
             end do
          end do
       end do
@@ -647,30 +694,38 @@ contains
     !   ****************************************************************************** !
 
     subroutine hg_update_2d(proj_type,unew,uold,ng_u,gp,ng_g,gphi,ng_h, &
-                            rhohalf,ng_r,p,ng_p,phi,ng_i,dt,lo,hi)
+                            rhohalf,ng_r,p,ng_p,phi,ng_i,dt,glo,ghi, &
+                            tlo,thi,ntlo,nthi)
 
       use proj_parameters
 
-      integer        , intent(in   ) :: proj_type,lo(:),hi(:)
+      integer        , intent(in   ) :: proj_type,glo(:),ghi(:)
+      integer        , intent(in   ) :: tlo(:),thi(:),ntlo(:),nthi(:)
       integer        , intent(in   ) :: ng_u,ng_g,ng_h,ng_r,ng_p,ng_i
-      real(kind=dp_t), intent(inout) ::    unew(lo(1)-ng_u:,lo(2)-ng_u:,:)
-      real(kind=dp_t), intent(in   ) ::    uold(lo(1)-ng_u:,lo(2)-ng_u:,:)
-      real(kind=dp_t), intent(inout) ::      gp(lo(1)-ng_g:,lo(2)-ng_g:,:)
-      real(kind=dp_t), intent(in   ) ::    gphi(lo(1)-ng_h:,lo(2)-ng_h:,:)
-      real(kind=dp_t), intent(in   ) :: rhohalf(lo(1)-ng_r:,lo(2)-ng_r:)
-      real(kind=dp_t), intent(inout) ::       p(lo(1)-ng_p:,lo(2)-ng_p:)
-      real(kind=dp_t), intent(in   ) ::     phi(lo(1)-ng_i:,lo(2)-ng_i:)
+      real(kind=dp_t), intent(inout) ::    unew(glo(1)-ng_u:,glo(2)-ng_u:,:)
+      real(kind=dp_t), intent(in   ) ::    uold(glo(1)-ng_u:,glo(2)-ng_u:,:)
+      real(kind=dp_t), intent(inout) ::      gp(glo(1)-ng_g:,glo(2)-ng_g:,:)
+      real(kind=dp_t), intent(in   ) ::    gphi(glo(1)-ng_h:,glo(2)-ng_h:,:)
+      real(kind=dp_t), intent(in   ) :: rhohalf(glo(1)-ng_r:,glo(2)-ng_r:)
+      real(kind=dp_t), intent(inout) ::       p(glo(1)-ng_p:,glo(2)-ng_p:)
+      real(kind=dp_t), intent(in   ) ::     phi(glo(1)-ng_i:,glo(2)-ng_i:)
       real(kind=dp_t), intent(in   ) :: dt
 
+      real(kind=dp_t) :: dtinv
+
+      dtinv = 1.d0 / dt
+
       !     Subtract off the density-weighted gradient.
-      unew(lo(1):hi(1),lo(2):hi(2),1) = &
-           unew(lo(1):hi(1),lo(2):hi(2),1) - gphi(lo(1):hi(1),lo(2):hi(2),1)/rhohalf(lo(1):hi(1),lo(2):hi(2)) 
-      unew(lo(1):hi(1),lo(2):hi(2),2) = &
-           unew(lo(1):hi(1),lo(2):hi(2),2) - gphi(lo(1):hi(1),lo(2):hi(2),2)/rhohalf(lo(1):hi(1),lo(2):hi(2)) 
+      unew(tlo(1):thi(1),tlo(2):thi(2),1) = &
+           unew(tlo(1):thi(1),tlo(2):thi(2),1) - gphi(tlo(1):thi(1),tlo(2):thi(2),1) &
+           /rhohalf(tlo(1):thi(1),tlo(2):thi(2)) 
+      unew(tlo(1):thi(1),tlo(2):thi(2),2) = &
+           unew(tlo(1):thi(1),tlo(2):thi(2),2) - gphi(tlo(1):thi(1),tlo(2):thi(2),2) &
+           /rhohalf(tlo(1):thi(1),tlo(2):thi(2)) 
 
       if (proj_type .eq. pressure_iters) &    ! unew held the projection of (ustar-uold)
-           unew(lo(1):hi(1),lo(2):hi(2),:) = &
-           uold(lo(1):hi(1),lo(2):hi(2),:) + dt * unew(lo(1):hi(1),lo(2):hi(2),:)
+           unew(tlo(1):thi(1),tlo(2):thi(2),:) = &
+           uold(tlo(1):thi(1),tlo(2):thi(2),:) + dt * unew(tlo(1):thi(1),tlo(2):thi(2),:)
 
       if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
 
@@ -681,54 +736,66 @@ contains
 
          !  phi held                 (change in pressure)
          ! gphi held the gradient of (change in pressure)
-         gp(lo(1):hi(1)  ,lo(2):hi(2),:) = gp(lo(1):hi(1)  ,lo(2):hi(2),:) + &
-                                         gphi(lo(1):hi(1),lo(2):hi(2),:)
-          p(lo(1):hi(1)+1,lo(2):hi(2)+1) =  p(lo(1):hi(1)+1,lo(2):hi(2)+1) + &
-                                          phi(lo(1):hi(1)+1,lo(2):hi(2)+1)
+         gp(tlo(1):thi(1)  ,tlo(2):thi(2),:) = gp(tlo(1):thi(1)  ,tlo(2):thi(2),:) + &
+                                         gphi(tlo(1):thi(1),tlo(2):thi(2),:)
+          p(ntlo(1):nthi(1),ntlo(2):nthi(2)) =  p(ntlo(1):nthi(1),ntlo(2):nthi(2)) + &
+                                          phi(ntlo(1):nthi(1),ntlo(2):nthi(2))
 
       else if (proj_type .eq. regular_timestep) then
 
          !  phi held                 dt * (pressure)
          ! gphi held the gradient of dt * (pressure)
-         gp(lo(1):hi(1)  ,lo(2):hi(2),:) = (ONE/dt) * gphi(lo(1):hi(1)  ,lo(2):hi(2),:)
-          p(lo(1):hi(1)+1,lo(2):hi(2)+1) = (ONE/dt) *  phi(lo(1):hi(1)+1,lo(2):hi(2)+1)
+         gp(tlo(1):thi(1)  ,tlo(2):thi(2),:) = dtinv * gphi(tlo(1):thi(1) ,tlo(2):thi(2),:)
+          p(ntlo(1):nthi(1),ntlo(2):nthi(2)) = dtinv * phi(ntlo(1):nthi(1),ntlo(2):nthi(2))
 
       end if
+
 
     end subroutine hg_update_2d
 
     !   ******************************************************************************* !
 
     subroutine hg_update_3d(proj_type,unew,uold,ng_u,gp,ng_g,gphi,ng_h, &
-                            rhohalf,ng_r,p,ng_p,phi,ng_i,dt,lo,hi)
+                            rhohalf,ng_r,p,ng_p,phi,ng_i,dt,glo,ghi,tlo,thi,ntlo,nthi)
 
       use proj_parameters
 
-      integer        , intent(in   ) :: proj_type,lo(:),hi(:)
+      integer        , intent(in   ) :: proj_type,glo(:),ghi(:)
+      integer        , intent(in   ) :: tlo(:),thi(:),ntlo(:),nthi(:)
       integer        , intent(in   ) :: ng_u,ng_g,ng_h,ng_r,ng_p,ng_i
-      real(kind=dp_t), intent(inout) ::    unew(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:,:)
-      real(kind=dp_t), intent(in   ) ::    uold(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:,:)
-      real(kind=dp_t), intent(inout) ::      gp(lo(1)-ng_g:,lo(2)-ng_g:,lo(3)-ng_g:,:)
-      real(kind=dp_t), intent(in   ) ::    gphi(lo(1)-ng_h:,lo(2)-ng_h:,lo(3)-ng_h:,:)
-      real(kind=dp_t), intent(in   ) :: rhohalf(lo(1)-ng_r:,lo(2)-ng_r:,lo(3)-ng_r:)
-      real(kind=dp_t), intent(inout) ::       p(lo(1)-ng_p:,lo(2)-ng_p:,lo(3)-ng_p:)
-      real(kind=dp_t), intent(in   ) ::     phi(lo(1)-ng_i:,lo(2)-ng_i:,lo(3)-ng_i:)
+      real(kind=dp_t), intent(inout) ::    unew(glo(1)-ng_u:,glo(2)-ng_u:,glo(3)-ng_u:,:)
+      real(kind=dp_t), intent(in   ) ::    uold(glo(1)-ng_u:,glo(2)-ng_u:,glo(3)-ng_u:,:)
+      real(kind=dp_t), intent(inout) ::      gp(glo(1)-ng_g:,glo(2)-ng_g:,glo(3)-ng_g:,:)
+      real(kind=dp_t), intent(in   ) ::    gphi(glo(1)-ng_h:,glo(2)-ng_h:,glo(3)-ng_h:,:)
+      real(kind=dp_t), intent(in   ) :: rhohalf(glo(1)-ng_r:,glo(2)-ng_r:,glo(3)-ng_r:)
+      real(kind=dp_t), intent(inout) ::       p(glo(1)-ng_p:,glo(2)-ng_p:,glo(3)-ng_p:)
+      real(kind=dp_t), intent(in   ) ::     phi(glo(1)-ng_i:,glo(2)-ng_i:,glo(3)-ng_i:)
       real(kind=dp_t), intent(in   ) :: dt
 
+      real(kind=dp_t) :: dtinv
+
+      dtinv = 1.d0 / dt
+
       !     Subtract off the density-weighted gradient.
-      unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1) = &
-           unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1) &
-           - gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1)/rhohalf(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) 
-      unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),2) = &
-           unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),2) &
-           - gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),2)/rhohalf(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) 
-      unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),3) = &
-           unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),3) &
-           - gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),3)/rhohalf(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3)) 
+      unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),1) = &
+           unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),1) &
+           - gphi(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),1) &
+           /rhohalf(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3)) 
+
+      unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),2) = &
+           unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),2) &
+           - gphi(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),2) &
+           /rhohalf(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3)) 
+
+      unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),3) = &
+           unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),3) &
+           - gphi(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),3) &
+           /rhohalf(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3)) 
 
       if (proj_type .eq. pressure_iters) &    ! unew held the projection of (ustar-uold)
-           unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) = &
-           uold(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) + dt * unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
+           unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:) = &
+           uold(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:) + dt &
+           * unew(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:)
 
       if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
 
@@ -739,19 +806,23 @@ contains
 
          !  phi held                 (change in pressure)
          ! gphi held the gradient of (change in pressure)
-         gp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) = gp(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:) &
-              + gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
-          p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) =  p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) &
-                                                      + phi(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1)
+         gp(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:) = &
+              gp(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:) &
+              + gphi(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:)
+
+          p(ntlo(1):nthi(1),ntlo(2):nthi(2),ntlo(3):nthi(3)) = &
+               p(ntlo(1):nthi(1),ntlo(2):nthi(2),ntlo(3):nthi(3)) &
+               + phi(ntlo(1):nthi(1),ntlo(2):nthi(2),ntlo(3):nthi(3))
 
       else if (proj_type .eq. regular_timestep) then
 
          !  phi held                 dt * (pressure)
          ! gphi held the gradient of dt * (pressure)
-         gp(lo(1):hi(1)  ,lo(2):hi(2)  ,lo(3):hi(3),:) = (ONE/dt) * &
-             gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
-          p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) = (ONE/dt) * &
-             phi(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1)
+         gp(tlo(1):thi(1)  ,tlo(2):thi(2)  ,tlo(3):thi(3),:) = dtinv * &
+             gphi(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:)
+
+          p(ntlo(1):nthi(1),ntlo(2):nthi(2),ntlo(3):nthi(3)) = dtinv * &
+             phi(ntlo(1):nthi(1),ntlo(2):nthi(2),ntlo(3):nthi(3))
 
       end if
 
