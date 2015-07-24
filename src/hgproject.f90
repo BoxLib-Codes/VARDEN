@@ -397,6 +397,10 @@ contains
       integer        , intent(in   ) :: phys_bc(:,:)
       integer        , intent(in   ) :: proj_type
 
+      real(kind=dp_t) :: dtinv
+
+      dtinv = 1.d0 / dt
+
       if (phys_bc(1,1) .eq. INLET) gp(lo(1)-1,lo(2)-1:hi(2)+1,:) = ZERO
       if (phys_bc(1,2) .eq. INLET) gp(hi(1)+1,lo(2)-1:hi(2)+1,:) = ZERO
       if (phys_bc(2,1) .eq. INLET) gp(lo(1)-1:hi(1)+1,lo(2)-1,:) = ZERO
@@ -412,9 +416,9 @@ contains
       else if (proj_type .eq. pressure_iters) then
 
          unew(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,1) = ( &
-             unew(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,1) - uold(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,1) ) / dt
+             unew(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,1) - uold(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,1) ) * dtinv
          unew(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2) = ( &
-             unew(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2) - uold(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2) ) / dt
+             unew(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2) - uold(lo(1)-1:hi(1)+1,lo(2)-1:hi(2)+1,2) ) * dtinv
      
       ! quantity projected is Ustar + dt * (1/rho) Gp
       else if (proj_type .eq. regular_timestep) then
@@ -455,6 +459,9 @@ contains
 
       ! local
       integer :: i,j,k,m
+      real(kind=dp_t) :: dtinv
+
+      dtinv = 1.d0 / dt
 
       if (phys_bc(1,1) .eq. INLET) gp(lo(1)-1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,:) = ZERO
       if (phys_bc(1,2) .eq. INLET) gp(hi(1)+1,lo(2)-1:hi(2)+1,lo(3)-1:hi(3)+1,:) = ZERO
@@ -478,7 +485,7 @@ contains
             do k=lo(3)-1,hi(3)+1
                do j=lo(2)-1,hi(2)+1
                   do i=lo(1)-1,hi(1)+1
-                     unew(i,j,k,m) = (unew(i,j,k,m) - uold(i,j,k,m)) / dt
+                     unew(i,j,k,m) = (unew(i,j,k,m) - uold(i,j,k,m)) * dtinv
                   end do
                end do
             end do
@@ -528,13 +535,17 @@ contains
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j
+      real(kind=dp_t) :: dxinv(2)
+
+      dxinv(1) = 1.d0/dx(1)
+      dxinv(2) = 1.d0/dx(2)
 
       do j = lo(2),hi(2)
          do i = lo(1),hi(1)
             gp(i,j,1) = HALF*(phi(i+1,j) + phi(i+1,j+1) - &
-                              phi(i  ,j) - phi(i  ,j+1) ) /dx(1)
+                              phi(i  ,j) - phi(i  ,j+1) ) * dxinv(1)
             gp(i,j,2) = HALF*(phi(i,j+1) + phi(i+1,j+1) - &
-                              phi(i,j  ) - phi(i+1,j  ) ) /dx(2)
+                              phi(i,j  ) - phi(i+1,j  ) ) * dxinv(2)
          end do
       end do
 
@@ -550,6 +561,12 @@ contains
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j,k
+      real(kind=dp_t) :: dxinv(3)
+
+      dxinv(1) = 1.d0/dx(1)
+      dxinv(2) = 1.d0/dx(2)
+      dxinv(3) = 1.d0/dx(3)
+
 
       do k = lo(3),hi(3)
          do j = lo(2),hi(2)
@@ -557,15 +574,15 @@ contains
                gp(i,j,k,1) = FOURTH*(phi(i+1,j,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i+1,j,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i  ,j,k  ) - phi(i  ,j+1,k  ) &
-                    -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) /dx(1)
+                    -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) * dxinv(1)
                gp(i,j,k,2) = FOURTH*(phi(i,j+1,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                    -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) /dx(2)
+                    -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) * dxinv(2)
                gp(i,j,k,3) = FOURTH*(phi(i,j  ,k+1) + phi(i+1,j  ,k+1) &
                     +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                    -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) /dx(3)
+                    -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) * dxinv(3)
             end do
          end do
       end do
@@ -589,6 +606,10 @@ contains
       real(kind=dp_t), intent(inout) ::       p(lo(1)-ng_p:,lo(2)-ng_p:)
       real(kind=dp_t), intent(in   ) ::     phi(lo(1)-ng_i:,lo(2)-ng_i:)
       real(kind=dp_t), intent(in   ) :: dt
+
+      real(kind=dp_t) :: dtinv
+
+      dtinv = 1.d0 / dt
 
       !     Subtract off the density-weighted gradient.
       unew(lo(1):hi(1),lo(2):hi(2),1) = &
@@ -618,8 +639,8 @@ contains
 
          !  phi held                 dt * (pressure)
          ! gphi held the gradient of dt * (pressure)
-         gp(lo(1):hi(1)  ,lo(2):hi(2),:) = (ONE/dt) * gphi(lo(1):hi(1)  ,lo(2):hi(2),:)
-          p(lo(1):hi(1)+1,lo(2):hi(2)+1) = (ONE/dt) *  phi(lo(1):hi(1)+1,lo(2):hi(2)+1)
+         gp(lo(1):hi(1)  ,lo(2):hi(2),:) = dtinv * gphi(lo(1):hi(1)  ,lo(2):hi(2),:)
+          p(lo(1):hi(1)+1,lo(2):hi(2)+1) = dtinv *  phi(lo(1):hi(1)+1,lo(2):hi(2)+1)
 
       end if
 
@@ -642,6 +663,10 @@ contains
       real(kind=dp_t), intent(inout) ::       p(lo(1)-ng_p:,lo(2)-ng_p:,lo(3)-ng_p:)
       real(kind=dp_t), intent(in   ) ::     phi(lo(1)-ng_i:,lo(2)-ng_i:,lo(3)-ng_i:)
       real(kind=dp_t), intent(in   ) :: dt
+
+      real(kind=dp_t) :: dtinv
+
+      dtinv = 1.d0 / dt
 
       !     Subtract off the density-weighted gradient.
       unew(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),1) = &
@@ -676,9 +701,9 @@ contains
 
          !  phi held                 dt * (pressure)
          ! gphi held the gradient of dt * (pressure)
-         gp(lo(1):hi(1)  ,lo(2):hi(2)  ,lo(3):hi(3),:) = (ONE/dt) * &
+         gp(lo(1):hi(1)  ,lo(2):hi(2)  ,lo(3):hi(3),:) = dtinv * &
              gphi(lo(1):hi(1),lo(2):hi(2),lo(3):hi(3),:)
-          p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) = (ONE/dt) * &
+          p(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1) = dtinv * &
              phi(lo(1):hi(1)+1,lo(2):hi(2)+1,lo(3):hi(3)+1)
 
       end if

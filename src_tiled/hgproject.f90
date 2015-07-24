@@ -637,17 +637,17 @@ contains
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j
-      real(kind=dp_t) :: dxinv1, dxinv2
+      real(kind=dp_t) :: dxinv(2)
 
-      dxinv1 = 1.d0 / dx(1)
-      dxinv2 = 1.d0 / dx(2)
+      dxinv(1) = 1.d0 / dx(1)
+      dxinv(2) = 1.d0 / dx(2)
 
       do j = tlo(2),thi(2)
          do i = tlo(1),thi(1)
             gp(i,j,1) = HALF*(phi(i+1,j) + phi(i+1,j+1) - &
-                              phi(i  ,j) - phi(i  ,j+1) ) * dxinv1
+                              phi(i  ,j) - phi(i  ,j+1) ) * dxinv(1)
             gp(i,j,2) = HALF*(phi(i,j+1) + phi(i+1,j+1) - &
-                              phi(i,j  ) - phi(i+1,j  ) ) * dxinv2
+                              phi(i,j  ) - phi(i+1,j  ) ) * dxinv(2)
          end do
       end do
 
@@ -664,11 +664,11 @@ contains
 
       integer :: i,j,k
 
-      real(kind=dp_t) :: dxinv1, dxinv2, dxinv3
+      real(kind=dp_t) :: dxinv(3)
 
-      dxinv1 = 1.d0 / dx(1)
-      dxinv2 = 1.d0 / dx(2)
-      dxinv3 = 1.d0 / dx(3)
+      dxinv(1) = 1.d0 / dx(1)
+      dxinv(2) = 1.d0 / dx(2)
+      dxinv(3) = 1.d0 / dx(3)
 
       do k = tlo(3),thi(3)
          do j = tlo(2),thi(2)
@@ -676,15 +676,15 @@ contains
                gp(i,j,k,1) = FOURTH*(phi(i+1,j,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i+1,j,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i  ,j,k  ) - phi(i  ,j+1,k  ) &
-                    -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) * dxinv1
+                    -phi(i  ,j,k+1) - phi(i  ,j+1,k+1) ) * dxinv(1)
                gp(i,j,k,2) = FOURTH*(phi(i,j+1,k  ) + phi(i+1,j+1,k  ) &
                     +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                    -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) * dxinv2
+                    -phi(i,j  ,k+1) - phi(i+1,j  ,k+1) ) * dxinv(2)
                gp(i,j,k,3) = FOURTH*(phi(i,j  ,k+1) + phi(i+1,j  ,k+1) &
                     +phi(i,j+1,k+1) + phi(i+1,j+1,k+1) & 
                     -phi(i,j  ,k  ) - phi(i+1,j  ,k  ) &
-                    -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) * dxinv3
+                    -phi(i,j+1,k  ) - phi(i+1,j+1,k  ) ) * dxinv(3)
             end do
          end do
       end do
