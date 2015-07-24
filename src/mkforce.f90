@@ -297,40 +297,36 @@ contains
     real(kind=dp_t), intent(in   ) ::           laps(lo(1)-ng_l:,lo(2)-ng_l:,:)
     real(kind=dp_t), intent(in   ) :: diff_fac
 
-    real(kind=dp_t) :: laps_local
+    real(kind=dp_t) :: laps_local(2:nscal)
     integer :: i,j,n
 
     scal_force = 0.0_dp_t
 
     ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
-    do n = 2,nscal
-
-       do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
-             laps_local = diff_coef * diff_fac * laps(i,j,n)
-             scal_force(i,j,n) = ext_scal_force(i,j,n) + laps_local
-          enddo
-       enddo
-
-       ! we use 0th order extrapolation for laplacian term in ghost cells
+    do j = lo(2), hi(2)
        do i = lo(1), hi(1)
-          laps_local = diff_coef * diff_fac * laps(i,lo(2),n)
-          scal_force(i,lo(2)-1,n) = ext_scal_force(i,lo(2)-1,n) + laps_local
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,2:nscal)
+          scal_force(i,j,2:nscal) = ext_scal_force(i,j,2:nscal) + laps_local(2:nscal)
        enddo
-       do i = lo(1), hi(1)
-          laps_local = diff_coef * diff_fac * laps(i,hi(2),n)
-          scal_force(i,hi(2)+1,n) = ext_scal_force(i,hi(2)+1,n) + laps_local
-       enddo
-       do j = lo(2), hi(2)
-          laps_local = diff_coef * diff_fac * laps(lo(1),j,n)
-          scal_force(lo(1)-1,j,n) = ext_scal_force(lo(1)-1,j,n) + laps_local
-       enddo
-       do j = lo(2), hi(2)
-          laps_local = diff_coef * diff_fac * laps(hi(1),j,n)
-          scal_force(hi(1)+1,j,n) = ext_scal_force(hi(1)+1,j,n) + laps_local
-       enddo
+    enddo
 
-    end do
+    ! we use 0th order extrapolation for laplacian term in ghost cells
+    do j = lo(2), hi(2)
+       laps_local(2:nscal) = diff_coef * diff_fac * laps(lo(1),j,2:nscal)
+       scal_force(lo(1)-1,j,2:nscal) = ext_scal_force(lo(1)-1,j,2:nscal) + laps_local(2:nscal)
+    enddo
+    do j = lo(2), hi(2)
+       laps_local(2:nscal) = diff_coef * diff_fac * laps(hi(1),j,2:nscal)
+       scal_force(hi(1)+1,j,2:nscal) = ext_scal_force(hi(1)+1,j,2:nscal) + laps_local(2:nscal)
+    enddo 
+   do i = lo(1), hi(1)
+       laps_local(2:nscal) = diff_coef * diff_fac * laps(i,lo(2),2:nscal)
+       scal_force(i,lo(2)-1,2:nscal) = ext_scal_force(i,lo(2)-1,2:nscal) + laps_local(2:nscal)
+    enddo
+    do i = lo(1), hi(1)
+       laps_local(2:nscal) = diff_coef * diff_fac * laps(i,hi(2),2:nscal)
+       scal_force(i,hi(2)+1,2:nscal) = ext_scal_force(i,hi(2)+1,2:nscal) + laps_local(2:nscal)
+    enddo
 
   end subroutine mkscalforce_2d
 
@@ -344,60 +340,64 @@ contains
     real(kind=dp_t), intent(in   ) ::           laps(lo(1)-ng_l:,lo(2)-ng_l:,lo(3)-ng_l:,:)
     real(kind=dp_t), intent(in   ) :: diff_fac
 
-    real(kind=dp_t) :: laps_local
+    real(kind=dp_t) :: laps_local(2:nscal)
     integer :: i,j,k,n
 
     scal_force = 0.0_dp_t
 
     ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
-    do n = 2, nscal
-       do k = lo(3), hi(3)
-          do j = lo(2), hi(2)
-             do i = lo(1), hi(1)
-                laps_local = diff_coef * diff_fac * laps(i,j,k,n)
-                scal_force(i,j,k,n) = ext_scal_force(i,j,k,n) + laps_local
-             end do
+    do k = lo(3), hi(3)
+       do j = lo(2), hi(2)
+          do i = lo(1), hi(1)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,k,2:nscal)
+             scal_force(i,j,k,2:nscal) = ext_scal_force(i,j,k,2:nscal) + laps_local(2:nscal)
           end do
        end do
-
-       ! we use 0th order extrapolation for laplacian term in ghost cells
-       do i=lo(1),hi(1)
-          do j=lo(2),hi(2)
-             laps_local = diff_coef * diff_fac * laps(i,j,lo(3),n)
-             scal_force(i,j,lo(3)-1,n) = ext_scal_force(i,j,lo(3)-1,n) + laps_local
-          enddo
-       enddo
-       do i=lo(1),hi(1)
-          do j=lo(2),hi(2)
-             laps_local = diff_coef * diff_fac * laps(i,j,hi(3),n)
-             scal_force(i,j,hi(3)+1,n) = ext_scal_force(i,j,hi(3)+1,n) + laps_local
-          enddo
-       enddo
-       do i=lo(1),hi(1)
-          do k=lo(3),hi(3)
-             laps_local = diff_coef * diff_fac * laps(i,lo(2),k,n)
-             scal_force(i,lo(2)-1,k,n) = ext_scal_force(i,lo(2)-1,k,n) + laps_local
-          enddo
-       enddo
-       do i=lo(1),hi(1)
-          do k=lo(3),hi(3)
-             laps_local = diff_coef * diff_fac * laps(i,hi(2),k,n)
-             scal_force(i,hi(2)+1,k,n) = ext_scal_force(i,hi(2)+1,k,n) + laps_local
-          enddo
-       enddo
-       do j=lo(2),hi(2)
-          do k=lo(3),hi(3)
-             laps_local = diff_coef * diff_fac * laps(lo(1),j,k,n)
-             scal_force(lo(1)-1,j,k,n) = ext_scal_force(lo(1)-1,j,k,n) + laps_local
-          enddo
-       enddo
-       do j=lo(2),hi(2)
-          do k=lo(3),hi(3)
-             laps_local = diff_coef * diff_fac * laps(hi(1),j,k,n)
-             scal_force(hi(1)+1,j,k,n) = ext_scal_force(hi(1)+1,j,k,n) + laps_local
-          enddo
-       enddo
     end do
+
+    ! we use 0th order extrapolation for laplacian term in ghost cells
+
+    do j=lo(2),hi(2)
+       do i=lo(1),hi(1)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,lo(3),2:nscal)
+          scal_force(i,j,lo(3)-1,2:nscal) = ext_scal_force(i,j,lo(3)-1,2:nscal) + laps_local(2:nscal)
+       enddo
+    enddo
+
+    do j=lo(2),hi(2)
+       do i=lo(1),hi(1)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,hi(3),2:nscal)
+          scal_force(i,j,hi(3)+1,2:nscal) = ext_scal_force(i,j,hi(3)+1,2:nscal) + laps_local(2:nscal)
+       enddo
+    enddo
+
+    do k=lo(3),hi(3)
+       do i=lo(1),hi(1)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,lo(2),k,2:nscal)
+          scal_force(i,lo(2)-1,k,2:nscal) = ext_scal_force(i,lo(2)-1,k,2:nscal) + laps_local(2:nscal)
+       enddo
+    enddo
+
+    do k=lo(3),hi(3)
+       do i=lo(1),hi(1)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,hi(2),k,2:nscal)
+          scal_force(i,hi(2)+1,k,2:nscal) = ext_scal_force(i,hi(2)+1,k,2:nscal) + laps_local(2:nscal)
+       enddo
+    enddo
+
+    do k=lo(3),hi(3)
+       do j=lo(2),hi(2)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(lo(1),j,k,2:nscal)
+          scal_force(lo(1)-1,j,k,2:nscal) = ext_scal_force(lo(1)-1,j,k,2:nscal) + laps_local(2:nscal)
+       enddo
+    enddo
+
+    do k=lo(3),hi(3)
+       do j=lo(2),hi(2)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(hi(1),j,k,2:nscal)
+          scal_force(hi(1)+1,j,k,2:nscal) = ext_scal_force(hi(1)+1,j,k,2:nscal) + laps_local(2:nscal)
+       enddo
+    enddo
 
   end subroutine mkscalforce_3d
 
