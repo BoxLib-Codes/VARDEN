@@ -37,6 +37,10 @@ contains
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     real(kind=dp_t), pointer :: gpp(:,:,:,:)
 
+    type(mfiter) :: mfi
+    type(box) :: tilebox
+    integer :: tlo(mla%dim), thi(mla%dim)
+
     type(bl_prof_timer), save :: bpt
     call build(bpt,"mkvelforce")
 
@@ -51,7 +55,21 @@ contains
 
     do n=1,nlevs
        call setval(vel_force(n),ZERO,all=.true.)
-       do i = 1, nfabs(vel_force(n))
+    end do
+
+
+    !$omp parallel private(mfi,n,i,tilebox,tlo,thi) &
+    !$omp private(fp,ep,gpp,sp,lp,lo,hi)
+
+    do n=1,nlevs
+       call mfiter_build(mfi,vel_force(n),tiling=.true.)
+
+       do while(more_tile(mfi))
+          i = get_fab_index(mfi)
+          tilebox = get_tilebox(mfi)
+          tlo = lwb(tilebox)
+          thi = upb(tilebox)
+
           fp  => dataptr(vel_force(n),i)
           ep  => dataptr(ext_vel_force(n),i)
           gpp => dataptr(gp(n),i)
@@ -63,14 +81,15 @@ contains
           case (2)
              call mkvelforce_2d(fp(:,:,1,:), ep(:,:,1,:), gpp(:,:,1,:), &
                                 sp(:,:,1,:), lp(:,:,1,:), &
-                                ng_f,ng_e,ng_g,ng_s,ng_l, visc_fac, lo, hi)
+                                ng_f,ng_e,ng_g,ng_s,ng_l, visc_fac, lo,hi,tlo,thi)
           case (3)
              call mkvelforce_3d(fp(:,:,:,:), ep(:,:,:,:), gpp(:,:,:,:), &
                                 sp(:,:,:,:), lp(:,:,:,:), &
-                                ng_f,ng_e,ng_g,ng_s,ng_l, visc_fac, lo, hi)
+                                ng_f,ng_e,ng_g,ng_s,ng_l, visc_fac, lo,hi,tlo,thi)
           end select
        end do
     enddo
+    !$omp end parallel
 
     call ml_restrict_and_fill(nlevs, vel_force, mla%mba%rr, the_bc_tower%bc_tower_array, &
          icomp=1,bcomp=extrap_comp,nc=dm,same_boundary=.true.)
@@ -80,103 +99,115 @@ contains
   end subroutine mkvelforce
 
   subroutine mkvelforce_2d(vel_force,ext_vel_force,gp,s,lapu, &
-                           ng_f,ng_e,ng_g,ng_s,ng_l,visc_fac,lo,hi)
+                           ng_f,ng_e,ng_g,ng_s,ng_l,visc_fac,glo,ghi,tlo,thi)
 
     use probin_module, only: boussinesq, visc_coef
  
-    integer        , intent(in   ) :: lo(:),hi(:),ng_f,ng_e,ng_g,ng_s,ng_l
-    real(kind=dp_t), intent(  out) ::     vel_force(lo(1)-ng_f:,lo(2)-ng_f:,:)
-    real(kind=dp_t), intent(in   ) :: ext_vel_force(lo(1)-ng_e:,lo(2)-ng_e:,:)
-    real(kind=dp_t), intent(in   ) ::            gp(lo(1)-ng_g:,lo(2)-ng_g:,:)
-    real(kind=dp_t), intent(in   ) ::             s(lo(1)-ng_s:,lo(2)-ng_s:,:)
-    real(kind=dp_t), intent(in   ) ::          lapu(lo(1)-ng_l:,lo(2)-ng_l:,:)
+    integer        , intent(in   ) :: glo(:),ghi(:),ng_f,ng_e,ng_g,ng_s,ng_l
+    integer        , intent(in   ) :: tlo(:),thi(:)
+    real(kind=dp_t), intent(  out) ::     vel_force(glo(1)-ng_f:,glo(2)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) :: ext_vel_force(glo(1)-ng_e:,glo(2)-ng_e:,:)
+    real(kind=dp_t), intent(in   ) ::            gp(glo(1)-ng_g:,glo(2)-ng_g:,:)
+    real(kind=dp_t), intent(in   ) ::             s(glo(1)-ng_s:,glo(2)-ng_s:,:)
+    real(kind=dp_t), intent(in   ) ::          lapu(glo(1)-ng_l:,glo(2)-ng_l:,:)
     real(kind=dp_t), intent(in   ) :: visc_fac
 
     real(kind=dp_t) :: lapu_local(2)
-    integer :: i,j,n
+    integer :: i,j
 
        if (boussinesq .eq. 1) then
-          do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
+          do j = tlo(2), thi(2)
+          do i = tlo(1), thi(1)
              vel_force(i,j,1:2) = s(i,j,2) * ext_vel_force(i,j,1:2)
           end do
           end do
        else
-          do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
+          do j = tlo(2), thi(2)
+          do i = tlo(1), thi(1)
              vel_force(i,j,1:2) = ext_vel_force(i,j,1:2)
           end do
           end do
        end if
 
-       do j = lo(2), hi(2)
-       do i = lo(1), hi(1)
+       do j = tlo(2), thi(2)
+       do i = tlo(1), thi(1)
           lapu_local(1:2) = visc_coef * visc_fac * lapu(i,j,1:2)
           vel_force(i,j,1:2) = vel_force(i,j,1:2) + (lapu_local(1:2) - gp(i,j,1:2)) / s(i,j,1)
        end do
        end do
 
        ! we use 0th order extrapolation for laplacian term in ghost cells
-       do j = lo(2), hi(2)
-          lapu_local(1:2) = visc_coef * visc_fac * lapu(lo(1),j,1:2)
-          vel_force(lo(1)-1,j,1:2) = ext_vel_force(lo(1)-1,j,1:2) &
-               + (lapu_local(1:2) - gp(lo(1)-1,j,1:2)) / s(lo(1)-1,j,1)
+       if (tlo(1) .eq. glo(1)) then
+       do j = tlo(2), thi(2)
+          lapu_local(1:2) = visc_coef * visc_fac * lapu(tlo(1),j,1:2)
+          vel_force(tlo(1)-1,j,1:2) = ext_vel_force(tlo(1)-1,j,1:2) &
+               + (lapu_local(1:2) - gp(tlo(1)-1,j,1:2)) / s(tlo(1)-1,j,1)
        enddo
-       do j = lo(2), hi(2)
-          lapu_local(1:2) = visc_coef * visc_fac * lapu(hi(1),j,1:2)
-          vel_force(hi(1)+1,j,1:2) = ext_vel_force(hi(1)+1,j,1:2) &
-               + (lapu_local(1:2) - gp(hi(1)+1,j,1:2)) / s(hi(1)+1,j,1)
-       enddo
-       do i = lo(1), hi(1)
-          lapu_local(1:2) = visc_coef * visc_fac * lapu(i,lo(2),1:2)
-          vel_force(i,lo(2)-1,1:2) = ext_vel_force(i,lo(2)-1,1:2) &
-               + (lapu_local(1:2) - gp(i,lo(2)-1,1:2)) / s(i,lo(2)-1,1)
-       enddo
-       do i = lo(1), hi(1)
-          lapu_local(1:2) = visc_coef * visc_fac * lapu(i,hi(2),1:2)
-          vel_force(i,hi(2)+1,1:2) = ext_vel_force(i,hi(2)+1,1:2) &
-               + (lapu_local(1:2) - gp(i,hi(2)+1,1:2)) / s(i,hi(2)+1,1)
-       enddo
+       end if
 
+       if (thi(1) .eq. ghi(1)) then
+       do j = tlo(2), thi(2)
+          lapu_local(1:2) = visc_coef * visc_fac * lapu(thi(1),j,1:2)
+          vel_force(thi(1)+1,j,1:2) = ext_vel_force(thi(1)+1,j,1:2) &
+               + (lapu_local(1:2) - gp(thi(1)+1,j,1:2)) / s(thi(1)+1,j,1)
+       enddo
+       end if
+
+       if (tlo(2) .eq. glo(2)) then
+       do i = tlo(1), thi(1)
+          lapu_local(1:2) = visc_coef * visc_fac * lapu(i,tlo(2),1:2)
+          vel_force(i,tlo(2)-1,1:2) = ext_vel_force(i,tlo(2)-1,1:2) &
+               + (lapu_local(1:2) - gp(i,tlo(2)-1,1:2)) / s(i,tlo(2)-1,1)
+       enddo
+       end if
+
+       if (thi(2) .eq. ghi(2)) then
+       do i = tlo(1), thi(1)
+          lapu_local(1:2) = visc_coef * visc_fac * lapu(i,thi(2),1:2)
+          vel_force(i,thi(2)+1,1:2) = ext_vel_force(i,thi(2)+1,1:2) &
+               + (lapu_local(1:2) - gp(i,thi(2)+1,1:2)) / s(i,thi(2)+1,1)
+       enddo
+       end if
 
   end subroutine mkvelforce_2d
 
   subroutine mkvelforce_3d(vel_force,ext_vel_force,gp,s,lapu, &
-                           ng_f,ng_e,ng_g,ng_s,ng_l,visc_fac,lo,hi)
+                           ng_f,ng_e,ng_g,ng_s,ng_l,visc_fac,glo,ghi,tlo,thi)
 
     use probin_module, only: boussinesq, visc_coef
 
-    integer        , intent(in   ) :: lo(:),hi(:),ng_f,ng_e,ng_g,ng_s,ng_l
-    real(kind=dp_t), intent(  out) ::     vel_force(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
-    real(kind=dp_t), intent(in   ) :: ext_vel_force(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
-    real(kind=dp_t), intent(in   ) ::            gp(lo(1)-ng_g:,lo(2)-ng_g:,lo(3)-ng_g:,:)
-    real(kind=dp_t), intent(in   ) ::             s(lo(1)-ng_s:,lo(2)-ng_s:,lo(3)-ng_s:,:)
-    real(kind=dp_t), intent(in   ) ::          lapu(lo(1)-ng_l:,lo(2)-ng_l:,lo(3)-ng_l:,:)
+    integer        , intent(in   ) :: glo(:),ghi(:),ng_f,ng_e,ng_g,ng_s,ng_l
+    integer        , intent(in   ) :: tlo(:),thi(:)
+    real(kind=dp_t), intent(  out) ::     vel_force(glo(1)-ng_f:,glo(2)-ng_f:,glo(3)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) :: ext_vel_force(glo(1)-ng_e:,glo(2)-ng_e:,glo(3)-ng_e:,:)
+    real(kind=dp_t), intent(in   ) ::            gp(glo(1)-ng_g:,glo(2)-ng_g:,glo(3)-ng_g:,:)
+    real(kind=dp_t), intent(in   ) ::             s(glo(1)-ng_s:,glo(2)-ng_s:,glo(3)-ng_s:,:)
+    real(kind=dp_t), intent(in   ) ::          lapu(glo(1)-ng_l:,glo(2)-ng_l:,glo(3)-ng_l:,:)
     real(kind=dp_t), intent(in   ) :: visc_fac
 
     real(kind=dp_t) :: lapu_local(3)
-    integer :: i,j,k,n
+    integer :: i,j,k
 
        if (boussinesq .eq. 1) then
-          do k = lo(3), hi(3)
-          do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
+          do k = tlo(3), thi(3)
+          do j = tlo(2), thi(2)
+          do i = tlo(1), thi(1)
              vel_force(i,j,k,1:3) = s(i,j,k,2) * ext_vel_force(i,j,k,1:3)
           end do
           end do
           end do
        else
-          do k = lo(3), hi(3)
-          do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
+          do k = tlo(3), thi(3)
+          do j = tlo(2), thi(2)
+          do i = tlo(1), thi(1)
              vel_force(i,j,k,1:3) = ext_vel_force(i,j,k,1:3)
           end do
           end do
           end do
        end if
-       do k = lo(3), hi(3)
-       do j = lo(2), hi(2)
-       do i = lo(1), hi(1)
+       do k = tlo(3), thi(3)
+       do j = tlo(2), thi(2)
+       do i = tlo(1), thi(1)
           lapu_local(1:3) = visc_coef * visc_fac * lapu(i,j,k,1:3)
           vel_force(i,j,k,1:3) = vel_force(i,j,k,1:3) + &
                (lapu_local(1:3) - gp(i,j,k,1:3)) / s(i,j,k,1)
@@ -185,53 +216,65 @@ contains
        end do
 
        ! we use 0th order extrapolation for laplacian term in ghost cells
-       do k=lo(3),hi(3)
-          do j=lo(2),hi(2)
-             lapu_local(1:3) = visc_coef * visc_fac * lapu(lo(1),j,k,1:3)
-             vel_force(lo(1)-1,j,k,1:3) = ext_vel_force(lo(1)-1,j,k,1:3) + &
-                  (lapu_local(1:3) - gp(lo(1)-1,j,k,1:3)) / s(lo(1)-1,j,k,1)
+       if (tlo(1) .eq. glo(1)) then
+       do k=tlo(3),thi(3)
+          do j=tlo(2),thi(2)
+             lapu_local(1:3) = visc_coef * visc_fac * lapu(tlo(1),j,k,1:3)
+             vel_force(tlo(1)-1,j,k,1:3) = ext_vel_force(tlo(1)-1,j,k,1:3) + &
+                  (lapu_local(1:3) - gp(tlo(1)-1,j,k,1:3)) / s(tlo(1)-1,j,k,1)
           enddo
        enddo
+       end if
 
-       do k=lo(3),hi(3)
-          do j=lo(2),hi(2)
-             lapu_local(1:3) = visc_coef * visc_fac * lapu(hi(1),j,k,1:3)
-             vel_force(hi(1)+1,j,k,1:3) = ext_vel_force(hi(1)+1,j,k,1:3) + &
-                  (lapu_local(1:3) - gp(hi(1)+1,j,k,1:3)) / s(hi(1)+1,j,k,1)
+       if (thi(1) .eq. ghi(1)) then
+       do k=tlo(3),thi(3)
+          do j=tlo(2),thi(2)
+             lapu_local(1:3) = visc_coef * visc_fac * lapu(thi(1),j,k,1:3)
+             vel_force(thi(1)+1,j,k,1:3) = ext_vel_force(thi(1)+1,j,k,1:3) + &
+                  (lapu_local(1:3) - gp(thi(1)+1,j,k,1:3)) / s(thi(1)+1,j,k,1)
           enddo
        enddo      
-
-       do k=lo(3),hi(3)
-          do i=lo(1),hi(1)
-             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,lo(2),k,1:3)
-             vel_force(i,lo(2)-1,k,1:3) = ext_vel_force(i,lo(2)-1,k,1:3) + &
-                  (lapu_local(1:3) - gp(i,lo(2)-1,k,1:3)) / s(i,lo(2)-1,k,1)
+       end if
+       
+       if (tlo(2) .eq. glo(2)) then
+       do k=tlo(3),thi(3)
+          do i=tlo(1),thi(1)
+             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,tlo(2),k,1:3)
+             vel_force(i,tlo(2)-1,k,1:3) = ext_vel_force(i,tlo(2)-1,k,1:3) + &
+                  (lapu_local(1:3) - gp(i,tlo(2)-1,k,1:3)) / s(i,tlo(2)-1,k,1)
           enddo
        enddo
+       end if
 
-       do k=lo(3),hi(3)
-          do i=lo(1),hi(1)
-             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,hi(2),k,1:3)
-             vel_force(i,hi(2)+1,k,1:3) = ext_vel_force(i,hi(2)+1,k,1:3) + &
-                  (lapu_local(1:3) - gp(i,hi(2)+1,k,1:3)) / s(i,hi(2)+1,k,1)
+       if (thi(2) .eq. ghi(2)) then
+       do k=tlo(3),thi(3)
+          do i=tlo(1),thi(1)
+             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,thi(2),k,1:3)
+             vel_force(i,thi(2)+1,k,1:3) = ext_vel_force(i,thi(2)+1,k,1:3) + &
+                  (lapu_local(1:3) - gp(i,thi(2)+1,k,1:3)) / s(i,thi(2)+1,k,1)
           enddo
        enddo
+       end if
 
-       do j=lo(2),hi(2)
-          do i=lo(1),hi(1)
-             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,j,lo(3),1:3)
-             vel_force(i,j,lo(3)-1,1:3) = ext_vel_force(i,j,lo(3)-1,1:3) + &
-                  (lapu_local(1:3) - gp(i,j,lo(3)-1,1:3)) / s(i,j,lo(3)-1,1)
+       if (tlo(3) .eq. glo(3)) then
+       do j=tlo(2),thi(2)
+          do i=tlo(1),thi(1)
+             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,j,tlo(3),1:3)
+             vel_force(i,j,tlo(3)-1,1:3) = ext_vel_force(i,j,tlo(3)-1,1:3) + &
+                  (lapu_local(1:3) - gp(i,j,tlo(3)-1,1:3)) / s(i,j,tlo(3)-1,1)
           enddo
        enddo
+       end if
 
-       do j=lo(2),hi(2)
-          do i=lo(1),hi(1)
-             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,j,hi(3),1:3)
-             vel_force(i,j,hi(3)+1,1:3) = ext_vel_force(i,j,hi(3)+1,1:3) + &
-                  (lapu_local(1:3) - gp(i,j,hi(3)+1,1:3)) / s(i,j,hi(3)+1,1)
+       if (thi(3) .eq. ghi(3)) then
+       do j=tlo(2),thi(2)
+          do i=tlo(1),thi(1)
+             lapu_local(1:3) = visc_coef * visc_fac * lapu(i,j,thi(3),1:3)
+             vel_force(i,j,thi(3)+1,1:3) = ext_vel_force(i,j,thi(3)+1,1:3) + &
+                  (lapu_local(1:3) - gp(i,j,thi(3)+1,1:3)) / s(i,j,thi(3)+1,1)
           enddo
        enddo
+       end if
 
   end subroutine mkvelforce_3d
 
@@ -252,6 +295,10 @@ contains
     real(kind=dp_t), pointer :: lp(:,:,:,:)
     real(kind=dp_t), pointer :: ep(:,:,:,:)
 
+    type(mfiter) :: mfi
+    type(box) :: tilebox
+    integer :: tlo(mla%dim), thi(mla%dim)
+
     type(bl_prof_timer), save :: bpt
 
     call build(bpt,"mkscalforce")
@@ -265,7 +312,21 @@ contains
 
     do n=1,nlevs
        call setval(scal_force(n),ZERO,all=.true.)
-       do i = 1, nfabs(scal_force(n))
+    end do
+
+
+    !$omp parallel private(mfi,n,i,tilebox,tlo,thi) &
+    !$omp private(fp,ep,lp,lo,hi)
+
+    do n=1,nlevs
+       call mfiter_build(mfi,scal_force(n),tiling=.true.)
+
+       do while(more_tile(mfi))
+          i = get_fab_index(mfi)
+          tilebox = get_tilebox(mfi)
+          tlo = lwb(tilebox)
+          thi = upb(tilebox)
+
           fp => dataptr(scal_force(n),i)
           ep => dataptr(ext_scal_force(n),i)
           lp => dataptr(laps(n),i)
@@ -273,12 +334,15 @@ contains
           hi = upb(get_box(scal_force(n),i))
           select case (dm)
           case (2)
-             call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), lp(:,:,1,:), ng_f, ng_e, ng_l, diff_fac, lo, hi)
+             call mkscalforce_2d(fp(:,:,1,:), ep(:,:,1,:), lp(:,:,1,:), ng_f, ng_e, ng_l, diff_fac, &
+                  lo, hi, tlo, thi)
           case (3)
-             call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), lp(:,:,:,:), ng_f, ng_e, ng_l, diff_fac, lo, hi)
+             call mkscalforce_3d(fp(:,:,:,:), ep(:,:,:,:), lp(:,:,:,:), ng_f, ng_e, ng_l, diff_fac, &
+                  lo, hi, tlo, thi)
           end select
        end do
     enddo
+    !$omp end parallel
 
     call ml_restrict_and_fill(nlevs, scal_force, mla%mba%rr, the_bc_tower%bc_tower_array, &
          icomp=1,bcomp=extrap_comp,nc=nscal,same_boundary=.true.)
@@ -287,117 +351,141 @@ contains
 
   end subroutine mkscalforce
 
-  subroutine mkscalforce_2d(scal_force,ext_scal_force,laps,ng_f,ng_e,ng_l,diff_fac,lo,hi)
+  subroutine mkscalforce_2d(scal_force,ext_scal_force,laps,ng_f,ng_e,ng_l,diff_fac, &
+       glo,ghi,tlo,thi)
 
     use probin_module, only : nscal, diff_coef
 
-    integer        , intent(in   ) :: ng_f,ng_e,ng_l,lo(:),hi(:)
-    real(kind=dp_t), intent(  out) ::     scal_force(lo(1)-ng_f:,lo(2)-ng_f:,:)
-    real(kind=dp_t), intent(in   ) :: ext_scal_force(lo(1)-ng_e:,lo(2)-ng_e:,:)
-    real(kind=dp_t), intent(in   ) ::           laps(lo(1)-ng_l:,lo(2)-ng_l:,:)
+    integer        , intent(in   ) :: ng_f,ng_e,ng_l,glo(:),ghi(:),tlo(:),thi(:)
+    real(kind=dp_t), intent(  out) ::     scal_force(glo(1)-ng_f:,glo(2)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) :: ext_scal_force(glo(1)-ng_e:,glo(2)-ng_e:,:)
+    real(kind=dp_t), intent(in   ) ::           laps(glo(1)-ng_l:,glo(2)-ng_l:,:)
     real(kind=dp_t), intent(in   ) :: diff_fac
 
     real(kind=dp_t) :: laps_local(2:nscal)
-    integer :: i,j,n
+    integer :: i,j
 
     scal_force = 0.0_dp_t
 
     ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
-    do j = lo(2), hi(2)
-       do i = lo(1), hi(1)
+    do j = tlo(2), thi(2)
+       do i = tlo(1), thi(1)
           laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,2:nscal)
           scal_force(i,j,2:nscal) = ext_scal_force(i,j,2:nscal) + laps_local(2:nscal)
        enddo
     enddo
-
+    
     ! we use 0th order extrapolation for laplacian term in ghost cells
-    do j = lo(2), hi(2)
-       laps_local(2:nscal) = diff_coef * diff_fac * laps(lo(1),j,2:nscal)
-       scal_force(lo(1)-1,j,2:nscal) = ext_scal_force(lo(1)-1,j,2:nscal) + laps_local(2:nscal)
-    enddo
-    do j = lo(2), hi(2)
-       laps_local(2:nscal) = diff_coef * diff_fac * laps(hi(1),j,2:nscal)
-       scal_force(hi(1)+1,j,2:nscal) = ext_scal_force(hi(1)+1,j,2:nscal) + laps_local(2:nscal)
-    enddo 
-   do i = lo(1), hi(1)
-       laps_local(2:nscal) = diff_coef * diff_fac * laps(i,lo(2),2:nscal)
-       scal_force(i,lo(2)-1,2:nscal) = ext_scal_force(i,lo(2)-1,2:nscal) + laps_local(2:nscal)
-    enddo
-    do i = lo(1), hi(1)
-       laps_local(2:nscal) = diff_coef * diff_fac * laps(i,hi(2),2:nscal)
-       scal_force(i,hi(2)+1,2:nscal) = ext_scal_force(i,hi(2)+1,2:nscal) + laps_local(2:nscal)
-    enddo
+    if (tlo(1) .eq. glo(1)) then
+       do j = tlo(2), thi(2)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(tlo(1),j,2:nscal)
+          scal_force(tlo(1)-1,j,2:nscal) = ext_scal_force(tlo(1)-1,j,2:nscal) + laps_local(2:nscal)
+       enddo
+    end if
+
+    if (thi(1) .eq. ghi(1)) then
+       do j = tlo(2), thi(2)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(thi(1),j,2:nscal)
+          scal_force(thi(1)+1,j,2:nscal) = ext_scal_force(thi(1)+1,j,2:nscal) + laps_local(2:nscal)
+       enddo
+    end if
+
+    if (tlo(2) .eq. glo(2)) then
+       do i = tlo(1), thi(1)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,tlo(2),2:nscal)
+          scal_force(i,tlo(2)-1,2:nscal) = ext_scal_force(i,tlo(2)-1,2:nscal) + laps_local(2:nscal)
+       enddo
+    end if
+
+    if (thi(2) .eq. ghi(2)) then
+       do i = tlo(1), thi(1)
+          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,thi(2),2:nscal)
+          scal_force(i,thi(2)+1,2:nscal) = ext_scal_force(i,thi(2)+1,2:nscal) + laps_local(2:nscal)
+       enddo
+    end if
 
   end subroutine mkscalforce_2d
 
-  subroutine mkscalforce_3d(scal_force,ext_scal_force,laps,ng_f,ng_e,ng_l,diff_fac,lo,hi)
+  subroutine mkscalforce_3d(scal_force,ext_scal_force,laps,ng_f,ng_e,ng_l,diff_fac, &
+       glo,ghi,tlo,thi)
 
     use probin_module, only : nscal, diff_coef
 
-    integer        , intent(in   ) :: ng_f,ng_e,ng_l,lo(:),hi(:)
-    real(kind=dp_t), intent(  out) ::     scal_force(lo(1)-ng_f:,lo(2)-ng_f:,lo(3)-ng_f:,:)
-    real(kind=dp_t), intent(in   ) :: ext_scal_force(lo(1)-ng_e:,lo(2)-ng_e:,lo(3)-ng_e:,:)
-    real(kind=dp_t), intent(in   ) ::           laps(lo(1)-ng_l:,lo(2)-ng_l:,lo(3)-ng_l:,:)
+    integer        , intent(in   ) :: ng_f,ng_e,ng_l,glo(:),ghi(:),tlo(:),thi(:)
+    real(kind=dp_t), intent(  out) ::     scal_force(glo(1)-ng_f:,glo(2)-ng_f:,glo(3)-ng_f:,:)
+    real(kind=dp_t), intent(in   ) :: ext_scal_force(glo(1)-ng_e:,glo(2)-ng_e:,glo(3)-ng_e:,:)
+    real(kind=dp_t), intent(in   ) ::           laps(glo(1)-ng_l:,glo(2)-ng_l:,glo(3)-ng_l:,:)
     real(kind=dp_t), intent(in   ) :: diff_fac
 
     real(kind=dp_t) :: laps_local(2:nscal)
-    integer :: i,j,k,n
+    integer :: i,j,k
 
     scal_force = 0.0_dp_t
 
     ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
-    do k = lo(3), hi(3)
-       do j = lo(2), hi(2)
-          do i = lo(1), hi(1)
+    do k = tlo(3), thi(3)
+       do j = tlo(2), thi(2)
+          do i = tlo(1), thi(1)
              laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,k,2:nscal)
              scal_force(i,j,k,2:nscal) = ext_scal_force(i,j,k,2:nscal) + laps_local(2:nscal)
           end do
        end do
     end do
-
+    
     ! we use 0th order extrapolation for laplacian term in ghost cells
-
-    do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,lo(3),2:nscal)
-          scal_force(i,j,lo(3)-1,2:nscal) = ext_scal_force(i,j,lo(3)-1,2:nscal) + laps_local(2:nscal)
+    if (tlo(1) .eq. glo(1)) then
+       do j=tlo(2),thi(2)
+          do i=tlo(1),thi(1)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,tlo(3),2:nscal)
+             scal_force(i,j,tlo(3)-1,2:nscal) = ext_scal_force(i,j,tlo(3)-1,2:nscal) + laps_local(2:nscal)
+          enddo
        enddo
-    enddo
+    end if
 
-    do j=lo(2),hi(2)
-       do i=lo(1),hi(1)
-          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,hi(3),2:nscal)
-          scal_force(i,j,hi(3)+1,2:nscal) = ext_scal_force(i,j,hi(3)+1,2:nscal) + laps_local(2:nscal)
+    if (thi(1) .eq. ghi(1)) then
+       do j=tlo(2),thi(2)
+          do i=tlo(1),thi(1)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(i,j,thi(3),2:nscal)
+             scal_force(i,j,thi(3)+1,2:nscal) = ext_scal_force(i,j,thi(3)+1,2:nscal) + laps_local(2:nscal)
+          enddo
        enddo
-    enddo
+    end if
 
-    do k=lo(3),hi(3)
-       do i=lo(1),hi(1)
-          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,lo(2),k,2:nscal)
-          scal_force(i,lo(2)-1,k,2:nscal) = ext_scal_force(i,lo(2)-1,k,2:nscal) + laps_local(2:nscal)
+    if (tlo(2) .eq. glo(2)) then
+       do k=tlo(3),thi(3)
+          do i=tlo(1),thi(1)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(i,tlo(2),k,2:nscal)
+             scal_force(i,tlo(2)-1,k,2:nscal) = ext_scal_force(i,tlo(2)-1,k,2:nscal) + laps_local(2:nscal)
+          enddo
        enddo
-    enddo
+    end if
 
-    do k=lo(3),hi(3)
-       do i=lo(1),hi(1)
-          laps_local(2:nscal) = diff_coef * diff_fac * laps(i,hi(2),k,2:nscal)
-          scal_force(i,hi(2)+1,k,2:nscal) = ext_scal_force(i,hi(2)+1,k,2:nscal) + laps_local(2:nscal)
+    if (thi(2) .eq. ghi(2)) then
+       do k=tlo(3),thi(3)
+          do i=tlo(1),thi(1)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(i,thi(2),k,2:nscal)
+             scal_force(i,thi(2)+1,k,2:nscal) = ext_scal_force(i,thi(2)+1,k,2:nscal) + laps_local(2:nscal)
+          enddo
        enddo
-    enddo
+    end if
 
-    do k=lo(3),hi(3)
-       do j=lo(2),hi(2)
-          laps_local(2:nscal) = diff_coef * diff_fac * laps(lo(1),j,k,2:nscal)
-          scal_force(lo(1)-1,j,k,2:nscal) = ext_scal_force(lo(1)-1,j,k,2:nscal) + laps_local(2:nscal)
+    if (tlo(3) .eq. glo(3)) then
+       do k=tlo(3),thi(3)
+          do j=tlo(2),thi(2)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(tlo(1),j,k,2:nscal)
+             scal_force(tlo(1)-1,j,k,2:nscal) = ext_scal_force(tlo(1)-1,j,k,2:nscal) + laps_local(2:nscal)
+          enddo
        enddo
-    enddo
+    end if
 
-    do k=lo(3),hi(3)
-       do j=lo(2),hi(2)
-          laps_local(2:nscal) = diff_coef * diff_fac * laps(hi(1),j,k,2:nscal)
-          scal_force(hi(1)+1,j,k,2:nscal) = ext_scal_force(hi(1)+1,j,k,2:nscal) + laps_local(2:nscal)
+    if (thi(3) .eq. ghi(3)) then
+       do k=tlo(3),thi(3)
+          do j=tlo(2),thi(2)
+             laps_local(2:nscal) = diff_coef * diff_fac * laps(thi(1),j,k,2:nscal)
+             scal_force(thi(1)+1,j,k,2:nscal) = ext_scal_force(thi(1)+1,j,k,2:nscal) + laps_local(2:nscal)
+          enddo
        enddo
-    enddo
+    end if
 
   end subroutine mkscalforce_3d
 
