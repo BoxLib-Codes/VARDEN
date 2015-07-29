@@ -1,0 +1,45 @@
+&PROBIN
+ dim_in = 2
+
+ max_levs = 4
+ regrid_int = 2
+
+ n_cellx = 64
+ n_celly = 64
+ max_grid_size = 32
+ 
+ cluster_min_eff = 0.9d0
+ cluster_min_width = 4
+ cluster_blocking_factor = 4
+
+ prob_hi_x = 1.0
+ prob_hi_y = 1.0
+
+ init_iter = 1
+ do_initial_projection = 1
+
+ max_step  = 100
+ plot_int  = 100
+ chk_int   = -1
+
+ stop_time = 2.5
+ cflfac = 0.9
+ init_shrink = 0.1
+
+ visc_coef = 0.001
+ diff_coef = 0.0
+
+ grav = -9.8d0
+
+ bcx_lo = 15
+ bcx_hi = 15
+ bcy_lo = 15
+ bcy_hi = 15
+
+ pmask_x = F
+ pmask_y = F
+
+ verbose = 1
+ mg_verbose = 1
+
+/
