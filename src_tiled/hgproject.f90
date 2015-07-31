@@ -258,9 +258,13 @@ contains
                                      bc%phys_bc_level_array(i,:,:), proj_type, lo, hi,gtlo,gthi)
             end select
          end do
-         call multifab_fill_boundary(unew(n))
+         
       end do 
       !$omp end parallel
+
+      do n = 1, nlevs
+         call multifab_fill_boundary(unew(n))
+      end do
 
       call destroy(bpt)
 
