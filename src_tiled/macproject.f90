@@ -187,6 +187,10 @@ contains
       real(kind=dp_t)          :: rhmax
       integer :: i,dm,ng_u,ng_r,lo(rh(nlevs)%dim),hi(rh(nlevs)%dim)
 
+      type(mfiter) :: mfi
+      type(box) :: tilebox
+      integer :: tlo(rh(nlevs)%dim), thi(rh(nlevs)%dim)
+
       type(bl_prof_timer), save :: bpt
 
       call build(bpt,"divumac")
@@ -196,8 +200,18 @@ contains
       ng_u = umac(1,1)%ng
       ng_r = rh(1)%ng
 
+      !$omp parallel private(mfi,n,i,tilebox,tlo,thi) &
+      !$omp private(ump,vmp,wmp,rhp,lo,hi)
+
       do n = 1,nlevs
-         do i = 1, nfabs(rh(n))
+         call mfiter_build(mfi,rh(n),tiling=.true.)
+
+         do while(more_tile(mfi))
+            i = get_fab_index(mfi)
+            tilebox = get_tilebox(mfi)
+            tlo = lwb(tilebox)
+            thi = upb(tilebox)
+
             ump => dataptr(umac(n,1), i)
             vmp => dataptr(umac(n,2), i)
             rhp => dataptr(rh(n)  , i)
@@ -206,14 +220,15 @@ contains
             select case (dm)
             case (2)
                call divumac_2d(ump(:,:,1,1), vmp(:,:,1,1), ng_u, rhp(:,:,1,1), ng_r, &
-                               dx(n,:),lo,hi)
+                               dx(n,:),lo,hi,tlo,thi)
             case (3)
                wmp => dataptr(umac(n,3), i)
                call divumac_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), ng_u, &
-                               rhp(:,:,:,1), ng_r, dx(n,:),lo,hi)
+                               rhp(:,:,:,1), ng_r, dx(n,:),lo,hi,tlo,thi)
             end select
          end do
       end do
+      !$omp end parallel
 
       !     NOTE: the sign convention is because the elliptic solver solves
       !            (alpha MINUS del dot beta grad) phi = RHS
@@ -257,12 +272,12 @@ contains
 
     end subroutine divumac
 
-    subroutine divumac_2d(umac,vmac,ng_um,rh,ng_rh,dx,lo,hi)
+    subroutine divumac_2d(umac,vmac,ng_um,rh,ng_rh,dx,glo,ghi,tlo,thi)
 
-      integer        , intent(in   ) :: lo(:),hi(:),ng_um,ng_rh
-      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_um:,lo(2)-ng_um:)
-      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_um:,lo(2)-ng_um:)
-      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_rh:,lo(2)-ng_rh:)
+      integer        , intent(in   ) :: glo(:),ghi(:),ng_um,ng_rh,tlo(:),thi(:)
+      real(kind=dp_t), intent(in   ) :: umac(glo(1)-ng_um:,glo(2)-ng_um:)
+      real(kind=dp_t), intent(in   ) :: vmac(glo(1)-ng_um:,glo(2)-ng_um:)
+      real(kind=dp_t), intent(inout) ::   rh(glo(1)-ng_rh:,glo(2)-ng_rh:)
       real(kind=dp_t), intent(in   ) ::   dx(:)
 
       integer :: i,j
@@ -271,8 +286,8 @@ contains
       dxinv(1) = 1.d0 / dx(1)
       dxinv(2) = 1.d0 / dx(2)
 
-      do j = lo(2),hi(2)
-         do i = lo(1),hi(1)
+      do j = tlo(2),thi(2)
+         do i = tlo(1),thi(1)
             rh(i,j) = (umac(i+1,j) - umac(i,j)) * dxinv(1) + &
                       (vmac(i,j+1) - vmac(i,j)) * dxinv(2)
          end do
@@ -280,13 +295,14 @@ contains
 
     end subroutine divumac_2d
 
-    subroutine divumac_3d(umac,vmac,wmac,ng_um,rh,ng_rh,dx,lo,hi)
+    subroutine divumac_3d(umac,vmac,wmac,ng_um,rh,ng_rh,dx,glo,ghi,tlo,thi)
 
-      integer        , intent(in   ) :: lo(:),hi(:),ng_um,ng_rh
-      real(kind=dp_t), intent(in   ) :: umac(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
-      real(kind=dp_t), intent(in   ) :: vmac(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
-      real(kind=dp_t), intent(in   ) :: wmac(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
-      real(kind=dp_t), intent(inout) ::   rh(lo(1)-ng_rh:,lo(2)-ng_rh:,lo(3)-ng_rh:)
+      integer        , intent(in   ) :: glo(:),ghi(:),ng_um,ng_rh
+      integer        , intent(in   ) :: tlo(:),thi(:)
+      real(kind=dp_t), intent(in   ) :: umac(glo(1)-ng_um:,glo(2)-ng_um:,glo(3)-ng_um:)
+      real(kind=dp_t), intent(in   ) :: vmac(glo(1)-ng_um:,glo(2)-ng_um:,glo(3)-ng_um:)
+      real(kind=dp_t), intent(in   ) :: wmac(glo(1)-ng_um:,glo(2)-ng_um:,glo(3)-ng_um:)
+      real(kind=dp_t), intent(inout) ::   rh(glo(1)-ng_rh:,glo(2)-ng_rh:,glo(3)-ng_rh:)
       real(kind=dp_t), intent(in   ) :: dx(:)
 
       integer :: i,j,k
@@ -296,17 +312,15 @@ contains
       dxinv(2) = 1.d0 / dx(2)
       dxinv(3) = 1.d0 / dx(3)
 
-      !$OMP PARALLEL DO PRIVATE(i,j,k)
-      do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
-            do i = lo(1),hi(1)
+      do k = tlo(3),thi(3)
+         do j = tlo(2),thi(2)
+            do i = tlo(1),thi(1)
                rh(i,j,k) = (umac(i+1,j,k) - umac(i,j,k)) * dxinv(1) + &
                            (vmac(i,j+1,k) - vmac(i,j,k)) * dxinv(2) + &
                            (wmac(i,j,k+1) - wmac(i,j,k)) * dxinv(3)
             end do
          end do
       end do
-      !$OMP END PARALLEL DO 
 
     end subroutine divumac_3d
 
@@ -640,6 +654,12 @@ contains
       real(kind=dp_t), pointer :: bzp(:,:,:,:) 
       real(kind=dp_t), pointer :: rp(:,:,:,:) 
 
+      type(mfiter) :: mfi
+      type(box) :: xnodalbox, ynodalbox,znodalbox
+      integer :: xlo(mla%dim), xhi(mla%dim)
+      integer :: ylo(mla%dim), yhi(mla%dim)
+      integer :: zlo(mla%dim), zhi(mla%dim)
+
       integer :: lo(mla%dim),hi(mla%dim)
       integer :: i,dm,ng_r,ng_b,ng_fill 
 
@@ -656,8 +676,24 @@ contains
                                         1,dm+1,1)
       end do
 
+      !$omp parallel private(mfi,n,i,xnodalbox,ynodalbox,znodalbox) &
+      !$omp private(xlo,xhi,ylo,yhi,zlo,zhi,rp,bxp,byp,bzp,lo,hi)
+
       do n = 1, nlevs
-         do i = 1, nfabs(rho(n))
+         call mfiter_build(mfi,rho(n),tiling=.true.)
+
+         do while(more_tile(mfi))
+            i = get_fab_index(mfi)
+            xnodalbox = get_nodaltilebox(mfi,1)
+            xlo = lwb(xnodalbox)
+            xhi = upb(xnodalbox)
+            ynodalbox = get_nodaltilebox(mfi,2)
+            ylo = lwb(ynodalbox)
+            yhi = upb(ynodalbox)
+            znodalbox = get_nodaltilebox(mfi,3)
+            zlo = lwb(znodalbox)
+            zhi = upb(znodalbox)
+
             rp => dataptr(rho(n) , i)
             bxp => dataptr(beta(n,1), i)
             byp => dataptr(beta(n,2), i)
@@ -665,13 +701,16 @@ contains
             hi  = upb(get_box(rho(n),i))
             select case (dm)
             case (2)
-               call mk_mac_coeffs_2d(bxp(:,:,1,1),byp(:,:,1,1),ng_b,rp(:,:,1,1),ng_r,lo,hi)
+               call mk_mac_coeffs_2d(bxp(:,:,1,1),byp(:,:,1,1),ng_b,rp(:,:,1,1),ng_r,&
+                    lo,hi,xlo,xhi,ylo,yhi)
             case (3)
                bzp => dataptr(beta(n,3), i)
-               call mk_mac_coeffs_3d(bxp(:,:,:,1),byp(:,:,:,1),bzp(:,:,:,1),ng_b,rp(:,:,:,1),ng_r,lo,hi)
+               call mk_mac_coeffs_3d(bxp(:,:,:,1),byp(:,:,:,1),bzp(:,:,:,1),ng_b,rp(:,:,:,1),ng_r, &
+                    lo,hi,xlo,xhi,ylo,yhi,zlo,zhi)
             end select
          end do
       end do
+      !$omp end parallel
 
       ! Make sure that the fine edges average down onto the coarse edges.
       do n = nlevs,2,-1
@@ -682,69 +721,67 @@ contains
 
     end subroutine mk_mac_coeffs
 
-    subroutine mk_mac_coeffs_2d(betax,betay,ng_b,rho,ng_r,lo,hi)
+    subroutine mk_mac_coeffs_2d(betax,betay,ng_b,rho,ng_r,glo,ghi,xlo,xhi,ylo,yhi)
 
-      integer        , intent(in   ) :: ng_b,ng_r,lo(:),hi(:)
-      real(kind=dp_t), intent(inout) :: betax(lo(1)-ng_b:,lo(2)-ng_b:)
-      real(kind=dp_t), intent(inout) :: betay(lo(1)-ng_b:,lo(2)-ng_b:)
-      real(kind=dp_t), intent(in   ) ::   rho(lo(1)-ng_r:,lo(2)-ng_r:)
+      integer        , intent(in   ) :: ng_b,ng_r,glo(:),ghi(:)
+      integer        , intent(in   ) :: xlo(:),xhi(:),ylo(:),yhi(:)
+      real(kind=dp_t), intent(inout) :: betax(glo(1)-ng_b:,glo(2)-ng_b:)
+      real(kind=dp_t), intent(inout) :: betay(glo(1)-ng_b:,glo(2)-ng_b:)
+      real(kind=dp_t), intent(in   ) ::   rho(glo(1)-ng_r:,glo(2)-ng_r:)
 
       integer :: i,j
 
-      do j = lo(2),hi(2)
-         do i = lo(1),hi(1)+1
+      do j = xlo(2),xhi(2)
+         do i = xlo(1),xhi(1)
             betax(i,j) = TWO / (rho(i,j) + rho(i-1,j))
          end do
       end do
 
-      do j = lo(2),hi(2)+1
-         do i = lo(1),hi(1)
+      do j = ylo(2),yhi(2)
+         do i = ylo(1),yhi(1)
             betay(i,j) = TWO / (rho(i,j) + rho(i,j-1))
          end do
       end do
 
     end subroutine mk_mac_coeffs_2d
 
-    subroutine mk_mac_coeffs_3d(betax,betay,betaz,ng_b,rho,ng_r,lo,hi)
+    subroutine mk_mac_coeffs_3d(betax,betay,betaz,ng_b,rho,ng_r,glo,ghi, &
+         xlo,xhi,ylo,yhi,zlo,zhi)
 
-      integer        , intent(in   ) :: ng_b,ng_r,lo(:),hi(:)
-      real(kind=dp_t), intent(inout) :: betax(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
-      real(kind=dp_t), intent(inout) :: betay(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
-      real(kind=dp_t), intent(inout) :: betaz(lo(1)-ng_b:,lo(2)-ng_b:,lo(3)-ng_b:)
-      real(kind=dp_t), intent(in   ) ::   rho(lo(1)-ng_r:,lo(2)-ng_r:,lo(3)-ng_r:)
+      integer        , intent(in   ) :: ng_b,ng_r,glo(:),ghi(:)
+      integer        , intent(in   ) :: xlo(:),xhi(:),ylo(:),yhi(:),zlo(:),zhi(:)
+      real(kind=dp_t), intent(inout) :: betax(glo(1)-ng_b:,glo(2)-ng_b:,glo(3)-ng_b:)
+      real(kind=dp_t), intent(inout) :: betay(glo(1)-ng_b:,glo(2)-ng_b:,glo(3)-ng_b:)
+      real(kind=dp_t), intent(inout) :: betaz(glo(1)-ng_b:,glo(2)-ng_b:,glo(3)-ng_b:)
+      real(kind=dp_t), intent(in   ) ::   rho(glo(1)-ng_r:,glo(2)-ng_r:,glo(3)-ng_r:)
 
       integer :: i,j,k
 
-      !$OMP PARALLEL PRIVATE(i,j,k)
-      !$OMP DO
-      do k = lo(3),hi(3)
-         do j = lo(2),hi(2)
-            do i = lo(1),hi(1)+1
+      do k = xlo(3),xhi(3)
+         do j = xlo(2),xhi(2)
+            do i = xlo(1),xhi(1)
                betax(i,j,k) = TWO / (rho(i,j,k) + rho(i-1,j,k))
             end do
          end do
       end do
-      !$OMP END DO NOWAIT
-      !$OMP DO
-      do k = lo(3),hi(3)
-         do j = lo(2),hi(2)+1
-            do i = lo(1),hi(1)
+
+      do k = ylo(3),yhi(3)
+         do j = ylo(2),yhi(2)
+            do i = ylo(1),yhi(1)
                betay(i,j,k) = TWO / (rho(i,j,k) + rho(i,j-1,k))
             end do
          end do
       end do
-      !$OMP END DO NOWAIT
-      !$OMP DO
-      do k = lo(3),hi(3)+1
-         do j = lo(2),hi(2)
-            do i = lo(1),hi(1)
+
+      do k = zlo(3),zhi(3)
+         do j = zlo(2),zhi(2)
+            do i = zlo(1),zhi(1)
                betaz(i,j,k) = TWO / (rho(i,j,k) + rho(i,j,k-1))
             end do
          end do
       end do
-      !$OMP END DO
-      !$OMP END PARALLEL
 
+      
     end subroutine mk_mac_coeffs_3d
 
     subroutine mkumac(mla,umac,phi,beta,fine_flx,dx,the_bc_tower,press_comp)
