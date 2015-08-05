@@ -17,8 +17,7 @@ module macproject_module
 
 contains 
 
-  subroutine macproject(mla,umac,rho,mac_rhs,dx,the_bc_tower,bc_comp,&
-                        div_coeff_1d,div_coeff_half_1d,div_coeff_3d)
+  subroutine macproject(mla,umac,rho,mac_rhs,dx,the_bc_tower,bc_comp)
 
     use probin_module            , only : stencil_order, use_hypre
     use mac_hypre_module         , only : mac_hypre
@@ -34,10 +33,6 @@ contains
     type(bc_tower ), intent(in   ) :: the_bc_tower
     integer        , intent(in   ) :: bc_comp
 
-    real(dp_t)     , intent(in   ), optional :: div_coeff_1d(:,:)
-    real(dp_t)     , intent(in   ), optional :: div_coeff_half_1d(:,:)
-    type(multifab ), intent(in   ), optional :: div_coeff_3d(:)
-
     ! Local  
     type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
     type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel,mla%dim)
@@ -46,19 +41,9 @@ contains
     real(dp_t)      :: rel_solver_eps
     real(dp_t)      :: abs_solver_eps
     integer         :: d,dm,i,n, nlevs
-    logical         :: use_div_coeff_1d, use_div_coeff_3d
 
     nlevs = mla%nlevel
     dm = mla%dim
-
-    use_div_coeff_1d = .false.
-    if (present(div_coeff_1d)) use_div_coeff_1d = .true.
-
-    use_div_coeff_3d = .false.
-    if (present(div_coeff_3d)) use_div_coeff_3d = .true.
-
-    if (use_div_coeff_1d .and. use_div_coeff_3d) &
-       call bl_error('CANT HAVE 1D and 3D DIV_COEFF IN MACPROJECT ')
 
     do n = 1, nlevs
        call multifab_build(   rh(n), mla%la(n),  1, 0)
@@ -73,12 +58,6 @@ contains
 
     end do
 
-    if (use_div_coeff_1d) then
-       call mult_edge_by_1d_coeff(mla,umac,div_coeff_1d,div_coeff_half_1d,.true.)
-    else if (use_div_coeff_3d) then
-       call mult_edge_by_3d_coeff(mla,umac,div_coeff_3d,.true.)
-    end if
-
     ! Compute umac_norm to be used inside the MG solver as part of a stopping criterion
     umac_norm = -1.0_dp_t
     do n = 1,nlevs
@@ -90,12 +69,6 @@ contains
     call divumac(nlevs,umac,mac_rhs,rh,dx,mla%mba%rr,.true.)
 
     call mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
-
-    if (use_div_coeff_1d) then
-       call mult_edge_by_1d_coeff(mla,beta,div_coeff_1d,div_coeff_half_1d,.true.)
-    else if (use_div_coeff_3d) then
-       call mult_edge_by_3d_coeff(mla,beta,div_coeff_3d,.true.)
-    end if
 
     do n = 2,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
@@ -130,12 +103,6 @@ contains
     call mkumac(mla,umac,phi,beta,fine_flx,dx,the_bc_tower,bc_comp)
 
     call divumac(nlevs,umac,mac_rhs,rh,dx,mla%mba%rr,.false.)
-
-    if (use_div_coeff_1d) then
-       call mult_edge_by_1d_coeff(mla,umac,div_coeff_1d,div_coeff_half_1d,.false.)
-    else if (use_div_coeff_3d) then
-       call mult_edge_by_3d_coeff(mla,umac,div_coeff_3d,.false.)
-    end if
 
     if (nlevs .gt. 1) then
        do n=2,nlevs
@@ -323,320 +290,6 @@ contains
       end do
 
     end subroutine divumac_3d
-
-    subroutine mult_edge_by_1d_coeff(mla,edge,div_coeff,div_coeff_half,do_mult)
-
-      use ml_cc_restriction_module, only: ml_edge_restriction
-
-      type(ml_layout), intent(in   ) :: mla
-      type(multifab) , intent(inout) :: edge(:,:)
-      real(dp_t)     , intent(in   ) :: div_coeff(:,0:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(:,0:)
-      logical        , intent(in   ) :: do_mult
-
-      real(kind=dp_t), pointer :: ump(:,:,:,:) 
-      real(kind=dp_t), pointer :: vmp(:,:,:,:) 
-      real(kind=dp_t), pointer :: wmp(:,:,:,:) 
-      integer                  :: lo(mla%dim),hi(mla%dim)
-      integer                  :: i,dm,n,nlevs,ng_e
-
-      type(bl_prof_timer), save :: bpt
-      call build(bpt,"mult_edge_by_1d_coeff")
-
-      if (edge(1,1)%ng .ne. 1) then
-         call bl_error("mult_edge_by_1d_coeff assumes edge has 1 ghost cell")
-      end if
-
-      dm    = mla%dim
-      nlevs = mla%nlevel
-
-      ng_e = edge(1,1)%ng
-
-      do n=1,nlevs
-         ! Multiply edge velocities by div coeff
-         do i = 1, nfabs(edge(n,1))
-            ump => dataptr(edge(n,1), i)
-            vmp => dataptr(edge(n,2), i)
-            lo = lwb(get_box(edge(n,1), i))
-            hi = upb(get_box(edge(n,1), i))
-            select case (dm)
-            case (2)
-               call mult_edge_by_1d_coeff_2d(ump(:,:,1,1), vmp(:,:,1,1), ng_e, &
-                                             div_coeff(n,:), div_coeff_half(n,:), &
-                                             lo,hi,do_mult)
-            case (3)
-               wmp => dataptr(edge(n,3), i)
-               call mult_edge_by_1d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), ng_e, &
-                                             div_coeff(n,:), div_coeff_half(n,:), &
-                                             lo,hi,do_mult)
-            end select
-         end do
-
-         do i=1,dm
-            call multifab_fill_boundary(edge(n,i))
-         enddo
-      end do
-
-      do n = nlevs,2,-1
-         do i = 1,dm
-            call ml_edge_restriction(edge(n-1,i),edge(n,i),mla%mba%rr(n-1,:),i)
-         end do
-      end do
-      
-      call destroy(bpt)
-
-    end subroutine mult_edge_by_1d_coeff
-
-    subroutine mult_edge_by_1d_coeff_2d(uedge,vedge,ng_e,div_coeff,div_coeff_half,lo,hi,do_mult)
-
-      integer        , intent(in   ) :: ng_e,lo(:),hi(:)
-      real(kind=dp_t), intent(inout) :: uedge(lo(1)-ng_e:,lo(2)-ng_e:)
-      real(kind=dp_t), intent(inout) :: vedge(lo(1)-ng_e:,lo(2)-ng_e:)
-      real(dp_t)     , intent(in   ) :: div_coeff(0:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
-      logical        , intent(in   ) :: do_mult
-
-      integer :: j
-
-      if (do_mult) then
-         do j = lo(2),hi(2)
-            uedge(:,j) = uedge(:,j) * div_coeff(j)
-         end do
-         do j = lo(2),hi(2)+1
-            vedge(:,j) = vedge(:,j) * div_coeff_half(j)
-         end do
-      else
-         do j = lo(2),hi(2) 
-            uedge(:,j) = uedge(:,j) / div_coeff(j)
-         end do
-         do j = lo(2),hi(2)+1
-            vedge(:,j) = vedge(:,j) / div_coeff_half(j)
-         end do
-      end if
-
-    end subroutine mult_edge_by_1d_coeff_2d
-
-    subroutine mult_edge_by_1d_coeff_3d(uedge,vedge,wedge,ng_um,div_coeff,div_coeff_half,lo,hi, &
-                                        do_mult)
-
-      integer        , intent(in   ) :: lo(:),hi(:)
-      integer        , intent(in   ) :: ng_um
-      real(kind=dp_t), intent(inout) :: uedge(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
-      real(kind=dp_t), intent(inout) :: vedge(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
-      real(kind=dp_t), intent(inout) :: wedge(lo(1)-ng_um:,lo(2)-ng_um:,lo(3)-ng_um:)
-      real(dp_t)     , intent(in   ) :: div_coeff(0:)
-      real(dp_t)     , intent(in   ) :: div_coeff_half(0:)
-      logical        , intent(in   ) :: do_mult
-
-      integer :: k
-
-      if (do_mult) then
-         do k = lo(3),hi(3)
-            uedge(:,:,k) = uedge(:,:,k) * div_coeff(k)
-            vedge(:,:,k) = vedge(:,:,k) * div_coeff(k)
-         end do
-         do k = lo(3),hi(3)+1
-            wedge(:,:,k) = wedge(:,:,k) * div_coeff_half(k)
-         end do
-      else
-         do k = lo(3),hi(3)
-            uedge(:,:,k) = uedge(:,:,k) / div_coeff(k)
-            vedge(:,:,k) = vedge(:,:,k) / div_coeff(k)
-         end do
-         do k = lo(3),hi(3)+1
-            wedge(:,:,k) = wedge(:,:,k) / div_coeff_half(k)
-         end do
-      end if
-
-    end subroutine mult_edge_by_1d_coeff_3d
-
-    subroutine mult_edge_by_3d_coeff(mla,uedge,div_coeff,do_mult)
-
-      use ml_cc_restriction_module, only: ml_edge_restriction
-
-      type(ml_layout), intent(in   ) :: mla
-      type(multifab) , intent(inout) :: uedge(:,:)
-      type(multifab) , intent(in   ) :: div_coeff(:)
-      logical        , intent(in   ) :: do_mult
-
-      real(kind=dp_t), pointer :: ump(:,:,:,:) 
-      real(kind=dp_t), pointer :: vmp(:,:,:,:) 
-      real(kind=dp_t), pointer :: wmp(:,:,:,:) 
-      real(kind=dp_t), pointer ::  dp(:,:,:,:) 
-
-      integer :: i,n,nlevs,ng_u,ng_d
-      integer :: lo(uedge(1,1)%dim),hi(uedge(1,1)%dim)
-      integer :: domlo(uedge(1,1)%dim),domhi(uedge(1,1)%dim)
-
-      type(bl_prof_timer), save :: bpt
-
-      call build(bpt,"mult_edge_by_3d_coeff")
-
-      nlevs = mla%nlevel
-
-      ng_u = uedge(1,1)%ng
-      ng_d = div_coeff(1)%ng
-
-      do n=1,nlevs
-         domlo =  lwb(ml_layout_get_pd(mla,n))
-         domhi =  upb(ml_layout_get_pd(mla,n))
-
-         ! Multiply edge velocities by div coeff
-         do i = 1, nfabs(uedge(n,1))
-            ump => dataptr(uedge(n,1), i)
-            vmp => dataptr(uedge(n,2), i)
-            wmp => dataptr(uedge(n,3), i)
-            dp => dataptr(div_coeff(n), i)
-            lo =  lwb(get_box(uedge(n,1), i))
-            hi =  upb(get_box(uedge(n,1), i))
-            select case (uedge(n,1)%dim)
-            case (3)
-               call mult_by_3d_coeff_3d(ump(:,:,:,1), vmp(:,:,:,1), wmp(:,:,:,1), &
-                                        dp(:,:,:,1), ng_u, ng_d, lo, hi, domlo, domhi, do_mult)
-            end select
-         end do
-
-         do i=1,dm
-            call multifab_fill_boundary(uedge(n,i))
-         enddo
-      enddo
-
-      do n = nlevs,2,-1
-         do i = 1,dm
-            call ml_edge_restriction(uedge(n-1,i),uedge(n,i),mla%mba%rr(n-1,:),i)
-         end do
-      end do
-
-      call destroy(bpt)
-
-    end subroutine mult_edge_by_3d_coeff
-
-    subroutine mult_by_3d_coeff_3d(uedge,vedge,wedge,div_coeff,ng_u,ng_d,lo,hi,domlo,domhi,do_mult)
-
-      integer        , intent(in   ) :: lo(:),hi(:),domlo(:),domhi(:),ng_u,ng_d
-      real(kind=dp_t), intent(inout) ::     uedge(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-      real(kind=dp_t), intent(inout) ::     vedge(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-      real(kind=dp_t), intent(inout) ::     wedge(lo(1)-ng_u:,lo(2)-ng_u:,lo(3)-ng_u:)
-      real(dp_t)     , intent(in   ) :: div_coeff(lo(1)-ng_d:,lo(2)-ng_d:,lo(3)-ng_d:)
-      logical        , intent(in   ) :: do_mult
-
-      integer :: i,j,k
-
-      if (do_mult) then
-
-         do k = lo(3),hi(3)
-            do j = lo(2),hi(2)
-               do i = lo(1)+1,hi(1)
-                  uedge(i,j,k) = uedge(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k))
-               end do
-               if (lo(1).eq.domlo(1)) then
-                  uedge(lo(1),j,k) = uedge(lo(1),j,k) * div_coeff(lo(1),j,k)
-               else
-                  uedge(lo(1),j,k) = uedge(lo(1),j,k) * HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k))
-               end if
-               if (hi(1).eq.domhi(1)) then
-                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) * div_coeff(hi(1),j,k)
-               else
-                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) * HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k))
-               end if
-            end do
-         end do
-
-         do k = lo(3),hi(3)
-            do i = lo(1),hi(1)
-               do j = lo(2)+1,hi(2)
-                  vedge(i,j,k) = vedge(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k))
-               end do
-               if (lo(2).eq.domlo(2)) then
-                  vedge(i,lo(2),k) = vedge(i,lo(2),k) * div_coeff(i,lo(2),k)
-               else
-                  vedge(i,lo(2),k) = vedge(i,lo(2),k) * HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k))
-               end if
-               if (hi(2).eq.domhi(2)) then
-                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) * div_coeff(i,hi(2),k)
-               else
-                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) * HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k))
-               end if
-            end do
-         end do
-
-         do j = lo(2),hi(2)
-            do i = lo(1),hi(1)
-               do k = lo(3)+1,hi(3)
-                  wedge(i,j,k) = wedge(i,j,k) * HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1))
-               end do
-               if (lo(3).eq.domlo(3)) then
-                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) * div_coeff(i,j,lo(3))
-               else
-                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) * HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1))
-               end if
-               if (hi(3).eq.domhi(3)) then
-                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) * div_coeff(i,j,hi(3))
-               else
-                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) * HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3)))
-               end if
-            end do
-         end do
-
-      else
-
-         do k = lo(3),hi(3)
-            do j = lo(2),hi(2)
-               do i = lo(1)+1,hi(1)
-                  uedge(i,j,k) = uedge(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i-1,j,k)))
-               end do
-               if (lo(1).eq.domlo(1)) then
-                  uedge(lo(1),j,k) = uedge(lo(1),j,k) / div_coeff(lo(1),j,k)
-               else
-                  uedge(lo(1),j,k) = uedge(lo(1),j,k) / ( HALF * (div_coeff(lo(1),j,k)+div_coeff(lo(1)-1,j,k)))
-               end if
-               if (hi(1).eq.domhi(1)) then
-                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) / div_coeff(hi(1),j,k)
-               else
-                  uedge(hi(1)+1,j,k) = uedge(hi(1)+1,j,k) / ( HALF * (div_coeff(hi(1)+1,j,k)+div_coeff(hi(1),j,k)))
-               end if
-            end do
-         end do
-
-         do k = lo(3),hi(3)
-            do i = lo(1),hi(1)
-               do j = lo(2)+1,hi(2)
-                  vedge(i,j,k) = vedge(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j-1,k)))
-               end do
-               if (lo(2).eq.domlo(2)) then
-                  vedge(i,lo(2),k) = vedge(i,lo(2),k) / div_coeff(i,lo(2),k)
-               else
-                  vedge(i,lo(2),k) = vedge(i,lo(2),k) / ( HALF * (div_coeff(i,lo(2),k)+div_coeff(i,lo(2)-1,k)))
-               end if
-               if (hi(2).eq.domhi(2)) then
-                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) / div_coeff(i,hi(2),k)
-               else
-                  vedge(i,hi(2)+1,k) = vedge(i,hi(2)+1,k) / ( HALF * (div_coeff(i,hi(2)+1,k)+div_coeff(i,hi(2),k)))
-               end if
-            end do
-         end do
-
-         do j = lo(2),hi(2)
-            do i = lo(1),hi(1)
-               do k = lo(3)+1,hi(3)
-                  wedge(i,j,k) = wedge(i,j,k) / ( HALF * (div_coeff(i,j,k)+div_coeff(i,j,k-1)))
-               end do
-               if (lo(3).eq.domlo(3)) then
-                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) / div_coeff(i,j,lo(3))
-               else
-                  wedge(i,j,lo(3)) = wedge(i,j,lo(3)) / ( HALF * (div_coeff(i,j,lo(3))+div_coeff(i,j,lo(3)-1)))
-               end if
-               if (hi(3).eq.domhi(3)) then
-                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) / div_coeff(i,j,hi(3))
-               else
-                  wedge(i,j,hi(3)+1) = wedge(i,j,hi(3)+1) / ( HALF * (div_coeff(i,j,hi(3)+1)+div_coeff(i,j,hi(3))))
-               end if
-            end do
-         end do
-
-      end if
-
-    end subroutine mult_by_3d_coeff_3d
 
     subroutine mk_mac_coeffs(nlevs,mla,rho,beta,the_bc_tower)
 
