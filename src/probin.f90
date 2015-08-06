@@ -43,6 +43,7 @@ module probin_module
   real(dp_t),save :: max_dt_growth
   integer, save   :: boussinesq
   integer, save   :: extrap_comp
+  integer, save   :: prob_type
 
   integer,save    :: cluster_min_width
   integer,save    :: cluster_blocking_factor
@@ -115,6 +116,7 @@ module probin_module
   namelist /probin/ cluster_min_eff
   namelist /probin/ cluster_min_width
   namelist /probin/ cluster_blocking_factor
+  namelist /probin/ prob_type
 
 contains
 
@@ -148,6 +150,8 @@ contains
 
     dim_in = 2
     nscal = 2
+
+    prob_type = 1
 
     grav = 0.d0
     boussinesq = 0
@@ -267,6 +271,11 @@ contains
           farg = farg + 1
           call get_command_argument(farg, value = fname)
           read(fname, *) dim_in
+
+       case ('--prob_type')
+          farg = farg + 1
+          call get_command_argument(farg, value = fname)
+          read(fname, *) prob_type
 
        case ('--prob_hi_x')
           farg = farg + 1

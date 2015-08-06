@@ -1,9 +1,9 @@
 &PROBIN
  dim_in = 2
 
- prob_type = 1
+ prob_type = 2
 
- max_levs = 4
+ max_levs = 1
  regrid_int = 2
 
  n_cellx = 64
@@ -20,21 +20,21 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 5
+ max_step  = 10
  plot_int  = 1
  chk_int   = 10
 
- stop_time = 2.5
+ stop_time = 1000
  cflfac = 0.9
  init_shrink = 0.1
 
  visc_coef = 0.001
  diff_coef = 0.0
 
- grav = -9.8d0
+ grav = 0.d0
 
- bcx_lo = 15
- bcx_hi = 15
+ bcx_lo = 11
+ bcx_hi = 12
  bcy_lo = 15
  bcy_hi = 15
 

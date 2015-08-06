@@ -8,6 +8,7 @@ module init_module
   use multifab_module
   use ml_restrict_fill_module
   use ml_layout_module
+  use probin_module, only : prob_type
 
   implicit none
 
@@ -118,21 +119,46 @@ contains
     real (kind = dp_t)  :: xblob = 0.5d0, yblob = 0.5d0, densfact = 2.0d0
     real (kind = dp_t)  :: blobrad = 0.1d0
    
-    u = 0.d0
 
-    s(:,:,1) = ONE
-    s(:,:,2) = ZERO
+    if (prob_type .eq. 1) then
+       u = 0.d0
 
-    ! add a density and tracer perturbation
-    do j=lo(2),hi(2)
-       y = dx(2)*(j + HALF)
-       do i=lo(1),hi(1)
-          x = dx(1)*((i) + HALF)
-          dist = SQRT((x-xblob)**2 + (y-yblob)**2)
-          s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
-          s(i,j,2) = s(i,j,1)
+       s(:,:,1) = ONE
+       s(:,:,2) = ZERO
+
+       ! add a density and tracer perturbation
+       do j=lo(2),hi(2)
+          y = dx(2)*(j + HALF)
+          do i=lo(1),hi(1)
+             x = dx(1)*((i) + HALF)
+             dist = SQRT((x-xblob)**2 + (y-yblob)**2)
+             s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+             s(i,j,2) = s(i,j,1)
+          enddo
        enddo
-    enddo
+    else if (prob_type .eq. 2) then
+       u(:,:,1) = ONE
+       u(:,:,2) = ZERO
+
+       s(:,:,1) = ONE
+       s(:,:,2) = ZERO
+
+       ! add a density and tracer perturbation
+       do j=lo(2),hi(2)
+          y = dx(2)*(j + HALF)
+          do i=lo(1),hi(1)
+             x = dx(1)*((i) + HALF)
+             dist = SQRT((x-xblob)**2 + (y-yblob)**2)
+             s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+             s(i,j,2) = s(i,j,1)
+          enddo
+       enddo
+    else
+
+       call bl_error('Unsupported prob_type')
+
+    end if
+
 
   end subroutine initdata_2d
 
@@ -149,24 +175,53 @@ contains
     real (kind = dp_t)  :: xblob = 0.5d0, yblob = 0.5d0, zblob = 0.5d0, densfact = 10.0d0
     real (kind = dp_t)  :: blobrad = 0.1d0
 
-    u = 0.d0
+    if (prob_type .eq. 1) then
+       u = 0.d0
 
-    s(:,:,:,1) = ONE
-    s(:,:,:,2) = ZERO
+       s(:,:,:,1) = ONE
+       s(:,:,:,2) = ZERO
 
-    ! add a density and tracer perturbation
-    do k=lo(3),hi(3)
-       z = dx(3)*(k + HALF)
-       do j=lo(2),hi(2)
-          y = dx(2)*(j + HALF)
-          do i=lo(1),hi(1)
-             x = dx(1)*((i) + HALF)
-             dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
-             s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
-             s(i,j,k,2) = s(i,j,k,1)
+       ! add a density and tracer perturbation
+       do k=lo(3),hi(3)
+          z = dx(3)*(k + HALF)
+          do j=lo(2),hi(2)
+             y = dx(2)*(j + HALF)
+             do i=lo(1),hi(1)
+                x = dx(1)*((i) + HALF)
+                dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
+                s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+                s(i,j,k,2) = s(i,j,k,1)
+             enddo
           enddo
        enddo
-    enddo
+
+    else if (prob_type .eq. 2) then
+       u(:,:,:,1) = ONE
+       u(:,:,:,2) = ZERO
+       u(:,:,:,3) = ZERO
+
+       s(:,:,:,1) = ONE
+       s(:,:,:,2) = ZERO
+
+       ! add a density and tracer perturbation
+       do k=lo(3),hi(3)
+          z = dx(3)*(k + HALF)
+          do j=lo(2),hi(2)
+             y = dx(2)*(j + HALF)
+             do i=lo(1),hi(1)
+                x = dx(1)*((i) + HALF)
+                dist = SQRT((x-xblob)**2 + (y-yblob)**2 + (z-zblob)**2)
+                s(i,j,k,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
+                s(i,j,k,2) = s(i,j,k,1)
+             enddo
+          enddo
+       enddo
+
+    else
+
+       call bl_error('Unsupported prob_type')
+
+    end if
 
   end subroutine initdata_3d
 

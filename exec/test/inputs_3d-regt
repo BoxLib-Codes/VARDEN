@@ -1,6 +1,8 @@
 &PROBIN
  dim_in = 3
 
+ prob_type = 1
+
  max_levs = 3
  regrid_int = 2
 
