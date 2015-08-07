@@ -7,7 +7,6 @@ f90sources += hgproject.f90
 f90sources += hg_multigrid.f90
 f90sources += initdata.f90
 f90sources += initialize.f90
-f90sources += inlet_bc.f90
 ifdef HYPRE
 f90sources +=  hg_hypre.f90
 f90sources += mac_hypre.f90

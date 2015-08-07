@@ -4,6 +4,7 @@ module multifab_physbc_module
   use define_bc_module
   use bl_types
   use bl_error_module
+  use probin_module, only: rho_bc, trac_bc, u_bc, v_bc, w_bc
 
   implicit none
 
@@ -60,7 +61,6 @@ contains
 
     use bl_constants_module
     use bc_module
-    use inlet_bc
 
     integer        , intent(in   ) :: lo(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:,lo(2)-ng:)
@@ -74,10 +74,10 @@ contains
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
 
     if (bc(1,1) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_DEN
-       if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = u_bc(1,1)
+       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = v_bc(1,1)
+       if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = rho_bc(1,1)
+       if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = trac_bc(1,1)
     else if (bc(1,1) .eq. FOEXTRAP) then
        do j = lo(2)-ng, hi(2)+ng
           s(lo(1)-ng:lo(1)-1,j) = s(lo(1),j)
@@ -107,10 +107,10 @@ contains
     end if
 
     if (bc(1,2) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_VX
-       if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_VY
-       if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_DEN
-       if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = INLET_TRA
+       if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = u_bc(1,2)
+       if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = v_bc(1,2)
+       if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = rho_bc(1,2)
+       if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = trac_bc(1,2)
     else if (bc(1,2) .eq. FOEXTRAP) then
        do j = lo(2)-ng, hi(2)+ng
           s(hi(1)+1:hi(1)+ng,j) = s(hi(1),j)
@@ -140,10 +140,10 @@ contains
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_DEN
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = u_bc(2,1)
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = v_bc(2,1)
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = rho_bc(2,1)
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = trac_bc(2,1)
     else if (bc(2,1) .eq. FOEXTRAP) then
        do i = lo(1)-ng, hi(1)+ng
           s(i,lo(2)-ng:lo(2)-1) = s(i,lo(2))
@@ -173,10 +173,10 @@ contains
     end if
 
     if (bc(2,2) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_DEN
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = u_bc(2,2)
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = v_bc(2,2)
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = rho_bc(2,2)
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = trac_bc(2,2)
     else if (bc(2,2) .eq. FOEXTRAP) then
        do i = lo(1)-ng, hi(1)+ng
           s(i,hi(2)+1:hi(2)+ng) = s(i,hi(2))
@@ -211,7 +211,6 @@ contains
 
     use bl_constants_module
     use bc_module
-    use inlet_bc
 
     integer        , intent(in   ) :: lo(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:)
@@ -226,11 +225,11 @@ contains
     hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
 
     if (bc(1,1) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
-       if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
-       if (icomp.eq.5) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(1,1)
+       if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = v_bc(1,1)
+       if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = w_bc(1,1)
+       if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = rho_bc(1,1)
+       if (icomp.eq.5) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = trac_bc(1,1)
     else if (bc(1,1) .eq. FOEXTRAP) then
        do k = lo(3)-ng,hi(3)+ng
           do j = lo(2)-ng,hi(2)+ng
@@ -270,11 +269,11 @@ contains
     end if
 
     if (bc(1,2) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
-       if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
-       if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
-       if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
-       if (icomp.eq.5) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
+       if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(1,2)
+       if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = v_bc(1,2)
+       if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = w_bc(1,2)
+       if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = rho_bc(1,2)
+       if (icomp.eq.5) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = trac_bc(1,2)
     else if (bc(1,2) .eq. FOEXTRAP) then
        do k = lo(3)-ng,hi(3)+ng
           do j = lo(2)-ng,hi(2)+ng
@@ -314,12 +313,12 @@ contains
     end if
 
     if (bc(2,1) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_VZ
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_DEN
-       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = INLET_TRA
-    else if (bc(2,1) .eq. FOEXTRAP .or. bc(2,1) .eq. REFLECT_EVEN) then ! ??
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = u_bc(2,1)
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = v_bc(2,1)
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = w_bc(2,1)
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = rho_bc(2,1)
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = trac_bc(2,1)
+    else if (bc(2,1) .eq. FOEXTRAP) then 
        do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
              s(i,lo(2)-ng:lo(2)-1,k) = s(i,lo(2),k)
@@ -358,11 +357,11 @@ contains
     end if
 
     if (bc(2,2) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_VZ
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_DEN
-       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(2,2)
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = v_bc(2,2)
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = w_bc(2,2)
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = rho_bc(2,2)
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = trac_bc(2,2)
     else if (bc(2,2) .eq. FOEXTRAP) then
        do k = lo(3)-ng,hi(3)+ng
           do i = lo(1)-ng,hi(1)+ng
@@ -402,11 +401,11 @@ contains
     end if
 
     if (bc(3,1) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_VZ
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_DEN
-       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = u_bc(3,1)
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = v_bc(3,1)
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = w_bc(3,1)
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = rho_bc(3,1)
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = trac_bc(3,1)
     else if (bc(3,1) .eq. FOEXTRAP) then
        do j = lo(2)-ng,hi(2)+ng
           do i = lo(1)-ng,hi(1)+ng
@@ -446,11 +445,11 @@ contains
     end if
 
     if (bc(3,2) .eq. EXT_DIR) then
-       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_VX
-       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_VY
-       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_VZ
-       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_DEN
-       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = INLET_TRA
+       if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = u_bc(3,2)
+       if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = v_bc(3,2)
+       if (icomp.eq.3) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = w_bc(3,2)
+       if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = rho_bc(3,2)
+       if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = trac_bc(3,2)
     else if (bc(3,2) .eq. FOEXTRAP) then
        do j = lo(2)-ng,hi(2)+ng
           do i = lo(1)-ng,hi(1)+ng

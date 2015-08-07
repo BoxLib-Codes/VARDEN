@@ -44,6 +44,10 @@ module probin_module
   integer, save   :: boussinesq
   integer, save   :: extrap_comp
   integer, save   :: prob_type
+  real(dp_t),save :: rho_bc(3,2)
+  real(dp_t),save :: trac_bc(3,2)
+  real(dp_t),save :: u_bc(3,2),v_bc(3,2),w_bc(3,2)
+
 
   integer,save    :: cluster_min_width
   integer,save    :: cluster_blocking_factor
@@ -117,6 +121,11 @@ module probin_module
   namelist /probin/ cluster_min_width
   namelist /probin/ cluster_blocking_factor
   namelist /probin/ prob_type
+  namelist /probin/ rho_bc
+  namelist /probin/ trac_bc
+  namelist /probin/ u_bc
+  namelist /probin/ v_bc
+  namelist /probin/ w_bc
 
 contains
 
@@ -210,6 +219,12 @@ contains
     bcx_hi = SLIP_WALL
     bcy_hi = SLIP_WALL
     bcz_hi = SLIP_WALL
+
+    rho_bc(:,:) = 0.d0
+    trac_bc(:,:) = 0.d0
+    u_bc(:,:) = 0.d0
+    v_bc(:,:) = 0.d0
+    w_bc(:,:) = 0.d0 
 
     pmask_x = .false.
     pmask_y = .false.

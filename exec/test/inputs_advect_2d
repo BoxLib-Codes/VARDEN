@@ -20,9 +20,9 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 10
- plot_int  = 1
- chk_int   = 10
+ max_step  = 200
+ plot_int  = 10
+ chk_int   = 1000
 
  stop_time = 1000
  cflfac = 0.9
@@ -31,12 +31,18 @@
  visc_coef = 0.001
  diff_coef = 0.0
 
- grav = 0.d0
+ grav = -9.8d0
 
  bcx_lo = 11
  bcx_hi = 12
  bcy_lo = 15
  bcy_hi = 15
+
+ rho_bc(1,1) = 1.0d0
+
+ trac_bc(1,1) = 1.0d0
+
+ u_bc(1,1) = 1.d0
 
  pmask_x = F
  pmask_y = F
