@@ -365,7 +365,6 @@ contains
     real(kind=dp_t) :: laps_local(2:nscal)
     integer :: i,j
 
-    scal_force = 0.0_dp_t
 
     ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
     do j = tlo(2), thi(2)
@@ -420,7 +419,6 @@ contains
     real(kind=dp_t) :: laps_local(2:nscal)
     integer :: i,j,k
 
-    scal_force = 0.0_dp_t
 
     ! NOTE: component 1 is density which doesn't diffuse, so we start with component 2 
     do k = tlo(3), thi(3)
