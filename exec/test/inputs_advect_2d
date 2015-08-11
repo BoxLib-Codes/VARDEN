@@ -20,7 +20,7 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 200
+ max_step  = 150
  plot_int  = 10
  chk_int   = 1000
 

@@ -22,11 +22,11 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 10
- plot_int  = 1
- chk_int   = 10
+ max_step  = 100
+ plot_int  = 5
+ chk_int   = 100
 
- stop_time = 2.5
+ stop_time = 1000
  cflfac = 0.9
  init_shrink = 0.1
 
@@ -41,6 +41,12 @@
  bcy_hi = 15
  bcz_lo = 15
  bcz_hi = 15
+
+ rho_bc(1,1) = 1.d0
+
+ trac_bc(1,1) = 1.d0
+
+ u_bc(1,1) = 1.d0
 
  pmask_x = F
  pmask_y = F
