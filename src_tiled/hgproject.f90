@@ -776,8 +776,8 @@ contains
 
       if ( (proj_type .eq. initial_projection) .or. (proj_type .eq. divu_iters) ) then
 
-         gp = ZERO
-         p = ZERO
+         gp(tlo(1):thi(1),tlo(2):thi(2),tlo(3):thi(3),:) = ZERO
+         p(ntlo(1):nthi(1),ntlo(2):nthi(2),ntlo(3):nthi(3)) = ZERO
 
       else if (proj_type .eq. pressure_iters) then
 
