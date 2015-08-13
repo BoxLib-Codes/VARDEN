@@ -42,10 +42,6 @@
  bcz_lo = 15
  bcz_hi = 15
 
- pmask_x = F
- pmask_y = F
- pmask_z = F
-
  verbose = 1
  mg_verbose = 1
 
