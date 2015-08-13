@@ -261,7 +261,7 @@ contains
              y = prob_lo(2) + dx(2)*(j + HALF)
              do i=lo(1),hi(1)
                 x = prob_lo(1) + dx(1)*(i + HALF)
-                s(i,j,k,1) = ONE + HALF + HALF*tanh((y - HALF - h(x) - h(y) )/0.01d0)
+                s(i,j,k,1) = ONE + HALF + HALF*tanh((z - HALF - h(x) - h(y) )/0.01d0)
              end do
           end do
        end do
