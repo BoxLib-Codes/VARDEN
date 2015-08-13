@@ -296,10 +296,12 @@ contains
             end select
          end do
 
-         call multifab_fill_boundary(gphi(n))
-
       end do
       !$omp end parallel
+
+      do n = 1, nlevs
+         call multifab_fill_boundary(gphi(n))
+      end do
 
       call destroy(bpt)
 
