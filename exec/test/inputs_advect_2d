@@ -20,7 +20,7 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 200
+ max_step  = 400
  plot_int  = 10
  chk_int   = 1000
 
@@ -31,7 +31,7 @@
  visc_coef = 0.001
  diff_coef = 0.0
 
- grav = -9.8d0
+ grav = 0.0d0
 
  bcx_lo = 11
  bcx_hi = 12
@@ -44,10 +44,7 @@
 
  u_bc(1,1) = 1.d0
 
- pmask_x = F
- pmask_y = F
-
- verbose = 1
+  verbose = 1
  mg_verbose = 1
 
 /

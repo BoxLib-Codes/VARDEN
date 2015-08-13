@@ -3,7 +3,7 @@
 
  prob_type = 1
 
- max_levs = 4
+ max_levs = 3
  regrid_int = 2
 
  n_cellx = 64
@@ -20,7 +20,7 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 200
+ max_step  = 500
  plot_int  = 10
  chk_int   = 100
 
@@ -37,9 +37,6 @@
  bcx_hi = 15
  bcy_lo = 15
  bcy_hi = 15
-
- pmask_x = F
- pmask_y = F
 
  verbose = 1
  mg_verbose = 1

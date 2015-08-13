@@ -119,6 +119,8 @@ contains
           call multifab_fill_ghost_cells(s(n),s(n-1),ng,mla%mba%rr(n-1,:), &
                                       bc(n-1),bc(n),1,dm+1,nscal)
        enddo
+    else
+       call bl_error('Unsupported prob_type')
     end if
 
     call destroy(bpt)

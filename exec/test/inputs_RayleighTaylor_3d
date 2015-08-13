@@ -6,7 +6,7 @@
  max_levs = 2
  n_cellx = 32
  n_celly = 32
- n_cellz = 32  
+ n_cellz = 32
  ref_ratio = 2
  regrid_int = 1
 
@@ -14,7 +14,7 @@
  prob_hi_y = 1.0
  prob_hi_z = 1.0
 
- max_step  = 500
+ max_step  = 150
  init_iter = 3
 
  plot_int  = 10
@@ -35,10 +35,6 @@
  bcy_hi = -1
  bcz_lo = 15
  bcz_hi = 15
-
- pmask_x = T
- pmask_y = T
- pmask_z = F
 
  verbose = 0
  mg_verbose = 0

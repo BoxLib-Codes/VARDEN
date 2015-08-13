@@ -3,7 +3,7 @@
 
  prob_type = 2
 
- max_levs = 4
+ max_levs = 3
  regrid_int = 2
 
  n_cellx = 32
@@ -33,7 +33,7 @@
  visc_coef = 0.001
  diff_coef = 0.0
 
- grav = -9.8d0
+ grav = 0.0d0
 
  bcx_lo = 11
  bcx_hi = 12
@@ -48,11 +48,7 @@
 
  u_bc(1,1) = 1.d0
 
- pmask_x = F
- pmask_y = F
- pmask_z = F
-
- verbose = 1
+  verbose = 1
  mg_verbose = 1
 
 /

@@ -3,13 +3,13 @@
 
  prob_type = 1
 
- max_levs = 4
+ max_levs = 2
  regrid_int = 2
 
- n_cellx = 64
- n_celly = 64
- n_cellz = 64
- max_grid_size = 32
+ n_cellx = 32
+ n_celly = 32
+ n_cellz = 32
+ max_grid_size = 16
  
  cluster_min_eff = 0.9d0
  cluster_min_width = 4
@@ -22,9 +22,9 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 5
- plot_int  = 1
- chk_int   = 10
+ max_step  = 150
+ plot_int  = 10
+ chk_int   = 100
 
  stop_time = 2.5
  cflfac = 0.9
@@ -41,10 +41,6 @@
  bcy_hi = 15
  bcz_lo = 15
  bcz_hi = 15
-
- pmask_x = F
- pmask_y = F
- pmask_z = F
 
  verbose = 1
  mg_verbose = 1

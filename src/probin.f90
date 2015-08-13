@@ -34,8 +34,6 @@ module probin_module
   integer,save    :: diffusion_type
   integer,save    :: nscal
   integer,save    :: stencil_order
-  logical,save    :: pmask_x,pmask_y,pmask_z
-  logical,save    :: pmask_xyz(MAX_SPACEDIM)
   logical,save    :: use_godunov_debug
   logical,save    :: use_minion
   real(dp_t),save :: prob_lo_x,prob_lo_y,prob_lo_z
@@ -95,10 +93,6 @@ module probin_module
   namelist /probin/ bcy_hi
   namelist /probin/ bcz_lo
   namelist /probin/ bcz_hi
-  namelist /probin/ pmask_x
-  namelist /probin/ pmask_y
-  namelist /probin/ pmask_z
-  namelist /probin/ pmask_xyz
   namelist /probin/ use_hypre
   namelist /probin/ verbose
   namelist /probin/ mg_verbose
@@ -226,9 +220,6 @@ contains
     v_bc(:,:) = 0.d0
     w_bc(:,:) = 0.d0 
 
-    pmask_x = .false.
-    pmask_y = .false.
-    pmask_z = .false.
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize other stuff
@@ -275,8 +266,6 @@ contains
        close(unit=un)
        need_inputs = .false.
     end if
-
-    pmask_xyz = (/pmask_x, pmask_y, pmask_z/)
 
     do while ( farg <= narg )
        call get_command_argument(farg, value = fname)
@@ -412,19 +401,6 @@ contains
           call get_command_argument(farg, value = fname)
           read(fname, *) bcz_hi
 
-       case ('--pmask_x')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) pmask_x
-       case ('--pmask_y')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) pmask_y
-       case ('--pmask_z')
-          farg = farg + 1
-          call get_command_argument(farg, value = fname)
-          read(fname, *) pmask_z
-
        case ('--verbose')
           farg = farg + 1
           call get_command_argument(farg, value = fname)
@@ -534,7 +510,16 @@ contains
 
     allocate(pmask(dim_in))
     pmask = .FALSE.
-    pmask = pmask_xyz(1:dim_in)
+    if (bcx_lo .eq. PERIODIC .and. bcx_hi .eq. PERIODIC) then
+       pmask(1) = .TRUE.
+    end if
+    if (bcy_lo .eq. PERIODIC .and. bcy_hi .eq. PERIODIC) then
+       pmask(2) = .TRUE.
+    end if
+    if (dim_in .eq. 3 .and. bcz_lo .eq. PERIODIC .and. bcz_hi .eq. PERIODIC) then
+       pmask(3) = .TRUE.
+    end if
+
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Initialize min_eff
