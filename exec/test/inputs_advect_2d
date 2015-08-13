@@ -3,7 +3,7 @@
 
  prob_type = 2
 
- max_levs = 1
+ max_levs = 4
  regrid_int = 2
 
  n_cellx = 64
@@ -20,7 +20,7 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 150
+ max_step  = 200
  plot_int  = 10
  chk_int   = 1000
 

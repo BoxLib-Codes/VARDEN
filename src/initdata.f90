@@ -7,7 +7,7 @@ module init_module
   use multifab_module
   use ml_restrict_fill_module
   use ml_layout_module
-  use probin_module, only : prob_type
+  use probin_module, only : prob_type, n_celly, n_cellx, n_cellz, prob_lo, prob_hi
 
   implicit none
 
@@ -96,10 +96,30 @@ contains
           end select
        end do
 
+       if (prob_type .eq. 3) then
+          call multifab_fill_boundary(u(n))
+          call multifab_fill_boundary(s(n))
+
+          call multifab_physbc(u(n),1,1,   dm,   bc(n))
+          call multifab_physbc(s(n),1,dm+1,nscal,bc(n))
+       end if
+       
     enddo
 
-    call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc, bcomp=1)
-    call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc, bcomp=dm+1)
+    if (prob_type .eq. 1 .or. prob_type .eq. 2) then
+       call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc, bcomp=1)
+       call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc, bcomp=dm+1)
+    else if (prob_type .eq. 3) then
+       do n=nlevs,2,-1
+          call ml_cc_restriction(u(n-1),u(n),mla%mba%rr(n-1,:))
+          call ml_cc_restriction(s(n-1),s(n),mla%mba%rr(n-1,:))
+
+          call multifab_fill_ghost_cells(u(n),u(n-1),ng,mla%mba%rr(n-1,:), &
+                                      bc(n-1),bc(n),1,1,dm)
+          call multifab_fill_ghost_cells(s(n),s(n-1),ng,mla%mba%rr(n-1,:), &
+                                      bc(n-1),bc(n),1,dm+1,nscal)
+       enddo
+    end if
 
     call destroy(bpt)
 
@@ -129,7 +149,7 @@ contains
        do j=lo(2),hi(2)
           y = dx(2)*(j + HALF)
           do i=lo(1),hi(1)
-             x = dx(1)*((i) + HALF)
+             x = dx(1)*(i + HALF)
              dist = SQRT((x-xblob)**2 + (y-yblob)**2)
              s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
              s(i,j,2) = s(i,j,1)
@@ -146,20 +166,36 @@ contains
        do j=lo(2),hi(2)
           y = dx(2)*(j + HALF)
           do i=lo(1),hi(1)
-             x = dx(1)*((i) + HALF)
+             x = dx(1)*(i + HALF)
              dist = SQRT((x-xblob)**2 + (y-yblob)**2)
              s(i,j,1) = ONE + HALF*(densfact-ONE)*(ONE-TANH(30.*(dist-blobrad))) 
              s(i,j,2) = s(i,j,1)
           enddo
        enddo
+    else if (prob_type .eq. 3) then
+       u = ZERO
+       s(:,:,2) = ZERO
+       do j=lo(2),hi(2)
+          y = prob_lo(2) + dx(2)*(j + HALF)
+          do i=lo(1),hi(1)
+             x = prob_lo(1) + dx(1)*(i + HALF)
+             s(i,j,1) = ONE + HALF + HALF*tanh((y - HALF - h(x))/0.01d0)
+          end do
+       end do
+
     else
-
        call bl_error('Unsupported prob_type')
-
     end if
 
 
   end subroutine initdata_2d
+
+  real(kind = dp_t) function h(x)
+    real (kind = dp_t), intent(in) :: x
+    
+    h =  0.02d0 * sin(4.0d0*M_PI*x*(prob_hi(1)-prob_lo(1))) + 0.01d0 * sin(8.0d0*M_PI*x*(prob_hi(1)-prob_lo(1)))
+
+  end function h
 
   subroutine initdata_3d(u,s,lo,hi,ng,dx)
 
@@ -215,11 +251,23 @@ contains
              enddo
           enddo
        enddo
-
+    else if (prob_type .eq. 3) then
+       u = ZERO
+       s(:,:,:,2) = ZERO
+       
+       do k=lo(3),hi(3)
+          z = prob_lo(3) + dx(3)*(k + HALF)
+          do j=lo(2),hi(2)
+             y = prob_lo(2) + dx(2)*(j + HALF)
+             do i=lo(1),hi(1)
+                x = prob_lo(1) + dx(1)*(i + HALF)
+                s(i,j,k,1) = ONE + HALF + HALF*tanh((y - HALF - h(x) - h(y) )/0.01d0)
+             end do
+          end do
+       end do
+       
     else
-
        call bl_error('Unsupported prob_type')
-
     end if
 
   end subroutine initdata_3d

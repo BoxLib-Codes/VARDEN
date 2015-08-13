@@ -22,7 +22,7 @@
  init_iter = 1
  do_initial_projection = 1
 
- max_step  = 2
+ max_step  = 5
  plot_int  = 1
  chk_int   = 10
 
