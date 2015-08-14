@@ -1,4 +1,4 @@
-module init_module 
+module init_module
 
   use bl_types
   use bl_constants_module
