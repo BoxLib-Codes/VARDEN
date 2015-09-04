@@ -173,8 +173,7 @@ contains
       do n = 1,nlevs
          call mfiter_build(mfi,rh(n),tiling=.true.)
 
-         do while(more_tile(mfi))
-            i = get_fab_index(mfi)
+         do while(next_tile(mfi,i))
             tilebox = get_tilebox(mfi)
             tlo = lwb(tilebox)
             thi = upb(tilebox)
@@ -335,8 +334,7 @@ contains
       do n = 1, nlevs
          call mfiter_build(mfi,rho(n),tiling=.true.)
 
-         do while(more_tile(mfi))
-            i = get_fab_index(mfi)
+         do while(next_tile(mfi,i))
             xnodalbox = get_nodaltilebox(mfi,1)
             xlo = lwb(xnodalbox)
             xhi = upb(xnodalbox)

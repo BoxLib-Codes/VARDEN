@@ -43,8 +43,7 @@ contains
 
     call mfiter_build(mfi,s,tiling=.true.)
 
-    do while(more_tile(mfi))
-       i = get_fab_index(mfi)
+    do while(next_tile(mfi,i))
 
        growntilebox = get_growntilebox(mfi,ng)
        gtlo = lwb(growntilebox)

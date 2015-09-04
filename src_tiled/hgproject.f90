@@ -207,8 +207,7 @@ contains
          
          bc = the_bc_tower%bc_tower_array(n)
 
-         do while(more_tile(mfi))
-            i = get_fab_index(mfi)
+         do while(next_tile(mfi,i))
 
             growntilebox = get_growntilebox(mfi,1)
             gtlo = lwb(growntilebox)
@@ -278,8 +277,7 @@ contains
       do n = 1, nlevs
          call mfiter_build(mfi,gphi(n),tiling=.true.)
 
-         do while(more_tile(mfi))
-            i = get_fab_index(mfi)
+         do while(next_tile(mfi,i))
             tilebox = get_tilebox(mfi)
             tlo = lwb(tilebox)
             thi = upb(tilebox)
@@ -361,8 +359,7 @@ contains
       do n = 1, nlevs
          call mfiter_build(mfi,unew(n),tiling=.true.)
 
-         do while(more_tile(mfi))
-            i = get_fab_index(mfi)
+         do while(next_tile(mfi,i))
             tilebox = get_tilebox(mfi)
             tlo = lwb(tilebox)
             thi = upb(tilebox)

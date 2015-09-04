@@ -74,12 +74,11 @@ contains
     do n=1,nlevs
        call mfiter_build(mfi, sold(n), tiling=.true.)
 
-          do while (more_tile(mfi))
-             i = get_fab_index(mfi)
+       do while (next_tile(mfi,i))
 
-             tilebox = get_tilebox(mfi)
-             tlo = lwb(tilebox)
-             thi = upb(tilebox)
+          tilebox = get_tilebox(mfi)
+          tlo = lwb(tilebox)
+          thi = upb(tilebox)
 
 !       do i = 1, nfabs(sold(n))
           sop    => dataptr(sold(n),i)
