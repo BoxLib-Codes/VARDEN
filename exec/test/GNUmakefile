@@ -1,13 +1,11 @@
+NDEBUG    := t
+MPI       := t
+OMP       :=
+PROF      :=
+COMP      := gfortran
+TILING    :=
 
-NDEBUG := t
 HYPRE  := 
-
-MPI    := t
-OMP    :=
-
-COMP   := gfortran
-
-TILING := 
 
 TOP    := ../..
 
