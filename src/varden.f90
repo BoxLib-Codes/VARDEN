@@ -493,8 +493,12 @@ contains
   subroutine write_plotfile(istep_to_write)
 
     use probin_module, only : prob_lo, prob_hi, plot_base_name
+    use bc_module
+    use define_bc_module
+    use ml_boxarray_module
 
     integer, intent(in   )  :: istep_to_write
+
     integer                 :: n,n_plot_comps
     integer                 :: mvel_comp,vort_comp,gpx_comp
     logical                 :: coarsen_plot_data
@@ -583,6 +587,8 @@ contains
        deallocate(ref_ratio)
        deallocate(dx_crse)
     end if
+
+    call write_job_info(plot_file_name, mla%mba, the_bc_tower)
 
   end subroutine write_plotfile
 

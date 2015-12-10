@@ -57,6 +57,30 @@ main.$(suf).exe: $(objects)
 	$(LINK.f90) -o main.$(suf).exe $(objects) $(libraries)
 	@echo SUCCESS
 
+
+#-----------------------------------------------------------------------------
+# build_info stuff
+deppairs: build_info.f90
+
+build_info.f90: 
+	@echo " "
+	@echo "${bold}WRITING build_info.f90${normal}"
+	$(BOXLIB_HOME)/Tools/F_scripts/makebuildinfo.py \
+           --FCOMP "$(COMP)" \
+           --FCOMP_version "$(FCOMP_VERSION)" \
+           --f90_compile_line "$(COMPILE.f90)" \
+           --f_compile_line "$(COMPILE.f)" \
+           --C_compile_line "$(COMPILE.c)" \
+           --link_line "$(LINK.f90)" \
+           --boxlib_home "$(BOXLIB_HOME)" \
+           --source_home "$(VARDEN_TOP_DIR)" \
+	@echo " "
+
+$(odir)/build_info.o: build_info.f90
+	$(COMPILE.f90) $(OUTPUT_OPTION) build_info.f90
+	rm -f build_info.f90
+
+
 include $(BOXLIB_HOME)/Tools/F_mk/GMakerules.mak
 
 
@@ -73,5 +97,5 @@ print-%: ; @echo $* is $($*)
 # in handy
 clean:: 
 	$(RM) probin.f90 
-
+	$(RM) build_info.f90
 

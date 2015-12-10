@@ -94,3 +94,5 @@ cflfac                     real         0.8d0
 n_cellx                    integer      32
 n_celly                    integer      32
 n_cellz                    integer      32
+
+job_name                   character    ""

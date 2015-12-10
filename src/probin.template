@@ -14,6 +14,10 @@ module probin_module
 
   ! other data that is not runtime overridden
 
+  ! Keep track of the inputs file that was used to read in runtime
+  ! parameters.  This filename will be written into the job_info file.
+  character (len=128), save, public :: inputs_file_used = ""
+
   real(dp_t), save, public :: rho_bc(3,2)
   real(dp_t), save, public :: trac_bc(3,2)
   real(dp_t), save, public :: u_bc(3,2),v_bc(3,2),w_bc(3,2)
@@ -72,6 +76,7 @@ contains
        read(unit=un, nml = probin)
        close(unit=un)
        need_inputs = .false.
+       inputs_file_used = probin_env
     end if
 
     farg = 1
@@ -85,6 +90,7 @@ contains
           read(unit=un, nml = probin)
           close(unit=un)
           need_inputs = .false.
+          inputs_file_used = fname	
        end if
     end if
 
@@ -95,6 +101,7 @@ contains
        read(unit=un, nml = probin)
        close(unit=un)
        need_inputs = .false.
+       inputs_file_used = "inputs_varden"
     end if
 
     do while ( farg <= narg )
