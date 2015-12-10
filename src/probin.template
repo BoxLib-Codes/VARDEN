@@ -1,0 +1,227 @@
+! This module stores the runtime parameters.  The probin_init() routine is
+! used to initialize the runtime parameters
+
+module probin_module
+
+  use bl_types
+  use bl_space
+
+  implicit none
+
+  private
+
+  @@declarationsA@@
+
+  ! other data that is not runtime overridden
+
+  real(dp_t), save, public :: rho_bc(3,2)
+  real(dp_t), save, public :: trac_bc(3,2)
+  real(dp_t), save, public :: u_bc(3,2),v_bc(3,2),w_bc(3,2)
+
+  ! This will be allocated and defined below
+  logical   , public, allocatable, save :: nodal(:)
+  logical   , public, allocatable, save :: pmask(:)
+  real(dp_t), public, allocatable, save :: prob_hi(:)
+  real(dp_t), public, allocatable, save :: prob_lo(:)
+
+  integer, parameter, public :: MAX_ALLOWED_LEVS = 10
+
+  integer, save, public   :: extrap_comp                                                
+
+  @@namelist@@
+
+  public probin_init, probin_close
+
+contains
+
+  subroutine probin_init()
+
+    use f2kcli
+    use parallel
+    use bc_module
+    use bl_IO_module
+    use bl_prof_module
+    use bl_error_module
+    use bl_constants_module
+    use cluster_module
+    
+    integer    :: narg, farg
+
+    character(len=128) :: fname
+    character(len=128) :: probin_env
+
+    logical :: lexist
+    logical :: need_inputs
+
+    integer :: un, ierr
+
+    narg = command_argument_count()
+
+
+    rho_bc(:,:) = 0.d0
+    trac_bc(:,:) = 0.d0
+    u_bc(:,:) = 0.d0
+    v_bc(:,:) = 0.d0
+    w_bc(:,:) = 0.d0 
+
+
+    call get_environment_variable('PROBIN', probin_env, status = ierr)
+    if ( need_inputs .AND. ierr == 0 ) then
+       un = unit_new()
+       open(unit=un, file = probin_env, status = 'old', action = 'read')
+       read(unit=un, nml = probin)
+       close(unit=un)
+       need_inputs = .false.
+    end if
+
+    farg = 1
+    if ( need_inputs .AND. narg >= 1 ) then
+       call get_command_argument(farg, value = fname)
+       inquire(file = fname, exist = lexist )
+       if ( lexist ) then
+          farg = farg + 1
+          un = unit_new()
+          open(unit=un, file = fname, status = 'old', action = 'read')
+          read(unit=un, nml = probin)
+          close(unit=un)
+          need_inputs = .false.
+       end if
+    end if
+
+    inquire(file = 'inputs_varden', exist = lexist)
+    if ( need_inputs .AND. lexist ) then
+       un = unit_new()
+       open(unit=un, file = 'inputs_varden', status = 'old', action = 'read')
+       read(unit=un, nml = probin)
+       close(unit=un)
+       need_inputs = .false.
+    end if
+
+    do while ( farg <= narg )
+       call get_command_argument(farg, value = fname)
+       select case (fname)
+
+
+       @@commandline@@
+
+       case ('--')
+          farg = farg + 1
+          exit
+
+       case default
+          if ( parallel_IOProcessor() ) then
+             write(*,*) 'UNKNOWN option = ', fname
+          end if
+          call bl_error("Unknown option")
+       end select
+
+       farg = farg + 1
+    end do
+
+    allocate(nodal(dim_in))
+    nodal = .true.
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Need to specify regrid_int if max_levs > 1 and not 'fixed grids'
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if (max_levs > 1) then
+       if (fixed_grids == '' .and. regrid_int < 1) then
+          call bl_error('regrid_int must be specified if max_levs > 1')
+       else if (fixed_grids /= '' .and. regrid_int > 0) then
+          call bl_warn('Note: regrid_int will be ignored')
+       end if
+    end if
+
+ 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Make sure that the buffer width for tagging is atleast as big as
+    ! the regrid interval
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if (regrid_int > 0 .and. amr_buf_width < regrid_int) then
+       if (parallel_IOProcessor()) then
+          print *,"************************************************************************"
+          print *,"WARNING: regrid_int > 0 but amr_buf_width < regrid_int"
+          print *,"         setting amr_buf_width = regrid_int"
+          print *,"************************************************************************"
+       endif
+       amr_buf_width = regrid_int
+    endif
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize prob_lo and prob_hi
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    allocate(prob_lo(dim_in))
+    prob_lo(1) = prob_lo_x
+    if (dim_in > 1) prob_lo(2) = prob_lo_y
+    if (dim_in > 2) prob_lo(3) = prob_lo_z
+
+    allocate(prob_hi(dim_in))
+    prob_hi(1) = prob_hi_x
+    if (dim_in > 1) prob_hi(2) = prob_hi_y
+    if (dim_in > 2) prob_hi(3) = prob_hi_z
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize pmask
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    allocate(pmask(dim_in))
+    pmask = .FALSE.
+    if (bcx_lo .eq. PERIODIC .and. bcx_hi .eq. PERIODIC) then
+       pmask(1) = .TRUE.
+    end if
+    if (bcy_lo .eq. PERIODIC .and. bcy_hi .eq. PERIODIC) then
+       pmask(2) = .TRUE.
+    end if
+    if (dim_in .eq. 3 .and. bcz_lo .eq. PERIODIC .and. bcz_hi .eq. PERIODIC) then
+       pmask(3) = .TRUE.
+    end if
+
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialize min_eff
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    call cluster_set_min_eff(cluster_min_eff)
+    call cluster_set_blocking_factor(cluster_blocking_factor)
+    call cluster_set_minwidth(cluster_min_width)
+
+  end subroutine probin_init
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine probin_close()
+
+     deallocate(prob_hi)
+     deallocate(prob_lo)
+     deallocate(nodal)
+     deallocate(pmask)
+
+  end subroutine probin_close
+
+end module probin_module
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+module runtime_util_module
+  
+  implicit none
+
+contains
+
+  subroutine runtime_pretty_print(unit)
+
+    use bl_constants_module
+    use bc_module
+    use probin_module
+
+    integer, intent(in) :: unit
+
+    write (unit, *) "[*] indicates overridden default"
+
+    @@printing@@
+
+  end subroutine runtime_pretty_print
+
+end module runtime_util_module
+

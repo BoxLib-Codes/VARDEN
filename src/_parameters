@@ -1,0 +1,96 @@
+# This file contains the runtime parameters for all MAESTRO problems.  It         
+# is parsed by write_probin.py and merged with probin.template to produce         
+# the probin.f90 at compile time.                                                 
+#                                                                                 
+# problem-specific runtime parameters should be defined in a _parameters          
+# file in the problem directory.                                                  
+                                                                                  
+
+dim_in         integer          2
+nscal          integer          2
+
+prob_type      integer          1
+
+grav           real             0.d0
+boussinesq     integer          0
+
+max_step       integer          1
+stop_time      real             -1.d0
+
+ref_ratio      integer          2
+ng_cell        integer          3
+ng_grow        integer          1
+
+max_levs       integer          1
+nlevs          integer         -1
+
+max_grid_size  integer          256
+
+stencil_order  integer          2
+
+init_iter      integer          4
+plot_int       integer          0
+chk_int        integer          0
+regrid_int     integer         -1
+amr_buf_width  integer         -1
+
+cluster_min_eff            real         0.9d0
+cluster_min_width          integer      4
+cluster_blocking_factor    integer      4
+
+prob_lo_x                  real         0.0d0
+prob_lo_y                  real         0.0d0
+prob_lo_z                  real         0.0d0
+
+prob_hi_x                  real         1.0d0
+prob_hi_y                  real         1.0d0
+prob_hi_z                  real         1.0d0
+
+use_hypre                  integer      0
+
+verbose                    integer      0
+mg_verbose                 integer      0
+cg_verbose                 integer      0
+
+mg_bottom_solver           integer     -1
+hg_bottom_solver           integer     -1
+max_mg_bottom_nlevels      integer      1000
+
+init_shrink                real         1.0
+fixed_dt                   real        -1.0
+
+do_initial_projection      integer      1
+
+need_inputs                logical      .true.
+fixed_grids                character    ''
+grids_file_name            character    ''
+restart                    integer     -1
+  
+bcx_lo                     integer      14
+bcy_lo                     integer      14
+bcz_lo                     integer      14
+bcx_hi                     integer      14
+bcy_hi                     integer      14
+bcz_hi                     integer      14
+
+# 1 = Crank-Nicolson, 2 = Backward Euler
+diffusion_type             integer      1
+
+max_dt_growth              real         1.1d0
+
+slope_order                integer      4
+
+use_godunov_debug          logical      .false.
+use_minion                 logical      .false.
+
+plot_base_name             character    "plt"
+check_base_name            character    "chk"
+
+visc_coef                  real         0.0d0
+diff_coef                  real         0.0d0
+
+cflfac                     real         0.8d0
+
+n_cellx                    integer      32
+n_celly                    integer      32
+n_cellz                    integer      32
