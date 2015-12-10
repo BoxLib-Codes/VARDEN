@@ -1,0 +1,40 @@
+# latex intermediates
+*.aux
+*.log
+*.dvi
+*.toc
+*.bbl
+*.blg
+*.lof
+*.lot
+*.idx
+*.ilg
+*.ind
+
+
+# emacs temporaries
+*~
+\#*
+
+
+
+# Varden files created at compile-time
+probin.f90
+
+
+# executable
+main.*.exe
+gmon.out
+
+
+
+# build stuff
+t/
+
+
+# runtime files
+plt?????
+chk?????
+*plt?????
+*chk?????
+
