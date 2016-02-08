@@ -61,6 +61,8 @@ contains
        end do
     end do
 
+    print *, "about to do a restrict and fill", ng_h
+
     call ml_restrict_and_fill(nlevs, rhohalf, mla%mba%rr, the_bc_level, &
          icomp=out_comp, bcomp=dm+in_comp, nc=1, ng=ng_h)
 
