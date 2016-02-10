@@ -69,9 +69,22 @@ contains
 
     ! Local variables
     integer :: i,j,hi(2)
+    integer :: ngylo, ngyhi
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
+
+    if (bc(2,1) .eq. INTERIOR) then  ! y-lo direction
+       ngylo = ng
+    else
+       ngylo = 0  ! avoid corner ghost cells because we don't have good data in y-lo faces
+    end if
+
+    if (bc(2,2) .eq. INTERIOR) then  ! y-hi direction
+       ngyhi = ng
+    else
+       ngyhi = 0
+    end if
 
     if (bc(1,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = u_bc(1,1)
@@ -79,22 +92,22 @@ contains
        if (icomp.eq.3) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = rho_bc(1,1)
        if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = trac_bc(1,1)
     else if (bc(1,1) .eq. FOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           s(lo(1)-ng:lo(1)-1,j) = s(lo(1),j)
        end do
     else if (bc(1,1) .eq. HOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           s(lo(1)-ng:lo(1)-1,j) = EIGHTH* &
                (15.0_dp_t*s(lo(1),j) - 10.0_dp_t*s(lo(1)+1,j) + 3.0_dp_t*s(lo(1)+2,j))
        end do
     else if (bc(1,1) .eq. REFLECT_EVEN) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           do i = 1, ng
              s(lo(1)-i,j) = s(lo(1)+i-1,j)
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_ODD) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           do i = 1, ng
              s(lo(1)-i,j) = -s(lo(1)+i-1,j)
           end do
@@ -112,22 +125,22 @@ contains
        if (icomp.eq.3) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = rho_bc(1,2)
        if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = trac_bc(1,2)
     else if (bc(1,2) .eq. FOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           s(hi(1)+1:hi(1)+ng,j) = s(hi(1),j)
        end do
     else if (bc(1,2) .eq. HOEXTRAP) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           s(hi(1)+1:hi(1)+ng,j) = EIGHTH* &
                (15.0_dp_t * s(hi(1)  ,j) - 10.0_dp_t*s(hi(1)-1,j) + 3.0_dp_t*s(hi(1)-2,j))
        end do
     else if (bc(1,2) .eq. REFLECT_EVEN) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           do i = 1, ng
              s(hi(1)+i,j) = s(hi(1)-i+1,j)
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_ODD) then
-       do j = lo(2)-ng, hi(2)+ng
+       do j = lo(2)-ngylo, hi(2)+ngyhi
           do i = 1, ng
              s(hi(1)+i,j) = -s(hi(1)-i+1,j)
           end do
@@ -219,10 +232,35 @@ contains
 
     ! Local variables
     integer :: i,j,k,hi(3)
+    integer :: ngylo, ngyhi, ngzlo, ngzhi
 
     hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
     hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
     hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
+
+    if (bc(2,1) .eq. INTERIOR) then  ! y-lo direction
+       ngylo = ng
+    else
+       ngylo = 0  ! avoid corner ghost cells because we don't have good data in y-lo faces
+    end if
+
+    if (bc(2,2) .eq. INTERIOR) then  ! y-hi direction
+       ngyhi = ng
+    else
+       ngyhi = 0
+    end if
+
+    if (bc(3,1) .eq. INTERIOR) then  ! z-lo direction
+       ngzlo = ng
+    else
+       ngzlo = 0
+    end if
+
+    if (bc(3,2) .eq. INTERIOR) then  ! z-hi direction
+       ngzhi = ng
+    else
+       ngzhi = 0
+    end if
 
     if (bc(1,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(1,1)
@@ -231,14 +269,14 @@ contains
        if (icomp.eq.4) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = rho_bc(1,1)
        if (icomp.eq.5) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = trac_bc(1,1)
     else if (bc(1,1) .eq. FOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              s(lo(1)-ng:lo(1)-1,j,k) = s(lo(1),j,k)
           end do
        end do
     else if (bc(1,1) .eq. HOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              s(lo(1)-ng:lo(1)-1,j,k) = &
                   ( 15.0_dp_t * s(lo(1)  ,j,k) &
                   -10.0_dp_t * s(lo(1)+1,j,k) &
@@ -246,16 +284,16 @@ contains
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_EVEN) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              do i = 1,ng
                 s(lo(1)-i,j,k) = s(lo(1)+i-1,j,k)
              end do
           end do
        end do
     else if (bc(1,1) .eq. REFLECT_ODD) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              do i = 1,ng
                 s(lo(1)-i,j,k) = -s(lo(1)+i-1,j,k)
              end do
@@ -275,14 +313,14 @@ contains
        if (icomp.eq.4) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = rho_bc(1,2)
        if (icomp.eq.5) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = trac_bc(1,2)
     else if (bc(1,2) .eq. FOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              s(hi(1)+1:hi(1)+ng,j,k) = s(hi(1),j,k)
           end do
        end do
     else if (bc(1,2) .eq. HOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              s(hi(1)+1:hi(1)+ng,j,k) = &
                   ( 15.0_dp_t * s(hi(1)  ,j,k) &
                   -10.0_dp_t * s(hi(1)-1,j,k) &
@@ -290,16 +328,16 @@ contains
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_EVEN) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              do i = 1,ng
                 s(hi(1)+i,j,k) = s(hi(1)-i+1,j,k)
              end do
           end do
        end do
     else if (bc(1,2) .eq. REFLECT_ODD) then
-       do k = lo(3)-ng,hi(3)+ng
-          do j = lo(2)-ng,hi(2)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
+          do j = lo(2)-ngylo,hi(2)+ngyhi
              do i = 1,ng
                 s(hi(1)+i,j,k) = -s(hi(1)-i+1,j,k)
              end do
@@ -319,13 +357,13 @@ contains
        if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = rho_bc(2,1)
        if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = trac_bc(2,1)
     else if (bc(2,1) .eq. FOEXTRAP) then 
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              s(i,lo(2)-ng:lo(2)-1,k) = s(i,lo(2),k)
           end do
        end do
     else if (bc(2,1) .eq. HOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              s(i,lo(2)-ng:lo(2)-1,k) = &
                   ( 15.0_dp_t * s(i,lo(2)  ,k) &
@@ -334,7 +372,7 @@ contains
           end do
        end do
     else if (bc(2,1) .eq. REFLECT_EVEN) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,lo(2)-j,k) = s(i,lo(2)+j-1,k)
@@ -342,7 +380,7 @@ contains
           end do
        end do
     else if (bc(2,1) .eq. REFLECT_ODD) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,lo(2)-j,k) = -s(i,lo(2)+j-1,k)
@@ -363,13 +401,13 @@ contains
        if (icomp.eq.4) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = rho_bc(2,2)
        if (icomp.eq.5) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = trac_bc(2,2)
     else if (bc(2,2) .eq. FOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              s(i,hi(2)+1:hi(2)+ng,k) = s(i,hi(2),k)
           end do
        end do
     else if (bc(2,2) .eq. HOEXTRAP) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              s(i,hi(2)+1:hi(2)+ng,k) = &
                   ( 15.0_dp_t * s(i,hi(2)  ,k) &
@@ -378,7 +416,7 @@ contains
           end do
        end do
     else if (bc(2,2) .eq. REFLECT_EVEN) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,hi(2)+j,k) = s(i,hi(2)-j+1,k)
@@ -386,7 +424,7 @@ contains
           end do
        end do
     else if (bc(2,2) .eq. REFLECT_ODD) then
-       do k = lo(3)-ng,hi(3)+ng
+       do k = lo(3)-ngzlo,hi(3)+ngzhi
           do i = lo(1)-ng,hi(1)+ng
              do j = 1,ng
                 s(i,hi(2)+j,k) = -s(i,hi(2)-j+1,k)
