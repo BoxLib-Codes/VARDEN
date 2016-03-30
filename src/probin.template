@@ -68,6 +68,7 @@ contains
     v_bc(:,:) = 0.d0
     w_bc(:,:) = 0.d0 
 
+    need_inputs = .true.
 
     call get_environment_variable('PROBIN', probin_env, status = ierr)
     if ( need_inputs .AND. ierr == 0 ) then
