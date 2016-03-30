@@ -23,31 +23,35 @@ contains
     real(kind=dp_t), intent(in   ), optional :: time_in,dx_in(:),prob_lo_in(:),prob_hi_in(:)
 
     ! Local
-    integer                  :: lo(get_dim(s))
-    integer                  :: i,ng,dm,scomp,bccomp
+    integer                  :: lo(get_dim(s)),hi(get_dim(s)),dm
+    integer                  :: i,ng,scomp,bccomp
     real(kind=dp_t), pointer :: sp(:,:,:,:)
     
     type(bl_prof_timer), save :: bpt
-    
-    call build(bpt,"multifab_physbc")
+
+    dm = get_dim(s)
 
     ng = nghost(s)
-    dm = get_dim(s)
-    
+
+    if (ng == 0) return
+
+    call build(bpt,"multifab_physbc")
+
     do i=1,nfabs(s)
        sp => dataptr(s,i)
        lo = lwb(get_box(s,i))
+       hi = upb(get_box(s,i))
        select case (dm)
        case (2)
           do scomp = start_scomp,start_scomp+num_comp-1
              bccomp = start_bccomp + scomp - start_scomp
-             call physbc_2d(sp(:,:,1,scomp), lo, ng, &
+             call physbc_2d(sp(:,:,1,scomp), lo, hi, ng, &
                             the_bc_level%adv_bc_level_array(i,:,:,bccomp),bccomp)
           end do
        case (3)
           do scomp = start_scomp,start_scomp+num_comp-1
              bccomp = start_bccomp + scomp - start_scomp
-             call physbc_3d(sp(:,:,:,scomp), lo, ng, &
+             call physbc_3d(sp(:,:,:,scomp), lo, hi, ng, &
                             the_bc_level%adv_bc_level_array(i,:,:,bccomp),bccomp)
           end do
        end select
@@ -57,22 +61,22 @@ contains
 
   end subroutine multifab_physbc
 
-  subroutine physbc_2d(s,lo,ng,bc,icomp)
+  subroutine physbc_2d(s,lo,hi,ng,bc,icomp)
 
-    use bl_constants_module
     use bc_module
+    use bl_constants_module
 
-    integer        , intent(in   ) :: lo(:),ng
+    integer        , intent(in   ) :: lo(:),hi(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:,lo(2)-ng:)
     integer        , intent(in   ) :: bc(:,:)
     integer        , intent(in   ) :: icomp
 
     ! Local variables
-    integer :: i,j,hi(2)
+    integer :: i,j
 
-    hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-
+    !--------------------------------------------------------------------------
+    ! lower X
+    !--------------------------------------------------------------------------
     if (bc(1,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = u_bc(1,1)
        if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng) = v_bc(1,1)
@@ -106,6 +110,9 @@ contains
        call bl_error('BC(1,1) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! upper X
+    !--------------------------------------------------------------------------
     if (bc(1,2) .eq. EXT_DIR) then
        if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = u_bc(1,2)
        if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng) = v_bc(1,2)
@@ -139,6 +146,9 @@ contains
        call bl_error('BC(1,2) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! lower Y
+    !--------------------------------------------------------------------------
     if (bc(2,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = u_bc(2,1)
        if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1) = v_bc(2,1)
@@ -172,6 +182,9 @@ contains
        call bl_error('BC(2,1) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! upper Y
+    !--------------------------------------------------------------------------
     if (bc(2,2) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = u_bc(2,2)
        if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng) = v_bc(2,2)
@@ -207,23 +220,23 @@ contains
 
   end subroutine physbc_2d
 
-  subroutine physbc_3d(s,lo,ng,bc,icomp)
+  subroutine physbc_3d(s,lo,hi,ng,bc,icomp)
 
-    use bl_constants_module
     use bc_module
+    use bl_constants_module
 
-    integer        , intent(in   ) :: lo(:),ng
+    integer        , intent(in   ) :: lo(:),hi(:),ng
     real(kind=dp_t), intent(inout) :: s(lo(1)-ng:, lo(2)-ng:, lo(3)-ng:)
     integer        , intent(in   ) :: bc(:,:)
     integer        , intent(in   ) :: icomp
 
     ! Local variables
-    integer :: i,j,k,hi(3)
+    integer :: i,j,k
 
-    hi(1) = lo(1) + size(s,dim=1) - (2*ng+1)
-    hi(2) = lo(2) + size(s,dim=2) - (2*ng+1)
-    hi(3) = lo(3) + size(s,dim=3) - (2*ng+1)
 
+    !--------------------------------------------------------------------------
+    ! lower X
+    !--------------------------------------------------------------------------
     if (bc(1,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(1,1)
        if (icomp.eq.2) s(lo(1)-ng:lo(1)-1,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = v_bc(1,1)
@@ -268,6 +281,9 @@ contains
        call bl_error('BC(1,1) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! upper X
+    !--------------------------------------------------------------------------
     if (bc(1,2) .eq. EXT_DIR) then
        if (icomp.eq.1) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(1,2)
        if (icomp.eq.2) s(hi(1)+1:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:hi(3)+ng) = v_bc(1,2)
@@ -312,6 +328,9 @@ contains
        call bl_error('BC(1,2) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! lower Y
+    !--------------------------------------------------------------------------
     if (bc(2,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = u_bc(2,1)
        if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:lo(2)-1,lo(3)-ng:hi(3)+ng) = v_bc(2,1)
@@ -356,6 +375,9 @@ contains
        call bl_error('BC(2,1) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! upper Y
+    !--------------------------------------------------------------------------
     if (bc(2,2) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = u_bc(2,2)
        if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,hi(2)+1:hi(2)+ng,lo(3)-ng:hi(3)+ng) = v_bc(2,2)
@@ -400,6 +422,9 @@ contains
        call bl_error('BC(2,2) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! lower Z
+    !--------------------------------------------------------------------------
     if (bc(3,1) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = u_bc(3,1)
        if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,lo(3)-ng:lo(3)-1) = v_bc(3,1)
@@ -444,6 +469,9 @@ contains
        call bl_error('BC(3,1) = NOT YET SUPPORTED')
     end if
 
+    !--------------------------------------------------------------------------
+    ! upper Z
+    !--------------------------------------------------------------------------
     if (bc(3,2) .eq. EXT_DIR) then
        if (icomp.eq.1) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = u_bc(3,2)
        if (icomp.eq.2) s(lo(1)-ng:hi(1)+ng,lo(2)-ng:hi(2)+ng,hi(3)+1:hi(3)+ng) = v_bc(3,2)
