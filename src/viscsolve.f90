@@ -32,7 +32,7 @@ contains
     ! Local  
     type(multifab)  :: rh(mla%nlevel),phi(mla%nlevel)
     type(multifab)  :: alpha(mla%nlevel),beta(mla%nlevel,mla%dim)
-    type(bndry_reg) :: fine_flx(2:mla%nlevel)
+    type(bndry_reg) :: fine_flx(mla%nlevel)
     integer         :: n,d,nlevs,dm,bc_comp,ng_cell
     real(kind=dp_t) :: nrm1, nrm2, nrm3
     real(kind=dp_t) :: rel_solver_eps
@@ -81,7 +81,7 @@ contains
        end do
     endif
 
-    do n = 2,nlevs
+    do n = 1,nlevs
        call bndry_reg_build(fine_flx(n),mla%la(n),ml_layout_get_pd(mla,n))
     end do
 
@@ -137,7 +137,7 @@ contains
        end do
     end do
 
-    do n = 2,nlevs
+    do n = 1,nlevs
        call bndry_reg_destroy(fine_flx(n))
     end do
 
