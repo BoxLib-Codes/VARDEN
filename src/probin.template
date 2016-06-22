@@ -40,7 +40,6 @@ contains
 
   subroutine probin_init()
 
-    use f2kcli
     use parallel
     use bc_module
     use bl_IO_module

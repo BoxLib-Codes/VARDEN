@@ -1,7 +1,6 @@
 module advance_module 
 
   use BoxLib
-  use f2kcli
   use bl_constants_module
   use list_box_module
   use ml_boxarray_module
