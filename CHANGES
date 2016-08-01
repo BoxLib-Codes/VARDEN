@@ -5,3 +5,7 @@ July 2016 Release
 Remove f2kcli -- we can assume Fortran 2003 support
 
 Changed doc/ directory to Docs/
+
+August 2016 Release
+
+No changes
