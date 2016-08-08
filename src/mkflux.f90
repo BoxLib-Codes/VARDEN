@@ -424,7 +424,7 @@ contains
                       sly(is-1:ie+1,jc) = min(sry(is-1:ie+1,jc),ZERO)
                       sry(is-1:ie+1,jc) = min(sry(is-1:ie+1,jc),ZERO)
                    else
-                      sly(is-1:ie+1,jc) = sry(is-1:ie+1,js)
+                      sly(is-1:ie+1,jc) = sry(is-1:ie+1,jc)
                    end if
                 end if
              end if
