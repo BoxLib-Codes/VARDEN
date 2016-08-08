@@ -59,7 +59,15 @@ contains
     nodal = .true.
 
     if (parallel_IOProcessor() .and. verbose .ge. 1) then
-       print *,'PROJ_TYPE IN HGPROJECT:',proj_type
+       if (proj_type .eq. initial_projection) then
+          print *,'PROJ_TYPE IN HGPROJECT: initial_projection'
+       else if (proj_type .eq. divu_iters) then
+          print *,'PROJ_TYPE IN HGPROJECT: divu_iters'
+       else if (proj_type .eq. pressure_iters) then
+          print *,'PROJ_TYPE IN HGPROJECT: pressure_iters'
+       else if (proj_type .eq. regular_timestep) then
+          print *,'PROJ_TYPE IN HGPROJECT: regular_timestep'
+       end if
     endif
 
     do n = 1, nlevs
