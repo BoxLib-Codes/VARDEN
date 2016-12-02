@@ -2,10 +2,18 @@ Release notes.
 
 July 2016 Release
 
-Remove f2kcli -- we can assume Fortran 2003 support
+-Remove f2kcli -- we can assume Fortran 2003 support
 
-Changed doc/ directory to Docs/
+-Changed doc/ directory to Docs/
 
 August 2016 Release
 
-No changes
+-No changes
+
+December 2016 Release
+
+-fix indexing bug in sry in mkflux_2d
+
+-some proj_type verbosity to screen
+
+-add regression testing file
