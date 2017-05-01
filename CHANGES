@@ -17,3 +17,7 @@ December 2016 Release
 -some proj_type verbosity to screen
 
 -add regression testing file
+
+May 2017 Release
+
+-requires amrex now, not BoxLib
