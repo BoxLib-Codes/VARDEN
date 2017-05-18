@@ -138,8 +138,7 @@ contains
        do comp = 1, ncomp
           if(is_conservative(comp)) then
              do i = 1, dm
-                call ml_edge_restriction_c(flux(n-1,i),comp,flux(n,i),comp, &
-                                           mla%mba%rr(n-1,:),i,1)
+                call ml_edge_restriction_c(flux(n-1,i),comp,flux(n,i),comp,mla%mba%rr(n-1,:),i,1)
              enddo
           endif
        enddo
@@ -492,9 +491,9 @@ contains
                    sedgery(i) = sedgery(i) + dt2*force(i,j  ,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                ! in slx and srx; otherwise, we account for it here
-                if(.not.(use_minion .and. is_conservative(comp))) then
+                ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                if((.not. use_minion) .and. is_conservative(comp)) then
                    sedgely(i) = sedgely(i) - dt2*s(i,j-1,comp)*mac_rhs(i,j-1)
                    sedgery(i) = sedgery(i) - dt2*s(i,j  ,comp)*mac_rhs(i,j  )
                 endif
@@ -594,9 +593,9 @@ contains
                    sedgerx(i) = sedgerx(i) + dt2*force(i  ,j-1,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                ! in slx and srx; otherwise, we account for it here
-                if(.not.(use_minion .and. is_conservative(comp))) then
+                ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                if((.not. use_minion) .and. is_conservative(comp)) then
                    sedgelx(i) = sedgelx(i) - dt2*s(i-1,j-1,comp)*mac_rhs(i-1,j-1)
                    sedgerx(i) = sedgerx(i) - dt2*s(i  ,j-1,comp)*mac_rhs(i  ,j-1)
                 endif
@@ -999,9 +998,9 @@ contains
                 sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,comp)
              endif
 
-             ! if use_minion .and. is_conservative, we have already accounted for div(u)
-             ! in slx and srx; otherwise, we account for it here
-             if(.not.(use_minion .and. is_conservative(comp))) then
+             ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+             ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+             if((.not. use_minion) .and. is_conservative(comp)) then
                 sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,comp)*mac_rhs(i-1,j)
                 sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,comp)*mac_rhs(i  ,j)
              endif
@@ -1094,9 +1093,9 @@ contains
                 sedgery(i,j) = sedgery(i,j) + dt2*force(i,j  ,comp)
              endif
 
-             ! if use_minion .and. is_conservative, we have already accounted for div(u)
-             ! in sly and sry; otherwise, we account for it here
-             if(.not.(use_minion .and. is_conservative(comp))) then
+             ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+             ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+             if((.not. use_minion) .and. is_conservative(comp)) then
                 sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,comp)*mac_rhs(i,j-1)
                 sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,comp)*mac_rhs(i,j  )
              endif
@@ -1898,9 +1897,9 @@ contains
                       sedgerz(i,j) = sedgerz(i,j) + dt2*force(i,j,k  ,comp)
                    endif
 
-                   ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                   ! in slz and srz; otherwise, we account for it here
-                   if(.not.(use_minion .and. is_conservative(comp))) then
+                   ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                   ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                   if((.not. use_minion) .and. is_conservative(comp)) then
                       sedgelz(i,j) = sedgelz(i,j) - dt2*s(i,j,k-1,comp)*mac_rhs(i,j,k-1)
                       sedgerz(i,j) = sedgerz(i,j) - dt2*s(i,j,k  ,comp)*mac_rhs(i,j,k  )
                    endif
@@ -2338,9 +2337,9 @@ contains
                       sedgerx(i,j) = sedgerx(i,j) + dt2*force(i  ,j,k-1,comp)
                    endif
 
-                   ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                   ! in slx and srx; otherwise, we account for it here
-                   if(.not.(use_minion .and. is_conservative(comp))) then
+                   ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                   ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                   if((.not. use_minion) .and. is_conservative(comp)) then
                       sedgelx(i,j) = sedgelx(i,j) - dt2*s(i-1,j,k-1,comp)*mac_rhs(i-1,j,k-1)
                       sedgerx(i,j) = sedgerx(i,j) - dt2*s(i  ,j,k-1,comp)*mac_rhs(i  ,j,k-1)
                    endif
@@ -2442,9 +2441,9 @@ contains
                       sedgery(i,j) = sedgery(i,j) + dt2*force(i,j  ,k-1,comp)
                    endif
 
-                   ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                   ! in sly and sry; otherwise, we account for it here
-                   if(.not.(use_minion .and. is_conservative(comp))) then
+                   ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                   ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                   if((.not. use_minion) .and. is_conservative(comp)) then
                       sedgely(i,j) = sedgely(i,j) - dt2*s(i,j-1,k-1,comp)*mac_rhs(i,j-1,k-1)
                       sedgery(i,j) = sedgery(i,j) - dt2*s(i,j  ,k-1,comp)*mac_rhs(i,j  ,k-1)
                    endif
@@ -3562,9 +3561,9 @@ contains
                    sedgerx(i,j,k) = sedgerx(i,j,k) + dt2*force(i  ,j,k,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                ! in slx and srx; otherwise, we account for it here
-                if(.not.(use_minion .and. is_conservative(comp))) then
+                ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                if((.not. use_minion) .and. is_conservative(comp)) then
                    sedgelx(i,j,k) = sedgelx(i,j,k) - dt2*s(i-1,j,k,comp)*mac_rhs(i-1,j,k)
                    sedgerx(i,j,k) = sedgerx(i,j,k) - dt2*s(i  ,j,k,comp)*mac_rhs(i  ,j,k)
                 endif
@@ -3664,9 +3663,9 @@ contains
                    sedgery(i,j,k) = sedgery(i,j,k) + dt2*force(i,j  ,k,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                ! in sly and sry; otherwise, we account for it here
-                if(.not.(use_minion .and. is_conservative(comp))) then
+                ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                if((.not. use_minion) .and. is_conservative(comp)) then
                    sedgely(i,j,k) = sedgely(i,j,k) - dt2*s(i,j-1,k,comp)*mac_rhs(i,j-1,k)
                    sedgery(i,j,k) = sedgery(i,j,k) - dt2*s(i,j  ,k,comp)*mac_rhs(i,j  ,k)
                 endif
@@ -3766,9 +3765,9 @@ contains
                    sedgerz(i,j,k) = sedgerz(i,j,k) + dt2*force(i,j,k  ,comp)
                 endif
 
-                ! if use_minion .and. is_conservative, we have already accounted for div(u)
-                ! in slz and srz; otherwise, we account for it here
-                if(.not.(use_minion .and. is_conservative(comp))) then
+                ! if (use_minion .and. is_conservative), we accounted for s*div(u) above
+                ! if (.not. use_minion) .and. is_conservative, we need to account for s*div(u) here
+                if((.not. use_minion) .and. is_conservative(comp)) then
                    sedgelz(i,j,k) = sedgelz(i,j,k) - dt2*s(i,j,k-1,comp)*mac_rhs(i,j,k-1)
                    sedgerz(i,j,k) = sedgerz(i,j,k) - dt2*s(i,j,k  ,comp)*mac_rhs(i,j,k  )
                 endif
