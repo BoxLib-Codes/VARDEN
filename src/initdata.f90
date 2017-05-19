@@ -96,7 +96,7 @@ contains
           end select
        end do
 
-       if (prob_type .eq. 3) then
+       if (prob_type .eq. 3 .or. prob_type .eq. 4) then
           call multifab_fill_boundary(u(n))
           call multifab_fill_boundary(s(n))
 
@@ -109,7 +109,7 @@ contains
     if (prob_type .eq. 1 .or. prob_type .eq. 2) then
        call ml_restrict_and_fill(nlevs, u, mla%mba%rr, bc, bcomp=1)
        call ml_restrict_and_fill(nlevs, s, mla%mba%rr, bc, bcomp=dm+1)
-    else if (prob_type .eq. 3) then
+    else if (prob_type .eq. 3 .or. prob_type .eq. 4) then
        do n=nlevs,2,-1
           call ml_cc_restriction(u(n-1),u(n),mla%mba%rr(n-1,:))
           call ml_cc_restriction(s(n-1),s(n),mla%mba%rr(n-1,:))
@@ -212,6 +212,11 @@ contains
     real (kind = dp_t)  :: xblob = 0.5d0, yblob = 0.5d0, zblob = 0.5d0, densfact = 10.0d0
     real (kind = dp_t)  :: blobrad = 0.1d0
 
+
+    real(kind=dp_t)  :: hx, hy, hz, r_yz
+    real(kind=dp_t) :: eps_input, beta_input, rho_input
+    real(kind=dp_t) :: delta_input, kappa_input
+
     if (prob_type .eq. 1) then
        u = 0.d0
 
@@ -268,6 +273,37 @@ contains
           end do
        end do
        
+    else if (prob_type .eq. 4) then
+
+      eps_input=0.05d0
+      rho_input=0.15d0
+      beta_input=15.d0
+      delta_input=0.0333d0
+      kappa_input=500.d0
+      
+      hx = dx(1)
+      hy = dx(2)
+      hz = dx(3)
+
+      do k = lo(3), hi(3)
+         z = prob_lo(3) + hz*(float(k-lo(3)) + half) -half
+         do j = lo(2), hi(2)
+            y = prob_lo(2) + hy*(float(j-lo(2)) + half) -half
+            r_yz = sqrt(y*y+z*z)
+            do i = lo(1), hi(1)
+               x = prob_lo(1) + hx*(float(i-lo(1)) + half) -half
+
+               u(i,j,k,1) = tanh( (rho_input - r_yz) / delta_input)
+               u(i,j,k,2) = zero
+
+               u(i,j,k,3) = eps_input * exp(-beta_input * (x*x + y*y) )
+
+               s(i,j,k,1) = one
+               s(i,j,k,2) = exp( -kappa_input * (rho_input - r_yz)**2 )
+
+            end do
+         end do
+      end do
     else
        call bl_error('Unsupported prob_type')
     end if

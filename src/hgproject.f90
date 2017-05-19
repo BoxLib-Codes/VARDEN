@@ -24,7 +24,7 @@ contains
     use ml_restrict_fill_module
     use hg_multigrid_module        , only : hg_multigrid
     use hg_hypre_module            , only : hg_hypre
-    use probin_module              , only : verbose, use_hypre
+    use probin_module              , only : verbose, use_hypre, prob_type
     use stencil_types_module
 
     integer        , intent(in   ) :: proj_type
@@ -119,6 +119,12 @@ contains
     endif
 
     abs_solver_eps = -1.d0 
+
+    ! temporary fix for problems with initial velocity field that
+    ! is nonzero, but very very small (machine precision)
+    if (proj_type .eq. initial_projection .and. prob_type .eq. 4) then
+       abs_solver_eps = 1.d-12
+    end if
 
     if (use_hypre .eq. 1) then
        call hg_hypre(mla,rh,unew,rhohalf,phi,dx,the_bc_tower, &
