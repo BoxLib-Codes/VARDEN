@@ -28,7 +28,7 @@
 
  stop_time = 1000
  cflfac = 0.9
- init_shrink = 0.1
+ init_shrink = 1.0
 
  visc_coef = 0.001
  diff_coef = 0.0
