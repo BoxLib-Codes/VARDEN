@@ -21,3 +21,10 @@ December 2016 Release
 May 2017 Release
 
 -requires amrex now, not BoxLib
+
+June 2017 Release
+
+-fixed a bug regarding treatment of nonzero div(u) for users that extend this code
+ to low Mach number models
+
+-added a vortex tube test problem
