@@ -8,12 +8,12 @@ ifndef OK
   $(error your version of GNU make is too old.  You need atleast version $(NEED))
 endif
 
-ifeq ($(findstring ~, $(AMREX_HOME)), ~)
-   $(error you cannot include the ~ character in your AMREX_HOME variable)
+ifeq ($(findstring ~, $(FBOXLIB_HOME)), ~)
+   $(error you cannot include the ~ character in your FBOXLIB_HOME variable)
 endif
 
 # include the main Makefile stuff
-include $(AMREX_HOME)/Tools/F_mk/GMakedefs.mak
+include $(FBOXLIB_HOME)/Tools/F_mk/GMakedefs.mak
 
 # default target (make just takes the one that appears first)
 ALL: main.$(suf).exe
@@ -31,12 +31,12 @@ PROBIN_PARAMETER_DIRS = ./
 PROBIN_PARAMETER_DIRS += $(VARDEN_TOP_DIR)/src
 
 # list of all valid _parameters files for probin
-PROBIN_PARAMETERS := $(shell $(AMREX_HOME)/Tools/F_scripts/findparams.py $(PROBIN_PARAMETER_DIRS))
+PROBIN_PARAMETERS := $(shell $(FBOXLIB_HOME)/Tools/F_scripts/findparams.py $(PROBIN_PARAMETER_DIRS))
 
 probin.f90: $(PROBIN_PARAMETERS) $(PROBIN_TEMPLATE)
 	@echo " "
 	@echo "${bold}WRITING probin.f90${normal}"
-	$(AMREX_HOME)/Tools/F_scripts/write_probin.py \
+	$(FBOXLIB_HOME)/Tools/F_scripts/write_probin.py \
            -t $(PROBIN_TEMPLATE) -o probin.f90 -n probin \
            --pa "$(PROBIN_PARAMETERS)" 
 	@echo " "
@@ -46,11 +46,11 @@ probin.f90: $(PROBIN_PARAMETERS) $(PROBIN_TEMPLATE)
 include $(VARDEN_TOP_DIR)/src/GPackage.mak
 VPATH_LOCATIONS += $(VARDEN_TOP_DIR)/src
 
-include $(AMREX_HOME)/Src/F_BaseLib/GPackage.mak
-VPATH_LOCATIONS += $(AMREX_HOME)/Src/F_BaseLib
+include $(FBOXLIB_HOME)/Src/BaseLib/GPackage.mak
+VPATH_LOCATIONS += $(FBOXLIB_HOME)/Src/BaseLib
 
-include $(AMREX_HOME)/Src/LinearSolvers/F_MG/GPackage.mak
-VPATH_LOCATIONS += $(AMREX_HOME)/Src/LinearSolvers/F_MG
+include $(FBOXLIB_HOME)/Src/MultiGrid/GPackage.mak
+VPATH_LOCATIONS += $(FBOXLIB_HOME)/Src/MultiGrid
 
 
 main.$(suf).exe: $(objects)
@@ -65,14 +65,14 @@ deppairs: build_info.f90
 build_info.f90: 
 	@echo " "
 	@echo "${bold}WRITING build_info.f90${normal}"
-	$(AMREX_HOME)/Tools/F_scripts/makebuildinfo.py \
+	$(FBOXLIB_HOME)/Tools/F_scripts/makebuildinfo.py \
            --FCOMP "$(COMP)" \
            --FCOMP_version "$(FCOMP_VERSION)" \
            --f90_compile_line "$(COMPILE.f90)" \
            --f_compile_line "$(COMPILE.f)" \
            --C_compile_line "$(COMPILE.c)" \
            --link_line "$(LINK.f90)" \
-           --amrex_home "$(AMREX_HOME)" \
+           --fboxlib_home "$(FBOXLIB_HOME)" \
            --source_home "$(VARDEN_TOP_DIR)"
 	@echo " "
 
@@ -81,7 +81,7 @@ $(odir)/build_info.o: build_info.f90
 	rm -f build_info.f90
 
 
-include $(AMREX_HOME)/Tools/F_mk/GMakerules.mak
+include $(FBOXLIB_HOME)/Tools/F_mk/GMakerules.mak
 
 
 #-----------------------------------------------------------------------------
