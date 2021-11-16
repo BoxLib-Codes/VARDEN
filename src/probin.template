@@ -3,7 +3,7 @@
 
 module probin_module
 
-  use bl_types
+  use amrex_fort_module, only: rt => amrex_real
   use bl_space
 
   implicit none
@@ -18,15 +18,15 @@ module probin_module
   ! parameters.  This filename will be written into the job_info file.
   character (len=128), save, public :: inputs_file_used = ""
 
-  real(dp_t), save, public :: rho_bc(3,2)
-  real(dp_t), save, public :: trac_bc(3,2)
-  real(dp_t), save, public :: u_bc(3,2),v_bc(3,2),w_bc(3,2)
+  real(rt), save, public :: rho_bc(3,2)
+  real(rt), save, public :: trac_bc(3,2)
+  real(rt), save, public :: u_bc(3,2),v_bc(3,2),w_bc(3,2)
 
   ! This will be allocated and defined below
   logical   , public, allocatable, save :: nodal(:)
   logical   , public, allocatable, save :: pmask(:)
-  real(dp_t), public, allocatable, save :: prob_hi(:)
-  real(dp_t), public, allocatable, save :: prob_lo(:)
+  real(rt), public, allocatable, save :: prob_hi(:)
+  real(rt), public, allocatable, save :: prob_lo(:)
 
   integer, parameter, public :: MAX_ALLOWED_LEVS = 10
 
@@ -223,6 +223,7 @@ contains
     use probin_module
 
     integer, intent(in) :: unit
+    logical :: ltest
 
     write (unit, *) "[*] indicates overridden default"
 
